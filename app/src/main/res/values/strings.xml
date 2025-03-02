@@ -6,6 +6,11 @@
     <string name="select_image_button">Выбрать изображение</string>
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
+    <string name="compression_quality_title">Уровень сжатия</string>
+    <string name="compression_quality_description">Выберите уровень сжатия (ниже = меньший размер, выше = лучшее качество)</string>
+    <string name="compression_quality_low">Низкое</string>
+    <string name="compression_quality_medium">Среднее</string>
+    <string name="compression_quality_high">Высокое</string>
     
     <!-- Уведомления -->
     <string name="notification_title">CompressPhotoFast</string>

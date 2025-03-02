@@ -17,6 +17,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
+import com.compressphotofast.ui.CompressionPreset
+import com.compressphotofast.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -147,6 +149,9 @@ class MainActivity : AppCompatActivity() {
                 setupBackgroundService()
             }
         }
+        
+        // Установка начального состояния для переключателей качества
+        setupCompressionQualityRadioButtons()
     }
 
     /**
@@ -241,6 +246,42 @@ class MainActivity : AppCompatActivity() {
         if (viewModel.isAutoCompressionEnabled()) {
             lifecycleScope.launch {
                 viewModel.startBackgroundService()
+            }
+        }
+    }
+
+    /**
+     * Настройка переключателей уровня сжатия
+     */
+    private fun setupCompressionQualityRadioButtons() {
+        val currentQuality = viewModel.getCompressionQuality()
+        
+        // Выбираем соответствующую радиокнопку
+        when (currentQuality) {
+            Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
+            Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
+            else -> binding.rbQualityMedium.isChecked = true
+        }
+        
+        // Устанавливаем обработчики событий
+        binding.rbQualityLow.setOnClickListener {
+            viewModel.setCompressionPreset(CompressionPreset.LOW)
+        }
+        
+        binding.rbQualityMedium.setOnClickListener {
+            viewModel.setCompressionPreset(CompressionPreset.MEDIUM)
+        }
+        
+        binding.rbQualityHigh.setOnClickListener {
+            viewModel.setCompressionPreset(CompressionPreset.HIGH)
+        }
+        
+        // Наблюдаем за изменениями качества сжатия
+        viewModel.compressionQuality.observe(this) { quality ->
+            when (quality) {
+                Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
+                Constants.COMPRESSION_QUALITY_MEDIUM -> binding.rbQualityMedium.isChecked = true
+                Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
             }
         }
     }

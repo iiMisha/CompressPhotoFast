@@ -66,6 +66,9 @@ class ImprovedBackgroundMonitoringService : Service() {
     private val currentSeriesIds = ConcurrentHashMap<Long, Long>() // id -> timestamp
     private val SERIES_TIMEOUT_MS = 60000L // 60 секунд для серии
     
+    // Уровень сжатия для обработки изображений
+    private var compressionQuality = Constants.DEFAULT_COMPRESSION_QUALITY
+    
     // Счетчики для диагностики
     private var processedCounter = AtomicInteger(0)
     private var skippedCounter = AtomicInteger(0)
@@ -130,7 +133,7 @@ class ImprovedBackgroundMonitoringService : Service() {
                 
                 // Периодически очищаем историю
                 if (now % (15 * 60 * 1000) < 1000) { // Примерно раз в 15 минут
-                    cleanupHistory()
+                    cleanupOldRecords()
                 }
                 
                 // Планируем следующее сканирование с интервалом в зависимости от режима
@@ -147,34 +150,34 @@ class ImprovedBackgroundMonitoringService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Timber.d("СЕРВИС: ImprovedBackgroundMonitoringService создан")
+        Timber.d("СЕРВИС: Создан фоновый сервис мониторинга")
         
-        // Инициализация хранилища
+        // Инициализация SharedPreferences для хранения информации об обработанных изображениях
         processedImagesPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         
-        // Загрузка ранее обработанных изображений
+        // Загружаем данные об обработанных изображениях
         loadProcessedImagesFromStorage()
         
-        // Запуск периодического сканирования с задержкой
-        handler.postDelayed(scanRunnable, SCAN_AFTER_START_DELAY_MS)
+        // Очистка устаревших записей
+        cleanupOldRecords()
+        
+        // Запускаем периодическое сканирование с небольшой задержкой
+        handler.postDelayed({
+            schedulePeriodicScanning()
+        }, SCAN_AFTER_START_DELAY_MS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.d("СЕРВИС: ImprovedBackgroundMonitoringService запущен")
-        
-        val notification = createNotification()
-        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, notification)
-        
-        // Запускаем немедленное первое сканирование с учетом времени простоя
-        executorService.execute {
-            // Расчет времени для охвата периода с момента последнего сканирования
-            val minutesToScan = calculateScanPeriod()
-            Timber.d("ЗАПУСК: Сканирование после запуска за последние $minutesToScan минут")
-            scanForNewImages(minutesToScan)
-            
-            // Сохраняем текущее время как время последнего сканирования
-            saveLastScanTime()
+        // Получаем уровень сжатия из Intent, если он передан
+        if (intent != null && intent.hasExtra("compression_quality")) {
+            compressionQuality = intent.getIntExtra("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
+            Timber.d("СЕРВИС: Получен уровень сжатия из Intent: $compressionQuality")
         }
+        
+        // Запускаем в режиме foreground service с уведомлением
+        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+        
+        Timber.d("СЕРВИС: Запущен фоновый сервис с уровнем сжатия: $compressionQuality")
         
         return START_STICKY
     }
@@ -423,10 +426,13 @@ class ImprovedBackgroundMonitoringService : Service() {
         currentlyProcessingIds[id] = now
         
         // 6. Запускаем задачу сжатия с политикой REPLACE
-        Timber.d("СЖАТИЕ: Запуск задачи для $name (ID=$id)")
+        Timber.d("СЖАТИЕ: Запуск задачи для $name (ID=$id) с качеством: $compressionQuality")
         
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-            .setInputData(workDataOf(Constants.WORK_INPUT_IMAGE_URI to contentUri.toString()))
+            .setInputData(workDataOf(
+                Constants.WORK_INPUT_IMAGE_URI to contentUri.toString(),
+                "compression_quality" to compressionQuality
+            ))
             .addTag(Constants.WORK_TAG_COMPRESSION)
             .build()
         
@@ -570,49 +576,92 @@ class ImprovedBackgroundMonitoringService : Service() {
     }
     
     /**
-     * Очистка устаревших записей в истории обработанных изображений
+     * Очистка устаревших записей
      */
-    private fun cleanupHistory() {
-        try {
-            val now = System.currentTimeMillis()
-            val lastCleanup = processedImagesPrefs.getLong(KEY_LAST_CLEANUP, 0)
-            
-            // Очищаем не чаще одного раза в день
-            if (now - lastCleanup < TimeUnit.DAYS.toMillis(1)) {
-                return
+    private fun cleanupOldRecords() {
+        val now = System.currentTimeMillis()
+        val lastCleanupTime = processedImagesPrefs.getLong(KEY_LAST_CLEANUP, 0)
+        
+        // Выполняем очистку не чаще раза в день
+        if (now - lastCleanupTime < TimeUnit.DAYS.toMillis(1)) {
+            return
+        }
+        
+        Timber.d("ОЧИСТКА: Запуск очистки устаревших записей")
+        
+        // Максимальное время хранения - 7 дней
+        val maxAgeMs = TimeUnit.DAYS.toMillis(IMAGE_HISTORY_RETENTION_DAYS.toLong())
+        var removedCount = 0
+        
+        // Очистка идентификаторов
+        val idsToRemove = mutableListOf<Long>()
+        for ((id, timestamp) in processedImageIds) {
+            if (now - timestamp > maxAgeMs) {
+                idsToRemove.add(id)
+                removedCount++
             }
-            
-            val expiryTime = now - TimeUnit.DAYS.toMillis(IMAGE_HISTORY_RETENTION_DAYS.toLong())
-            var removedIds = 0
-            var removedNames = 0
-            
-            // Очистка устаревших ID
-            val idsToRemove = processedImageIds.entries
-                .filter { it.value < expiryTime }
-                .map { it.key }
-            
-            idsToRemove.forEach { id ->
-                processedImageIds.remove(id)
-                removedIds++
+        }
+        
+        idsToRemove.forEach { processedImageIds.remove(it) }
+        
+        // Очистка имен файлов
+        val namesToRemove = mutableListOf<String>()
+        for ((name, timestamp) in processedImageNames) {
+            if (now - timestamp > maxAgeMs) {
+                namesToRemove.add(name)
+                removedCount++
             }
-            
-            // Очистка устаревших имен файлов
-            val namesToRemove = processedImageNames.entries
-                .filter { it.value < expiryTime }
-                .map { it.key }
-            
-            namesToRemove.forEach { name ->
-                processedImageNames.remove(name)
-                removedNames++
+        }
+        
+        namesToRemove.forEach { processedImageNames.remove(it) }
+        
+        // Сохраняем время очистки
+        processedImagesPrefs.edit()
+            .putLong(KEY_LAST_CLEANUP, now)
+            .apply()
+        
+        Timber.d("ОЧИСТКА: Удалено $removedCount устаревших записей")
+        
+        // Сохраняем обновленный список обработанных изображений
+        saveProcessedImagesToStorage()
+    }
+
+    /**
+     * Планирование периодического сканирования
+     */
+    private fun schedulePeriodicScanning() {
+        // Проверяем, не запущено ли уже сканирование
+        if (isScanningActive.compareAndSet(false, true)) {
+            executorService.execute {
+                try {
+                    // Расчет периода сканирования на основе времени последнего сканирования
+                    val scanPeriodMinutes = calculateScanPeriod()
+                    Timber.d("СКАНИРОВАНИЕ: Запуск с периодом $scanPeriodMinutes минут")
+                    
+                    scanForNewImages(scanPeriodMinutes)
+                    
+                    // После завершения сканирования, запускаем следующее с обычным интервалом
+                    val nextScanDelayMs = if (seriesDetectionActive.get()) {
+                        SERIES_SCAN_INTERVAL_MS
+                    } else {
+                        NORMAL_SCAN_INTERVAL_MS
+                    }
+                    
+                    handler.postDelayed({
+                        isScanningActive.set(false)
+                        schedulePeriodicScanning()
+                    }, nextScanDelayMs)
+                    
+                } catch (e: Exception) {
+                    Timber.e(e, "ОШИБКА: Исключение при сканировании изображений")
+                    isScanningActive.set(false)
+                    
+                    // В случае ошибки, пробуем перезапустить сканирование через некоторое время
+                    handler.postDelayed({
+                        schedulePeriodicScanning()
+                    }, NORMAL_SCAN_INTERVAL_MS * 2)
+                }
             }
-            
-            if (removedIds > 0 || removedNames > 0) {
-                Timber.d("ОЧИСТКА: Удалено $removedIds устаревших ID и $removedNames имен файлов")
-                saveProcessedImagesToStorage()
-            }
-            
-        } catch (e: Exception) {
-            Timber.e(e, "ОШИБКА: При очистке истории обработанных изображений: ${e.message}")
         }
     }
 } 

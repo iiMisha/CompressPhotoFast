@@ -44,6 +44,15 @@ class MainViewModel @Inject constructor(
     // LiveData для результата сжатия
     private val _compressionResult = MutableLiveData<CompressionResult?>()
     val compressionResult: LiveData<CompressionResult?> = _compressionResult
+    
+    // LiveData для уровня сжатия
+    private val _compressionQuality = MutableLiveData<Int>()
+    val compressionQuality: LiveData<Int> = _compressionQuality
+    
+    init {
+        // Загрузить сохраненный уровень сжатия
+        _compressionQuality.value = getCompressionQuality()
+    }
 
     /**
      * Установка URI выбранного изображения
@@ -64,7 +73,10 @@ class MainViewModel @Inject constructor(
         
         // Запуск worker для сжатия изображения
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-            .setInputData(workDataOf(Constants.WORK_INPUT_IMAGE_URI to uri.toString()))
+            .setInputData(workDataOf(
+                Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                "compression_quality" to getCompressionQuality()
+            ))
             .build()
         
         workManager.enqueue(compressionWorkRequest)
@@ -107,6 +119,41 @@ class MainViewModel @Inject constructor(
         
         Timber.d("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
     }
+    
+    /**
+     * Получение текущего уровня сжатия
+     */
+    fun getCompressionQuality(): Int {
+        return sharedPreferences.getInt(
+            Constants.PREF_COMPRESSION_QUALITY, 
+            Constants.DEFAULT_COMPRESSION_QUALITY
+        )
+    }
+    
+    /**
+     * Установка уровня сжатия
+     */
+    fun setCompressionQuality(quality: Int) {
+        sharedPreferences.edit()
+            .putInt(Constants.PREF_COMPRESSION_QUALITY, quality)
+            .apply()
+        
+        _compressionQuality.value = quality
+        
+        Timber.d("Уровень сжатия установлен: $quality")
+    }
+    
+    /**
+     * Получение уровня сжатия по предустановке (низкий, средний, высокий)
+     */
+    fun setCompressionPreset(preset: CompressionPreset) {
+        val quality = when (preset) {
+            CompressionPreset.LOW -> Constants.COMPRESSION_QUALITY_LOW
+            CompressionPreset.MEDIUM -> Constants.COMPRESSION_QUALITY_MEDIUM
+            CompressionPreset.HIGH -> Constants.COMPRESSION_QUALITY_HIGH
+        }
+        setCompressionQuality(quality)
+    }
 
     /**
      * Запуск фонового сервиса
@@ -115,13 +162,16 @@ class MainViewModel @Inject constructor(
         if (isAutoCompressionEnabled()) {
             val intent = Intent(context, ImprovedBackgroundMonitoringService::class.java)
             
+            // Добавляем информацию о текущем уровне сжатия
+            intent.putExtra("compression_quality", getCompressionQuality())
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
             }
             
-            Timber.d("Запущен фоновый сервис")
+            Timber.d("Запущен фоновый сервис с уровнем сжатия: ${getCompressionQuality()}")
         }
     }
 }
@@ -132,4 +182,11 @@ class MainViewModel @Inject constructor(
 data class CompressionResult(
     val success: Boolean,
     val errorMessage: String? = null
-) 
+)
+
+/**
+ * Предустановки уровня сжатия
+ */
+enum class CompressionPreset {
+    LOW, MEDIUM, HIGH
+} 

@@ -10,12 +10,16 @@ object Constants {
     
     // Настройки сжатия
     const val DEFAULT_COMPRESSION_QUALITY = 80
+    const val COMPRESSION_QUALITY_LOW = 50
+    const val COMPRESSION_QUALITY_MEDIUM = 75
+    const val COMPRESSION_QUALITY_HIGH = 90
     const val MAX_IMAGE_WIDTH = 1920
     const val MAX_IMAGE_HEIGHT = 1080
     
     // Ключи SharedPreferences
     const val PREF_FILE_NAME = "compress_photo_preferences"
     const val PREF_AUTO_COMPRESSION = "auto_compression_enabled"
+    const val PREF_COMPRESSION_QUALITY = "compression_quality"
     
     // Ключи WorkManager
     const val WORK_TAG_COMPRESSION = "image_compression_work"

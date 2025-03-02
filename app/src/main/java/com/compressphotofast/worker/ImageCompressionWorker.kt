@@ -150,9 +150,13 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Сжатие изображения с помощью библиотеки Compressor
      */
     private suspend fun compressImage(imageFile: File): File {
+        val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
+        
+        Timber.d("Сжатие изображения с качеством: $compressionQuality")
+        
         return Compressor.compress(context, imageFile) {
             resolution(Constants.MAX_IMAGE_WIDTH, Constants.MAX_IMAGE_HEIGHT)
-            quality(Constants.DEFAULT_COMPRESSION_QUALITY)
+            quality(compressionQuality)
             format(android.graphics.Bitmap.CompressFormat.JPEG)
             size(1024 * 1024) // Максимальный размер 1MB
         }
