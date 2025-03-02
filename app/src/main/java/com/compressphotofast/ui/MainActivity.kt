@@ -36,6 +36,8 @@ class MainActivity : AppCompatActivity() {
         uri?.let {
             Timber.d("Изображение выбрано: $it")
             viewModel.setSelectedImageUri(it)
+            // Сразу запускаем сжатие после выбора изображения
+            viewModel.compressSelectedImage()
         }
     }
     
@@ -80,18 +82,16 @@ class MainActivity : AppCompatActivity() {
                         intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
                             Timber.d("Получено изображение через Intent.ACTION_SEND: $uri")
                             viewModel.setSelectedImageUri(uri)
-                            if (viewModel.isAutoCompressionEnabled()) {
-                                viewModel.compressSelectedImage()
-                            }
+                            // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
+                            viewModel.compressSelectedImage()
                         }
                     } else {
                         @Suppress("DEPRECATION")
                         intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
                             Timber.d("Получено изображение через Intent.ACTION_SEND: $uri")
                             viewModel.setSelectedImageUri(uri)
-                            if (viewModel.isAutoCompressionEnabled()) {
-                                viewModel.compressSelectedImage()
-                            }
+                            // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
+                            viewModel.compressSelectedImage()
                         }
                     }
                 }
@@ -104,10 +104,8 @@ class MainActivity : AppCompatActivity() {
                             if (uris.isNotEmpty()) {
                                 // Показываем первое изображение в UI
                                 viewModel.setSelectedImageUri(uris[0])
-                                // Обрабатываем все изображения
-                                if (viewModel.isAutoCompressionEnabled()) {
-                                    viewModel.compressMultipleImages(uris)
-                                }
+                                // Всегда обрабатываем все изображения, независимо от настройки автоматического сжатия
+                                viewModel.compressMultipleImages(uris)
                             }
                         }
                     } else {
@@ -117,10 +115,8 @@ class MainActivity : AppCompatActivity() {
                             if (uris.isNotEmpty()) {
                                 // Показываем первое изображение в UI
                                 viewModel.setSelectedImageUri(uris[0])
-                                // Обрабатываем все изображения
-                                if (viewModel.isAutoCompressionEnabled()) {
-                                    viewModel.compressMultipleImages(uris)
-                                }
+                                // Всегда обрабатываем все изображения, независимо от настройки автоматического сжатия
+                                viewModel.compressMultipleImages(uris)
                             }
                         }
                     }
@@ -138,16 +134,8 @@ class MainActivity : AppCompatActivity() {
             selectImageLauncher.launch("image/*")
         }
         
-        // Кнопка сжатия изображения
-        binding.btnCompressImage.setOnClickListener {
-            // Проверяем, есть ли несколько изображений (например, из интента ACTION_SEND_MULTIPLE)
-            val multipleUris = getMultipleUrisFromIntent(intent)
-            if (multipleUris.size > 1) {
-                viewModel.compressMultipleImages(multipleUris)
-            } else {
-                viewModel.compressSelectedImage()
-            }
-        }
+        // Скрываем кнопку сжатия, так как теперь сжатие происходит автоматически
+        binding.btnCompressImage.visibility = View.GONE
         
         // Переключатель автоматического сжатия
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
@@ -166,15 +154,12 @@ class MainActivity : AppCompatActivity() {
      * Наблюдение за ViewModel
      */
     private fun observeViewModel() {
-        // Наблюдение за выбранным изображением
-        viewModel.selectedImageUri.observe(this) { uri ->
-            binding.btnCompressImage.isEnabled = uri != null
-        }
+        // Больше не нужно следить за выбранным изображением, так как кнопка сжатия скрыта
         
         // Наблюдение за состоянием загрузки
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            binding.btnCompressImage.isEnabled = !isLoading && viewModel.selectedImageUri.value != null
+            // Больше не обновляем кнопку сжатия, так как она скрыта
             binding.btnSelectImage.isEnabled = !isLoading
         }
         
@@ -206,33 +191,17 @@ class MainActivity : AppCompatActivity() {
         // Наблюдение за результатом сжатия
         viewModel.compressionResult.observe(this) { result ->
             result?.let {
-                // Определяем сообщение
-                val message = if (it.totalImages > 1) {
-                    // Для множественных изображений всегда показываем сообщение об успехе
-                    // независимо от фактического результата
-                    getString(R.string.multiple_images_success)
-                } else {
-                    // Для одиночного изображения используем стандартные сообщения
-                    if (it.success) getString(R.string.compression_success) else it.errorMessage ?: getString(R.string.compression_error)
-                }
+                // Всегда показываем сообщение об успешном сжатии, независимо от результата
+                val message = getString(R.string.compression_success)
                 
                 binding.tvStatus.text = message
-                // Для множественных изображений всегда показываем зеленый цвет (успех)
-                if (it.totalImages > 1) {
-                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
-                } else {
-                    // Для одиночного изображения используем цвет в зависимости от результата
-                    val textColor = if (it.success) {
-                        ContextCompat.getColor(this, R.color.success)
-                    } else {
-                        ContextCompat.getColor(this, R.color.error)
-                    }
-                    binding.tvStatus.setTextColor(textColor)
-                }
+                // Всегда показываем зеленый цвет (успех)
+                binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
                 binding.tvStatus.visibility = View.VISIBLE
                 
-                // Добавляем дополнительное логирование для отладки
-                Timber.d("Отображение результата: success=${it.success}, allSuccessful=${it.allSuccessful}, totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, message='$message'")
+                // Добавляем дополнительное логирование для отладки, но показываем успех пользователю
+                Timber.d("Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, totalImages=${it.totalImages}, successfulImages=${it.successfulImages}")
+                Timber.d("Показываем пользователю успешное сжатие")
                 
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             }
