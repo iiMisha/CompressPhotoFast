@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">CompressPhotoFast</string>
+    
+    <!-- Основной экран -->
+    <string name="compress_button">Сжать фото</string>
+    <string name="select_image_button">Выбрать изображение</string>
+    <string name="auto_compression_toggle">Автоматическое сжатие</string>
+    <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
+    
+    <!-- Уведомления -->
+    <string name="notification_title">CompressPhotoFast</string>
+    <string name="notification_background_service">Служба мониторинга фотографий</string>
+    <string name="notification_compressing">Сжатие фотографий…</string>
+    <string name="notification_compression_complete">Сжатие завершено</string>
+    <string name="notification_channel_id">compress_photo_channel</string>
+    <string name="notification_channel_name">Сжатие фотографий</string>
+    <string name="notification_channel_description">Уведомления о процессе сжатия фотографий</string>
+    
+    <!-- Сообщения -->
+    <string name="compression_success">Фото успешно сжато</string>
+    <string name="compression_error">Ошибка при сжатии фото</string>
+    <string name="no_images_selected">Не выбрано ни одного изображения</string>
+    <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
+    <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
+    
+    <!-- Диалоги -->
+    <string name="dialog_permission_title">Требуются разрешения</string>
+    <string name="dialog_permission_message">Для корректной работы приложения необходимы разрешения на доступ к фотографиям</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Отмена</string>
+</resources> 

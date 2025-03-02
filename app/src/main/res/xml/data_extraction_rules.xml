@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Сохраняем настройки приложения, но не сжатые изображения -->
+        <include domain="sharedpref" path="."/>
+        <exclude domain="external" path="Pictures/CompressPhotoFast"/>
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="."/>
+        <exclude domain="external" path="Pictures/CompressPhotoFast"/>
+    </device-transfer>
+</data-extraction-rules> 

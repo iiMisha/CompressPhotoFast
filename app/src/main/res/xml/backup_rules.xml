@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Сохраняем настройки приложения, но не сжатые изображения -->
+    <include domain="sharedpref" path="."/>
+    <exclude domain="external" path="Pictures/CompressPhotoFast"/>
+</full-backup-content> 
