@@ -28,6 +28,12 @@
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
     
+    <!-- Сообщения для нескольких изображений -->
+    <string name="multiple_images_progress">Обработано %1$d из %2$d изображений (%3$d%%)</string>
+    <string name="multiple_images_success">Все изображения успешно сжаты</string>
+    <string name="multiple_images_error">Не удалось обработать %1$d из %2$d изображений</string>
+    <string name="multiple_images_partial_success">Успешно сжато %1$d из %2$d изображений</string>
+    
     <!-- Диалоги -->
     <string name="dialog_permission_title">Требуются разрешения</string>
     <string name="dialog_permission_message">Для корректной работы приложения необходимы разрешения на доступ к фотографиям</string>

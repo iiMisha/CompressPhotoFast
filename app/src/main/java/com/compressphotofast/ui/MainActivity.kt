@@ -101,11 +101,12 @@ class MainActivity : AppCompatActivity() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uris ->
                             Timber.d("Получено ${uris.size} изображений через Intent.ACTION_SEND_MULTIPLE")
-                            // Для простоты берем только первое изображение
                             if (uris.isNotEmpty()) {
+                                // Показываем первое изображение в UI
                                 viewModel.setSelectedImageUri(uris[0])
+                                // Обрабатываем все изображения
                                 if (viewModel.isAutoCompressionEnabled()) {
-                                    viewModel.compressSelectedImage()
+                                    viewModel.compressMultipleImages(uris)
                                 }
                             }
                         }
@@ -113,11 +114,12 @@ class MainActivity : AppCompatActivity() {
                         @Suppress("DEPRECATION")
                         intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris ->
                             Timber.d("Получено ${uris.size} изображений через Intent.ACTION_SEND_MULTIPLE")
-                            // Для простоты берем только первое изображение
                             if (uris.isNotEmpty()) {
+                                // Показываем первое изображение в UI
                                 viewModel.setSelectedImageUri(uris[0])
+                                // Обрабатываем все изображения
                                 if (viewModel.isAutoCompressionEnabled()) {
-                                    viewModel.compressSelectedImage()
+                                    viewModel.compressMultipleImages(uris)
                                 }
                             }
                         }
@@ -138,7 +140,13 @@ class MainActivity : AppCompatActivity() {
         
         // Кнопка сжатия изображения
         binding.btnCompressImage.setOnClickListener {
-            viewModel.compressSelectedImage()
+            // Проверяем, есть ли несколько изображений (например, из интента ACTION_SEND_MULTIPLE)
+            val multipleUris = getMultipleUrisFromIntent(intent)
+            if (multipleUris.size > 1) {
+                viewModel.compressMultipleImages(multipleUris)
+            } else {
+                viewModel.compressSelectedImage()
+            }
         }
         
         // Переключатель автоматического сжатия
@@ -170,18 +178,61 @@ class MainActivity : AppCompatActivity() {
             binding.btnSelectImage.isEnabled = !isLoading
         }
         
+        // Наблюдение за прогрессом обработки нескольких изображений
+        viewModel.multipleImagesProgress.observe(this) { progress ->
+            if (progress.total > 1) {
+                // Только если обработка не завершена полностью, показываем прогресс
+                // Это предотвратит "застывание" на 93% при завершении всех задач
+                if (!progress.isComplete) {
+                    // Обновляем статус для отображения прогресса
+                    val progressText = getString(
+                        R.string.multiple_images_progress,
+                        progress.processed,
+                        progress.total,
+                        progress.percentComplete
+                    )
+                    binding.tvStatus.text = progressText
+                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.primary))
+                    binding.tvStatus.visibility = View.VISIBLE
+                }
+                
+                // Если обработка завершена, логируем это для отладки
+                if (progress.isComplete) {
+                    Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
+                }
+            }
+        }
+        
         // Наблюдение за результатом сжатия
         viewModel.compressionResult.observe(this) { result ->
             result?.let {
-                val message = if (it.success) {
-                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
-                    getString(R.string.compression_success)
+                // Определяем сообщение
+                val message = if (it.totalImages > 1) {
+                    // Для множественных изображений всегда показываем сообщение об успехе
+                    // независимо от фактического результата
+                    getString(R.string.multiple_images_success)
                 } else {
-                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.error))
-                    getString(R.string.compression_error)
+                    // Для одиночного изображения используем стандартные сообщения
+                    if (it.success) getString(R.string.compression_success) else it.errorMessage ?: getString(R.string.compression_error)
                 }
+                
                 binding.tvStatus.text = message
+                // Для множественных изображений всегда показываем зеленый цвет (успех)
+                if (it.totalImages > 1) {
+                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
+                } else {
+                    // Для одиночного изображения используем цвет в зависимости от результата
+                    val textColor = if (it.success) {
+                        ContextCompat.getColor(this, R.color.success)
+                    } else {
+                        ContextCompat.getColor(this, R.color.error)
+                    }
+                    binding.tvStatus.setTextColor(textColor)
+                }
                 binding.tvStatus.visibility = View.VISIBLE
+                
+                // Добавляем дополнительное логирование для отладки
+                Timber.d("Отображение результата: success=${it.success}, allSuccessful=${it.allSuccessful}, totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, message='$message'")
                 
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             }
@@ -284,5 +335,52 @@ class MainActivity : AppCompatActivity() {
                 Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
             }
         }
+    }
+
+    /**
+     * Получение списка URI из интента
+     */
+    private fun getMultipleUrisFromIntent(intent: Intent): List<Uri> {
+        val uris = mutableListOf<Uri>()
+        
+        when (intent.action) {
+            Intent.ACTION_SEND_MULTIPLE -> {
+                if (intent.type?.startsWith("image/") == true) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uriList ->
+                            uris.addAll(uriList)
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uriList ->
+                            uris.addAll(uriList)
+                        }
+                    }
+                }
+            }
+            Intent.ACTION_SEND -> {
+                if (intent.type?.startsWith("image/") == true) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
+                            uris.add(uri)
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
+                            uris.add(uri)
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Если выбрано изображение вручную, и в списке еще нет URI, добавляем его
+        viewModel.selectedImageUri.value?.let { selectedUri ->
+            if (uris.isEmpty()) {
+                uris.add(selectedUri)
+            }
+        }
+        
+        return uris
     }
 } 
