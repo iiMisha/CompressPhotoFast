@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -13,6 +14,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.service.BackgroundMonitoringService
+import com.compressphotofast.service.ImprovedBackgroundMonitoringService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -107,15 +109,19 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Запуск фонового сервиса для мониторинга новых изображений
+     * Запуск фонового сервиса
      */
-    fun startBackgroundService() {
-        viewModelScope.launch {
-            if (isAutoCompressionEnabled()) {
-                val serviceIntent = Intent(context, BackgroundMonitoringService::class.java)
-                ContextCompat.startForegroundService(context, serviceIntent)
-                Timber.d("Фоновый сервис запущен")
+    suspend fun startBackgroundService() {
+        if (isAutoCompressionEnabled()) {
+            val intent = Intent(context, ImprovedBackgroundMonitoringService::class.java)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
             }
+            
+            Timber.d("Запущен фоновый сервис")
         }
     }
 }

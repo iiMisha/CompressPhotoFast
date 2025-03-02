@@ -31,6 +31,7 @@ captures/
 .cxx/
 *.apk
 *.aab
+*.so
 output.json
 output-metadata.json
 
@@ -46,10 +47,12 @@ navEditor.xml
 *.keystore
 keystore.properties
 upload-keystore.jks
+secure-keys/
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 firebase_options.dart
+app/google-services.json
 
 # Android Profiling
 *.hprof
@@ -82,6 +85,7 @@ logs/
 
 # Android Studio Navigation editor temp files
 .navigation/
+.idea/navEditor.xml
 
 # Android Studio captures folder
 captures/
@@ -122,4 +126,28 @@ fabric.properties
 proguard/
 
 # Visual Studio Code
-.vscode/ 
+.vscode/
+
+# CMake
+cmake-build-*/
+.externalNativeBuild
+.cxx
+
+# Encryption / Signing
+*.p12
+*.pepk
+signing.properties
+
+# Code coverage
+jacoco.exec
+*.coverage
+coverage/
+coverage.ec
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal 

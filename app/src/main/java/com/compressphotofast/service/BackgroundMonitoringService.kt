@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
@@ -38,10 +39,28 @@ class BackgroundMonitoringService : Service() {
     private lateinit var contentObserver: ContentObserver
     private val executorService = Executors.newSingleThreadExecutor()
     
+    // Список последних обработанных URI для предотвращения повторной обработки
+    private val processedUris = mutableSetOf<String>()
+    private val maxProcessedUrisSize = 100 // Ограничиваем размер истории
+
+    // Handler для периодического сканирования
+    private val handler = Handler(Looper.getMainLooper())
+    private val scanRunnable = object : Runnable {
+        override fun run() {
+            Timber.d("Запуск периодического сканирования галереи")
+            scanForNewImages()
+            // Планируем следующее сканирование
+            handler.postDelayed(this, 60000) // Каждую минуту
+        }
+    }
+    
     override fun onCreate() {
         super.onCreate()
         
         setupContentObserver()
+        
+        // Запускаем периодическое сканирование для обеспечения обработки всех изображений
+        handler.post(scanRunnable)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -50,6 +69,9 @@ class BackgroundMonitoringService : Service() {
         startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, notification)
         
         Timber.d("Фоновый сервис запущен")
+        
+        // Выполняем первоначальное сканирование при запуске сервиса
+        scanForNewImages()
         
         return START_STICKY
     }
@@ -62,6 +84,8 @@ class BackgroundMonitoringService : Service() {
         super.onDestroy()
         contentResolver.unregisterContentObserver(contentObserver)
         executorService.shutdown()
+        // Останавливаем периодическое сканирование
+        handler.removeCallbacks(scanRunnable)
         Timber.d("Фоновый сервис остановлен")
     }
     
@@ -93,8 +117,16 @@ class BackgroundMonitoringService : Service() {
                 super.onChange(selfChange, uri)
                 
                 uri?.let {
-                    // Проверяем, что это новое изображение
+                    Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri")
+                    
+                    // Проверяем, что это новое изображение с базовой фильтрацией
                     if (it.toString().contains("media") && it.toString().contains("image")) {
+                        // Проверяем, не обрабатывали ли мы уже этот URI
+                        if (processedUris.contains(it.toString())) {
+                            Timber.d("URI уже был обработан ранее: $uri")
+                            return
+                        }
+                        
                         executorService.execute {
                             processNewImage(it)
                         }
@@ -108,6 +140,64 @@ class BackgroundMonitoringService : Service() {
             true,
             contentObserver
         )
+        
+        Timber.d("ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI")
+    }
+    
+    /**
+     * Периодическое сканирование галереи для поиска новых изображений
+     */
+    private fun scanForNewImages() {
+        executorService.execute {
+            Timber.d("Начало сканирования галереи для поиска новых изображений")
+            
+            // Запрашиваем последние изображения из MediaStore
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.DISPLAY_NAME
+            )
+            
+            // Ищем фотографии, созданные за последние 5 минут
+            val selection = "${MediaStore.Images.Media.DATE_ADDED} > ?"
+            val currentTimeInSeconds = System.currentTimeMillis() / 1000
+            val fiveMinutesAgo = currentTimeInSeconds - (5 * 60) // 5 минут назад
+            val selectionArgs = arrayOf(fiveMinutesAgo.toString())
+            
+            // Сортируем по времени создания (сначала новые)
+            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            
+            contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                
+                Timber.d("Найдено ${cursor.count} изображений за последние 5 минут")
+                
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    val name = if (nameColumn != -1) cursor.getString(nameColumn) else "unknown"
+                    
+                    val contentUri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
+                    )
+                    
+                    Timber.d("Сканирование: найдено изображение $name с URI: $contentUri")
+                    
+                    // Проверяем, не обрабатывали ли мы уже этот URI
+                    if (!processedUris.contains(contentUri.toString())) {
+                        processNewImage(contentUri)
+                    } else {
+                        Timber.d("Изображение уже было обработано ранее: $contentUri")
+                    }
+                }
+            }
+        }
     }
     
     /**
@@ -115,6 +205,18 @@ class BackgroundMonitoringService : Service() {
      */
     private fun processNewImage(uri: Uri) {
         Timber.d("Обнаружено новое изображение: $uri")
+        
+        // Добавляем URI в список обработанных
+        synchronized(processedUris) {
+            processedUris.add(uri.toString())
+            // Если список слишком большой, удаляем старые записи
+            if (processedUris.size > maxProcessedUrisSize) {
+                processedUris.iterator().apply {
+                    next()
+                    remove()
+                }
+            }
+        }
         
         // Запросим информацию о файле для лучшего логирования
         val fileInfo = getFileInfo(uri)

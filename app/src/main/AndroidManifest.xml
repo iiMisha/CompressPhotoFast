@@ -46,11 +46,12 @@
             </intent-filter>
         </activity>
 
-        <!-- Сервис для фонового мониторинга -->
+        <!-- Фоновый сервис для мониторинга новых изображений -->
         <service
-            android:name=".service.BackgroundMonitoringService"
+            android:name=".service.ImprovedBackgroundMonitoringService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- Receiver для запуска при загрузке системы -->
         <receiver
