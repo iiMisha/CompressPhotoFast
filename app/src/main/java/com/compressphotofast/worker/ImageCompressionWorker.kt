@@ -246,7 +246,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         return Compressor.compress(context, imageFile) {
             quality(compressionQuality)
             format(android.graphics.Bitmap.CompressFormat.JPEG)
-            size(1024 * 1024) // Максимальный размер 1MB
         }
     }
 
