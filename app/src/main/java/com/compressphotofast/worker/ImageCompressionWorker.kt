@@ -27,6 +27,7 @@ import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -55,6 +56,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Сжимаем изображение
             val compressedFile = compressImage(tempFile)
+            
+            // Копируем EXIF данные из оригинального файла в сжатый
+            copyExifData(uri, compressedFile)
             
             // Сохраняем сжатое изображение
             val resultUri = saveCompressedImageToGallery(compressedFile, safeFileName)
@@ -87,6 +91,9 @@ class ImageCompressionWorker @AssistedInject constructor(
         compressionMarkers.forEach { marker ->
             nameWithoutExt = nameWithoutExt.replace(marker, "")
         }
+        
+        // Удаляем хеши и другие дополнительные части из имени файла
+        nameWithoutExt = nameWithoutExt.replace(Regex("-\\d+_[a-f0-9]{32}"), "")
         
         // Ограничиваем длину имени файла
         val maxBaseLength = 100 - extension.length - "_compressed".length - 1
@@ -308,6 +315,85 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сохранении сжатого изображения")
             null
+        }
+    }
+
+    /**
+     * Копирование EXIF данных из оригинального изображения в сжатое
+     */
+    private suspend fun copyExifData(sourceUri: Uri, destinationFile: File) = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                val sourceExif = ExifInterface(inputStream)
+                val destinationExif = ExifInterface(destinationFile.absolutePath)
+
+                // Копируем все доступные EXIF теги
+                val tags = arrayOf(
+                    ExifInterface.TAG_DATETIME,
+                    ExifInterface.TAG_DATETIME_DIGITIZED,
+                    ExifInterface.TAG_EXPOSURE_TIME,
+                    ExifInterface.TAG_FLASH,
+                    ExifInterface.TAG_FOCAL_LENGTH,
+                    ExifInterface.TAG_GPS_ALTITUDE,
+                    ExifInterface.TAG_GPS_ALTITUDE_REF,
+                    ExifInterface.TAG_GPS_DATESTAMP,
+                    ExifInterface.TAG_GPS_LATITUDE,
+                    ExifInterface.TAG_GPS_LATITUDE_REF,
+                    ExifInterface.TAG_GPS_LONGITUDE,
+                    ExifInterface.TAG_GPS_LONGITUDE_REF,
+                    ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                    ExifInterface.TAG_GPS_TIMESTAMP,
+                    ExifInterface.TAG_IMAGE_LENGTH,
+                    ExifInterface.TAG_IMAGE_WIDTH,
+                    ExifInterface.TAG_MAKE,
+                    ExifInterface.TAG_MODEL,
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.TAG_SUBSEC_TIME,
+                    ExifInterface.TAG_SUBSEC_TIME_DIGITIZED,
+                    ExifInterface.TAG_SUBSEC_TIME_ORIGINAL,
+                    ExifInterface.TAG_WHITE_BALANCE,
+                    ExifInterface.TAG_APERTURE_VALUE,
+                    ExifInterface.TAG_BRIGHTNESS_VALUE,
+                    ExifInterface.TAG_COLOR_SPACE,
+                    ExifInterface.TAG_CONTRAST,
+                    ExifInterface.TAG_DIGITAL_ZOOM_RATIO,
+                    ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+                    ExifInterface.TAG_EXPOSURE_INDEX,
+                    ExifInterface.TAG_EXPOSURE_MODE,
+                    ExifInterface.TAG_EXPOSURE_PROGRAM,
+                    ExifInterface.TAG_FLASH_ENERGY,
+                    ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
+                    ExifInterface.TAG_F_NUMBER,
+                    ExifInterface.TAG_GAIN_CONTROL,
+                    ExifInterface.TAG_ISO_SPEED_RATINGS,
+                    ExifInterface.TAG_LIGHT_SOURCE,
+                    ExifInterface.TAG_MAKER_NOTE,
+                    ExifInterface.TAG_MAX_APERTURE_VALUE,
+                    ExifInterface.TAG_METERING_MODE,
+                    ExifInterface.TAG_SATURATION,
+                    ExifInterface.TAG_SCENE_CAPTURE_TYPE,
+                    ExifInterface.TAG_SCENE_TYPE,
+                    ExifInterface.TAG_SENSING_METHOD,
+                    ExifInterface.TAG_SHARPNESS,
+                    ExifInterface.TAG_SHUTTER_SPEED_VALUE,
+                    ExifInterface.TAG_SOFTWARE,
+                    ExifInterface.TAG_SUBJECT_DISTANCE,
+                    ExifInterface.TAG_USER_COMMENT
+                )
+
+                for (tag in tags) {
+                    val value = sourceExif.getAttribute(tag)
+                    if (value != null) {
+                        destinationExif.setAttribute(tag, value)
+                    }
+                }
+
+                // Сохраняем EXIF данные
+                destinationExif.saveAttributes()
+                Timber.d("EXIF данные успешно скопированы")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при копировании EXIF данных")
         }
     }
 } 
