@@ -14,6 +14,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.ImageTrackingUtil
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
@@ -151,7 +152,7 @@ class ImageDetectionJobService : JobService() {
                     }
 
                     // Проверяем, не является ли файл уже сжатым
-                    if (isCompressedImage(displayName)) {
+                    if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
                         Timber.d("Пропуск уже сжатого файла: $displayName")
                         return false
                     }
@@ -190,6 +191,9 @@ class ImageDetectionJobService : JobService() {
             ExistingWorkPolicy.REPLACE,
             compressionWorkRequest
         ).enqueue()
+
+        // Отмечаем изображение как обработанное
+        ImageTrackingUtil.markImageAsProcessed(applicationContext, uri)
     }
 
     /**
