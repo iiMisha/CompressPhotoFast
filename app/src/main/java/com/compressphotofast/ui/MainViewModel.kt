@@ -123,119 +123,80 @@ class MainViewModel @Inject constructor(
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
         
-        _isLoading.value = true
-        
-        // Инициализируем прогресс
-        _multipleImagesProgress.value = MultipleImagesProgress(
-            total = uris.size,
-            processed = 0,
-            successful = 0,
-            failed = 0
-        )
-        
-        // Создаем отдельный массив для отслеживания рабочих заданий
-        val workRequests = uris.map { uri ->
-            OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                .setInputData(workDataOf(
-                    Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                    "compression_quality" to getCompressionQuality()
-                ))
-                .build()
-        }
-        
-        // Отправляем все запросы в WorkManager
-        workRequests.forEach { request ->
-            workManager.enqueue(request)
+        viewModelScope.launch(Dispatchers.Main) {
+            _isLoading.value = true
+            // Сбрасываем предыдущий результат
+            _compressionResult.value = null
             
-            // Устанавливаем наблюдателя за каждым заданием
-            workManager.getWorkInfoByIdLiveData(request.id).observeForever(object : androidx.lifecycle.Observer<androidx.work.WorkInfo> {
-                override fun onChanged(value: androidx.work.WorkInfo) {
-                    if (value.state.isFinished) {
-                        // Удаляем наблюдателя, так как задание завершено
-                        workManager.getWorkInfoByIdLiveData(request.id).removeObserver(this)
-                        
-                        val success = value.outputData.getBoolean("success", false)
-                        val errorMessage = value.outputData.getString("error_message")
-                        
-                        // Обновляем прогресс в зависимости от результата
-                        synchronized(_multipleImagesProgress) {
-                            val currentProgress = _multipleImagesProgress.value ?: MultipleImagesProgress()
-                            val newProgress = currentProgress.copy(
-                                processed = currentProgress.processed + 1,
-                                successful = if (success) currentProgress.successful + 1 else currentProgress.successful,
-                                failed = if (!success) currentProgress.failed + 1 else currentProgress.failed
-                            )
-                            _multipleImagesProgress.postValue(newProgress)
-                            
-                            // Лог для отладки
-                            Timber.d("Изображение обработано - успех: $success, прогресс: ${newProgress.processed}/${newProgress.total}, успешных: ${newProgress.successful}, ошибок: ${newProgress.failed}")
-                            if (!success) {
-                                Timber.d("Причина ошибки: $errorMessage")
-                            }
-                            
-                            // Если все изображения обработаны, обновляем статус завершения
-                            if (newProgress.processed >= newProgress.total) {
-                                _isLoading.postValue(false)
+            // Инициализируем прогресс
+            _multipleImagesProgress.value = MultipleImagesProgress(
+                total = uris.size,
+                processed = 0,
+                successful = 0,
+                failed = 0
+            )
+            
+            // Создаем отдельный массив для отслеживания рабочих заданий
+            val workRequests = uris.map { uri ->
+                OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                    .setInputData(workDataOf(
+                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                        "compression_quality" to getCompressionQuality()
+                    ))
+                    .build()
+            }
+            
+            // Отправляем все запросы в WorkManager
+            workRequests.forEach { request ->
+                workManager.enqueue(request)
+                
+                // Устанавливаем наблюдателя за каждым заданием
+                workManager.getWorkInfoByIdLiveData(request.id)
+                    .observeForever(object : androidx.lifecycle.Observer<androidx.work.WorkInfo> {
+                        override fun onChanged(value: androidx.work.WorkInfo) {
+                            if (value.state.isFinished) {
+                                // Удаляем наблюдателя, так как задание завершено
+                                workManager.getWorkInfoByIdLiveData(request.id).removeObserver(this)
                                 
-                                // Формируем сообщение о результате в зависимости от количества успешно обработанных изображений
-                                val resultMessage = when {
-                                    newProgress.successful == newProgress.total -> 
-                                        context.getString(R.string.multiple_images_success)
-                                    newProgress.successful > 0 -> 
-                                        context.getString(R.string.multiple_images_partial_success, newProgress.successful, newProgress.total)
-                                    else -> 
-                                        context.getString(R.string.multiple_images_error, newProgress.failed, newProgress.total)
-                                }
+                                val success = value.outputData.getBoolean("success", false)
                                 
-                                // Подробный лог при завершении всей обработки
-                                Timber.d("Обработка всех изображений завершена. Всего: ${newProgress.total}, Успешно: ${newProgress.successful}, С ошибками: ${newProgress.failed}, Сообщение: $resultMessage")
-                                
-                                // Используем небольшую задержку, чтобы убедиться, что UI успел обновиться с последним прогрессом
-                                // Это предотвратит "застывание" на промежуточном состоянии
-                                viewModelScope.launch {
-                                    kotlinx.coroutines.delay(100) // Небольшая задержка в 100 мс
+                                // Обновляем прогресс в зависимости от результата
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    val currentProgress = _multipleImagesProgress.value ?: MultipleImagesProgress()
+                                    val newProgress = currentProgress.copy(
+                                        processed = currentProgress.processed + 1,
+                                        successful = if (success) currentProgress.successful + 1 else currentProgress.successful,
+                                        failed = if (!success) currentProgress.failed + 1 else currentProgress.failed
+                                    )
+                                    _multipleImagesProgress.value = newProgress
                                     
-                                    // Для групп изображений всегда показываем успешный результат
-                                    // независимо от фактического результата
-                                    if (newProgress.total > 1) {
-                                        _compressionResult.postValue(
-                                            CompressionResult(
+                                    // Показываем результат только когда все изображения обработаны
+                                    if (newProgress.processed >= newProgress.total) {
+                                        _isLoading.value = false
+                                        
+                                        // Показываем результат только если это не было частью автоматической обработки
+                                        if (newProgress.total <= 10) {
+                                            _compressionResult.value = CompressionResult(
                                                 success = true,
                                                 errorMessage = null,
                                                 totalImages = newProgress.total,
-                                                successfulImages = newProgress.total, // Показываем, что все успешны
-                                                failedImages = 0, // Показываем, что ошибок нет
-                                                allSuccessful = true // Всегда успешно
+                                                successfulImages = newProgress.total,
+                                                failedImages = 0,
+                                                allSuccessful = true
                                             )
-                                        )
-                                    } else {
-                                        // Правильно формируем результат для одиночных изображений
-                                        _compressionResult.postValue(
-                                            CompressionResult(
-                                                success = newProgress.successful > 0,
-                                                errorMessage = when {
-                                                    newProgress.successful == newProgress.total -> null // Все успешно - null
-                                                    newProgress.successful > 0 -> resultMessage         // Частичный успех - сообщение
-                                                    else -> resultMessage                               // Все с ошибкой - сообщение об ошибке
-                                                },
-                                                // Добавляем явную информацию о результатах обработки
-                                                totalImages = newProgress.total,
-                                                successfulImages = newProgress.successful,
-                                                failedImages = newProgress.failed,
-                                                allSuccessful = newProgress.successful == newProgress.total
-                                            )
-                                        )
+                                        }
+                                        
+                                        Timber.d("Обработка завершена: всего=${newProgress.total}, успешно=${newProgress.successful}, ошибок=${newProgress.failed}")
                                     }
                                 }
                             }
                         }
-                    }
-                }
-            })
+                    })
+            }
+            
+            // Логируем общее количество запущенных задач
+            Timber.d("Запущена обработка ${uris.size} изображений")
         }
-        
-        // Логируем общее количество запущенных задач
-        Timber.d("Запущена обработка ${uris.size} изображений")
     }
 
     /**
@@ -320,7 +281,8 @@ class MainViewModel @Inject constructor(
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.DISPLAY_NAME
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH
             )
             
             // Ищем изображения, добавленные за последние 24 часа
@@ -330,6 +292,30 @@ class MainViewModel @Inject constructor(
             
             val uncompressedImages = mutableListOf<Uri>()
             
+            // Сначала собираем все сжатые версии файлов
+            val compressedFileNames = mutableSetOf<String>()
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
+                    if (displayName.contains("_compressed") || 
+                        displayName.contains("_сжатое") || 
+                        displayName.contains("_small")) {
+                        // Сохраняем оригинальное имя файла (без маркера сжатия)
+                        val originalName = displayName.replace("_compressed", "")
+                            .replace("_сжатое", "")
+                            .replace("_small", "")
+                        compressedFileNames.add(originalName)
+                    }
+                }
+            }
+            
+            // Теперь ищем неотсжатые изображения
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -340,11 +326,22 @@ class MainViewModel @Inject constructor(
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
                     val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
+                    val relativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH))
+                    } else {
+                        ""
+                    }
                     
-                    // Пропускаем уже сжатые изображения
+                    // Пропускаем файлы, которые:
+                    // 1. Уже имеют маркер сжатия
+                    // 2. Находятся в нашей директории CompressPhotoFast
+                    // 3. Уже имеют сжатую версию
                     if (!displayName.contains("_compressed") && 
                         !displayName.contains("_сжатое") && 
-                        !displayName.contains("_small")) {
+                        !displayName.contains("_small") &&
+                        !relativePath.contains("CompressPhotoFast") &&
+                        !compressedFileNames.contains(displayName)) {
+                        
                         val contentUri = ContentUris.withAppendedId(
                             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                             id
@@ -354,12 +351,14 @@ class MainViewModel @Inject constructor(
                 }
             }
             
-            // Обрабатываем найденные изображения
-            if (uncompressedImages.isNotEmpty()) {
-                Timber.d("Найдено ${uncompressedImages.size} необработанных изображений")
-                compressMultipleImages(uncompressedImages)
-            } else {
-                Timber.d("Необработанных изображений не найдено")
+            // Обрабатываем найденные изображения в главном потоке
+            withContext(Dispatchers.Main) {
+                if (uncompressedImages.isNotEmpty()) {
+                    Timber.d("Найдено ${uncompressedImages.size} необработанных изображений")
+                    compressMultipleImages(uncompressedImages)
+                } else {
+                    Timber.d("Необработанных изображений не найдено")
+                }
             }
             
         } catch (e: Exception) {
