@@ -1,10 +1,12 @@
 package com.compressphotofast.ui
 
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -19,7 +21,9 @@ import com.compressphotofast.util.Constants
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -106,7 +110,7 @@ class MainViewModel @Inject constructor(
                         )
                     )
                     
-                    // Логируем реальный результат для отладки
+                    // Логируем реальный результат сжатия для отладки
                     Timber.d("Реальный результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
                     Timber.d("Показываем пользователю: успешное сжатие")
                 }
@@ -249,6 +253,13 @@ class MainViewModel @Inject constructor(
             .putBoolean(Constants.PREF_AUTO_COMPRESSION, enabled)
             .apply()
         
+        if (enabled) {
+            // Запускаем проверку пропущенных изображений при включении
+            viewModelScope.launch {
+                processUncompressedImages()
+            }
+        }
+        
         Timber.d("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
     }
     
@@ -294,6 +305,65 @@ class MainViewModel @Inject constructor(
         if (isAutoCompressionEnabled()) {
             ImageDetectionJobService.scheduleJob(context)
             Timber.d("JobService запланирован")
+        }
+    }
+
+    /**
+     * Обработка пропущенных изображений
+     */
+    suspend fun processUncompressedImages() = withContext(Dispatchers.IO) {
+        try {
+            // Получаем все изображения, созданные за последние 24 часа
+            val currentTime = System.currentTimeMillis()
+            val oneDayAgo = currentTime - (24 * 60 * 60 * 1000) // 24 часа в миллисекундах
+            
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.DISPLAY_NAME
+            )
+            
+            // Ищем изображения, добавленные за последние 24 часа
+            val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
+            val selectionArgs = arrayOf((oneDayAgo / 1000).toString()) // DATE_ADDED хранится в секундах
+            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            
+            val uncompressedImages = mutableListOf<Uri>()
+            
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
+                    
+                    // Пропускаем уже сжатые изображения
+                    if (!displayName.contains("_compressed") && 
+                        !displayName.contains("_сжатое") && 
+                        !displayName.contains("_small")) {
+                        val contentUri = ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                            id
+                        )
+                        uncompressedImages.add(contentUri)
+                    }
+                }
+            }
+            
+            // Обрабатываем найденные изображения
+            if (uncompressedImages.isNotEmpty()) {
+                Timber.d("Найдено ${uncompressedImages.size} необработанных изображений")
+                compressMultipleImages(uncompressedImages)
+            } else {
+                Timber.d("Необработанных изображений не найдено")
+            }
+            
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при обработке пропущенных изображений")
         }
     }
 }

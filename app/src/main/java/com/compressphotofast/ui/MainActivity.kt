@@ -68,6 +68,13 @@ class MainActivity : AppCompatActivity() {
         
         // Запускаем JobService для отслеживания новых изображений
         ImageDetectionJobService.scheduleJob(this)
+        
+        // Проверяем пропущенные изображения при запуске
+        if (viewModel.isAutoCompressionEnabled()) {
+            lifecycleScope.launch {
+                viewModel.processUncompressedImages()
+            }
+        }
     }
     
     override fun onNewIntent(intent: Intent) {
