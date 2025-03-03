@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
+import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
             Timber.d("Все разрешения получены")
-            setupBackgroundService()
+            initializeBackgroundServices()
         } else {
             Timber.d("Не все разрешения получены")
             showPermissionExplanationDialog()
@@ -68,16 +69,6 @@ class MainActivity : AppCompatActivity() {
         observeViewModel()
         handleIntent(intent)
         checkPermissions()
-        
-        // Запускаем JobService для отслеживания новых изображений
-        ImageDetectionJobService.scheduleJob(this)
-        
-        // Проверяем пропущенные изображения при запуске
-        if (viewModel.isAutoCompressionEnabled()) {
-            lifecycleScope.launch {
-                viewModel.processUncompressedImages()
-            }
-        }
     }
     
     override fun onNewIntent(intent: Intent) {
@@ -256,7 +247,7 @@ class MainActivity : AppCompatActivity() {
             requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             // Все разрешения уже получены
-            setupBackgroundService()
+            initializeBackgroundServices()
         }
     }
 
@@ -277,9 +268,28 @@ class MainActivity : AppCompatActivity() {
      * Настройка фоновой службы
      */
     private fun setupBackgroundService() {
-        if (viewModel.isAutoCompressionEnabled()) {
+        val isEnabled = viewModel.isAutoCompressionEnabled()
+        Timber.d("setupBackgroundService: автоматическое сжатие ${if (isEnabled) "включено" else "выключено"}")
+        
+        if (isEnabled) {
             // Запускаем JobService для отслеживания новых изображений
             ImageDetectionJobService.scheduleJob(this)
+            Timber.d("setupBackgroundService: JobService запланирован")
+            
+            // Запускаем фоновый сервис
+            val serviceIntent = Intent(this, BackgroundMonitoringService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Timber.d("setupBackgroundService: запуск как foreground сервис (Android O+)")
+                startForegroundService(serviceIntent)
+            } else {
+                Timber.d("setupBackgroundService: запуск как обычный сервис")
+                startService(serviceIntent)
+            }
+            Timber.d("Фоновые сервисы запущены успешно")
+        } else {
+            // Останавливаем фоновый сервис при выключении автоматического сжатия
+            stopService(Intent(this, BackgroundMonitoringService::class.java))
+            Timber.d("Фоновые сервисы остановлены")
         }
     }
 
@@ -364,5 +374,26 @@ class MainActivity : AppCompatActivity() {
         }
         
         return uris
+    }
+
+    /**
+     * Инициализация фоновых сервисов после получения всех разрешений
+     */
+    private fun initializeBackgroundServices() {
+        val isEnabled = viewModel.isAutoCompressionEnabled()
+        Timber.d("initializeBackgroundServices: состояние автоматического сжатия: ${if (isEnabled) "включено" else "выключено"}")
+        
+        if (isEnabled) {
+            Timber.d("initializeBackgroundServices: запуск фоновых сервисов")
+            setupBackgroundService()
+            
+            // Проверяем пропущенные изображения при запуске
+            Timber.d("initializeBackgroundServices: запуск проверки пропущенных изображений")
+            lifecycleScope.launch {
+                viewModel.processUncompressedImages()
+            }
+        } else {
+            Timber.d("initializeBackgroundServices: автоматическое сжатие отключено, сервисы не запускаются")
+        }
     }
 } 

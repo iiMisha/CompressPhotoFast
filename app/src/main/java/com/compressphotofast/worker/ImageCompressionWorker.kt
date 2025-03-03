@@ -45,6 +45,12 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             val uri = Uri.parse(imageUri)
             
+            // Проверяем, не является ли файл временным
+            if (isFilePending(uri)) {
+                Timber.d("Файл все еще в процессе создания, пропускаем: $uri")
+                return@withContext Result.retry()
+            }
+            
             // Создаем временный файл из URI
             val tempFile = createTempFileFromUri(uri) ?: return@withContext Result.failure()
             
@@ -75,7 +81,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения")
-            Result.failure()
+            if (e.message?.contains("pending") == true) {
+                Timber.d("Файл временно недоступен, повторяем позже")
+                Result.retry()
+            } else {
+                Result.failure()
+            }
         }
     }
 
@@ -142,20 +153,85 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
+     * Проверка, является ли файл временным (pending)
+     */
+    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val isPendingIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
+                    return@withContext cursor.getInt(isPendingIndex) == 1
+                }
+            }
+            false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке статуса файла")
+            true // В случае ошибки считаем файл временным
+        }
+    }
+
+    /**
      * Создание временного файла из URI
      */
     private suspend fun createTempFileFromUri(uri: Uri): File? = withContext(Dispatchers.IO) {
         try {
+            // Проверяем размер файла перед копированием
+            val fileSize = getFileSize(uri)
+            if (fileSize <= 0) {
+                Timber.d("Файл пуст или недоступен: $uri")
+                return@withContext null
+            }
+
             val tempFile = File.createTempFile("temp_image", ".jpg", context.cacheDir)
             context.contentResolver.openInputStream(uri)?.use { input ->
                 tempFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
             }
+            
+            // Проверяем, что файл действительно был создан и имеет размер
+            if (!tempFile.exists() || tempFile.length() <= 0) {
+                Timber.d("Временный файл не создан или пуст")
+                tempFile.delete()
+                return@withContext null
+            }
+            
             tempFile
         } catch (e: IOException) {
             Timber.e(e, "Ошибка при создании временного файла")
             null
+        }
+    }
+
+    /**
+     * Получение размера файла
+     */
+    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                    return@withContext cursor.getLong(sizeIndex)
+                }
+            }
+            -1
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении размера файла")
+            -1
         }
     }
 

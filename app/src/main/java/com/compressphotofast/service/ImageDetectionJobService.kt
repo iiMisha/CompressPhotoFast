@@ -19,6 +19,8 @@ import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -37,7 +39,31 @@ class ImageDetectionJobService : JobService() {
          * Настройка и планирование задания для отслеживания новых изображений
          */
         fun scheduleJob(context: Context) {
+            Timber.d("ImageDetectionJobService: начало планирования задания")
+            
+            // Проверяем, включено ли автоматическое сжатие
+            val prefs = context.getSharedPreferences(
+                Constants.PREF_FILE_NAME,
+                Context.MODE_PRIVATE
+            )
+            val isAutoCompressionEnabled = prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+            Timber.d("ImageDetectionJobService: состояние автоматического сжатия: ${if (isAutoCompressionEnabled) "включено" else "выключено"}")
+            
+            if (!isAutoCompressionEnabled) {
+                Timber.d("ImageDetectionJobService: автоматическое сжатие отключено, отменяем планирование Job")
+                val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+                jobScheduler.cancel(JOB_ID)
+                return
+            }
+            
             val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            
+            // Проверяем, не запланировано ли уже задание
+            val existingJob = jobScheduler.allPendingJobs.find { it.id == JOB_ID }
+            if (existingJob != null) {
+                Timber.d("ImageDetectionJobService: задание уже запланировано, пропускаем")
+                return
+            }
             
             // Создаем триггер для отслеживания изменений в MediaStore
             val mediaStoreUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -45,6 +71,7 @@ class ImageDetectionJobService : JobService() {
                 mediaStoreUri,
                 JobInfo.TriggerContentUri.FLAG_NOTIFY_FOR_DESCENDANTS
             )
+            Timber.d("ImageDetectionJobService: создан триггер для MediaStore")
 
             // Настраиваем JobInfo
             val componentName = ComponentName(context, ImageDetectionJobService::class.java)
@@ -53,13 +80,14 @@ class ImageDetectionJobService : JobService() {
                 .setTriggerContentMaxDelay(OVERRIDE_DEADLINE_MILLIS)
                 .setTriggerContentUpdateDelay(MIN_LATENCY_MILLIS)
                 .build()
+            Timber.d("ImageDetectionJobService: создан JobInfo с параметрами: maxDelay=$OVERRIDE_DEADLINE_MILLIS, updateDelay=$MIN_LATENCY_MILLIS")
 
             // Планируем задание
             val result = jobScheduler.schedule(jobInfo)
             if (result == JobScheduler.RESULT_SUCCESS) {
-                Timber.d("Job успешно запланирован")
+                Timber.d("ImageDetectionJobService: задание успешно запланировано")
             } else {
-                Timber.e("Ошибка планирования job: $result")
+                Timber.e("ImageDetectionJobService: ошибка планирования задания: $result")
             }
         }
 
@@ -96,19 +124,58 @@ class ImageDetectionJobService : JobService() {
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        Timber.d("onStartJob: обнаружено изменение в MediaStore")
+        Timber.d("ImageDetectionJobService: onStartJob вызван")
+        
+        // Проверяем, включено ли автоматическое сжатие
+        val prefs = applicationContext.getSharedPreferences(
+            Constants.PREF_FILE_NAME,
+            Context.MODE_PRIVATE
+        )
+        val isAutoCompressionEnabled = prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+        Timber.d("ImageDetectionJobService: состояние автоматического сжатия: ${if (isAutoCompressionEnabled) "включено" else "выключено"}")
+        
+        if (!isAutoCompressionEnabled) {
+            Timber.d("ImageDetectionJobService: автоматическое сжатие отключено, завершаем Job")
+            jobFinished(params, false)
+            return false
+        }
 
         val triggerUris = params?.triggeredContentUris
+        Timber.d("ImageDetectionJobService: получено ${triggerUris?.size ?: 0} URI для обработки")
         
         if (!triggerUris.isNullOrEmpty()) {
-            triggerUris.forEach { uri ->
-                Timber.d("Обработка нового изображения: $uri")
+            kotlinx.coroutines.runBlocking {
+                var processedCount = 0
+                var skippedCount = 0
                 
-                if (shouldProcessImage(uri)) {
-                    processImage(uri)
-                } else {
-                    Timber.d("Изображение пропущено: уже сжато или некорректное")
+                triggerUris.forEach { uri ->
+                    Timber.d("ImageDetectionJobService: обработка URI: $uri")
+                    
+                    // Проверяем, является ли файл временным
+                    if (isFilePending(uri)) {
+                        Timber.d("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
+                        skippedCount++
+                        return@forEach
+                    }
+                    
+                    // Проверяем размер файла
+                    val fileSize = getFileSize(uri)
+                    if (fileSize <= 0) {
+                        Timber.d("ImageDetectionJobService: файл пуст или недоступен: $uri")
+                        skippedCount++
+                        return@forEach
+                    }
+                    
+                    if (shouldProcessImage(uri)) {
+                        processImage(uri)
+                        processedCount++
+                    } else {
+                        Timber.d("ImageDetectionJobService: URI пропущен: $uri")
+                        skippedCount++
+                    }
                 }
+                
+                Timber.d("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
             }
         }
 
@@ -116,6 +183,56 @@ class ImageDetectionJobService : JobService() {
         scheduleJob(applicationContext)
         jobFinished(params, false)
         return false
+    }
+
+    /**
+     * Проверяет, является ли файл временным (pending)
+     */
+    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
+            contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val isPendingIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
+                    return@withContext cursor.getInt(isPendingIndex) == 1
+                }
+            }
+            false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке статуса файла")
+            true // В случае ошибки считаем файл временным
+        }
+    }
+
+    /**
+     * Получение размера файла
+     */
+    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
+            contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                    return@withContext cursor.getLong(sizeIndex)
+                }
+            }
+            -1
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении размера файла")
+            -1
+        }
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
@@ -172,16 +289,22 @@ class ImageDetectionJobService : JobService() {
      * Запускает обработку изображения
      */
     private fun processImage(uri: Uri) {
+        Timber.d("ImageDetectionJobService: начало обработки изображения: $uri")
+        
         // Проверяем, включено ли автоматическое сжатие
         if (!isAutoCompressionEnabled(applicationContext)) {
-            Timber.d("Автоматическое сжатие отключено, пропускаем обработку")
+            Timber.d("ImageDetectionJobService: автоматическое сжатие отключено, пропускаем обработку")
             return
         }
+
+        // Получаем текущее качество сжатия
+        val quality = getCompressionQuality(applicationContext)
+        Timber.d("ImageDetectionJobService: текущее качество сжатия: $quality")
 
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
             .setInputData(workDataOf(
                 Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                "compression_quality" to getCompressionQuality(applicationContext)
+                "compression_quality" to quality
             ))
             .addTag(Constants.WORK_TAG_COMPRESSION)
             .build()
@@ -191,9 +314,11 @@ class ImageDetectionJobService : JobService() {
             ExistingWorkPolicy.REPLACE,
             compressionWorkRequest
         ).enqueue()
+        Timber.d("ImageDetectionJobService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
 
         // Отмечаем изображение как обработанное
         ImageTrackingUtil.markImageAsProcessed(applicationContext, uri)
+        Timber.d("ImageDetectionJobService: изображение отмечено как обработанное: $uri")
     }
 
     /**
