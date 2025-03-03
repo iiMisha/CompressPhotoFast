@@ -14,8 +14,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.R
-import com.compressphotofast.service.BackgroundMonitoringService
-import com.compressphotofast.service.ImprovedBackgroundMonitoringService
+import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -293,18 +292,8 @@ class MainViewModel @Inject constructor(
      */
     suspend fun startBackgroundService() {
         if (isAutoCompressionEnabled()) {
-            val intent = Intent(context, ImprovedBackgroundMonitoringService::class.java)
-            
-            // Добавляем информацию о текущем уровне сжатия
-            intent.putExtra("compression_quality", getCompressionQuality())
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-            
-            Timber.d("Запущен фоновый сервис с уровнем сжатия: ${getCompressionQuality()}")
+            ImageDetectionJobService.scheduleJob(context)
+            Timber.d("JobService запланирован")
         }
     }
 }

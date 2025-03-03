@@ -37,58 +37,64 @@ class ImageCompressionWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
-    override suspend fun doWork(): Result {
-        val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-            ?: return Result.failure(createFailureOutput("URI изображения не указан"))
-        
-        val imageUri = Uri.parse(imageUriString)
-        Timber.d("Начало обработки изображения в Worker: $imageUri")
-        
-        // Запросим информацию о файле для лучшего логирования
-        val fileInfo = getFileInfo(imageUri)
-        Timber.d("Информация о файле: $fileInfo")
-        
-        // Более тщательная проверка, не было ли изображение уже сжато
-        if (isImageAlreadyProcessed(imageUri)) {
-            Timber.d("Изображение уже обработано, пропускаем: $imageUri")
-            return Result.success()
-        }
-        
-        Timber.d("Изображение прошло проверки и будет сжато: $imageUri")
-        
-        // Показываем уведомление о процессе сжатия
-        setForeground(createForegroundInfo())
-        
-        return try {
-            // Получаем временный файл из URI
-            val tempFile = createTempFileFromUri(imageUri)
-                ?: return Result.failure(createFailureOutput("Не удалось создать временный файл"))
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        try {
+            val imageUri = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+                ?: return@withContext Result.failure()
+
+            val uri = Uri.parse(imageUri)
             
-            Timber.d("Создан временный файл: ${tempFile.absolutePath}, размер: ${tempFile.length()} байт")
+            // Создаем временный файл из URI
+            val tempFile = createTempFileFromUri(uri) ?: return@withContext Result.failure()
+            
+            // Получаем оригинальное имя файла
+            val originalFileName = getFileNameFromUri(uri) ?: return@withContext Result.failure()
+            
+            // Создаем безопасное имя файла
+            val safeFileName = getSafeFileName(originalFileName)
             
             // Сжимаем изображение
             val compressedFile = compressImage(tempFile)
             
-            Timber.d("Изображение сжато: ${compressedFile.absolutePath}, размер: ${compressedFile.length()} байт")
+            // Сохраняем сжатое изображение
+            val resultUri = saveCompressedImageToGallery(compressedFile, safeFileName)
             
-            // Сохраняем сжатое изображение в галерею
-            val compressedImageUri = FileUtil.saveCompressedImageToGallery(
-                context,
-                compressedFile,
-                imageUri
-            )
+            // Очищаем временные файлы
+            tempFile.delete()
+            compressedFile.delete()
             
-            if (compressedImageUri != null) {
-                Timber.d("Изображение успешно сжато и сохранено: $compressedImageUri")
+            if (resultUri != null) {
+                Timber.d("Изображение успешно сжато и сохранено: $resultUri")
                 Result.success()
             } else {
-                Timber.e("Не удалось сохранить сжатое изображение")
-                Result.failure(createFailureOutput("Не удалось сохранить сжатое изображение"))
+                Result.failure()
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
-            Result.failure(createFailureOutput("Ошибка при сжатии: ${e.message}"))
+            Timber.e(e, "Ошибка при сжатии изображения")
+            Result.failure()
         }
+    }
+
+    /**
+     * Получает безопасное имя файла с ограничением длины
+     */
+    private fun getSafeFileName(originalName: String): String {
+        val extension = originalName.substringAfterLast(".", "")
+        var nameWithoutExt = originalName.substringBeforeLast(".")
+        
+        // Удаляем все предыдущие маркеры сжатия
+        val compressionMarkers = listOf("_compressed", "_сжатое", "_small")
+        compressionMarkers.forEach { marker ->
+            nameWithoutExt = nameWithoutExt.replace(marker, "")
+        }
+        
+        // Ограничиваем длину имени файла
+        val maxBaseLength = 100 - extension.length - "_compressed".length - 1
+        if (nameWithoutExt.length > maxBaseLength) {
+            nameWithoutExt = nameWithoutExt.take(maxBaseLength)
+        }
+        
+        return "${nameWithoutExt}_compressed.$extension"
     }
 
     /**
@@ -262,5 +268,46 @@ class ImageCompressionWorker @AssistedInject constructor(
         
         // Файл прошел все проверки и должен быть сжат
         return@withContext false
+    }
+
+    /**
+     * Получение имени файла из URI
+     */
+    private suspend fun getFileNameFromUri(uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val displayNameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                    return@withContext cursor.getString(displayNameIndex)
+                }
+            }
+            // Если не удалось получить имя через MediaStore, пробуем получить из последнего сегмента URI
+            uri.lastPathSegment?.let { segment ->
+                if (segment.contains(".")) {
+                    return@withContext segment
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении имени файла из URI")
+            null
+        }
+    }
+
+    /**
+     * Сохранение сжатого изображения в галерею
+     */
+    private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String): Uri? = withContext(Dispatchers.IO) {
+        try {
+            FileUtil.saveCompressedImageToGallery(
+                context,
+                compressedFile,
+                fileName // Передаем имя файла как есть
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при сохранении сжатого изображения")
+            null
+        }
     }
 } 

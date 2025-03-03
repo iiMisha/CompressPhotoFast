@@ -42,85 +42,63 @@ object FileUtil {
     }
 
     /**
-     * Создание имени файла для сжатого изображения
-     */
-    fun createCompressedFileName(originalFileName: String): String {
-        val dotIndex = originalFileName.lastIndexOf(".")
-        return if (dotIndex != -1) {
-            val name = originalFileName.substring(0, dotIndex)
-            val extension = originalFileName.substring(dotIndex)
-            "$name${Constants.COMPRESSED_SUFFIX}$extension"
-        } else {
-            "${originalFileName}${Constants.COMPRESSED_SUFFIX}"
-        }
-    }
-
-    /**
-     * Проверка, было ли изображение уже сжато нашим приложением
+     * Проверяет, содержит ли URI маркеры сжатого изображения
      */
     fun isAlreadyCompressed(uri: Uri): Boolean {
-        val path = uri.toString()
-        // Проверяем наличие суффикса в пути или имени файла
-        val containsSuffix = path.contains(Constants.COMPRESSED_SUFFIX)
-        Timber.d("Проверка на наличие суффикса сжатия в URI: $uri, результат: $containsSuffix")
-        return containsSuffix
+        val path = uri.toString().lowercase()
+        return path.contains("_compressed") || 
+               path.contains("_сжатое") || 
+               path.contains("_small")
     }
 
     /**
-     * Сохранение сжатого изображения в галерею
+     * Создает имя файла для сжатой версии
      */
-    fun saveCompressedImageToGallery(
-        context: Context,
-        compressedImageFile: File,
-        originalImageUri: Uri
-    ): Uri? {
-        val contentResolver = context.contentResolver
-        val originalFileName = getFileName(contentResolver, originalImageUri)
-            ?: "compressed_image.jpg"
-        
-        val compressedFileName = createCompressedFileName(originalFileName)
-        
-        // Копирование EXIF данных из оригинального изображения
-        try {
-            copyExifData(contentResolver, originalImageUri, compressedImageFile)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при копировании EXIF данных")
-        }
-        
-        // Сохранение в MediaStore
-        val imageCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        } else {
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        }
-        
+    fun createCompressedFileName(originalName: String): String {
+        val extension = originalName.substringAfterLast(".", "")
+        val nameWithoutExt = originalName.substringBeforeLast(".")
+        return "${nameWithoutExt}_compressed.$extension"
+    }
+
+    /**
+     * Сохраняет сжатое изображение в галерею
+     */
+    fun saveCompressedImageToGallery(context: Context, compressedFile: File, fileName: String): Uri? {
         val contentValues = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, compressedFileName)
+            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY)
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CompressPhotoFast")
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
         }
-        
-        val compressedImageUri = contentResolver.insert(imageCollection, contentValues)
-        
-        compressedImageUri?.let { uri ->
-            contentResolver.openOutputStream(uri)?.use { outputStream ->
-                FileInputStream(compressedImageFile).use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
+
+        val contentResolver = context.contentResolver
+        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+        return try {
+            val imageUri = contentResolver.insert(collection, contentValues)
             
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                contentValues.clear()
-                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                contentResolver.update(uri, contentValues, null, null)
+            imageUri?.let { uri ->
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    FileInputStream(compressedFile).use { inputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    contentResolver.update(uri, contentValues, null, null)
+                }
+                
+                uri
             }
+        } catch (e: IOException) {
+            Timber.e(e, "Ошибка при сохранении сжатого изображения")
+            null
         }
-        
-        return compressedImageUri
     }
 
     /**

@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
+import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
 import dagger.hilt.android.AndroidEntryPoint
@@ -64,6 +65,9 @@ class MainActivity : AppCompatActivity() {
         observeViewModel()
         handleIntent(intent)
         checkPermissions()
+        
+        // Запускаем JobService для отслеживания новых изображений
+        ImageDetectionJobService.scheduleJob(this)
     }
     
     override fun onNewIntent(intent: Intent) {
@@ -264,9 +268,8 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupBackgroundService() {
         if (viewModel.isAutoCompressionEnabled()) {
-            lifecycleScope.launch {
-                viewModel.startBackgroundService()
-            }
+            // Запускаем JobService для отслеживания новых изображений
+            ImageDetectionJobService.scheduleJob(this)
         }
     }
 

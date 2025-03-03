@@ -46,13 +46,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Фоновый сервис для мониторинга новых изображений -->
-        <service
-            android:name=".service.ImprovedBackgroundMonitoringService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-
         <!-- Receiver для запуска при загрузке системы -->
         <receiver
             android:name=".service.BootCompletedReceiver"
@@ -75,5 +68,11 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+
+        <!-- JobService для отслеживания новых изображений -->
+        <service
+            android:name=".service.ImageDetectionJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
     </application>
 </manifest> 
