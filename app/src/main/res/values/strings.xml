@@ -3,7 +3,7 @@
     
     <!-- Основной экран -->
     <string name="compress_button">Сжать фото</string>
-    <string name="select_image_button">Выбрать изображение</string>
+    <string name="select_image_button">Выбрать изображения</string>
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
     <string name="compression_quality_title">Уровень сжатия</string>

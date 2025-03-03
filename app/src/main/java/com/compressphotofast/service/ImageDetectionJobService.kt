@@ -171,9 +171,16 @@ class ImageDetectionJobService : JobService() {
      * Запускает обработку изображения
      */
     private fun processImage(uri: Uri) {
+        // Проверяем, включено ли автоматическое сжатие
+        if (!isAutoCompressionEnabled(applicationContext)) {
+            Timber.d("Автоматическое сжатие отключено, пропускаем обработку")
+            return
+        }
+
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
             .setInputData(workDataOf(
-                Constants.WORK_INPUT_IMAGE_URI to uri.toString()
+                Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                "compression_quality" to getCompressionQuality(applicationContext)
             ))
             .addTag(Constants.WORK_TAG_COMPRESSION)
             .build()
@@ -183,5 +190,30 @@ class ImageDetectionJobService : JobService() {
             ExistingWorkPolicy.REPLACE,
             compressionWorkRequest
         ).enqueue()
+    }
+
+    /**
+     * Получение текущего уровня сжатия из SharedPreferences
+     */
+    private fun getCompressionQuality(context: Context): Int {
+        val sharedPreferences = context.getSharedPreferences(
+            Constants.PREF_FILE_NAME,
+            Context.MODE_PRIVATE
+        )
+        return sharedPreferences.getInt(
+            Constants.PREF_COMPRESSION_QUALITY,
+            Constants.DEFAULT_COMPRESSION_QUALITY
+        )
+    }
+
+    /**
+     * Проверка состояния автоматического сжатия
+     */
+    private fun isAutoCompressionEnabled(context: Context): Boolean {
+        val sharedPreferences = context.getSharedPreferences(
+            Constants.PREF_FILE_NAME,
+            Context.MODE_PRIVATE
+        )
+        return sharedPreferences.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
     }
 } 

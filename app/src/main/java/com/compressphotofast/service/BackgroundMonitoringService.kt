@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.ContentResolver
 import android.content.ContentUris
+import android.content.Context
 import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
@@ -64,6 +65,13 @@ class BackgroundMonitoringService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Проверяем, включено ли автоматическое сжатие
+        if (!isAutoCompressionEnabled()) {
+            Timber.d("Автоматическое сжатие отключено, останавливаем сервис")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         // Создание уведомления для foreground сервиса
         val notification = createNotification()
         startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, notification)
@@ -206,6 +214,12 @@ class BackgroundMonitoringService : Service() {
     private fun processNewImage(uri: Uri) {
         Timber.d("Обнаружено новое изображение: $uri")
         
+        // Проверяем, включено ли автоматическое сжатие
+        if (!isAutoCompressionEnabled()) {
+            Timber.d("Автоматическое сжатие отключено, пропускаем обработку")
+            return
+        }
+        
         // Добавляем URI в список обработанных
         synchronized(processedUris) {
             processedUris.add(uri.toString())
@@ -232,7 +246,10 @@ class BackgroundMonitoringService : Service() {
         
         // Запуск worker для сжатия изображения
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-            .setInputData(workDataOf(Constants.WORK_INPUT_IMAGE_URI to uri.toString()))
+            .setInputData(workDataOf(
+                Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                "compression_quality" to getCompressionQuality()
+            ))
             .addTag(Constants.WORK_TAG_COMPRESSION)
             .build()
         
@@ -323,5 +340,30 @@ class BackgroundMonitoringService : Service() {
         
         // Файл прошел все проверки и должен быть обработан
         return false
+    }
+
+    /**
+     * Получение текущего уровня сжатия из SharedPreferences
+     */
+    private fun getCompressionQuality(): Int {
+        val sharedPreferences = applicationContext.getSharedPreferences(
+            Constants.PREF_FILE_NAME,
+            Context.MODE_PRIVATE
+        )
+        return sharedPreferences.getInt(
+            Constants.PREF_COMPRESSION_QUALITY,
+            Constants.DEFAULT_COMPRESSION_QUALITY
+        )
+    }
+
+    /**
+     * Проверка состояния автоматического сжатия
+     */
+    private fun isAutoCompressionEnabled(): Boolean {
+        val sharedPreferences = applicationContext.getSharedPreferences(
+            Constants.PREF_FILE_NAME,
+            Context.MODE_PRIVATE
+        )
+        return sharedPreferences.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
     }
 } 

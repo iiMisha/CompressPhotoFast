@@ -32,13 +32,16 @@ class MainActivity : AppCompatActivity() {
     
     // Запуск выбора изображения
     private val selectImageLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            Timber.d("Изображение выбрано: $it")
-            viewModel.setSelectedImageUri(it)
-            // Сразу запускаем сжатие после выбора изображения
-            viewModel.compressSelectedImage()
+        ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri>? ->
+        uris?.let {
+            if (it.isNotEmpty()) {
+                Timber.d("Выбрано ${it.size} изображений")
+                // Показываем первое изображение в UI
+                viewModel.setSelectedImageUri(it[0])
+                // Запускаем сжатие всех выбранных изображений
+                viewModel.compressMultipleImages(it)
+            }
         }
     }
     
