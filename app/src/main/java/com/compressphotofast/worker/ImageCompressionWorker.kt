@@ -46,7 +46,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             Timber.e("URI изображения отсутствует")
             return@withContext Result.failure()
         }
-
+        
         val imageUri = Uri.parse(imageUriString)
         Timber.d("Обработка нового изображения: $imageUri")
 
@@ -81,8 +81,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Создаем имя для сжатого файла
                 val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
-                
-                // Сохраняем сжатое изображение в галерею
+            
+            // Сохраняем сжатое изображение в галерею
                 val savedUri = saveCompressedImageToGallery(
                     compressedFile = tempFile,
                     fileName = compressedFileName,
@@ -94,9 +94,9 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 if (savedUri != null) {
                     Timber.d("Изображение успешно сжато и сохранено. Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
-                    Result.success()
-                } else {
-                    Timber.e("Не удалось сохранить сжатое изображение")
+                Result.success()
+            } else {
+                Timber.e("Не удалось сохранить сжатое изображение")
                     Result.failure()
                 }
             } finally {
@@ -278,7 +278,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Сжимаем изображение
             Compressor.compress(applicationContext, inputFile) {
                 quality(quality)
-                format(android.graphics.Bitmap.CompressFormat.JPEG)
+            format(android.graphics.Bitmap.CompressFormat.JPEG)
             }.copyTo(outputFile, overwrite = true)
             
             // Удаляем временный входной файл
@@ -333,46 +333,24 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Проверка, было ли изображение уже обработано
      */
     private suspend fun isImageAlreadyProcessed(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        // Базовая проверка по суффиксу
-        if (FileUtil.isAlreadyCompressed(uri)) {
-            Timber.d("Файл содержит суффикс сжатия: $uri")
-            return@withContext true
-        }
-        
-        // Проверка, находится ли изображение в нашей директории
-        val path = uri.toString()
-        if (path.contains("/${Constants.APP_DIRECTORY}/")) {
-            Timber.d("Файл находится в директории приложения: $uri")
-            return@withContext true
-        }
-        
-        // Получаем имя файла
-        var fileName: String? = null
-        val cursor = context.contentResolver.query(
-            uri,
-            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-            null,
-            null,
-            null
-        )
-        
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                if (nameIndex != -1) {
-                    fileName = it.getString(nameIndex)
-                }
-            }
-        }
-        
-        // Проверяем, существует ли уже сжатая версия этого файла с таким же именем
-        if (fileName != null) {
-            Timber.d("Проверка существования сжатой версии для файла: $fileName")
+        try {
+            // Получаем имя файла
+            val fileName = getFileNameFromUri(uri) ?: return@withContext false
             
-            val compressedName = FileUtil.createCompressedFileName(fileName!!)
+            // Если файл уже имеет маркер сжатия, пропускаем его
+            if (fileName.contains("_compressed")) {
+                Timber.d("Файл содержит маркер сжатия: $fileName")
+            return@withContext true
+        }
+        
+            // Проверяем, существует ли уже сжатая версия этого файла
+            val baseFileName = fileName.substringBeforeLast(".")
+            val extension = fileName.substringAfterLast(".", "")
+            val compressedFileName = "${baseFileName}_compressed.$extension"
+            
             val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-            val selectionArgs = arrayOf(compressedName)
+            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+            val selectionArgs = arrayOf("$compressedFileName%") // Используем LIKE для поиска всех вариантов
             
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -380,18 +358,19 @@ class ImageCompressionWorker @AssistedInject constructor(
                 selection,
                 selectionArgs,
                 null
-            )?.use {
-                if (it.count > 0) {
+            )?.use { cursor ->
+                if (cursor.count > 0) {
                     Timber.d("Найдена существующая сжатая версия для $fileName")
                     return@withContext true
-                } else {
-                    Timber.d("Сжатая версия для $fileName не найдена")
                 }
             }
+            
+            // Файл прошел все проверки и должен быть сжат
+            false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке статуса файла")
+            false
         }
-        
-        // Файл прошел все проверки и должен быть сжат
-        return@withContext false
     }
 
     /**
@@ -424,10 +403,36 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Uri? = withContext(Dispatchers.IO) {
         try {
+            // Проверяем существование файла с таким именем
+            var finalFileName = fileName
+            var counter = 1
+            
+            while (true) {
+                val testFileName = if (counter == 1) finalFileName else {
+                    val baseName = finalFileName.substringBeforeLast(".")
+                    val ext = finalFileName.substringAfterLast(".", "")
+                    "${baseName}_$counter.$ext"
+                }
+                
+                val exists = context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Images.Media._ID),
+                    "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
+                    arrayOf(testFileName),
+                    null
+                )?.use { cursor -> cursor.count > 0 } ?: false
+
+                if (!exists) {
+                    finalFileName = testFileName
+                    break
+                }
+                counter++
+            }
+            
             FileUtil.saveCompressedImageToGallery(
                 context,
                 compressedFile,
-                fileName,
+                finalFileName,
                 originalUri
             )
         } catch (e: Exception) {
