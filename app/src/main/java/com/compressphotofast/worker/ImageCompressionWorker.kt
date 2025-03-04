@@ -39,54 +39,75 @@ class ImageCompressionWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        try {
-            val imageUri = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-                ?: return@withContext Result.failure()
+        val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+        val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
+        
+        if (imageUriString == null) {
+            Timber.e("URI изображения отсутствует")
+            return@withContext Result.failure()
+        }
 
-            val uri = Uri.parse(imageUri)
-            
-            // Проверяем, не является ли файл временным
-            if (isFilePending(uri)) {
-                Timber.d("Файл все еще в процессе создания, пропускаем: $uri")
-                return@withContext Result.retry()
+        val imageUri = Uri.parse(imageUriString)
+        Timber.d("Обработка нового изображения: $imageUri")
+
+        try {
+            // Получаем размер исходного файла
+            val originalSize = getFileSize(imageUri)
+            if (originalSize <= 0) {
+                Timber.e("Невозможно получить размер исходного файла")
+                return@withContext Result.failure()
             }
+
+            // Создаем временный файл для сжатого изображения
+            val tempFile = createTempImageFile()
             
-            // Создаем временный файл из URI
-            val tempFile = createTempFileFromUri(uri) ?: return@withContext Result.failure()
-            
-            // Получаем оригинальное имя файла
-            val originalFileName = getFileNameFromUri(uri) ?: return@withContext Result.failure()
-            
-            // Создаем безопасное имя файла
-            val safeFileName = getSafeFileName(originalFileName)
-            
-            // Сжимаем изображение
-            val compressedFile = compressImage(tempFile)
-            
-            // Копируем EXIF данные из оригинального файла в сжатый
-            copyExifData(uri, compressedFile)
-            
-            // Сохраняем сжатое изображение
-            val resultUri = saveCompressedImageToGallery(compressedFile, safeFileName)
-            
-            // Очищаем временные файлы
-            tempFile.delete()
-            compressedFile.delete()
-            
-            if (resultUri != null) {
-                Timber.d("Изображение успешно сжато и сохранено: $resultUri")
-                Result.success()
-            } else {
-                Result.failure()
+            try {
+                // Сжимаем изображение
+                compressImage(imageUri, tempFile, compressionQuality)
+                
+                // Проверяем размер сжатого файла
+                val compressedSize = tempFile.length()
+                val sizeReduction = ((originalSize - compressedSize).toFloat() / originalSize) * 100
+                
+                if (sizeReduction < 20) {
+                    Timber.d("Недостаточное сжатие (${String.format("%.1f", sizeReduction)}%), пропускаем файл")
+                    tempFile.delete()
+                    return@withContext Result.success()
+                }
+
+                // Получаем имя исходного файла
+                val originalFileName = FileUtil.getFileName(applicationContext.contentResolver, imageUri)
+                    ?: "image_${System.currentTimeMillis()}.jpg"
+                
+                // Создаем имя для сжатого файла
+                val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
+                
+                // Сохраняем сжатое изображение в галерею
+                val savedUri = FileUtil.saveCompressedImageToGallery(
+                    applicationContext,
+                    tempFile,
+                    compressedFileName
+                )
+
+                // Удаляем временный файл
+                tempFile.delete()
+
+                if (savedUri != null) {
+                    Timber.d("Изображение успешно сжато и сохранено. Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
+                    Result.success()
+                } else {
+                    Timber.e("Не удалось сохранить сжатое изображение")
+                    Result.failure()
+                }
+            } finally {
+                // Гарантируем удаление временного файла
+                if (tempFile.exists()) {
+                    tempFile.delete()
+                }
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения")
-            if (e.message?.contains("pending") == true) {
-                Timber.d("Файл временно недоступен, повторяем позже")
-                Result.retry()
-            } else {
-                Result.failure()
-            }
+            Result.failure()
         }
     }
 
@@ -236,16 +257,38 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Сжатие изображения с помощью библиотеки Compressor
+     * Создание временного файла
      */
-    private suspend fun compressImage(imageFile: File): File {
-        val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
-        
-        Timber.d("Сжатие изображения с качеством: $compressionQuality")
-        
-        return Compressor.compress(context, imageFile) {
-            quality(compressionQuality)
-            format(android.graphics.Bitmap.CompressFormat.JPEG)
+    private fun createTempImageFile(): File {
+        return File.createTempFile(
+            "temp_image_",
+            ".jpg",
+            applicationContext.cacheDir
+        )
+    }
+
+    /**
+     * Сжатие изображения
+     */
+    private suspend fun compressImage(uri: Uri, outputFile: File, quality: Int) {
+        try {
+            // Создаем временный файл из URI
+            val inputFile = createTempFileFromUri(uri) ?: throw IOException("Не удалось создать временный файл")
+            
+            // Сжимаем изображение
+            Compressor.compress(applicationContext, inputFile) {
+                quality(quality)
+                format(android.graphics.Bitmap.CompressFormat.JPEG)
+            }.copyTo(outputFile, overwrite = true)
+            
+            // Удаляем временный входной файл
+            inputFile.delete()
+            
+            // Копируем EXIF данные
+            copyExifData(uri, outputFile)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при сжатии изображения")
+            throw e
         }
     }
 

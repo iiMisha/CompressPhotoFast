@@ -167,7 +167,9 @@ class ImageDetectionJobService : JobService() {
                     }
                     
                     if (shouldProcessImage(uri)) {
-                        processImage(uri)
+                        withContext(Dispatchers.IO) {
+                            processImage(uri)
+                        }
                         processedCount++
                     } else {
                         Timber.d("ImageDetectionJobService: URI пропущен: $uri")
@@ -288,23 +290,28 @@ class ImageDetectionJobService : JobService() {
     /**
      * Запускает обработку изображения
      */
-    private fun processImage(uri: Uri) {
+    private suspend fun processImage(uri: Uri) = withContext(Dispatchers.IO) {
         Timber.d("ImageDetectionJobService: начало обработки изображения: $uri")
         
         // Проверяем, включено ли автоматическое сжатие
         if (!isAutoCompressionEnabled(applicationContext)) {
             Timber.d("ImageDetectionJobService: автоматическое сжатие отключено, пропускаем обработку")
-            return
+            return@withContext
         }
 
         // Получаем текущее качество сжатия
         val quality = getCompressionQuality(applicationContext)
         Timber.d("ImageDetectionJobService: текущее качество сжатия: $quality")
 
+        // Получаем размер исходного файла для логирования
+        val originalSize = getFileSize(uri)
+        Timber.d("ImageDetectionJobService: размер исходного файла: ${originalSize / 1024} KB")
+
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
             .setInputData(workDataOf(
                 Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                "compression_quality" to quality
+                "compression_quality" to quality,
+                "original_size" to originalSize
             ))
             .addTag(Constants.WORK_TAG_COMPRESSION)
             .build()
