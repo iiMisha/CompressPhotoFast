@@ -45,9 +45,15 @@ object ImageTrackingUtil {
                 return@withLock true
             }
 
-            // Проверяем наличие маркеров сжатия в имени файла
+            // Получаем имя файла
             val fileName = getFileNameFromUri(context, uri)
-            if (fileName != null && hasCompressionMarker(fileName)) {
+            if (fileName == null) {
+                Timber.e("Не удалось получить имя файла для URI: $uri")
+                return@withLock false
+            }
+
+            // Проверяем наличие маркеров сжатия в имени файла
+            if (hasCompressionMarker(fileName)) {
                 Timber.d("Файл содержит маркер сжатия: $fileName")
                 return@withLock true
             }
@@ -60,7 +66,7 @@ object ImageTrackingUtil {
             }
 
             // Проверяем наличие сжатой версии
-            if (fileName != null && hasCompressedVersion(context, fileName)) {
+            if (hasCompressedVersion(context, fileName)) {
                 Timber.d("Найдена существующая сжатая версия для $fileName")
                 return@withLock true
             }
@@ -71,8 +77,12 @@ object ImageTrackingUtil {
                 return@withLock true
             }
 
-            // Помечаем файл как находящийся в процессе обработки
+            // Если файл не обработан, помечаем его как находящийся в процессе обработки
             markFileAsProcessing(uriString)
+            
+            // Добавляем URI в список обработанных сразу, чтобы избежать параллельной обработки
+            addToProcessedList(context, uri)
+            
             return@withLock false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса файла")
@@ -81,40 +91,48 @@ object ImageTrackingUtil {
     }
 
     /**
-     * Добавляет URI в список обработанных и удаляет из списка обрабатываемых
+     * Добавляет URI в список обработанных
      */
-    suspend fun markImageAsProcessed(context: Context, uri: Uri) = mutex.withLock {
-        val uriString = uri.toString()
+    private fun addToProcessedList(context: Context, uri: Uri) {
         val prefs = context.getSharedPreferences(PREF_COMPRESSED_IMAGES, Context.MODE_PRIVATE)
         val processedImages = prefs.getStringSet("uris", mutableSetOf()) ?: mutableSetOf()
         
-        // Ограничиваем размер списка
-        val updatedImages = processedImages.toMutableSet()
-        if (updatedImages.size >= MAX_TRACKED_IMAGES) {
-            // Удаляем 20% старых записей
-            val removeCount = (MAX_TRACKED_IMAGES * 0.2).toInt()
-            updatedImages.take(removeCount).forEach { updatedImages.remove(it) }
+        // Создаем новый набор, так как SharedPreferences возвращает неизменяемый набор
+        val updatedImages = HashSet(processedImages)
+        
+        // Добавляем новый URI
+        updatedImages.add(uri.toString())
+        
+        // Если список слишком большой, удаляем старые записи
+        while (updatedImages.size > MAX_TRACKED_IMAGES) {
+            updatedImages.iterator().next()?.let { updatedImages.remove(it) }
         }
         
-        updatedImages.add(uriString)
-        
-        // Используем commit() вместо apply() для немедленного применения изменений
-        prefs.edit()
-            .putStringSet("uris", updatedImages)
-            .commit()
-            
-        // Удаляем файл из списка обрабатываемых
-        processingFiles.remove(uriString)
-            
-        Timber.d("URI добавлен в список обработанных: $uri")
+        // Сохраняем обновленный список
+        prefs.edit().putStringSet("uris", updatedImages).apply()
     }
 
     /**
-     * Очищает статус обработки для URI без добавления в список обработанных
+     * Проверяет, находится ли файл в процессе обработки
      */
-    suspend fun clearProcessingStatus(uri: Uri) = mutex.withLock {
-        processingFiles.remove(uri.toString())
-        Timber.d("Очищен статус обработки для URI: $uri")
+    private fun isFileProcessing(uriString: String): Boolean {
+        val timestamp = processingFiles[uriString] ?: return false
+        val now = System.currentTimeMillis()
+        
+        // Если прошло больше времени чем PROCESSING_TIMEOUT, считаем что обработка прервалась
+        if (now - timestamp > PROCESSING_TIMEOUT) {
+            processingFiles.remove(uriString)
+            return false
+        }
+        
+        return true
+    }
+
+    /**
+     * Помечает файл как находящийся в процессе обработки
+     */
+    private fun markFileAsProcessing(uriString: String) {
+        processingFiles[uriString] = System.currentTimeMillis()
     }
 
     /**
@@ -221,20 +239,27 @@ object ImageTrackingUtil {
         }
     }
 
-    private fun isFileProcessing(uriString: String): Boolean {
-        val timestamp = processingFiles[uriString] ?: return false
-        val currentTime = System.currentTimeMillis()
-        // Если прошло больше таймаута, считаем что обработка завершилась с ошибкой
-        return (currentTime - timestamp) < PROCESSING_TIMEOUT
+    /**
+     * Помечает изображение как обработанное
+     */
+    suspend fun markImageAsProcessed(context: Context, uri: Uri) = mutex.withLock {
+        val uriString = uri.toString()
+        
+        // Добавляем URI в список обработанных
+        addToProcessedList(context, uri)
+        
+        // Удаляем из списка обрабатываемых
+        processingFiles.remove(uriString)
+        
+        Timber.d("URI добавлен в список обработанных: $uri")
     }
 
-    private fun markFileAsProcessing(uriString: String) {
-        processingFiles[uriString] = System.currentTimeMillis()
-        cleanupProcessingFiles()
-    }
-
-    private fun cleanupProcessingFiles() {
-        val currentTime = System.currentTimeMillis()
-        processingFiles.entries.removeIf { (currentTime - it.value) > PROCESSING_TIMEOUT }
+    /**
+     * Очищает статус обработки для URI без добавления в список обработанных
+     */
+    suspend fun clearProcessingStatus(uri: Uri) = mutex.withLock {
+        val uriString = uri.toString()
+        processingFiles.remove(uriString)
+        Timber.d("Очищен статус обработки для URI: $uri")
     }
 } 

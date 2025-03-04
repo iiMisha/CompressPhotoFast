@@ -43,4 +43,17 @@ object Constants {
     
     // Интервалы
     const val BACKGROUND_SCAN_INTERVAL_MINUTES = 30L
+    
+    // Маркеры сжатых файлов
+    val COMPRESSION_MARKERS = listOf(
+        "_compressed",
+        "_сжатое",
+        "_small",
+        "_reduced"
+    )
+    
+    // Настройки отслеживания файлов
+    const val MAX_TRACKED_FILES = 1000
+    const val PROCESSING_TIMEOUT_MS = 5 * 60 * 1000L // 5 минут
+    const val PROCESSED_FILES_CLEANUP_INTERVAL = 24 * 60 * 60 * 1000L // 24 часа
 } 

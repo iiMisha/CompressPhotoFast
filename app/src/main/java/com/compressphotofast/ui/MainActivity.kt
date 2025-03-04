@@ -83,46 +83,37 @@ class MainActivity : AppCompatActivity() {
         when (intent.action) {
             Intent.ACTION_SEND -> {
                 if (intent.type?.startsWith("image/") == true) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
-                            Timber.d("Получено изображение через Intent.ACTION_SEND: $uri")
-                            viewModel.setSelectedImageUri(uri)
-                            // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
-                            viewModel.compressSelectedImage()
-                        }
+                    val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
                     } else {
                         @Suppress("DEPRECATION")
-                        intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
-                            Timber.d("Получено изображение через Intent.ACTION_SEND: $uri")
-                            viewModel.setSelectedImageUri(uri)
-                            // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
-                            viewModel.compressSelectedImage()
-                        }
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    }
+                    
+                    uri?.let {
+                        Timber.d("Получено изображение через Intent.ACTION_SEND: $it")
+                        viewModel.setSelectedImageUri(it)
+                        // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
+                        viewModel.compressSelectedImage()
                     }
                 }
             }
             Intent.ACTION_SEND_MULTIPLE -> {
                 if (intent.type?.startsWith("image/") == true) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uris ->
-                            Timber.d("Получено ${uris.size} изображений через Intent.ACTION_SEND_MULTIPLE")
-                            if (uris.isNotEmpty()) {
-                                // Показываем первое изображение в UI
-                                viewModel.setSelectedImageUri(uris[0])
-                                // Всегда обрабатываем все изображения, независимо от настройки автоматического сжатия
-                                viewModel.compressMultipleImages(uris)
-                            }
-                        }
+                    val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
                     } else {
                         @Suppress("DEPRECATION")
-                        intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris ->
-                            Timber.d("Получено ${uris.size} изображений через Intent.ACTION_SEND_MULTIPLE")
-                            if (uris.isNotEmpty()) {
-                                // Показываем первое изображение в UI
-                                viewModel.setSelectedImageUri(uris[0])
-                                // Всегда обрабатываем все изображения, независимо от настройки автоматического сжатия
-                                viewModel.compressMultipleImages(uris)
-                            }
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+                    }
+                    
+                    uris?.let {
+                        Timber.d("Получено ${it.size} изображений через Intent.ACTION_SEND_MULTIPLE")
+                        if (it.isNotEmpty()) {
+                            // Показываем первое изображение в UI
+                            viewModel.setSelectedImageUri(it[0])
+                            // Всегда обрабатываем все изображения, независимо от настройки автоматического сжатия
+                            viewModel.compressMultipleImages(it)
                         }
                     }
                 }
