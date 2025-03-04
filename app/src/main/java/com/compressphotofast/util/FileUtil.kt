@@ -43,7 +43,10 @@ object FileUtil {
 
     /**
      * Проверяет, содержит ли URI маркеры сжатого изображения
+     * @deprecated Используйте ImageTrackingUtil.isImageProcessed вместо этого метода
      */
+    @Deprecated("Используйте ImageTrackingUtil.isImageProcessed для проверки статуса сжатия", 
+                ReplaceWith("ImageTrackingUtil.isImageProcessed(context, uri)"))
     fun isAlreadyCompressed(uri: Uri): Boolean {
         val path = uri.toString().lowercase()
         return path.contains("_compressed") || 
@@ -61,117 +64,94 @@ object FileUtil {
     }
 
     /**
-     * Сохраняет сжатое изображение в ту же папку, где находится оригинал
+     * Сохраняет сжатое изображение в галерею
      */
-    fun saveCompressedImageToGallery(context: Context, compressedFile: File, fileName: String, originalUri: Uri): Uri? {
-        val contentResolver = context.contentResolver
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        }
+    suspend fun saveCompressedImageToGallery(
+        context: Context,
+        compressedFile: File,
+        fileName: String,
+        originalUri: Uri
+    ): Uri? {
+        try {
+            // Проверяем существование файла с таким именем
+            var finalFileName = fileName
+            var counter = 1
+            
+            while (true) {
+                val testFileName = if (counter == 1) finalFileName else {
+                    val baseName = finalFileName.substringBeforeLast(".")
+                    val ext = finalFileName.substringAfterLast(".", "")
+                    "${baseName}_$counter.$ext"
+                }
+                
+                val exists = context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Images.Media._ID),
+                    "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
+                    arrayOf(testFileName),
+                    null
+                )?.use { cursor -> cursor.count > 0 } ?: false
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Получаем путь к оригинальному файлу
-            val originalPath = getOriginalRelativePath(context, originalUri)
-            if (originalPath != null) {
-                contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, originalPath)
+                if (!exists) {
+                    finalFileName = testFileName
+                    break
+                }
+                counter++
             }
-            contentValues.put(MediaStore.Images.Media.IS_PENDING, 1)
-        }
 
-        return try {
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            // Создаем запись в MediaStore
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, finalFileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.DESCRIPTION, "Compressed")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY)
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+
+            // Сохраняем файл
+            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             if (uri != null) {
-                contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    FileInputStream(compressedFile).use { inputStream ->
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    compressedFile.inputStream().use { inputStream ->
                         inputStream.copyTo(outputStream)
                     }
                 }
 
+                // Копируем EXIF данные
+                copyExifData(context, originalUri, uri)
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    contentValues.clear()
-                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                    contentResolver.update(uri, contentValues, null, null)
+                    values.clear()
+                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
                 }
 
-                Timber.d("Файл успешно сохранен: $fileName")
-                uri
-            } else {
-                Timber.e("Не удалось создать URI для сохранения файла")
-                null
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении файла: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Получает относительный путь к папке оригинального файла
-     */
-    private fun getOriginalRelativePath(context: Context, uri: Uri): String? {
-        val projection = arrayOf(
-            MediaStore.Images.Media.RELATIVE_PATH,
-            MediaStore.Images.Media.DATA
-        )
-
-        try {
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    // Сначала пробуем получить RELATIVE_PATH (Android 10+)
-                    val relativePathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                    if (relativePathIndex != -1 && !cursor.isNull(relativePathIndex)) {
-                        return cursor.getString(relativePathIndex)
-                    }
-
-                    // Если RELATIVE_PATH недоступен, пробуем получить путь из DATA
-                    val dataIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                    if (dataIndex != -1 && !cursor.isNull(dataIndex)) {
-                        val fullPath = cursor.getString(dataIndex)
-                        // Извлекаем относительный путь, убирая имя файла
-                        val lastSeparator = fullPath.lastIndexOf('/')
-                        if (lastSeparator != -1) {
-                            // Получаем путь без имени файла и убираем начальный слэш
-                            val path = fullPath.substring(0, lastSeparator)
-                            val startIndex = path.indexOf("Pictures/")
-                            if (startIndex != -1) {
-                                return path.substring(startIndex)
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении пути к файлу")
-        }
-
-        // Если не удалось получить путь, возвращаем путь по умолчанию
-        return Environment.DIRECTORY_PICTURES
-    }
-
-    /**
-     * Копирование EXIF данных из оригинального изображения в сжатое
-     */
-    private fun copyExifData(
-        contentResolver: ContentResolver,
-        originalImageUri: Uri,
-        compressedImageFile: File
-    ) {
-        var inputStream: InputStream? = null
-        
-        try {
-            inputStream = contentResolver.openInputStream(originalImageUri)
-            if (inputStream != null) {
-                val originalExif = ExifInterface(inputStream)
-                val compressedExif = ExifInterface(compressedImageFile.absolutePath)
+                // Отмечаем изображение как обработанное
+                ImageTrackingUtil.markImageAsProcessed(context, uri)
                 
-                // Копирование всех тегов EXIF
+                return uri
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при сохранении сжатого изображения")
+        }
+        return null
+    }
+
+    /**
+     * Копирует EXIF данные из оригинального изображения в сжатое
+     */
+    private fun copyExifData(context: Context, sourceUri: Uri, destUri: Uri) {
+        try {
+            val sourceStream = context.contentResolver.openInputStream(sourceUri)
+            val destStream = context.contentResolver.openInputStream(destUri)
+            
+            if (sourceStream != null && destStream != null) {
+                val sourceExif = ExifInterface(sourceStream)
+                val destExif = ExifInterface(destStream)
+                
+                // Копируем все EXIF теги
                 val tags = arrayOf(
                     ExifInterface.TAG_DATETIME,
                     ExifInterface.TAG_EXPOSURE_TIME,
@@ -186,29 +166,32 @@ object FileUtil {
                     ExifInterface.TAG_GPS_LONGITUDE_REF,
                     ExifInterface.TAG_GPS_PROCESSING_METHOD,
                     ExifInterface.TAG_GPS_TIMESTAMP,
+                    ExifInterface.TAG_IMAGE_LENGTH,
+                    ExifInterface.TAG_IMAGE_WIDTH,
                     ExifInterface.TAG_MAKE,
                     ExifInterface.TAG_MODEL,
                     ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.TAG_SUBSEC_TIME,
                     ExifInterface.TAG_WHITE_BALANCE
                 )
                 
                 for (tag in tags) {
-                    val value = originalExif.getAttribute(tag)
+                    val value = sourceExif.getAttribute(tag)
                     if (value != null) {
-                        compressedExif.setAttribute(tag, value)
+                        destExif.setAttribute(tag, value)
                     }
                 }
                 
-                compressedExif.saveAttributes()
+                // Сохраняем изменения
+                context.contentResolver.openOutputStream(destUri)?.use { outputStream ->
+                    destExif.saveAttributes()
+                }
             }
-        } catch (e: IOException) {
+            
+            sourceStream?.close()
+            destStream?.close()
+        } catch (e: Exception) {
             Timber.e(e, "Ошибка при копировании EXIF данных")
-        } finally {
-            try {
-                inputStream?.close()
-            } catch (e: IOException) {
-                Timber.e(e, "Ошибка при закрытии потока")
-            }
         }
     }
 } 

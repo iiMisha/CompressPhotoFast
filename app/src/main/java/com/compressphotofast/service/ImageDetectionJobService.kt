@@ -33,7 +33,6 @@ class ImageDetectionJobService : JobService() {
         private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
         private const val OVERRIDE_DEADLINE_MILLIS = 1000L // Максимальная задержка
         private const val MAX_FILENAME_LENGTH = 100 // Максимальная длина имени файла
-        private val COMPRESSION_MARKERS = listOf("_compressed", "_сжатое", "_small") // Маркеры сжатых файлов
 
         /**
          * Настройка и планирование задания для отслеживания новых изображений
@@ -92,16 +91,6 @@ class ImageDetectionJobService : JobService() {
         }
 
         /**
-         * Проверяет, является ли файл уже сжатым
-         */
-        private fun isCompressedImage(fileName: String): Boolean {
-            val lowerFileName = fileName.lowercase()
-            return COMPRESSION_MARKERS.any { marker -> 
-                lowerFileName.contains(marker.lowercase())
-            }
-        }
-
-        /**
          * Получает безопасное имя файла с ограничением длины
          */
         private fun getSafeFileName(originalName: String): String {
@@ -109,9 +98,9 @@ class ImageDetectionJobService : JobService() {
             var nameWithoutExt = originalName.substringBeforeLast(".")
             
             // Удаляем все предыдущие маркеры сжатия
-            COMPRESSION_MARKERS.forEach { marker ->
-                nameWithoutExt = nameWithoutExt.replace(marker, "")
-            }
+            nameWithoutExt = nameWithoutExt.replace("_compressed", "")
+                .replace("_сжатое", "")
+                .replace("_small", "")
             
             // Ограничиваем длину имени файла
             val maxBaseLength = MAX_FILENAME_LENGTH - extension.length - "_compressed".length - 1
@@ -246,7 +235,7 @@ class ImageDetectionJobService : JobService() {
     /**
      * Проверяет, нужно ли обрабатывать изображение
      */
-    private fun shouldProcessImage(uri: Uri): Boolean {
+    private suspend fun shouldProcessImage(uri: Uri): Boolean {
         // Проверяем, что это изображение из MediaStore
         if (!uri.toString().contains("media") || !uri.toString().contains("image")) {
             return false
@@ -254,29 +243,22 @@ class ImageDetectionJobService : JobService() {
 
         // Получаем информацию о файле
         val projection = arrayOf(
-            MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.SIZE
         )
 
         try {
             contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
                     val size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE))
 
                     // Проверяем размер файла
                     if (size <= 0) {
-                        Timber.d("Пропуск файла с нулевым размером: $displayName")
+                        Timber.d("Пропуск файла с нулевым размером")
                         return false
                     }
 
                     // Проверяем, не является ли файл уже сжатым
-                    if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
-                        Timber.d("Пропуск уже сжатого файла: $displayName")
-                        return false
-                    }
-
-                    return true
+                    return !ImageTrackingUtil.isImageProcessed(applicationContext, uri)
                 }
             }
         } catch (e: Exception) {

@@ -25,61 +25,49 @@ object ImageTrackingUtil {
     /**
      * Проверяет, было ли изображение уже обработано
      */
-    fun isImageProcessed(context: Context, uri: Uri): Boolean {
-        // 1. Проверка по сохраненным URI
-        if (isUriInProcessedList(context, uri)) {
-            Timber.d("URI найден в списке обработанных: $uri")
-            return true
-        }
+    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean {
+        try {
+            // 1. Проверка по сохраненным URI
+            if (isUriInProcessedList(context, uri)) {
+                Timber.d("URI найден в списке обработанных: $uri")
+                return true
+            }
 
-        // 2. Проверка по метаданным и имени файла
-        val cursor = context.contentResolver.query(
-            uri,
-            arrayOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DESCRIPTION,
-                MediaStore.Images.Media.DATA
-            ),
-            null,
-            null,
-            null
-        )
-
-        cursor?.use {
-            if (it.moveToFirst()) {
-                // Проверка имени файла
-                val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                if (nameIndex != -1) {
-                    val fileName = it.getString(nameIndex)
-                    if (hasCompressionMarker(fileName)) {
-                        Timber.d("Файл содержит маркер сжатия: $fileName")
-                        return true
-                    }
+            // 2. Проверка по имени файла
+            val fileName = getFileNameFromUri(context, uri)
+            if (fileName != null) {
+                // Проверка на наличие маркеров сжатия в имени
+                if (hasCompressionMarker(fileName)) {
+                    Timber.d("Файл содержит маркер сжатия: $fileName")
+                    return true
                 }
 
-                // Проверка описания (метаданных)
-                val descIndex = it.getColumnIndex(MediaStore.Images.Media.DESCRIPTION)
-                if (descIndex != -1) {
-                    val description = it.getString(descIndex)
-                    if (!description.isNullOrEmpty() && description.contains("Compressed")) {
-                        Timber.d("Файл помечен как сжатый в метаданных")
-                        return true
-                    }
-                }
-
-                // Проверка пути файла
-                val pathIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
-                if (pathIndex != -1) {
-                    val path = it.getString(pathIndex)
-                    if (path.contains("/${Constants.APP_DIRECTORY}/")) {
-                        Timber.d("Файл находится в директории приложения")
-                        return true
-                    }
+                // Проверка существования сжатой версии
+                if (hasCompressedVersion(context, fileName)) {
+                    Timber.d("Найдена существующая сжатая версия для $fileName")
+                    return true
                 }
             }
-        }
 
-        return false
+            // 3. Проверка по метаданным
+            val description = getImageDescription(context, uri)
+            if (!description.isNullOrEmpty() && description.contains("Compressed")) {
+                Timber.d("Файл помечен как сжатый в метаданных")
+                return true
+            }
+
+            // 4. Проверка пути файла
+            val path = getImagePath(context, uri)
+            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
+                Timber.d("Файл находится в директории приложения")
+                return true
+            }
+
+            return false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке статуса файла")
+            return false
+        }
     }
 
     /**
@@ -122,6 +110,91 @@ object ImageTrackingUtil {
         val lowerFileName = fileName.lowercase()
         return COMPRESSION_MARKERS.any { marker ->
             lowerFileName.contains(marker.lowercase())
+        }
+    }
+
+    /**
+     * Проверяет существование сжатой версии файла
+     */
+    private suspend fun hasCompressedVersion(context: Context, fileName: String): Boolean {
+        val baseFileName = fileName.substringBeforeLast(".")
+        val extension = fileName.substringAfterLast(".", "")
+        
+        // Проверяем все возможные варианты имен сжатых файлов
+        for (marker in COMPRESSION_MARKERS) {
+            val compressedFileName = "${baseFileName}$marker.$extension"
+            
+            val projection = arrayOf(MediaStore.Images.Media._ID)
+            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+            val selectionArgs = arrayOf("$compressedFileName%")
+            
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                if (cursor.count > 0) {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
+
+    /**
+     * Получает имя файла из URI
+     */
+    private fun getFileNameFromUri(context: Context, uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
+        return context.contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
+            } else null
+        }
+    }
+
+    /**
+     * Получает описание изображения
+     */
+    private fun getImageDescription(context: Context, uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DESCRIPTION)
+        return context.contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DESCRIPTION))
+            } else null
+        }
+    }
+
+    /**
+     * Получает путь к файлу
+     */
+    private fun getImagePath(context: Context, uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DATA)
+        return context.contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
+            } else null
         }
     }
 } 
