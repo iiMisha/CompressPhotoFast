@@ -4,6 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Утилитарный класс для отслеживания статуса сжатия изображений
@@ -11,6 +14,12 @@ import timber.log.Timber
 object ImageTrackingUtil {
     private const val PREF_COMPRESSED_IMAGES = "compressed_images"
     private const val MAX_TRACKED_IMAGES = 1000
+    
+    // Кэш для отслеживания файлов в процессе обработки
+    private val processingFiles = ConcurrentHashMap<String, Long>()
+    
+    // Mutex для синхронизации доступа
+    private val mutex = Mutex()
     
     /**
      * Маркеры сжатых изображений
@@ -23,14 +32,22 @@ object ImageTrackingUtil {
     )
 
     /**
-     * Проверяет, было ли изображение уже обработано
+     * Проверяет, было ли изображение уже обработано или находится в процессе обработки
      */
-    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean {
+    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = mutex.withLock {
         try {
+            val uriString = uri.toString()
+            
+            // Проверяем, не находится ли файл в процессе обработки
+            if (isFileProcessing(uriString)) {
+                Timber.d("Файл уже в процессе обработки: $uri")
+                return@withLock true
+            }
+
             // 1. Проверка по сохраненным URI
             if (isUriInProcessedList(context, uri)) {
                 Timber.d("URI найден в списке обработанных: $uri")
-                return true
+                return@withLock true
             }
 
             // 2. Проверка по имени файла
@@ -39,13 +56,13 @@ object ImageTrackingUtil {
                 // Проверка на наличие маркеров сжатия в имени
                 if (hasCompressionMarker(fileName)) {
                     Timber.d("Файл содержит маркер сжатия: $fileName")
-                    return true
+                    return@withLock true
                 }
 
                 // Проверка существования сжатой версии
                 if (hasCompressedVersion(context, fileName)) {
                     Timber.d("Найдена существующая сжатая версия для $fileName")
-                    return true
+                    return@withLock true
                 }
             }
 
@@ -53,27 +70,30 @@ object ImageTrackingUtil {
             val description = getImageDescription(context, uri)
             if (!description.isNullOrEmpty() && description.contains("Compressed")) {
                 Timber.d("Файл помечен как сжатый в метаданных")
-                return true
+                return@withLock true
             }
 
             // 4. Проверка пути файла
             val path = getImagePath(context, uri)
             if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
                 Timber.d("Файл находится в директории приложения")
-                return true
+                return@withLock true
             }
 
-            return false
+            // Помечаем файл как находящийся в процессе обработки
+            markFileAsProcessing(uriString)
+            return@withLock false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса файла")
-            return false
+            return@withLock false
         }
     }
 
     /**
      * Добавляет URI в список обработанных
      */
-    fun markImageAsProcessed(context: Context, uri: Uri) {
+    suspend fun markImageAsProcessed(context: Context, uri: Uri) = mutex.withLock {
+        val uriString = uri.toString()
         val prefs = context.getSharedPreferences(PREF_COMPRESSED_IMAGES, Context.MODE_PRIVATE)
         val processedImages = prefs.getStringSet("uris", mutableSetOf()) ?: mutableSetOf()
         
@@ -85,11 +105,15 @@ object ImageTrackingUtil {
             updatedImages.take(removeCount).forEach { updatedImages.remove(it) }
         }
         
-        updatedImages.add(uri.toString())
+        updatedImages.add(uriString)
         
+        // Используем commit() вместо apply() для немедленного применения изменений
         prefs.edit()
             .putStringSet("uris", updatedImages)
-            .apply()
+            .commit()
+            
+        // Удаляем файл из списка обрабатываемых
+        processingFiles.remove(uriString)
             
         Timber.d("URI добавлен в список обработанных: $uri")
     }
@@ -125,8 +149,8 @@ object ImageTrackingUtil {
             val compressedFileName = "${baseFileName}$marker.$extension"
             
             val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("$compressedFileName%")
+            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+            val selectionArgs = arrayOf(compressedFileName)
             
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -142,6 +166,39 @@ object ImageTrackingUtil {
         }
         
         return false
+    }
+
+    /**
+     * Помечает файл как находящийся в процессе обработки
+     */
+    private fun markFileAsProcessing(uriString: String) {
+        processingFiles[uriString] = System.currentTimeMillis()
+        // Очищаем старые записи (старше 5 минут)
+        cleanupProcessingFiles()
+    }
+
+    /**
+     * Проверяет, находится ли файл в процессе обработки
+     */
+    private fun isFileProcessing(uriString: String): Boolean {
+        val timestamp = processingFiles[uriString] ?: return false
+        val currentTime = System.currentTimeMillis()
+        // Если прошло больше 5 минут, считаем что обработка завершилась с ошибкой
+        return (currentTime - timestamp) < 5 * 60 * 1000
+    }
+
+    /**
+     * Очищает старые записи из списка обрабатываемых файлов
+     */
+    private fun cleanupProcessingFiles() {
+        val currentTime = System.currentTimeMillis()
+        val iterator = processingFiles.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (currentTime - entry.value > 5 * 60 * 1000) { // 5 минут
+                iterator.remove()
+            }
+        }
     }
 
     /**
