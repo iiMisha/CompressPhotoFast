@@ -61,26 +61,27 @@ object FileUtil {
     }
 
     /**
-     * Сохраняет сжатое изображение в галерею
+     * Сохраняет сжатое изображение в ту же папку, где находится оригинал
      */
-    fun saveCompressedImageToGallery(context: Context, compressedFile: File, fileName: String): Uri? {
+    fun saveCompressedImageToGallery(context: Context, compressedFile: File, fileName: String, originalUri: Uri): Uri? {
+        val contentResolver = context.contentResolver
         val contentValues = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CompressPhotoFast")
-                put(MediaStore.Images.Media.IS_PENDING, 1)
-            }
         }
 
-        val contentResolver = context.contentResolver
-        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Получаем путь к оригинальному файлу
+            val originalPath = getOriginalRelativePath(context, originalUri)
+            if (originalPath != null) {
+                contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, originalPath)
+            }
+            contentValues.put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
 
         return try {
-            val imageUri = contentResolver.insert(collection, contentValues)
-            
-            imageUri?.let { uri ->
+            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri != null) {
                 contentResolver.openOutputStream(uri)?.use { outputStream ->
                     FileInputStream(compressedFile).use { inputStream ->
                         inputStream.copyTo(outputStream)
@@ -92,13 +93,66 @@ object FileUtil {
                     contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
                     contentResolver.update(uri, contentValues, null, null)
                 }
-                
+
+                Timber.d("Файл успешно сохранен: $fileName")
                 uri
+            } else {
+                Timber.e("Не удалось создать URI для сохранения файла")
+                null
             }
-        } catch (e: IOException) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при сохранении файла: ${e.message}")
             null
         }
+    }
+
+    /**
+     * Получает относительный путь к папке оригинального файла
+     */
+    private fun getOriginalRelativePath(context: Context, uri: Uri): String? {
+        val projection = arrayOf(
+            MediaStore.Images.Media.RELATIVE_PATH,
+            MediaStore.Images.Media.DATA
+        )
+
+        try {
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    // Сначала пробуем получить RELATIVE_PATH (Android 10+)
+                    val relativePathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                    if (relativePathIndex != -1 && !cursor.isNull(relativePathIndex)) {
+                        return cursor.getString(relativePathIndex)
+                    }
+
+                    // Если RELATIVE_PATH недоступен, пробуем получить путь из DATA
+                    val dataIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                    if (dataIndex != -1 && !cursor.isNull(dataIndex)) {
+                        val fullPath = cursor.getString(dataIndex)
+                        // Извлекаем относительный путь, убирая имя файла
+                        val lastSeparator = fullPath.lastIndexOf('/')
+                        if (lastSeparator != -1) {
+                            // Получаем путь без имени файла и убираем начальный слэш
+                            val path = fullPath.substring(0, lastSeparator)
+                            val startIndex = path.indexOf("Pictures/")
+                            if (startIndex != -1) {
+                                return path.substring(startIndex)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении пути к файлу")
+        }
+
+        // Если не удалось получить путь, возвращаем путь по умолчанию
+        return Environment.DIRECTORY_PICTURES
     }
 
     /**

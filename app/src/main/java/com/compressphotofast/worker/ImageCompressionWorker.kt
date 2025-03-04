@@ -83,10 +83,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
                 
                 // Сохраняем сжатое изображение в галерею
-                val savedUri = FileUtil.saveCompressedImageToGallery(
-                    applicationContext,
-                    tempFile,
-                    compressedFileName
+                val savedUri = saveCompressedImageToGallery(
+                    compressedFile = tempFile,
+                    fileName = compressedFileName,
+                    originalUri = imageUri
                 )
 
                 // Удаляем временный файл
@@ -422,12 +422,13 @@ class ImageCompressionWorker @AssistedInject constructor(
     /**
      * Сохранение сжатого изображения в галерею
      */
-    private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String): Uri? = withContext(Dispatchers.IO) {
+    private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Uri? = withContext(Dispatchers.IO) {
         try {
             FileUtil.saveCompressedImageToGallery(
                 context,
                 compressedFile,
-                fileName // Передаем имя файла как есть
+                fileName,
+                originalUri
             )
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сохранении сжатого изображения")
