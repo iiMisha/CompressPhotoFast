@@ -15,6 +15,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -140,12 +141,6 @@ class BackgroundMonitoringService : Service() {
                     
                     // Проверяем, что это новое изображение с базовой фильтрацией
                     if (it.toString().contains("media") && it.toString().contains("image")) {
-                        // Проверяем, не обрабатывали ли мы уже этот URI
-                        if (processedUris.contains(it.toString())) {
-                            Timber.d("URI уже был обработан ранее: $uri")
-                            return
-                        }
-                        
                         executorService.execute {
                             kotlinx.coroutines.runBlocking {
                                 processNewImage(it)
@@ -163,6 +158,13 @@ class BackgroundMonitoringService : Service() {
         )
         
         Timber.d("ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI")
+        
+        // Запускаем начальное сканирование
+        executorService.execute {
+            kotlinx.coroutines.runBlocking {
+                scanGalleryForUnprocessedImages()
+            }
+        }
     }
     
     /**
@@ -254,66 +256,67 @@ class BackgroundMonitoringService : Service() {
     private suspend fun processNewImage(uri: Uri) {
         Timber.d("BackgroundMonitoringService: начало обработки нового изображения: $uri")
         
-        // Проверяем, включено ли автоматическое сжатие
-        if (!isAutoCompressionEnabled()) {
-            Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем обработку")
-            return
-        }
-        
-        // Проверяем, не является ли файл временным
-        if (isFilePending(uri)) {
-            Timber.d("BackgroundMonitoringService: файл все еще в процессе создания, пропускаем: $uri")
-            return
-        }
-        
-        // Проверяем размер файла
-        val fileSize = getFileSize(uri)
-        if (fileSize <= 0) {
-            Timber.d("BackgroundMonitoringService: файл пуст или недоступен: $uri")
-            return
-        }
-        
-        // Проверяем, не было ли изображение уже сжато
-        if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
-            Timber.d("BackgroundMonitoringService: изображение уже обработано ранее: $uri")
-            return
-        }
-        
-        // Запросим информацию о файле для лучшего логирования
-        val fileInfo = getFileInfo(uri)
-        Timber.d("BackgroundMonitoringService: информация о файле: $fileInfo")
-        
-        // Получаем текущее качество сжатия
-        val quality = getCompressionQuality()
-        Timber.d("BackgroundMonitoringService: текущее качество сжатия: $quality")
-        
-        // Запуск worker для сжатия изображения
-        val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-            .setInputData(workDataOf(
-                Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                "compression_quality" to quality
-            ))
-            .addTag(Constants.WORK_TAG_COMPRESSION)
-            .build()
-        
-        workManager.enqueue(compressionWorkRequest)
-        Timber.d("BackgroundMonitoringService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
-        
-        // Отмечаем изображение как обработанное
-        ImageTrackingUtil.markImageAsProcessed(applicationContext, uri)
-        
-        // Добавляем URI в список обработанных
-        synchronized(processedUris) {
-            processedUris.add(uri.toString())
-            // Очищаем старые записи, если превышен лимит
-            if (processedUris.size > maxProcessedUrisSize) {
-                val itemsToRemove = processedUris.size - maxProcessedUrisSize
-                processedUris.take(itemsToRemove).forEach { processedUris.remove(it) }
-                Timber.d("BackgroundMonitoringService: очищено $itemsToRemove старых записей из истории обработки")
+        try {
+            // Проверяем, включено ли автоматическое сжатие
+            if (!isAutoCompressionEnabled()) {
+                Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено")
+                return
             }
+            
+            // Проверяем, не является ли файл временным
+            if (isFilePending(uri)) {
+                Timber.d("BackgroundMonitoringService: файл все еще в процессе создания: $uri")
+                return
+            }
+            
+            // Проверяем размер файла
+            val fileSize = getFileSize(uri)
+            if (fileSize <= Constants.MIN_FILE_SIZE) {
+                Timber.d("BackgroundMonitoringService: файл слишком мал для сжатия: $fileSize байт")
+                return
+            }
+            
+            if (fileSize > Constants.MAX_FILE_SIZE) {
+                Timber.d("BackgroundMonitoringService: файл слишком велик для обработки: ${fileSize / (1024 * 1024)} MB")
+                return
+            }
+            
+            // Проверяем, не было ли изображение уже обработано
+            if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
+                Timber.d("BackgroundMonitoringService: изображение уже обработано: $uri")
+                return
+            }
+            
+            // Получаем текущее качество сжатия
+            val quality = getCompressionQuality()
+            
+            // Создаем уникальный тег для работы
+            val workTag = "compression_${uri.lastPathSegment}_${System.currentTimeMillis()}"
+            
+            // Запускаем worker для сжатия изображения
+            val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                .setInputData(workDataOf(
+                    Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                    "compression_quality" to quality
+                ))
+                .addTag(Constants.WORK_TAG_COMPRESSION)
+                .addTag(workTag)
+                .build()
+            
+            // Запускаем работу с уникальным именем для предотвращения дублирования
+            workManager.beginUniqueWork(
+                workTag,
+                ExistingWorkPolicy.REPLACE,
+                compressionWorkRequest
+            ).enqueue()
+            
+            Timber.d("BackgroundMonitoringService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
+            
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при обработке изображения: $uri")
+            // Очищаем статус обработки в случае ошибки
+            ImageTrackingUtil.clearProcessingStatus(uri)
         }
-        
-        Timber.d("BackgroundMonitoringService: обработка изображения завершена: $uri")
     }
     
     /**
@@ -426,5 +429,68 @@ class BackgroundMonitoringService : Service() {
             Context.MODE_PRIVATE
         )
         return sharedPreferences.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+    }
+
+    /**
+     * Сканирование галереи для поиска необработанных изображений
+     */
+    private suspend fun scanGalleryForUnprocessedImages() = withContext(Dispatchers.IO) {
+        if (!isAutoCompressionEnabled()) {
+            Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем сканирование")
+            return@withContext
+        }
+
+        try {
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_ADDED
+            )
+
+            // Ищем только недавно добавленные изображения (за последние 24 часа)
+            val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
+            val oneDayAgo = (System.currentTimeMillis() / 1000) - (24 * 60 * 60)
+            val selectionArgs = arrayOf(oneDayAgo.toString())
+            
+            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+            contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                var processedCount = 0
+                var skippedCount = 0
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    val size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE))
+                    
+                    if (size < Constants.MIN_FILE_SIZE || size > Constants.MAX_FILE_SIZE) {
+                        skippedCount++
+                        continue
+                    }
+
+                    val contentUri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+
+                    if (!ImageTrackingUtil.isImageProcessed(applicationContext, contentUri)) {
+                        processNewImage(contentUri)
+                        processedCount++
+                    } else {
+                        skippedCount++
+                    }
+                }
+
+                Timber.d("BackgroundMonitoringService: сканирование завершено. Обработано: $processedCount, Пропущено: $skippedCount")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при сканировании галереи")
+        }
     }
 } 
