@@ -260,87 +260,70 @@ object FileUtil {
      * Копирует EXIF данные из оригинального изображения в сжатое
      */
     private fun copyExifData(context: Context, sourceUri: Uri, destUri: Uri) {
-        var sourceStream: InputStream? = null
-        var destStream: InputStream? = null
-        
         try {
-            sourceStream = context.contentResolver.openInputStream(sourceUri)
-            destStream = context.contentResolver.openInputStream(destUri)
+            // Вместо создания двух ExifInterface из потоков, мы сначала получим файловые пути
+            val sourceInputPfd = context.contentResolver.openFileDescriptor(sourceUri, "r")
+            val destOutputPfd = context.contentResolver.openFileDescriptor(destUri, "rw")
             
-            if (sourceStream != null && destStream != null) {
-                // Загружаем EXIF данные из исходного файла
-                val sourceExif = ExifInterface(sourceStream)
-                
-                // Создаем ExifInterface для файла назначения
-                val destExif = ExifInterface(destStream)
-                
-                // Закрываем потоки для избежания проблем с файловыми дескрипторами
-                sourceStream.close()
-                destStream.close()
-                
-                // Копируем все EXIF теги
-                val tags = arrayOf(
-                    ExifInterface.TAG_DATETIME,
-                    ExifInterface.TAG_EXPOSURE_TIME,
-                    ExifInterface.TAG_FLASH,
-                    ExifInterface.TAG_FOCAL_LENGTH,
-                    ExifInterface.TAG_GPS_ALTITUDE,
-                    ExifInterface.TAG_GPS_ALTITUDE_REF,
-                    ExifInterface.TAG_GPS_DATESTAMP,
-                    ExifInterface.TAG_GPS_LATITUDE,
-                    ExifInterface.TAG_GPS_LATITUDE_REF,
-                    ExifInterface.TAG_GPS_LONGITUDE,
-                    ExifInterface.TAG_GPS_LONGITUDE_REF,
-                    ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                    ExifInterface.TAG_GPS_TIMESTAMP,
-                    ExifInterface.TAG_IMAGE_LENGTH,
-                    ExifInterface.TAG_IMAGE_WIDTH,
-                    ExifInterface.TAG_MAKE,
-                    ExifInterface.TAG_MODEL,
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.TAG_SUBSEC_TIME,
-                    ExifInterface.TAG_WHITE_BALANCE
-                )
-                
-                for (tag in tags) {
-                    val value = sourceExif.getAttribute(tag)
-                    if (value != null) {
-                        destExif.setAttribute(tag, value)
-                    }
-                }
-                
-                // Открываем выходной поток для записи EXIF данных
-                val destPath = context.contentResolver.openFileDescriptor(destUri, "rw")
-                if (destPath != null) {
-                    try {
-                        destExif.saveAttributes()
-                        Timber.d("EXIF данные успешно скопированы")
-                    } catch (e: Exception) {
-                        Timber.e(e, "Ошибка при сохранении EXIF данных")
-                    } finally {
-                        try {
-                            destPath.close()
-                        } catch (e: Exception) {
-                            Timber.e(e, "Ошибка при закрытии дескриптора файла")
+            if (sourceInputPfd != null && destOutputPfd != null) {
+                try {
+                    val sourceExif = ExifInterface(sourceInputPfd.fileDescriptor)
+                    val destExif = ExifInterface(destOutputPfd.fileDescriptor)
+                    
+                    // Копируем все EXIF теги
+                    val tags = arrayOf(
+                        ExifInterface.TAG_DATETIME,
+                        ExifInterface.TAG_EXPOSURE_TIME,
+                        ExifInterface.TAG_FLASH,
+                        ExifInterface.TAG_FOCAL_LENGTH,
+                        ExifInterface.TAG_GPS_ALTITUDE,
+                        ExifInterface.TAG_GPS_ALTITUDE_REF,
+                        ExifInterface.TAG_GPS_DATESTAMP,
+                        ExifInterface.TAG_GPS_LATITUDE,
+                        ExifInterface.TAG_GPS_LATITUDE_REF,
+                        ExifInterface.TAG_GPS_LONGITUDE,
+                        ExifInterface.TAG_GPS_LONGITUDE_REF,
+                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                        ExifInterface.TAG_GPS_TIMESTAMP,
+                        ExifInterface.TAG_IMAGE_LENGTH,
+                        ExifInterface.TAG_IMAGE_WIDTH,
+                        ExifInterface.TAG_MAKE,
+                        ExifInterface.TAG_MODEL,
+                        ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.TAG_SUBSEC_TIME,
+                        ExifInterface.TAG_WHITE_BALANCE
+                    )
+                    
+                    // Копируем все доступные теги
+                    for (tag in tags) {
+                        val value = sourceExif.getAttribute(tag)
+                        if (value != null) {
+                            destExif.setAttribute(tag, value)
                         }
                     }
-                } else {
-                    Timber.e("Не удалось получить дескриптор файла для записи EXIF данных")
+                    
+                    // Сохраняем изменения
+                    destExif.saveAttributes()
+                    Timber.d("EXIF данные успешно скопированы")
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при копировании EXIF данных")
+                } finally {
+                    try {
+                        sourceInputPfd.close()
+                    } catch (e: Exception) {
+                        Timber.e(e, "Ошибка при закрытии дескриптора исходного файла")
+                    }
+                    try {
+                        destOutputPfd.close()
+                    } catch (e: Exception) {
+                        Timber.e(e, "Ошибка при закрытии дескриптора файла назначения")
+                    }
                 }
+            } else {
+                Timber.e("Не удалось получить файловые дескрипторы для копирования EXIF данных")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при копировании EXIF данных")
-        } finally {
-            try {
-                sourceStream?.close()
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при закрытии потока исходного файла")
-            }
-            try {
-                destStream?.close()
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при закрытии потока файла назначения")
-            }
+            Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
         }
     }
 

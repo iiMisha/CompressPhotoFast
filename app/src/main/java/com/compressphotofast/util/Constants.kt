@@ -63,4 +63,8 @@ object Constants {
     // Коды запросов
     const val REQUEST_CODE_DELETE_FILE = 12345
     const val REQUEST_CODE_DELETE_PERMISSION = 12346
+    
+    // Broadcast действия
+    const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.action.REQUEST_DELETE_PERMISSION"
+    const val EXTRA_URI = "uri"
 } 

@@ -37,6 +37,8 @@ import android.content.ContentValues
 import android.os.Environment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -73,6 +75,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // BroadcastReceiver для запросов на удаление файлов
+    private val deleteRequestReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Constants.ACTION_REQUEST_DELETE_PERMISSION) {
+                val uri = intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
+                uri?.let {
+                    Timber.d("Получен запрос на удаление файла через broadcast: $uri")
+                    requestFileDelete(it)
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -83,6 +98,10 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
         checkPermissions()
         
+        // Регистрируем BroadcastReceiver для запросов на удаление файлов
+        registerReceiver(deleteRequestReceiver, 
+            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION))
+        
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
     }
@@ -90,6 +109,16 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+    
+    override fun onDestroy() {
+        // Отменяем регистрацию BroadcastReceiver
+        try {
+            unregisterReceiver(deleteRequestReceiver)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
+        }
+        super.onDestroy()
     }
     
     /**
