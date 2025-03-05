@@ -68,8 +68,6 @@ class MainViewModel @Inject constructor(
      */
     fun setSelectedImageUri(uri: Uri) {
         _selectedImageUri.value = uri
-        // Сбросить результат предыдущего сжатия
-        _compressionResult.value = null
     }
 
     /**

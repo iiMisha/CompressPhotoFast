@@ -397,9 +397,6 @@ class MainActivity : AppCompatActivity() {
             selectImageLauncher.launch("image/*")
         }
         
-        // Скрываем кнопку сжатия, так как теперь сжатие происходит автоматически
-        binding.btnCompressImage.visibility = View.GONE
-        
         // Переключатель автоматического сжатия
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
         binding.switchAutoCompression.setOnCheckedChangeListener { _, isChecked ->
@@ -423,12 +420,9 @@ class MainActivity : AppCompatActivity() {
      * Наблюдение за ViewModel
      */
     private fun observeViewModel() {
-        // Больше не нужно следить за выбранным изображением, так как кнопка сжатия скрыта
-        
         // Наблюдение за состоянием загрузки
         viewModel.isLoading.observe(this) { isLoading ->
             binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            // Больше не обновляем кнопку сжатия, так как она скрыта
             binding.btnSelectImage.isEnabled = !isLoading
         }
         

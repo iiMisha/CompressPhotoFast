@@ -2,7 +2,6 @@
     <string name="app_name">CompressPhotoFast</string>
     
     <!-- Основной экран -->
-    <string name="compress_button">Сжать фото</string>
     <string name="select_image_button">Выбрать изображения</string>
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
