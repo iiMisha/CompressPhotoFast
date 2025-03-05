@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@color/pink_background">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -15,18 +16,72 @@
         android:paddingBottom="@dimen/screen_vertical_margin"
         tools:context=".ui.MainActivity">
 
+        <!-- Праздничная карточка -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardGreeting"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#F8F8FF"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:id="@+id/tvGreeting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="С 8 марта, Полина! 🌷"
+                    android:textSize="24sp"
+                    android:textColor="#FF69B4"
+                    android:textStyle="bold"
+                    android:gravity="center"/>
+
+                <TextView
+                    android:id="@+id/tvWish"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Пусть каждое фото хранит счастливые моменты!"
+                    android:textSize="16sp"
+                    android:textColor="#666666"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp"/>
+
+                <TextView
+                    android:id="@+id/tvMood"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Желаю весеннего настроения и радости!"
+                    android:textSize="16sp"
+                    android:textColor="#666666"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Кнопка выбора изображения -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSelectImage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/select_image_button"
-            android:layout_marginTop="@dimen/spacing_normal"
+            android:text="ВЫБРАТЬ ИЗОБРАЖЕНИЯ"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="#FF69B4"
+            app:cornerRadius="24dp"
+            android:padding="16dp"
+            android:textSize="16sp"
             app:layout_constraintWidth_max="@dimen/max_button_width"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cardGreeting"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            style="@style/Widget.CompressPhotoFast.Button" />
+            app:layout_constraintEnd_toEndOf="parent"/>
 
         <!-- Разделитель -->
         <View
