@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.compressphotofast.R
@@ -39,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
+import android.provider.Settings
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -96,7 +98,7 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         observeViewModel()
         handleIntent(intent)
-        checkPermissions()
+        checkAndRequestPermissions()
         
         // Регистрируем BroadcastReceiver для запросов на удаление файлов
         registerReceiver(deleteRequestReceiver, 
@@ -478,38 +480,41 @@ class MainActivity : AppCompatActivity() {
     /**
      * Проверка необходимых разрешений
      */
-    private fun checkPermissions() {
-        val permissionsToRequest = mutableListOf<String>()
+    private fun checkAndRequestPermissions() {
+        val permissions = mutableListOf<String>()
         
-        // Проверка разрешений для доступа к хранилищу в зависимости от версии Android
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ (API 33+)
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) 
-                != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
-            }
-        } else {
-            // Android 10-12 (API 29-32)
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) 
-                != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-        }
-        
-        // Проверка разрешения на отправку уведомлений (для Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
-                != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.addCategory("android.intent.category.DEFAULT")
+                    intent.data = Uri.parse("package:${applicationContext.packageName}")
+                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                } catch (e: Exception) {
+                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                }
             }
         }
-        
-        // Запрос разрешений, если это необходимо
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
         } else {
-            // Все разрешения уже получены
-            initializeBackgroundServices()
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+
+        if (permissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
     }
 
@@ -520,7 +525,7 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.dialog_permission_title)
             .setMessage(R.string.dialog_permission_message)
-            .setPositiveButton(R.string.dialog_ok) { _, _ -> checkPermissions() }
+            .setPositiveButton(R.string.dialog_ok) { _, _ -> checkAndRequestPermissions() }
             .setNegativeButton(R.string.dialog_cancel, null)
             .create()
             .show()
@@ -884,5 +889,10 @@ class MainActivity : AppCompatActivity() {
                 initializeBackgroundServices()
             }
         }
+    }
+
+    companion object {
+        private const val PERMISSION_REQUEST_CODE = 100
+        private const val REQUEST_MANAGE_EXTERNAL_STORAGE = 101
     }
 } 

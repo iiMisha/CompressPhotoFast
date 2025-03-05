@@ -361,15 +361,26 @@ object FileUtil {
      */
     fun deleteFile(context: Context, uri: Uri): Any? {
         try {
+            // Проверяем наличие MANAGE_EXTERNAL_STORAGE для Android 11+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (Environment.isExternalStorageManager()) {
+                    // Если есть разрешение MANAGE_EXTERNAL_STORAGE, удаляем напрямую
+                    val path = getFilePathFromUri(context, uri)
+                    if (path != null) {
+                        val file = File(path)
+                        return file.delete()
+                    }
+                    // Если не удалось получить путь, пробуем через MediaStore
+                    return context.contentResolver.delete(uri, null, null) > 0
+                }
+            }
+            
             // Для Android 10+ используем MediaStore API с обработкой RecoverableSecurityException
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    // Сначала пробуем удалить напрямую
                     return context.contentResolver.delete(uri, null, null) > 0
                 } catch (e: SecurityException) {
-                    // Проверяем, можно ли восстановить исключение
                     if (e is android.app.RecoverableSecurityException) {
-                        // Возвращаем IntentSender для запроса разрешения
                         Timber.d("Требуется разрешение пользователя для удаления файла: $uri")
                         return e.userAction.actionIntent.intentSender
                     } else {
