@@ -7,6 +7,7 @@ import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.Collections
 
 /**
  * Утилитарный класс для отслеживания статуса сжатия изображений
@@ -22,6 +23,9 @@ object ImageTrackingUtil {
     // Mutex для синхронизации доступа
     private val mutex = Mutex()
     
+    // Реестр URI, которые обрабатываются через MainActivity (через Intent)
+    private val urisBeingProcessedByMainActivity = Collections.synchronizedSet(HashSet<String>())
+    
     /**
      * Маркеры сжатых изображений
      */
@@ -33,12 +37,46 @@ object ImageTrackingUtil {
     )
 
     /**
+     * Регистрирует URI, который обрабатывается через MainActivity
+     */
+    fun registerUriBeingProcessedByMainActivity(uri: Uri) {
+        val uriString = uri.toString()
+        urisBeingProcessedByMainActivity.add(uriString)
+        Timber.d("registerUriBeingProcessedByMainActivity: зарегистрирован URI: $uriString")
+    }
+    
+    /**
+     * Проверяет, обрабатывается ли URI через MainActivity
+     */
+    fun isUriBeingProcessedByMainActivity(uri: Uri): Boolean {
+        val uriString = uri.toString()
+        val result = urisBeingProcessedByMainActivity.contains(uriString)
+        Timber.d("isUriBeingProcessedByMainActivity: URI $uriString ${if (result) "обрабатывается" else "не обрабатывается"} через MainActivity")
+        return result
+    }
+    
+    /**
+     * Удаляет URI из списка обрабатываемых через MainActivity
+     */
+    fun unregisterUriBeingProcessedByMainActivity(uri: Uri) {
+        val uriString = uri.toString()
+        val removed = urisBeingProcessedByMainActivity.remove(uriString)
+        Timber.d("unregisterUriBeingProcessedByMainActivity: URI $uriString ${if (removed) "удален" else "не найден"} в списке")
+    }
+
+    /**
      * Проверяет, было ли изображение уже обработано или находится в процессе обработки
      */
     suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = mutex.withLock {
         try {
             val uriString = uri.toString()
             Timber.d("isImageProcessed: проверяем URI: $uriString")
+            
+            // Проверяем, не обрабатывается ли URI через MainActivity
+            if (isUriBeingProcessedByMainActivity(uri)) {
+                Timber.d("isImageProcessed: URI обрабатывается через MainActivity: $uriString")
+                return@withLock true
+            }
             
             // Проверяем, не находится ли файл в процессе обработки
             if (isFileProcessing(uriString)) {

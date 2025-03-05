@@ -80,12 +80,16 @@ class MainActivity : AppCompatActivity() {
     
     /**
      * Обработка входящих интентов для получения изображений от других приложений
+     * 
+     * Важно: При включенном автоматическом сжатии, мы позволяем BackgroundMonitoringService обрабатывать изображения
+     * вместо того, чтобы запускать принудительное сжатие из MainActivity, чтобы избежать дублирования обработки.
      */
     private fun handleIntent(intent: Intent) {
         Timber.d("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
         
         // Логируем все данные интента для отладки
         intent.extras?.keySet()?.forEach { key ->
+            @Suppress("DEPRECATION")
             Timber.d("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
         }
         
@@ -105,15 +109,51 @@ class MainActivity : AppCompatActivity() {
                         // Логируем подробную информацию о файле
                         logFileDetails(it)
                         
+                        // Регистрируем URI как обрабатываемый через MainActivity
+                        ImageTrackingUtil.registerUriBeingProcessedByMainActivity(it)
+                        
                         // Проверяем, не было ли изображение уже обработано
                         lifecycleScope.launch {
-                            val isAlreadyProcessed = ImageTrackingUtil.isImageProcessed(applicationContext, it)
-                            Timber.d("handleIntent: Изображение уже обработано: $isAlreadyProcessed, URI: $it")
+                            // Проверяем, есть ли у изображения маркеры сжатия или оно находится в директории приложения
+                            val fileName = getFileNameFromUri(it)
+                            val hasCompressionMarker = fileName?.let { name ->
+                                ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
+                                    name.lowercase().contains(marker.lowercase())
+                                }
+                            } ?: false
+                            
+                            // Проверяем путь файла
+                            val path = getFilePathFromUri(it)
+                            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
+                            
+                            val isAlreadyCompressed = hasCompressionMarker || isInAppDir
+                            
+                            Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
+                            
+                            if (!isAlreadyCompressed) {
+                                viewModel.setSelectedImageUri(it)
+                                // Проверяем, включено ли автоматическое сжатие
+                                if (!viewModel.isAutoCompressionEnabled()) {
+                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
+                                    viewModel.compressSelectedImage()
+                                } else {
+                                    // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
+                                    Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
+                                    // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
+                                    ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
+                                }
+                            } else {
+                                // Снимаем регистрацию URI, так как он не будет обрабатываться
+                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
+                                
+                                // Показываем сообщение, что файл уже обработан
+                                Toast.makeText(
+                                    applicationContext,
+                                    getString(R.string.image_already_compressed),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
-                        
-                        viewModel.setSelectedImageUri(it)
-                        // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
-                        viewModel.compressSelectedImage()
                     }
                 }
             }
@@ -126,30 +166,111 @@ class MainActivity : AppCompatActivity() {
                         intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
                     }
                     
-                    uris?.let {
-                        Timber.d("handleIntent: Получено ${it.size} изображений через Intent.ACTION_SEND_MULTIPLE")
+                    uris?.let { uriList ->
+                        Timber.d("handleIntent: Получено ${uriList.size} изображений через Intent.ACTION_SEND_MULTIPLE")
                         
-                        // Логируем информацию о каждом файле
-                        it.forEach { uri ->
-                            Timber.d("handleIntent: Изображение из множества: $uri")
-                            logFileDetails(uri)
-                            
-                            // Проверяем каждое изображение
-                            lifecycleScope.launch {
-                                val isAlreadyProcessed = ImageTrackingUtil.isImageProcessed(applicationContext, uri)
-                                Timber.d("handleIntent: Изображение уже обработано: $isAlreadyProcessed, URI: $uri")
-                            }
+                        // Регистрируем все URI как обрабатываемые через MainActivity
+                        uriList.forEach { uri ->
+                            ImageTrackingUtil.registerUriBeingProcessedByMainActivity(uri)
                         }
                         
-                        if (it.isNotEmpty()) {
-                            // Показываем первое изображение в UI
-                            viewModel.setSelectedImageUri(it[0])
-                            // Всегда обрабатываем все изображения, независимо от настройки автоматического сжатия
-                            viewModel.compressMultipleImages(it)
+                        // Собираем список необработанных изображений
+                        lifecycleScope.launch {
+                            val unprocessedUris = ArrayList<Uri>()
+                            
+                            // Логируем информацию о каждом файле и проверяем его статус
+                            for (uri in uriList) {
+                                Timber.d("handleIntent: Изображение из множества: $uri")
+                                logFileDetails(uri)
+                                
+                                // Проверяем, есть ли у изображения маркеры сжатия или оно находится в директории приложения
+                                val fileName = getFileNameFromUri(uri)
+                                val hasCompressionMarker = fileName?.let { name ->
+                                    ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
+                                        name.lowercase().contains(marker.lowercase())
+                                    }
+                                } ?: false
+                                
+                                // Проверяем путь файла
+                                val path = getFilePathFromUri(uri)
+                                val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
+                                
+                                val isAlreadyCompressed = hasCompressionMarker || isInAppDir
+                                
+                                Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
+                                
+                                if (!isAlreadyCompressed) {
+                                    unprocessedUris.add(uri)
+                                } else {
+                                    // Снимаем регистрацию URI, если он уже обработан
+                                    ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                                }
+                            }
+                            
+                            if (unprocessedUris.isNotEmpty()) {
+                                // Показываем первое изображение в UI
+                                viewModel.setSelectedImageUri(unprocessedUris[0])
+                                
+                                // Проверяем, включено ли автоматическое сжатие
+                                if (!viewModel.isAutoCompressionEnabled()) {
+                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
+                                    viewModel.compressMultipleImages(unprocessedUris)
+                                } else {
+                                    // Иначе просто показываем изображения в UI, они будут обработаны фоновым сервисом
+                                    Timber.d("handleIntent: Автоматическое сжатие включено, ${unprocessedUris.size} файлов будут обработаны фоновым сервисом")
+                                    // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
+                                    unprocessedUris.forEach { uri ->
+                                        ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                                    }
+                                }
+                            } else {
+                                // Если все изображения уже обработаны, показываем сообщение
+                                Toast.makeText(
+                                    applicationContext,
+                                    getString(R.string.all_images_already_compressed),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+    
+    /**
+     * Получает имя файла из URI
+     */
+    private fun getFileNameFromUri(uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
+        return contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getStringOrNull(cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME))
+            } else null
+        }
+    }
+    
+    /**
+     * Получает путь к файлу из URI
+     */
+    private fun getFilePathFromUri(uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DATA)
+        return contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getStringOrNull(cursor.getColumnIndex(MediaStore.Images.Media.DATA))
+            } else null
         }
     }
     

@@ -263,6 +263,12 @@ class BackgroundMonitoringService : Service() {
                 return
             }
             
+            // Проверяем, не обрабатывается ли URI уже через MainActivity
+            if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+                Timber.d("BackgroundMonitoringService: URI $uri уже обрабатывается через MainActivity, пропускаем")
+                return
+            }
+            
             // Проверяем, не является ли файл временным
             if (isFilePending(uri)) {
                 Timber.d("BackgroundMonitoringService: файл все еще в процессе создания: $uri")

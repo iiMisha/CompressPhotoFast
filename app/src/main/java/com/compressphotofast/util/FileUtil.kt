@@ -73,10 +73,28 @@ object FileUtil {
         originalUri: Uri
     ): Uri? {
         try {
-            // Проверяем существование файла с таким именем
-            var finalFileName = fileName
+            // Проверяем, что имя файла не содержит уже маркер сжатия
+            val hasCompressionMarker = ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
+                fileName.lowercase().contains(marker.lowercase())
+            }
+            
+            // Базовое имя файла (без маркера сжатия, если он уже есть)
+            val originalNameWithoutExtension = fileName.substringBeforeLast(".")
+            val extension = fileName.substringAfterLast(".", "jpg")
+            
+            val baseNameWithoutMarker = if (hasCompressionMarker) {
+                ImageTrackingUtil.COMPRESSION_MARKERS.fold(originalNameWithoutExtension) { acc, marker ->
+                    acc.replace(marker, "")
+                }
+            } else {
+                originalNameWithoutExtension
+            }
+            
+            // Создаем имя для сжатого файла
+            var finalFileName = "${baseNameWithoutMarker}_compressed.$extension"
             var counter = 1
             
+            // Проверяем существование файла с таким именем и увеличиваем счетчик при необходимости
             while (true) {
                 val testFileName = if (counter == 1) finalFileName else {
                     val baseName = finalFileName.substringBeforeLast(".")
@@ -98,6 +116,8 @@ object FileUtil {
                 }
                 counter++
             }
+            
+            Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $finalFileName")
 
             // Создаем запись в MediaStore
             val values = ContentValues().apply {

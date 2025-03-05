@@ -18,6 +18,7 @@ import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.ImageTrackingUtil
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -98,6 +99,12 @@ class MainViewModel @Inject constructor(
                     val success = workInfo.outputData.getBoolean("success", false)
                     val errorMessage = workInfo.outputData.getString("error_message")
                     
+                    // Снимаем регистрацию URI после обработки
+                    uri.let { 
+                        ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
+                        Timber.d("compressSelectedImage: снимаем регистрацию URI после обработки: $it")
+                    }
+                    
                     // Всегда показываем успешный результат независимо от реального результата
                     _compressionResult.postValue(
                         CompressionResult(
@@ -146,9 +153,15 @@ class MainViewModel @Inject constructor(
                     .build()
             }
             
+            // Создаем карту для отслеживания связей между заданиями и URI
+            val requestToUriMap = workRequests.zip(uris).toMap()
+            
             // Отправляем все запросы в WorkManager
             workRequests.forEach { request ->
                 workManager.enqueue(request)
+                
+                // Получаем URI, связанный с этим запросом
+                val uri = requestToUriMap[request]
                 
                 // Устанавливаем наблюдателя за каждым заданием
                 workManager.getWorkInfoByIdLiveData(request.id)
@@ -159,6 +172,12 @@ class MainViewModel @Inject constructor(
                                 workManager.getWorkInfoByIdLiveData(request.id).removeObserver(this)
                                 
                                 val success = value.outputData.getBoolean("success", false)
+                                
+                                // Снимаем регистрацию URI после обработки
+                                uri?.let { 
+                                    ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
+                                    Timber.d("compressMultipleImages: снимаем регистрацию URI после обработки: $it")
+                                }
                                 
                                 // Обновляем прогресс в зависимости от результата
                                 viewModelScope.launch(Dispatchers.Main) {

@@ -27,6 +27,8 @@
     <string name="no_images_selected">Не выбрано ни одного изображения</string>
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
+    <string name="image_already_compressed">Изображение уже сжато</string>
+    <string name="all_images_already_compressed">Все изображения уже сжаты</string>
     
     <!-- Сообщения для нескольких изображений -->
     <string name="multiple_images_progress">Обработано %1$d из %2$d изображений (%3$d%%)</string>

@@ -240,6 +240,12 @@ class ImageDetectionJobService : JobService() {
         if (!uri.toString().contains("media") || !uri.toString().contains("image")) {
             return false
         }
+        
+        // Проверяем, не обрабатывается ли URI уже через MainActivity
+        if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+            Timber.d("ImageDetectionJobService: URI $uri уже обрабатывается через MainActivity, пропускаем")
+            return false
+        }
 
         // Получаем информацию о файле
         val projection = arrayOf(
