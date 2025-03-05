@@ -79,6 +79,31 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
         
+    <!-- Переключатель режима сохранения -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/switchSaveMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/save_mode_toggle"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionDescription"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        style="@style/Widget.CompressPhotoFast.Switch" />
+
+    <!-- Описание режима сохранения -->
+    <TextView
+        android:id="@+id/tvSaveModeDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/save_mode_description"
+        android:textSize="14sp"
+        android:textColor="@color/secondary_text"
+        android:layout_marginTop="4dp"
+        app:layout_constraintTop_toBottomOf="@id/switchSaveMode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+        
     <!-- Разделитель для секции качества -->
     <View
         android:id="@+id/divider2"
@@ -86,7 +111,7 @@
         android:layout_height="1dp"
         android:background="@color/divider"
         android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionDescription"
+        app:layout_constraintTop_toBottomOf="@id/tvSaveModeDescription"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
         

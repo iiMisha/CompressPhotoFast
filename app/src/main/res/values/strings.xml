@@ -6,6 +6,8 @@
     <string name="select_image_button">Выбрать изображения</string>
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
+    <string name="save_mode_toggle">Заменять оригинальные файлы</string>
+    <string name="save_mode_description">При включенном переключателе сжатые файлы записываются в исходную папку, а оригиналы удаляются. При выключенном - сохраняются в отдельной папке</string>
     <string name="compression_quality_title">Уровень сжатия</string>
     <string name="compression_quality_description">Выберите уровень сжатия (ниже = меньший размер, выше = лучшее качество)</string>
     <string name="compression_quality_low">Низкое</string>
@@ -29,6 +31,7 @@
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
     <string name="image_already_compressed">Изображение уже сжато</string>
     <string name="all_images_already_compressed">Все изображения уже сжаты</string>
+    <string name="file_deleted_successfully">Оригинальный файл успешно удален</string>
     
     <!-- Сообщения для нескольких изображений -->
     <string name="multiple_images_progress">Обработано %1$d из %2$d изображений (%3$d%%)</string>
@@ -39,6 +42,9 @@
     <!-- Диалоги -->
     <string name="dialog_permission_title">Требуются разрешения</string>
     <string name="dialog_permission_message">Для корректной работы приложения необходимы разрешения на доступ к фотографиям</string>
+    <string name="dialog_delete_permission_title">Разрешение на удаление файлов</string>
+    <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы. Сейчас будет создан тестовый файл, который мы попросим вас разрешить удалить.</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_skip">Пропустить</string>
 </resources> 

@@ -384,6 +384,23 @@ class MainViewModel @Inject constructor(
             Timber.e(e, "Ошибка при обработке пропущенных изображений")
         }
     }
+
+    /**
+     * Проверка, включен ли режим замены оригинальных файлов
+     */
+    fun isSaveModeReplace(): Boolean {
+        return sharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, false)
+    }
+    
+    /**
+     * Установка режима сохранения
+     * @param replace true - заменять оригинальные файлы, false - сохранять в отдельной папке
+     */
+    fun setSaveMode(replace: Boolean) {
+        sharedPreferences.edit()
+            .putBoolean(Constants.PREF_SAVE_MODE, replace)
+            .apply()
+    }
 }
 
 /**

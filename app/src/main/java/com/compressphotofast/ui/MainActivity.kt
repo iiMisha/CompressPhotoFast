@@ -2,6 +2,7 @@ package com.compressphotofast.ui
 
 import android.Manifest
 import android.content.Intent
+import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
@@ -23,9 +24,19 @@ import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageTrackingUtil
+import com.compressphotofast.util.FileUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import android.content.Context
+import java.io.File
+import java.io.FileOutputStream
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.content.ContentValues
+import android.os.Environment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -71,6 +82,9 @@ class MainActivity : AppCompatActivity() {
         observeViewModel()
         handleIntent(intent)
         checkPermissions()
+        
+        // Проверяем, есть ли отложенные запросы на удаление файлов
+        checkPendingDeleteRequests()
     }
     
     override fun onNewIntent(intent: Intent) {
@@ -364,6 +378,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
+        // Переключатель режима сохранения
+        binding.switchSaveMode.isChecked = viewModel.isSaveModeReplace()
+        binding.switchSaveMode.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setSaveMode(isChecked)
+        }
+        
         // Установка начального состояния для переключателей качества
         setupCompressionQualityRadioButtons()
     }
@@ -596,17 +616,244 @@ class MainActivity : AppCompatActivity() {
         val isEnabled = viewModel.isAutoCompressionEnabled()
         Timber.d("initializeBackgroundServices: состояние автоматического сжатия: ${if (isEnabled) "включено" else "выключено"}")
         
-        if (isEnabled) {
-            Timber.d("initializeBackgroundServices: запуск фоновых сервисов")
-            setupBackgroundService()
+        // Проверяем, был ли уже запрос на разрешение удаления файлов
+        val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        val isFirstLaunch = prefs.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
+        val deletePermissionRequested = prefs.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false)
+        
+        // Если это первый запуск и разрешение еще не запрашивалось, показываем диалог
+        if (isFirstLaunch && !deletePermissionRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Устанавливаем флаг первого запуска в false
+            prefs.edit().putBoolean(Constants.PREF_FIRST_LAUNCH, false).apply()
             
-            // Проверяем пропущенные изображения при запуске
-            Timber.d("initializeBackgroundServices: запуск проверки пропущенных изображений")
-            lifecycleScope.launch {
-                viewModel.processUncompressedImages()
-            }
+            // Показываем диалог с объяснением
+            showDeletePermissionDialog()
         } else {
-            Timber.d("initializeBackgroundServices: автоматическое сжатие отключено, сервисы не запускаются")
+            // Запускаем фоновые сервисы
+            if (isEnabled) {
+                Timber.d("initializeBackgroundServices: запуск фоновых сервисов")
+                setupBackgroundService()
+                
+                // Проверяем пропущенные изображения при запуске
+                Timber.d("initializeBackgroundServices: запуск проверки пропущенных изображений")
+                lifecycleScope.launch {
+                    viewModel.processUncompressedImages()
+                }
+            } else {
+                Timber.d("initializeBackgroundServices: автоматическое сжатие отключено, сервисы не запускаются")
+            }
+        }
+    }
+    
+    /**
+     * Показывает диалог с объяснением необходимости разрешения на удаление файлов
+     */
+    private fun showDeletePermissionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_delete_permission_title)
+            .setMessage(R.string.dialog_delete_permission_message)
+            .setPositiveButton(R.string.dialog_ok) { _, _ -> 
+                lifecycleScope.launch {
+                    requestDeletePermission()
+                }
+            }
+            .setNegativeButton(R.string.dialog_skip) { _, _ ->
+                // Устанавливаем флаг, что разрешение было запрошено (хотя пользователь пропустил)
+                getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true)
+                    .apply()
+                    
+                // Продолжаем инициализацию
+                initializeBackgroundServices()
+            }
+            .setCancelable(false)
+            .create()
+            .show()
+    }
+    
+    /**
+     * Создает тестовый файл и запрашивает разрешение на его удаление
+     */
+    private suspend fun requestDeletePermission() = withContext(Dispatchers.IO) {
+        try {
+            Timber.d("Создание тестового файла для запроса разрешения на удаление")
+            
+            // Создаем тестовое изображение
+            val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(Color.RED)
+            
+            // Получаем URI для сохранения в MediaStore
+            val testFileName = "test_delete_permission.jpg"
+            
+            // Параметры для MediaStore
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, testFileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            
+            // Сохраняем файл
+            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            
+            if (uri != null) {
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+                }
+                
+                // Завершаем создание файла в MediaStore
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    contentResolver.update(uri, contentValues, null, null)
+                }
+                
+                // Теперь запрашиваем разрешение на удаление этого файла
+                withContext(Dispatchers.Main) {
+                    val intentSender = FileUtil.deleteFile(this@MainActivity, uri)
+                    if (intentSender is IntentSender) {
+                        // Запускаем Intent для получения разрешения на удаление
+                        startIntentSenderForResult(
+                            intentSender,
+                            Constants.REQUEST_CODE_DELETE_PERMISSION,
+                            null,
+                            0,
+                            0,
+                            0,
+                            null
+                        )
+                    } else {
+                        // Если удаление прошло без запроса разрешения (старые версии Android),
+                        // просто продолжаем
+                        Timber.d("Файл удален без запроса разрешения")
+                        getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true)
+                            .apply()
+                        initializeBackgroundServices()
+                    }
+                }
+            } else {
+                // Не удалось создать файл, пропускаем запрос разрешения
+                Timber.e("Не удалось создать тестовый файл")
+                withContext(Dispatchers.Main) {
+                    getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true)
+                        .apply()
+                    initializeBackgroundServices()
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при запросе разрешения на удаление")
+            withContext(Dispatchers.Main) {
+                getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true)
+                    .apply()
+                initializeBackgroundServices()
+            }
+        }
+    }
+    
+    /**
+     * Запрос на удаление файла с получением разрешения
+     */
+    private fun requestFileDelete(uri: Uri) {
+        try {
+            val intentSender = FileUtil.deleteFile(this, uri)
+            if (intentSender is IntentSender) {
+                // Запускаем Intent для получения разрешения на удаление
+                startIntentSenderForResult(
+                    intentSender,
+                    Constants.REQUEST_CODE_DELETE_FILE,
+                    null,
+                    0,
+                    0,
+                    0,
+                    null
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при запросе удаления файла: $uri")
+        }
+    }
+    
+    /**
+     * Проверка наличия отложенных запросов на удаление файлов
+     */
+    private fun checkPendingDeleteRequests() {
+        // Получаем список URI, ожидающих удаления
+        val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, null)
+        
+        if (!pendingDeleteUris.isNullOrEmpty()) {
+            Timber.d("Найдено ${pendingDeleteUris.size} отложенных запросов на удаление файлов")
+            
+            // Обрабатываем первый URI в списке
+            val uriString = pendingDeleteUris.firstOrNull()
+            if (uriString != null) {
+                try {
+                    val uri = Uri.parse(uriString)
+                    // Удаляем URI из списка ожидающих
+                    val newSet = pendingDeleteUris.toMutableSet()
+                    newSet.remove(uriString)
+                    prefs.edit()
+                        .putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
+                        .apply()
+                    
+                    // Запрашиваем удаление файла
+                    requestFileDelete(uri)
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при обработке отложенного запроса на удаление: $uriString")
+                }
+            }
+        }
+    }
+    
+    /**
+     * Обработка результата запроса на удаление файла
+     */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        
+        when (requestCode) {
+            Constants.REQUEST_CODE_DELETE_FILE -> {
+                if (FileUtil.handleDeleteFileRequest(resultCode)) {
+                    Timber.d("Файл успешно удален")
+                    Toast.makeText(
+                        this,
+                        getString(R.string.file_deleted_successfully),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Timber.d("Пользователь отклонил запрос на удаление файла")
+                }
+                
+                // Проверяем, есть ли еще отложенные запросы на удаление
+                checkPendingDeleteRequests()
+            }
+            
+            Constants.REQUEST_CODE_DELETE_PERMISSION -> {
+                // Устанавливаем флаг, что разрешение было запрошено
+                getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true)
+                    .apply()
+                    
+                if (FileUtil.handleDeleteFileRequest(resultCode)) {
+                    Timber.d("Тестовый файл успешно удален, разрешение получено")
+                } else {
+                    Timber.d("Пользователь отклонил запрос на удаление тестового файла")
+                }
+                
+                // Продолжаем инициализацию
+                initializeBackgroundServices()
+            }
         }
     }
 } 

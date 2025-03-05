@@ -97,7 +97,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
                 // Сохраняем сжатое изображение в галерею
                 Timber.d("Сохранение сжатого изображения в галерею...")
-                val savedUri = saveCompressedImageToGallery(
+                val result = saveCompressedImageToGallery(
                     compressedFile = tempFile,
                     fileName = compressedFileName,
                     originalUri = imageUri
@@ -107,12 +107,41 @@ class ImageCompressionWorker @AssistedInject constructor(
                 tempFile.delete()
                 Timber.d("Временный файл удален")
 
-                if (savedUri != null) {
+                if (result.first != null) {
+                    val savedUri = result.first
+                    val deleteRequest = result.second
+                    
+                    // Если есть запрос на удаление, сохраняем его в SharedPreferences
+                    // для последующей обработки в MainActivity
+                    if (deleteRequest != null && deleteRequest !is Boolean) {
+                        // Сохраняем информацию о необходимости запроса разрешения на удаление
+                        // На самом деле мы не можем обработать IntentSender из Worker,
+                        // поэтому просто логируем это событие
+                        Timber.d("Требуется разрешение пользователя для удаления оригинального файла: $imageUri")
+                        
+                        // Сохраняем URI, который требует разрешения на удаление, в SharedPreferences
+                        val prefs = applicationContext.getSharedPreferences(
+                            Constants.PREF_FILE_NAME, 
+                            Context.MODE_PRIVATE
+                        )
+                        
+                        // Получаем текущий список URI, ожидающих удаления
+                        val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, mutableSetOf()) ?: mutableSetOf()
+                        
+                        // Добавляем новый URI
+                        pendingDeleteUris.add(imageUri.toString())
+                        
+                        // Сохраняем обновленный список
+                        prefs.edit()
+                            .putStringSet(Constants.PREF_PENDING_DELETE_URIS, pendingDeleteUris)
+                            .apply()
+                    }
+                    
                     Timber.d("Изображение успешно сжато и сохранено. URI сжатого файла: $savedUri")
                     Timber.d("Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
                     
                     // Логируем информацию о сохраненном файле
-                    logFileDetails(savedUri)
+                    savedUri?.let { logFileDetails(it) }
                     
                     Result.success()
                 } else {
@@ -499,8 +528,10 @@ class ImageCompressionWorker @AssistedInject constructor(
 
     /**
      * Сохранение сжатого изображения в галерею
+     * 
+     * @return Pair<Uri?, Any?> - Первый элемент - URI сжатого изображения, второй - IntentSender для запроса разрешения на удаление
      */
-    private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Uri? = withContext(Dispatchers.IO) {
+    private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование файла с таким именем
             var finalFileName = fileName
@@ -536,7 +567,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             )
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сохранении сжатого изображения")
-            null
+            Pair(null, null)
         }
     }
 

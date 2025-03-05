@@ -65,14 +65,22 @@ object FileUtil {
 
     /**
      * Сохраняет сжатое изображение в галерею
+     * 
+     * @return Pair<Uri?, Any?> - первый элемент - URI сжатого изображения, второй - IntentSender для запроса разрешения на удаление оригинала
      */
     suspend fun saveCompressedImageToGallery(
         context: Context,
         compressedFile: File,
         fileName: String,
         originalUri: Uri
-    ): Uri? {
+    ): Pair<Uri?, Any?> {
         try {
+            // Получаем режим сохранения из SharedPreferences
+            val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+            val isReplaceModeEnabled = prefs.getBoolean(Constants.PREF_SAVE_MODE, false)
+            
+            Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${if (isReplaceModeEnabled) "включен" else "выключен"}")
+            
             // Проверяем, что имя файла не содержит уже маркер сжатия
             val hasCompressionMarker = ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
                 fileName.lowercase().contains(marker.lowercase())
@@ -91,85 +99,184 @@ object FileUtil {
             }
             
             // Создаем имя для сжатого файла
-            var finalFileName = "${baseNameWithoutMarker}_compressed.$extension"
+            var finalFileName: String
             var counter = 1
             
-            // Проверяем существование файла с таким именем и увеличиваем счетчик при необходимости
-            while (true) {
-                val testFileName = if (counter == 1) finalFileName else {
-                    val baseName = finalFileName.substringBeforeLast(".")
-                    val ext = finalFileName.substringAfterLast(".", "")
-                    "${baseName}_$counter.$ext"
-                }
+            if (isReplaceModeEnabled) {
+                // В режиме замены используем оригинальное имя файла
+                finalFileName = "${baseNameWithoutMarker}.$extension"
                 
+                // Проверяем существование файла с таким именем только для логов
                 val exists = context.contentResolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     arrayOf(MediaStore.Images.Media._ID),
-                    "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
-                    arrayOf(testFileName),
+                    "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND ${MediaStore.Images.Media._ID} != ?",
+                    arrayOf(finalFileName, originalUri.lastPathSegment ?: ""),
                     null
                 )?.use { cursor -> cursor.count > 0 } ?: false
-
-                if (!exists) {
-                    finalFileName = testFileName
-                    break
+                
+                if (exists) {
+                    Timber.d("В режиме замены обнаружен файл с таким же именем, но продолжаем использовать оригинальное имя: $finalFileName")
                 }
-                counter++
+            } else {
+                // В режиме сохранения в отдельной папке добавляем маркер сжатия
+                finalFileName = "${baseNameWithoutMarker}${Constants.COMPRESSED_SUFFIX}.$extension"
+                
+                // Проверяем существование файла с таким именем и увеличиваем счетчик при необходимости
+                while (true) {
+                    val testFileName = if (counter == 1) finalFileName else {
+                        val baseName = finalFileName.substringBeforeLast(".")
+                        val ext = finalFileName.substringAfterLast(".", "")
+                        "${baseName}_$counter.$ext"
+                    }
+                    
+                    val exists = context.contentResolver.query(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        arrayOf(MediaStore.Images.Media._ID),
+                        "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
+                        arrayOf(testFileName),
+                        null
+                    )?.use { cursor -> cursor.count > 0 } ?: false
+
+                    if (!exists) {
+                        finalFileName = testFileName
+                        break
+                    }
+                    counter++
+                }
             }
             
             Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $finalFileName")
 
+            // Получаем путь оригинального файла
+            val originalPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                getRelativePathFromUri(context, originalUri)
+            } else {
+                null
+            }
+            
             // Создаем запись в MediaStore
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, finalFileName)
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                 put(MediaStore.Images.Media.DESCRIPTION, "Compressed")
+                
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY)
+                    if (isReplaceModeEnabled && originalPath != null) {
+                        // В режиме замены используем путь оригинального файла
+                        put(MediaStore.Images.Media.RELATIVE_PATH, originalPath)
+                        Timber.d("Используем относительный путь оригинального файла: $originalPath")
+                    } else if (!isReplaceModeEnabled) {
+                        // В режиме сохранения в отдельной папке используем директорию приложения
+                        put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY)
+                        Timber.d("Используем путь приложения: ${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}")
+                    } else {
+                        // Если не удалось получить путь, используем директорию оригинального файла или стандартную
+                        val originalFilePath = getFilePathFromUri(context, originalUri)
+                        if (originalFilePath != null) {
+                            val parentPath = File(originalFilePath).parent
+                            if (parentPath != null) {
+                                // Извлекаем относительный путь из абсолютного
+                                val storagePath = Environment.getExternalStorageDirectory().path
+                                if (parentPath.startsWith(storagePath)) {
+                                    val relativePath = parentPath.substring(storagePath.length + 1)
+                                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
+                                    Timber.d("Используем извлеченный относительный путь: $relativePath")
+                                } else {
+                                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                                    Timber.d("Используем стандартный путь изображений")
+                                }
+                            } else {
+                                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                                Timber.d("Используем стандартный путь изображений (не удалось получить родительскую директорию)")
+                            }
+                        } else {
+                            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                            Timber.d("Используем стандартный путь изображений (не удалось получить путь файла)")
+                        }
+                    }
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 }
             }
 
             // Сохраняем файл
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            var deletePendingIntent: Any? = null
+            
             if (uri != null) {
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    compressedFile.inputStream().use { inputStream ->
-                        inputStream.copyTo(outputStream)
+                // Копируем содержимое файла
+                try {
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        compressedFile.inputStream().use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                    
+                    // Копируем EXIF данные
+                    copyExifData(context, originalUri, uri)
+                    
+                    // Завершаем запись
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        values.clear()
+                        values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                        context.contentResolver.update(uri, values, null, null)
+                    }
+                    
+                    // Если включен режим замены, удаляем оригинальный файл
+                    if (isReplaceModeEnabled) {
+                        try {
+                            Timber.d("saveCompressedImageToGallery: удаление оригинального файла: $originalUri")
+                            deletePendingIntent = deleteFile(context, originalUri)
+                            // Если функция вернула не boolean, значит требуется запрос разрешения
+                            if (deletePendingIntent !is Boolean) {
+                                Timber.d("saveCompressedImageToGallery: требуется запрос разрешения на удаление")
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Ошибка при удалении оригинального файла")
+                        }
+                    }
+                    
+                    return Pair(uri, deletePendingIntent)
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при записи файла: ${e.message}")
+                    // Если произошла ошибка, удаляем созданную запись
+                    try {
+                        context.contentResolver.delete(uri, null, null)
+                    } catch (deleteException: Exception) {
+                        Timber.e(deleteException, "Ошибка при удалении неполной записи")
                     }
                 }
-
-                // Копируем EXIF данные
-                copyExifData(context, originalUri, uri)
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    values.clear()
-                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
-                    context.contentResolver.update(uri, values, null, null)
-                }
-
-                // Отмечаем изображение как обработанное
-                ImageTrackingUtil.markImageAsProcessed(context, uri)
-                
-                return uri
+            } else {
+                Timber.e("Не удалось создать URI для сжатого изображения")
             }
+            return Pair(null, null)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения")
+            Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
+            return Pair(null, null)
         }
-        return null
     }
 
     /**
      * Копирует EXIF данные из оригинального изображения в сжатое
      */
     private fun copyExifData(context: Context, sourceUri: Uri, destUri: Uri) {
+        var sourceStream: InputStream? = null
+        var destStream: InputStream? = null
+        
         try {
-            val sourceStream = context.contentResolver.openInputStream(sourceUri)
-            val destStream = context.contentResolver.openInputStream(destUri)
+            sourceStream = context.contentResolver.openInputStream(sourceUri)
+            destStream = context.contentResolver.openInputStream(destUri)
             
             if (sourceStream != null && destStream != null) {
+                // Загружаем EXIF данные из исходного файла
                 val sourceExif = ExifInterface(sourceStream)
+                
+                // Создаем ExifInterface для файла назначения
                 val destExif = ExifInterface(destStream)
+                
+                // Закрываем потоки для избежания проблем с файловыми дескрипторами
+                sourceStream.close()
+                destStream.close()
                 
                 // Копируем все EXIF теги
                 val tags = arrayOf(
@@ -202,16 +309,136 @@ object FileUtil {
                     }
                 }
                 
-                // Сохраняем изменения
-                context.contentResolver.openOutputStream(destUri)?.use { outputStream ->
-                    destExif.saveAttributes()
+                // Открываем выходной поток для записи EXIF данных
+                val destPath = context.contentResolver.openFileDescriptor(destUri, "rw")
+                if (destPath != null) {
+                    try {
+                        destExif.saveAttributes()
+                        Timber.d("EXIF данные успешно скопированы")
+                    } catch (e: Exception) {
+                        Timber.e(e, "Ошибка при сохранении EXIF данных")
+                    } finally {
+                        try {
+                            destPath.close()
+                        } catch (e: Exception) {
+                            Timber.e(e, "Ошибка при закрытии дескриптора файла")
+                        }
+                    }
+                } else {
+                    Timber.e("Не удалось получить дескриптор файла для записи EXIF данных")
                 }
             }
-            
-            sourceStream?.close()
-            destStream?.close()
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при копировании EXIF данных")
+        } finally {
+            try {
+                sourceStream?.close()
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при закрытии потока исходного файла")
+            }
+            try {
+                destStream?.close()
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при закрытии потока файла назначения")
+            }
         }
+    }
+
+    /**
+     * Получает относительный путь из URI
+     */
+    fun getRelativePathFromUri(context: Context, uri: Uri): String? {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                    if (columnIndex != -1) {
+                        return cursor.getString(columnIndex)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении относительного пути из URI")
+        }
+        return null
+    }
+    
+    /**
+     * Удаляет файл по URI
+     * 
+     * На Android 10+ (API 29+) возвращает PendingIntent, который необходимо обработать для получения разрешения
+     * на удаление файла
+     */
+    fun deleteFile(context: Context, uri: Uri): Any? {
+        try {
+            // Для Android 10+ используем MediaStore API с обработкой RecoverableSecurityException
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try {
+                    // Сначала пробуем удалить напрямую
+                    return context.contentResolver.delete(uri, null, null) > 0
+                } catch (e: SecurityException) {
+                    // Проверяем, можно ли восстановить исключение
+                    if (e is android.app.RecoverableSecurityException) {
+                        // Возвращаем IntentSender для запроса разрешения
+                        Timber.d("Требуется разрешение пользователя для удаления файла: $uri")
+                        return e.userAction.actionIntent.intentSender
+                    } else {
+                        throw e
+                    }
+                }
+            } else {
+                // Для более старых версий получаем путь к файлу и удаляем его напрямую
+                val path = getFilePathFromUri(context, uri)
+                if (path != null) {
+                    val file = File(path)
+                    return file.delete()
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при удалении файла: $uri")
+        }
+        return false
+    }
+    
+    /**
+     * Получает путь к файлу из URI
+     */
+    fun getFilePathFromUri(context: Context, uri: Uri): String? {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media.DATA)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                    if (columnIndex != -1) {
+                        return cursor.getString(columnIndex)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении пути к файлу из URI")
+        }
+        return null
+    }
+
+    /**
+     * Обрабатывает результат запроса удаления файла
+     * 
+     * Этот метод должен быть вызван из Activity.onActivityResult
+     */
+    fun handleDeleteFileRequest(resultCode: Int): Boolean {
+        return resultCode == android.app.Activity.RESULT_OK
     }
 } 

@@ -9,6 +9,9 @@ object Constants {
     const val PREF_AUTO_COMPRESSION = "auto_compression"
     const val PREF_COMPRESSION_QUALITY = "compression_quality"
     const val PREF_SAVE_MODE = "save_mode"
+    const val PREF_PENDING_DELETE_URIS = "pending_delete_uris"
+    const val PREF_FIRST_LAUNCH = "first_launch"
+    const val PREF_DELETE_PERMISSION_REQUESTED = "delete_permission_requested"
     
     // Значения по умолчанию
     const val DEFAULT_COMPRESSION_QUALITY = 80
@@ -56,4 +59,8 @@ object Constants {
     const val MAX_TRACKED_FILES = 1000
     const val PROCESSING_TIMEOUT_MS = 5 * 60 * 1000L // 5 минут
     const val PROCESSED_FILES_CLEANUP_INTERVAL = 24 * 60 * 60 * 1000L // 24 часа
+    
+    // Коды запросов
+    const val REQUEST_CODE_DELETE_FILE = 12345
+    const val REQUEST_CODE_DELETE_PERMISSION = 12346
 } 
