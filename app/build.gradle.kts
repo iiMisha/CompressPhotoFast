@@ -5,6 +5,14 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
+kapt {
+    correctErrorTypes = true
+    arguments {
+        arg("dagger.fastInit", "enabled")
+        arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+    }
+}
+
 android {
     namespace = "com.compressphotofast"
     compileSdk = 34
