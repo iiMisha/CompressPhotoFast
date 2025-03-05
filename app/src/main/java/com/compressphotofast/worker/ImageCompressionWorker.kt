@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import com.compressphotofast.R
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.ImageTrackingUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -49,8 +50,12 @@ class ImageCompressionWorker @AssistedInject constructor(
         
         val imageUri = Uri.parse(imageUriString)
         Timber.d("Обработка нового изображения: $imageUri")
+        Timber.d("Параметры: качество=$compressionQuality")
 
         try {
+            // Логируем подробную информацию об исходном файле
+            logFileDetails(imageUri)
+
             // Получаем размер исходного файла
             val originalSize = getFileSize(imageUri)
             if (originalSize <= 0) {
@@ -60,14 +65,19 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Создаем временный файл для сжатого изображения
             val tempFile = createTempImageFile()
+            Timber.d("Создан временный файл: ${tempFile.absolutePath}")
             
             try {
                 // Сжимаем изображение
+                Timber.d("Начало сжатия изображения...")
                 compressImage(imageUri, tempFile, compressionQuality)
+                Timber.d("Изображение успешно сжато")
                 
                 // Проверяем размер сжатого файла
                 val compressedSize = tempFile.length()
                 val sizeReduction = ((originalSize - compressedSize).toFloat() / originalSize) * 100
+                
+                Timber.d("Результат сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
                 
                 if (sizeReduction < 20) {
                     Timber.d("Недостаточное сжатие (${String.format("%.1f", sizeReduction)}%), пропускаем файл")
@@ -79,10 +89,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val originalFileName = FileUtil.getFileName(applicationContext.contentResolver, imageUri)
                     ?: "image_${System.currentTimeMillis()}.jpg"
                 
+                Timber.d("Имя исходного файла: $originalFileName")
+                
                 // Создаем имя для сжатого файла
                 val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
+                Timber.d("Имя для сжатого файла: $compressedFileName")
             
-            // Сохраняем сжатое изображение в галерею
+                // Сохраняем сжатое изображение в галерею
+                Timber.d("Сохранение сжатого изображения в галерею...")
                 val savedUri = saveCompressedImageToGallery(
                     compressedFile = tempFile,
                     fileName = compressedFileName,
@@ -91,23 +105,108 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 // Удаляем временный файл
                 tempFile.delete()
+                Timber.d("Временный файл удален")
 
                 if (savedUri != null) {
-                    Timber.d("Изображение успешно сжато и сохранено. Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
-                Result.success()
-            } else {
-                Timber.e("Не удалось сохранить сжатое изображение")
+                    Timber.d("Изображение успешно сжато и сохранено. URI сжатого файла: $savedUri")
+                    Timber.d("Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
+                    
+                    // Логируем информацию о сохраненном файле
+                    logFileDetails(savedUri)
+                    
+                    Result.success()
+                } else {
+                    Timber.e("Не удалось сохранить сжатое изображение")
                     Result.failure()
                 }
             } finally {
                 // Гарантируем удаление временного файла
                 if (tempFile.exists()) {
                     tempFile.delete()
+                    Timber.d("Временный файл удален в блоке finally")
                 }
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения")
             Result.failure()
+        }
+    }
+
+    /**
+     * Логирует подробную информацию о файле
+     */
+    private fun logFileDetails(uri: Uri) {
+        try {
+            // Получаем базовую информацию об URI
+            Timber.d("Детали URI: $uri")
+            Timber.d(" - Scheme: ${uri.scheme}")
+            Timber.d(" - Authority: ${uri.authority}")
+            Timber.d(" - Path: ${uri.path}")
+            Timber.d(" - Query: ${uri.query}")
+            Timber.d(" - Fragment: ${uri.fragment}")
+            
+            val cursor = context.contentResolver.query(
+                uri,
+                arrayOf(
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.SIZE,
+                    MediaStore.Images.Media.DATA,
+                    MediaStore.Images.Media.DESCRIPTION,
+                    MediaStore.Images.Media.DATE_ADDED,
+                    MediaStore.Images.Media.DATE_MODIFIED
+                ),
+                null,
+                null,
+                null
+            )
+            
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val idIndex = it.getColumnIndex(MediaStore.Images.Media._ID)
+                    val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
+                    val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
+                    val descIndex = it.getColumnIndex(MediaStore.Images.Media.DESCRIPTION)
+                    val addedIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    val modifiedIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
+                    
+                    val id = if (idIndex != -1) it.getLong(idIndex) else null
+                    val name = if (nameIndex != -1) it.getString(nameIndex) else null
+                    val size = if (sizeIndex != -1) it.getLong(sizeIndex) else null
+                    val data = if (dataIndex != -1) it.getString(dataIndex) else null
+                    val desc = if (descIndex != -1) it.getString(descIndex) else null
+                    val added = if (addedIndex != -1) it.getLong(addedIndex) else null
+                    val modified = if (modifiedIndex != -1) it.getLong(modifiedIndex) else null
+                    
+                    Timber.d("Метаданные файла для URI '$uri':")
+                    Timber.d(" - ID: $id")
+                    Timber.d(" - Имя: $name")
+                    Timber.d(" - Размер: $size")
+                    Timber.d(" - Путь: $data")
+                    Timber.d(" - Описание: $desc")
+                    Timber.d(" - Дата добавления: $added")
+                    Timber.d(" - Дата изменения: $modified")
+                    
+                    // Анализируем имя файла на наличие маркеров сжатия
+                    name?.let { fileName ->
+                        val hasCompressionMarker = ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
+                            fileName.lowercase().contains(marker.lowercase())
+                        }
+                        Timber.d(" - Имеет маркер сжатия в имени: $hasCompressionMarker")
+                    }
+                    
+                    // Проверяем, находится ли файл в директории приложения
+                    data?.let { path ->
+                        val isInAppDirectory = path.contains("/${Constants.APP_DIRECTORY}/")
+                        Timber.d(" - Находится в директории приложения: $isInAppDirectory")
+                    }
+                } else {
+                    Timber.d("Нет метаданных для URI '$uri'")
+                }
+            } ?: Timber.d("Не удалось получить курсор для URI '$uri'")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении информации о файле: $uri")
         }
     }
 

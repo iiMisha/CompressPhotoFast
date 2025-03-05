@@ -3,6 +3,7 @@ package com.compressphotofast.ui
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +22,7 @@ import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.ImageTrackingUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -80,6 +82,13 @@ class MainActivity : AppCompatActivity() {
      * Обработка входящих интентов для получения изображений от других приложений
      */
     private fun handleIntent(intent: Intent) {
+        Timber.d("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
+        
+        // Логируем все данные интента для отладки
+        intent.extras?.keySet()?.forEach { key ->
+            Timber.d("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
+        }
+        
         when (intent.action) {
             Intent.ACTION_SEND -> {
                 if (intent.type?.startsWith("image/") == true) {
@@ -91,7 +100,17 @@ class MainActivity : AppCompatActivity() {
                     }
                     
                     uri?.let {
-                        Timber.d("Получено изображение через Intent.ACTION_SEND: $it")
+                        Timber.d("handleIntent: Получено изображение через Intent.ACTION_SEND: $it")
+                        
+                        // Логируем подробную информацию о файле
+                        logFileDetails(it)
+                        
+                        // Проверяем, не было ли изображение уже обработано
+                        lifecycleScope.launch {
+                            val isAlreadyProcessed = ImageTrackingUtil.isImageProcessed(applicationContext, it)
+                            Timber.d("handleIntent: Изображение уже обработано: $isAlreadyProcessed, URI: $it")
+                        }
+                        
                         viewModel.setSelectedImageUri(it)
                         // Всегда запускаем сжатие, независимо от настройки автоматического сжатия
                         viewModel.compressSelectedImage()
@@ -108,7 +127,20 @@ class MainActivity : AppCompatActivity() {
                     }
                     
                     uris?.let {
-                        Timber.d("Получено ${it.size} изображений через Intent.ACTION_SEND_MULTIPLE")
+                        Timber.d("handleIntent: Получено ${it.size} изображений через Intent.ACTION_SEND_MULTIPLE")
+                        
+                        // Логируем информацию о каждом файле
+                        it.forEach { uri ->
+                            Timber.d("handleIntent: Изображение из множества: $uri")
+                            logFileDetails(uri)
+                            
+                            // Проверяем каждое изображение
+                            lifecycleScope.launch {
+                                val isAlreadyProcessed = ImageTrackingUtil.isImageProcessed(applicationContext, uri)
+                                Timber.d("handleIntent: Изображение уже обработано: $isAlreadyProcessed, URI: $uri")
+                            }
+                        }
+                        
                         if (it.isNotEmpty()) {
                             // Показываем первое изображение в UI
                             viewModel.setSelectedImageUri(it[0])
@@ -119,6 +151,75 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+    
+    /**
+     * Логирует подробную информацию о файле
+     */
+    private fun logFileDetails(uri: Uri) {
+        try {
+            val cursor = contentResolver.query(
+                uri,
+                arrayOf(
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.SIZE,
+                    MediaStore.Images.Media.DATA,
+                    MediaStore.Images.Media.DESCRIPTION,
+                    MediaStore.Images.Media.DATE_ADDED,
+                    MediaStore.Images.Media.DATE_MODIFIED
+                ),
+                null,
+                null,
+                null
+            )
+            
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val id = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media._ID))
+                    val name = it.getStringOrNull(it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME))
+                    val size = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media.SIZE))
+                    val data = it.getStringOrNull(it.getColumnIndex(MediaStore.Images.Media.DATA))
+                    val desc = it.getStringOrNull(it.getColumnIndex(MediaStore.Images.Media.DESCRIPTION))
+                    val dateAdded = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED))
+                    val dateModified = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED))
+                    
+                    Timber.d("Детали файла для URI '$uri':")
+                    Timber.d(" - ID: $id")
+                    Timber.d(" - Имя: $name")
+                    Timber.d(" - Размер: $size")
+                    Timber.d(" - Путь: $data")
+                    Timber.d(" - Описание: $desc")
+                    Timber.d(" - Дата добавления: $dateAdded")
+                    Timber.d(" - Дата изменения: $dateModified")
+                    
+                    // Проверяем, имеет ли файл маркеры сжатия в имени
+                    val hasCompressionMarker = name?.let { fileName ->
+                        ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
+                            fileName.lowercase().contains(marker.lowercase())
+                        }
+                    } ?: false
+                    
+                    Timber.d(" - Имеет маркер сжатия в имени: $hasCompressionMarker")
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении информации о файле: $uri")
+        }
+    }
+    
+    /**
+     * Расширение для безопасного получения Long из Cursor
+     */
+    private fun Cursor.getLongOrNull(columnIndex: Int): Long? {
+        return if (columnIndex != -1 && !isNull(columnIndex)) getLong(columnIndex) else null
+    }
+    
+    /**
+     * Расширение для безопасного получения String из Cursor
+     */
+    private fun Cursor.getStringOrNull(columnIndex: Int): String? {
+        return if (columnIndex != -1 && !isNull(columnIndex)) getString(columnIndex) else null
     }
 
     /**
