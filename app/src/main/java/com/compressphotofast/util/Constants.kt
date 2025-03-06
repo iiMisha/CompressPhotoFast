@@ -27,6 +27,7 @@ object Constants {
     // Теги для WorkManager
     const val WORK_TAG_COMPRESSION = "compression_work"
     const val WORK_INPUT_IMAGE_URI = "image_uri"
+    const val WORK_ERROR_MSG = "error_message"
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"

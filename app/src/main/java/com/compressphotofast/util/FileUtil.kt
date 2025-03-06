@@ -42,25 +42,28 @@ object FileUtil {
     }
 
     /**
-     * Проверяет, содержит ли URI маркеры сжатого изображения
-     * @deprecated Используйте ImageTrackingUtil.isImageProcessed вместо этого метода
-     */
-    @Deprecated("Используйте ImageTrackingUtil.isImageProcessed для проверки статуса сжатия", 
-                ReplaceWith("ImageTrackingUtil.isImageProcessed(context, uri)"))
-    fun isAlreadyCompressed(uri: Uri): Boolean {
-        val path = uri.toString().lowercase()
-        return path.contains("_compressed") || 
-               path.contains("_сжатое") || 
-               path.contains("_small")
-    }
-
-    /**
      * Создает имя файла для сжатой версии
+     * Удаляет существующие маркеры сжатия и ограничивает длину имени файла
      */
     fun createCompressedFileName(originalName: String): String {
         val extension = originalName.substringAfterLast(".", "")
-        val nameWithoutExt = originalName.substringBeforeLast(".")
-        return "${nameWithoutExt}_compressed.$extension"
+        var nameWithoutExt = originalName.substringBeforeLast(".")
+        
+        // Удаляем все предыдущие маркеры сжатия
+        Constants.COMPRESSION_MARKERS.forEach { marker ->
+            nameWithoutExt = nameWithoutExt.replace(marker, "")
+        }
+        
+        // Удаляем хеши и другие дополнительные части из имени файла
+        nameWithoutExt = nameWithoutExt.replace(Regex("-\\d+_[a-f0-9]{32}"), "")
+        
+        // Ограничиваем длину имени файла
+        val maxBaseLength = 100 - extension.length - Constants.COMPRESSED_SUFFIX.length - 1
+        if (nameWithoutExt.length > maxBaseLength) {
+            nameWithoutExt = nameWithoutExt.take(maxBaseLength)
+        }
+        
+        return "${nameWithoutExt}${Constants.COMPRESSED_SUFFIX}.$extension"
     }
 
     /**
@@ -425,6 +428,32 @@ object FileUtil {
             Timber.e(e, "Ошибка при получении пути к файлу из URI")
         }
         return null
+    }
+
+    /**
+     * Получает имя файла из URI (расширенная версия)
+     * В отличие от getFileName, дополнительно пробует получить имя из lastPathSegment,
+     * если не удалось найти через MediaStore
+     */
+    fun getFileNameFromUri(context: Context, uri: Uri): String? {
+        try {
+            // Сначала пробуем получить через простой метод
+            var fileName = getFileName(context.contentResolver, uri)
+            
+            // Если не удалось, пробуем через lastPathSegment
+            if (fileName == null) {
+                uri.lastPathSegment?.let { segment ->
+                    if (segment.contains(".")) {
+                        fileName = segment
+                    }
+                }
+            }
+            
+            return fileName
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении имени файла из URI")
+            return null
+        }
     }
 
     /**

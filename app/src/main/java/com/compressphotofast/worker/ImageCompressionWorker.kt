@@ -11,6 +11,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
@@ -46,92 +47,101 @@ class ImageCompressionWorker @AssistedInject constructor(
         val compressedSize: Long
     )
 
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+    override suspend fun doWork(): Result {
         val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
         val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
         
         if (imageUriString == null) {
-            Timber.e("URI изображения отсутствует")
-            return@withContext Result.failure()
+            Timber.e("Отсутствует URI изображения в запросе на сжатие")
+            return Result.failure(workDataOf(Constants.WORK_ERROR_MSG to "Отсутствует URI изображения"))
         }
         
         val imageUri = Uri.parse(imageUriString)
-        Timber.d("Обработка нового изображения: $imageUri")
+        Timber.d("Начало сжатия изображения: $imageUri")
         Timber.d("Параметры: качество=$compressionQuality")
 
-        try {
-            // Логируем подробную информацию об исходном файле
-            logFileDetails(imageUri)
-
-            // Получаем размер исходного файла
-            val originalSize = getFileSize(imageUri)
-            if (originalSize <= 0) {
-                Timber.e("Невозможно получить размер исходного файла")
-                return@withContext Result.failure()
-            }
-
-            // Создаем временный файл для сжатого изображения
-            val tempFile = createTempImageFile()
-            Timber.d("Создан временный файл: ${tempFile.absolutePath}")
-            
+        return withContext(Dispatchers.IO) {
             try {
-                // Сжимаем изображение
-                Timber.d("Начало сжатия изображения...")
-                compressImage(imageUri, tempFile, compressionQuality)
-                Timber.d("Изображение успешно сжато")
+                // Получаем имя файла из URI
+                val originalFileNameNullable = FileUtil.getFileNameFromUri(context, imageUri)
                 
-                // Проверяем размер сжатого файла
-                val compressedSize = tempFile.length()
-                val sizeReduction = ((originalSize - compressedSize).toFloat() / originalSize) * 100
+                if (originalFileNameNullable == null) {
+                    Timber.e("Не удалось получить имя файла из URI: $imageUri")
+                    return@withContext Result.failure(workDataOf(Constants.WORK_ERROR_MSG to "Не удалось получить имя файла"))
+                }
                 
-                Timber.d("Результат сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
+                // После проверки на null используем non-null переменную
+                val originalFileName = originalFileNameNullable
+
+                // Логируем подробную информацию об исходном файле
+                logFileDetails(imageUri)
+
+                // Получаем размер исходного файла
+                val originalSize = getFileSize(imageUri)
+                if (originalSize <= 0) {
+                    Timber.e("Невозможно получить размер исходного файла")
+                    return@withContext Result.failure()
+                }
+
+                // Создаем временный файл для сжатого изображения
+                val tempFile = createTempImageFile()
+                Timber.d("Создан временный файл: ${tempFile.absolutePath}")
                 
-                if (sizeReduction < 20) {
-                    Timber.d("Недостаточное сжатие (${String.format("%.1f", sizeReduction)}%), пропускаем файл")
+                try {
+                    // Сжимаем изображение
+                    Timber.d("Начало сжатия изображения...")
+                    compressImage(imageUri, tempFile, compressionQuality)
+                    Timber.d("Изображение успешно сжато")
+                    
+                    // Проверяем размер сжатого файла
+                    val compressedSize = tempFile.length()
+                    val sizeReduction = ((originalSize - compressedSize).toFloat() / originalSize) * 100
+                    
+                    Timber.d("Результат сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
+                    
+                    if (sizeReduction < 20) {
+                        Timber.d("Недостаточное сжатие (${String.format("%.1f", sizeReduction)}%), пропускаем файл")
+                        tempFile.delete()
+                        return@withContext Result.success()
+                    }
+
+                    Timber.d("Имя исходного файла: $originalFileName")
+                    
+                    // Создаем имя для сжатого файла
+                    val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
+                    Timber.d("Имя для сжатого файла: $compressedFileName")
+                
+                    // Сохраняем сжатое изображение в галерею
+                    Timber.d("Сохранение сжатого изображения в галерею...")
+                    val result = handleCompressedImage(
+                        compressedFile = tempFile,
+                        originalUri = imageUri,
+                        originalFileName = originalFileName,
+                        stats = CompressionStats(originalSize, compressedSize)
+                    )
+
+                    // Удаляем временный файл
                     tempFile.delete()
-                    return@withContext Result.success()
-                }
+                    Timber.d("Временный файл удален")
 
-                // Получаем имя исходного файла
-                val originalFileName = FileUtil.getFileName(context.contentResolver, imageUri)
-                    ?: "image_${System.currentTimeMillis()}.jpg"
-                
-                Timber.d("Имя исходного файла: $originalFileName")
-                
-                // Создаем имя для сжатого файла
-                val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
-                Timber.d("Имя для сжатого файла: $compressedFileName")
-            
-                // Сохраняем сжатое изображение в галерею
-                Timber.d("Сохранение сжатого изображения в галерею...")
-                val result = handleCompressedImage(
-                    compressedFile = tempFile,
-                    originalUri = imageUri,
-                    originalFileName = originalFileName,
-                    stats = CompressionStats(originalSize, compressedSize)
-                )
-
-                // Удаляем временный файл
-                tempFile.delete()
-                Timber.d("Временный файл удален")
-
-                if (result) {
-                    Timber.d("Изображение успешно сжато и сохранено")
-                    Result.success()
-                } else {
-                    Timber.e("Не удалось сохранить сжатое изображение")
-                    Result.failure()
+                    if (result) {
+                        Timber.d("Изображение успешно сжато и сохранено")
+                        Result.success()
+                    } else {
+                        Timber.e("Не удалось сохранить сжатое изображение")
+                        Result.failure()
+                    }
+                } finally {
+                    // Гарантируем удаление временного файла
+                    if (tempFile.exists()) {
+                        tempFile.delete()
+                        Timber.d("Временный файл удален в блоке finally")
+                    }
                 }
-            } finally {
-                // Гарантируем удаление временного файла
-                if (tempFile.exists()) {
-                    tempFile.delete()
-                    Timber.d("Временный файл удален в блоке finally")
-                }
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при сжатии изображения")
+                Result.failure()
             }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сжатии изображения")
-            Result.failure()
         }
     }
 
@@ -211,31 +221,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении информации о файле: $uri")
         }
-    }
-
-    /**
-     * Получает безопасное имя файла с ограничением длины
-     */
-    private fun getSafeFileName(originalName: String): String {
-        val extension = originalName.substringAfterLast(".", "")
-        var nameWithoutExt = originalName.substringBeforeLast(".")
-        
-        // Удаляем все предыдущие маркеры сжатия
-        val compressionMarkers = listOf("_compressed", "_сжатое", "_small")
-        compressionMarkers.forEach { marker ->
-            nameWithoutExt = nameWithoutExt.replace(marker, "")
-        }
-        
-        // Удаляем хеши и другие дополнительные части из имени файла
-        nameWithoutExt = nameWithoutExt.replace(Regex("-\\d+_[a-f0-9]{32}"), "")
-        
-        // Ограничиваем длину имени файла
-        val maxBaseLength = 100 - extension.length - "_compressed".length - 1
-        if (nameWithoutExt.length > maxBaseLength) {
-            nameWithoutExt = nameWithoutExt.take(maxBaseLength)
-        }
-        
-        return "${nameWithoutExt}_compressed.$extension"
     }
 
     /**
@@ -437,7 +422,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private suspend fun isImageAlreadyProcessed(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
             // Получаем имя файла
-            val fileName = getFileNameFromUri(uri) ?: return@withContext false
+            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext false
             
             // Если файл уже имеет маркер сжатия, пропускаем его
             if (fileName.contains("_compressed")) {
@@ -472,31 +457,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса файла")
             false
-        }
-    }
-
-    /**
-     * Получение имени файла из URI
-     */
-    private suspend fun getFileNameFromUri(uri: Uri): String? = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val displayNameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                    return@withContext cursor.getString(displayNameIndex)
-                }
-            }
-            // Если не удалось получить имя через MediaStore, пробуем получить из последнего сегмента URI
-            uri.lastPathSegment?.let { segment ->
-                if (segment.contains(".")) {
-                    return@withContext segment
-                }
-            }
-            null
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении имени файла из URI")
-            null
         }
     }
 
@@ -546,7 +506,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Копирование EXIF данных из оригинального изображения в сжатое
+     * Сохраняет EXIF данные в выходной файл
      */
     private suspend fun copyExifData(sourceUri: Uri, destinationFile: File) = withContext(Dispatchers.IO) {
         try {
@@ -572,40 +532,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                     ExifInterface.TAG_GPS_TIMESTAMP,
                     ExifInterface.TAG_IMAGE_LENGTH,
                     ExifInterface.TAG_IMAGE_WIDTH,
+                    ExifInterface.TAG_ISO_SPEED_RATINGS,
                     ExifInterface.TAG_MAKE,
                     ExifInterface.TAG_MODEL,
                     ExifInterface.TAG_ORIENTATION,
                     ExifInterface.TAG_SUBSEC_TIME,
-                    ExifInterface.TAG_SUBSEC_TIME_DIGITIZED,
-                    ExifInterface.TAG_SUBSEC_TIME_ORIGINAL,
-                    ExifInterface.TAG_WHITE_BALANCE,
-                    ExifInterface.TAG_APERTURE_VALUE,
-                    ExifInterface.TAG_BRIGHTNESS_VALUE,
-                    ExifInterface.TAG_COLOR_SPACE,
-                    ExifInterface.TAG_CONTRAST,
-                    ExifInterface.TAG_DIGITAL_ZOOM_RATIO,
-                    ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
-                    ExifInterface.TAG_EXPOSURE_INDEX,
-                    ExifInterface.TAG_EXPOSURE_MODE,
-                    ExifInterface.TAG_EXPOSURE_PROGRAM,
-                    ExifInterface.TAG_FLASH_ENERGY,
-                    ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
-                    ExifInterface.TAG_F_NUMBER,
-                    ExifInterface.TAG_GAIN_CONTROL,
-                    ExifInterface.TAG_ISO_SPEED_RATINGS,
-                    ExifInterface.TAG_LIGHT_SOURCE,
-                    ExifInterface.TAG_MAKER_NOTE,
-                    ExifInterface.TAG_MAX_APERTURE_VALUE,
-                    ExifInterface.TAG_METERING_MODE,
-                    ExifInterface.TAG_SATURATION,
-                    ExifInterface.TAG_SCENE_CAPTURE_TYPE,
-                    ExifInterface.TAG_SCENE_TYPE,
-                    ExifInterface.TAG_SENSING_METHOD,
-                    ExifInterface.TAG_SHARPNESS,
-                    ExifInterface.TAG_SHUTTER_SPEED_VALUE,
-                    ExifInterface.TAG_SOFTWARE,
-                    ExifInterface.TAG_SUBJECT_DISTANCE,
-                    ExifInterface.TAG_USER_COMMENT
+                    ExifInterface.TAG_WHITE_BALANCE
                 )
 
                 for (tag in tags) {
@@ -615,12 +547,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                     }
                 }
 
-                // Сохраняем EXIF данные
+                // Сохраняем изменения
                 destinationExif.saveAttributes()
                 Timber.d("EXIF данные успешно скопированы")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при копировании EXIF данных")
+            Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
         }
     }
 
