@@ -16,6 +16,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Утилитарный класс для работы с файлами
@@ -261,8 +263,9 @@ object FileUtil {
 
     /**
      * Копирует EXIF данные из оригинального изображения в сжатое
+     * Метод для использования между двумя URI
      */
-    private fun copyExifData(context: Context, sourceUri: Uri, destUri: Uri) {
+    fun copyExifData(context: Context, sourceUri: Uri, destUri: Uri) {
         try {
             // Вместо создания двух ExifInterface из потоков, мы сначала получим файловые пути
             val sourceInputPfd = context.contentResolver.openFileDescriptor(sourceUri, "r")
@@ -273,37 +276,8 @@ object FileUtil {
                     val sourceExif = ExifInterface(sourceInputPfd.fileDescriptor)
                     val destExif = ExifInterface(destOutputPfd.fileDescriptor)
                     
-                    // Копируем все EXIF теги
-                    val tags = arrayOf(
-                        ExifInterface.TAG_DATETIME,
-                        ExifInterface.TAG_EXPOSURE_TIME,
-                        ExifInterface.TAG_FLASH,
-                        ExifInterface.TAG_FOCAL_LENGTH,
-                        ExifInterface.TAG_GPS_ALTITUDE,
-                        ExifInterface.TAG_GPS_ALTITUDE_REF,
-                        ExifInterface.TAG_GPS_DATESTAMP,
-                        ExifInterface.TAG_GPS_LATITUDE,
-                        ExifInterface.TAG_GPS_LATITUDE_REF,
-                        ExifInterface.TAG_GPS_LONGITUDE,
-                        ExifInterface.TAG_GPS_LONGITUDE_REF,
-                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                        ExifInterface.TAG_GPS_TIMESTAMP,
-                        ExifInterface.TAG_IMAGE_LENGTH,
-                        ExifInterface.TAG_IMAGE_WIDTH,
-                        ExifInterface.TAG_MAKE,
-                        ExifInterface.TAG_MODEL,
-                        ExifInterface.TAG_ORIENTATION,
-                        ExifInterface.TAG_SUBSEC_TIME,
-                        ExifInterface.TAG_WHITE_BALANCE
-                    )
-                    
-                    // Копируем все доступные теги
-                    for (tag in tags) {
-                        val value = sourceExif.getAttribute(tag)
-                        if (value != null) {
-                            destExif.setAttribute(tag, value)
-                        }
-                    }
+                    // Копируем все EXIF теги, используя общий метод
+                    copyExifTags(sourceExif, destExif)
                     
                     // Сохраняем изменения
                     destExif.saveAttributes()
@@ -327,6 +301,177 @@ object FileUtil {
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
+        }
+    }
+    
+    /**
+     * Копирует EXIF данные из URI источника в файл назначения
+     * Метод для использования между URI и File
+     */
+    suspend fun copyExifDataFromUriToFile(context: Context, sourceUri: Uri, destinationFile: File) = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                val sourceExif = ExifInterface(inputStream)
+                val destinationExif = ExifInterface(destinationFile.absolutePath)
+
+                // Копируем все EXIF теги, используя общий метод
+                copyExifTags(sourceExif, destinationExif)
+
+                // Сохраняем изменения
+                destinationExif.saveAttributes()
+                Timber.d("EXIF данные успешно скопированы из URI в файл")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
+        }
+    }
+    
+    /**
+     * Проверяет, поддерживается ли тег EXIF в текущей версии Android
+     * 
+     * @param tag название тега
+     * @return true если тег существует в ExifInterface, false в противном случае
+     */
+    private fun isExifTagAvailable(tag: String): Boolean {
+        return try {
+            // Пытаемся получить доступ к полю через рефлексию
+            ExifInterface::class.java.getField(tag)
+            true
+        } catch (e: NoSuchFieldException) {
+            Timber.d("EXIF тег $tag не поддерживается в текущей версии Android")
+            false
+        } catch (e: Exception) {
+            Timber.d("Ошибка при проверке EXIF тега $tag: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Общий метод для копирования тегов EXIF между двумя объектами ExifInterface
+     */
+    private fun copyExifTags(sourceExif: ExifInterface, destExif: ExifInterface) {
+        // Список всех тегов EXIF, которые нужно копировать
+        val allPossibleTags = arrayOf(
+            // Базовые теги времени и даты
+            ExifInterface.TAG_DATETIME,
+            ExifInterface.TAG_DATETIME_DIGITIZED,
+            ExifInterface.TAG_DATETIME_ORIGINAL,
+            ExifInterface.TAG_SUBSEC_TIME,
+            ExifInterface.TAG_SUBSEC_TIME_DIGITIZED,
+            ExifInterface.TAG_SUBSEC_TIME_ORIGINAL,
+            
+            // Теги экспозиции и съемки
+            ExifInterface.TAG_EXPOSURE_TIME,
+            ExifInterface.TAG_EXPOSURE_PROGRAM,
+            ExifInterface.TAG_EXPOSURE_MODE,
+            ExifInterface.TAG_EXPOSURE_INDEX,
+            ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+            ExifInterface.TAG_SHUTTER_SPEED_VALUE,
+            
+            // Технические параметры камеры
+            ExifInterface.TAG_APERTURE_VALUE,
+            ExifInterface.TAG_MAX_APERTURE_VALUE,
+            ExifInterface.TAG_F_NUMBER,
+            ExifInterface.TAG_FOCAL_LENGTH,
+            ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
+            ExifInterface.TAG_DIGITAL_ZOOM_RATIO,
+            // Заменяем устаревшие теги ISO на современные
+            ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
+            ExifInterface.TAG_SENSITIVITY_TYPE,
+            ExifInterface.TAG_ISO_SPEED,
+            ExifInterface.TAG_ISO_SPEED_LATITUDE_YYY,
+            ExifInterface.TAG_ISO_SPEED_LATITUDE_ZZZ,
+            
+            // Информация о вспышке
+            ExifInterface.TAG_FLASH,
+            ExifInterface.TAG_FLASH_ENERGY,
+            
+            // GPS данные
+            ExifInterface.TAG_GPS_ALTITUDE,
+            ExifInterface.TAG_GPS_ALTITUDE_REF,
+            ExifInterface.TAG_GPS_DATESTAMP,
+            ExifInterface.TAG_GPS_LATITUDE,
+            ExifInterface.TAG_GPS_LATITUDE_REF,
+            ExifInterface.TAG_GPS_LONGITUDE,
+            ExifInterface.TAG_GPS_LONGITUDE_REF,
+            ExifInterface.TAG_GPS_PROCESSING_METHOD,
+            ExifInterface.TAG_GPS_TIMESTAMP,
+            ExifInterface.TAG_GPS_SPEED,
+            ExifInterface.TAG_GPS_SPEED_REF,
+            ExifInterface.TAG_GPS_IMG_DIRECTION,
+            ExifInterface.TAG_GPS_IMG_DIRECTION_REF,
+            
+            // Информация об изображении
+            ExifInterface.TAG_IMAGE_LENGTH,
+            ExifInterface.TAG_IMAGE_WIDTH,
+            ExifInterface.TAG_IMAGE_DESCRIPTION,
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.TAG_RESOLUTION_UNIT,
+            ExifInterface.TAG_X_RESOLUTION,
+            ExifInterface.TAG_Y_RESOLUTION,
+            ExifInterface.TAG_COMPRESSION,
+            ExifInterface.TAG_BITS_PER_SAMPLE,
+            
+            // Информация о камере
+            ExifInterface.TAG_MAKE,
+            ExifInterface.TAG_MODEL,
+            ExifInterface.TAG_SOFTWARE,
+            ExifInterface.TAG_DEVICE_SETTING_DESCRIPTION,
+            
+            // Информация о сцене и режимах
+            ExifInterface.TAG_SCENE_TYPE,
+            ExifInterface.TAG_SCENE_CAPTURE_TYPE,
+            ExifInterface.TAG_SUBJECT_AREA,
+            ExifInterface.TAG_SUBJECT_DISTANCE,
+            ExifInterface.TAG_SUBJECT_DISTANCE_RANGE,
+            ExifInterface.TAG_SUBJECT_LOCATION,
+            
+            // Информация о цвете и балансе белого
+            ExifInterface.TAG_WHITE_BALANCE,
+            ExifInterface.TAG_WHITE_POINT,
+            ExifInterface.TAG_COLOR_SPACE,
+            ExifInterface.TAG_COMPONENTS_CONFIGURATION,
+            
+            // Другие параметры обработки изображения
+            ExifInterface.TAG_CONTRAST,
+            ExifInterface.TAG_SATURATION,
+            ExifInterface.TAG_SHARPNESS,
+            ExifInterface.TAG_LIGHT_SOURCE,
+            ExifInterface.TAG_METERING_MODE,
+            ExifInterface.TAG_GAIN_CONTROL,
+            
+            // Дополнительные пользовательские данные
+            ExifInterface.TAG_MAKER_NOTE,
+            ExifInterface.TAG_USER_COMMENT,
+            ExifInterface.TAG_COPYRIGHT
+        )
+        
+        // Фильтруем теги, доступные в текущей версии Android
+        val availableTags = allPossibleTags.filter { tag ->
+            try {
+                // Безопасная проверка - пробуем получить значение тега, 
+                // даже если оно null, это показывает, что тег поддерживается
+                sourceExif.getAttribute(tag)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+        
+        // Логируем информацию о поддерживаемых тегах
+        Timber.d("Доступно ${availableTags.size} из ${allPossibleTags.size} тегов EXIF")
+        
+        // Копируем все доступные теги
+        for (tag in availableTags) {
+            try {
+                val value = sourceExif.getAttribute(tag)
+                if (value != null) {
+                    destExif.setAttribute(tag, value)
+                }
+            } catch (e: Exception) {
+                // Если возникла ошибка при копировании конкретного тега, просто пропускаем его
+                Timber.d("Не удалось скопировать тег EXIF: $tag - ${e.message}")
+            }
         }
     }
 

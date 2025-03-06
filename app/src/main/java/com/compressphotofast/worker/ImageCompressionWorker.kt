@@ -362,6 +362,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Создаем временный файл из URI
             val inputFile = createTempFileFromUri(uri) ?: throw IOException("Не удалось создать временный файл")
             
+            // Логируем EXIF данные исходного изображения до сжатия
+            logExifData(uri)
+            
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
                 quality(quality)
@@ -372,11 +375,149 @@ class ImageCompressionWorker @AssistedInject constructor(
             inputFile.delete()
             
             // Копируем EXIF данные
-            copyExifData(uri, outputFile)
+            FileUtil.copyExifDataFromUriToFile(context, uri, outputFile)
+            
+            // Логируем EXIF данные после копирования
+            Timber.d("EXIF данные после копирования:")
+            logExifDataFromFile(outputFile)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения")
             throw e
         }
+    }
+
+    /**
+     * Логирует EXIF данные из URI изображения
+     */
+    private suspend fun logExifData(uri: Uri) = withContext(Dispatchers.IO) {
+        try {
+            Timber.d("Логирование EXIF данных для URI: $uri")
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                
+                // Логируем основные теги EXIF
+                val datetime = exif.getAttribute(ExifInterface.TAG_DATETIME) ?: "Нет данных"
+                val make = exif.getAttribute(ExifInterface.TAG_MAKE) ?: "Нет данных"
+                val model = exif.getAttribute(ExifInterface.TAG_MODEL) ?: "Нет данных"
+                val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1).toString()
+                val exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME) ?: "Нет данных"
+                val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER) ?: "Нет данных"
+                val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY) ?: "Нет данных"
+                val flash = exif.getAttribute(ExifInterface.TAG_FLASH) ?: "Нет данных"
+                
+                Timber.d("EXIF данные изображения:")
+                Timber.d(" - Дата и время: $datetime")
+                Timber.d(" - Производитель: $make")
+                Timber.d(" - Модель: $model")
+                Timber.d(" - Ориентация: $orientation")
+                Timber.d(" - Время экспозиции: $exposureTime")
+                Timber.d(" - Число диафрагмы: $fNumber")
+                Timber.d(" - ISO: $iso")
+                Timber.d(" - Вспышка: $flash")
+                
+                // Логируем GPS данные, если они есть
+                val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null
+                if (hasGps) {
+                    val latitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                    val latitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                    val longitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                    val longitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                    
+                    if (latitude != null && latitudeRef != null && longitude != null && longitudeRef != null) {
+                        val lat = convertToDegrees(latitude)
+                        val lon = convertToDegrees(longitude)
+                        
+                        // Корректируем координаты в зависимости от ref (N/S, E/W)
+                        val finalLat = if (latitudeRef == "N") lat else -lat
+                        val finalLon = if (longitudeRef == "E") lon else -lon
+                        
+                        Timber.d(" - GPS координаты: Широта=$finalLat, Долгота=$finalLon")
+                    } else {
+                        Timber.d(" - GPS данные неполные или повреждены")
+                    }
+                } else {
+                    Timber.d(" - GPS данные отсутствуют")
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при чтении EXIF данных из URI")
+        }
+    }
+    
+    /**
+     * Логирует EXIF данные из файла
+     */
+    private fun logExifDataFromFile(file: File) {
+        try {
+            Timber.d("Логирование EXIF данных для файла: ${file.absolutePath}")
+            val exif = ExifInterface(file.absolutePath)
+            
+            // Логируем основные теги EXIF
+            val datetime = exif.getAttribute(ExifInterface.TAG_DATETIME) ?: "Нет данных"
+            val make = exif.getAttribute(ExifInterface.TAG_MAKE) ?: "Нет данных"
+            val model = exif.getAttribute(ExifInterface.TAG_MODEL) ?: "Нет данных"
+            val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1).toString()
+            val exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME) ?: "Нет данных"
+            val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER) ?: "Нет данных"
+            val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY) ?: "Нет данных"
+            val flash = exif.getAttribute(ExifInterface.TAG_FLASH) ?: "Нет данных"
+            
+            Timber.d("EXIF данные изображения:")
+            Timber.d(" - Дата и время: $datetime")
+            Timber.d(" - Производитель: $make")
+            Timber.d(" - Модель: $model")
+            Timber.d(" - Ориентация: $orientation")
+            Timber.d(" - Время экспозиции: $exposureTime")
+            Timber.d(" - Число диафрагмы: $fNumber")
+            Timber.d(" - ISO: $iso")
+            Timber.d(" - Вспышка: $flash")
+            
+            // Логируем GPS данные, если они есть
+            val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null
+            if (hasGps) {
+                val latitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                val latitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                val longitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                val longitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                
+                if (latitude != null && latitudeRef != null && longitude != null && longitudeRef != null) {
+                    val lat = convertToDegrees(latitude)
+                    val lon = convertToDegrees(longitude)
+                    
+                    // Корректируем координаты в зависимости от ref (N/S, E/W)
+                    val finalLat = if (latitudeRef == "N") lat else -lat
+                    val finalLon = if (longitudeRef == "E") lon else -lon
+                    
+                    Timber.d(" - GPS координаты: Широта=$finalLat, Долгота=$finalLon")
+                } else {
+                    Timber.d(" - GPS данные неполные или повреждены")
+                }
+            } else {
+                Timber.d(" - GPS данные отсутствуют")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при чтении EXIF данных из файла")
+        }
+    }
+
+    /**
+     * Конвертирует GPS координаты из формата EXIF в десятичные градусы
+     */
+    private fun convertToDegrees(coordinate: String): Double {
+        val parts = coordinate.split(",", limit = 3)
+        if (parts.size != 3) return 0.0
+        
+        val degrees = parts[0].split("/").let { 
+            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
+        }
+        val minutes = parts[1].split("/").let { 
+            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
+        }
+        val seconds = parts[2].split("/").let { 
+            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
+        }
+        
+        return degrees + (minutes / 60.0) + (seconds / 3600.0)
     }
 
     /**
@@ -506,57 +647,6 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Сохраняет EXIF данные в выходной файл
-     */
-    private suspend fun copyExifData(sourceUri: Uri, destinationFile: File) = withContext(Dispatchers.IO) {
-        try {
-            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                val sourceExif = ExifInterface(inputStream)
-                val destinationExif = ExifInterface(destinationFile.absolutePath)
-
-                // Копируем все доступные EXIF теги
-                val tags = arrayOf(
-                    ExifInterface.TAG_DATETIME,
-                    ExifInterface.TAG_DATETIME_DIGITIZED,
-                    ExifInterface.TAG_EXPOSURE_TIME,
-                    ExifInterface.TAG_FLASH,
-                    ExifInterface.TAG_FOCAL_LENGTH,
-                    ExifInterface.TAG_GPS_ALTITUDE,
-                    ExifInterface.TAG_GPS_ALTITUDE_REF,
-                    ExifInterface.TAG_GPS_DATESTAMP,
-                    ExifInterface.TAG_GPS_LATITUDE,
-                    ExifInterface.TAG_GPS_LATITUDE_REF,
-                    ExifInterface.TAG_GPS_LONGITUDE,
-                    ExifInterface.TAG_GPS_LONGITUDE_REF,
-                    ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                    ExifInterface.TAG_GPS_TIMESTAMP,
-                    ExifInterface.TAG_IMAGE_LENGTH,
-                    ExifInterface.TAG_IMAGE_WIDTH,
-                    ExifInterface.TAG_ISO_SPEED_RATINGS,
-                    ExifInterface.TAG_MAKE,
-                    ExifInterface.TAG_MODEL,
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.TAG_SUBSEC_TIME,
-                    ExifInterface.TAG_WHITE_BALANCE
-                )
-
-                for (tag in tags) {
-                    val value = sourceExif.getAttribute(tag)
-                    if (value != null) {
-                        destinationExif.setAttribute(tag, value)
-                    }
-                }
-
-                // Сохраняем изменения
-                destinationExif.saveAttributes()
-                Timber.d("EXIF данные успешно скопированы")
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
-        }
-    }
-
-    /**
      * Обработка результатов сжатия (сохранение в галерею и обработка IntentSender для удаления)
      */
     private suspend fun handleCompressedImage(
@@ -632,6 +722,45 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при обработке сжатого изображения")
             return@withContext false
+        }
+    }
+
+    private suspend fun getCompressedImageUri(uri: Uri): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // Получаем имя файла
+            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext null
+            
+            // Если файл уже имеет маркер сжатия, пропускаем его
+            if (fileName.contains("_compressed")) {
+                Timber.d("Файл уже содержит маркер сжатия: $fileName")
+                return@withContext uri
+            }
+            
+            // Создаем имя для сжатого файла
+            val compressedFileName = FileUtil.createCompressedFileName(fileName)
+            
+            // Проверяем существование файла с таким именем
+            val projection = arrayOf(MediaStore.Images.Media._ID)
+            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+            val selectionArgs = arrayOf("$compressedFileName%") // Используем LIKE для поиска всех вариантов
+            
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    return@withContext Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+                }
+            }
+            
+            null
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при поиске сжатой версии изображения")
+            null
         }
     }
 } 

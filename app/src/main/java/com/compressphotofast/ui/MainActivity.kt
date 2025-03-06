@@ -153,43 +153,43 @@ class MainActivity : AppCompatActivity() {
                         val fileName = FileUtil.getFileNameFromUri(this, uri)
                         
                         // Проверяем, содержит ли имя файла маркеры сжатого изображения
-                        val hasCompressionMarker = fileName?.let { name ->
-                            ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                                name.lowercase().contains(marker.lowercase())
-                            }
-                        } ?: false
-                        
+                            val hasCompressionMarker = fileName?.let { name ->
+                                ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
+                                    name.lowercase().contains(marker.lowercase())
+                                }
+                            } ?: false
+                            
                         // Получаем путь файла
                         val path = FileUtil.getFilePathFromUri(this, uri)
-                        val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
-                        
-                        // Проверяем, не было ли изображение уже обработано
-                        val isAlreadyCompressed = hasCompressionMarker || isInAppDir
-                        
-                        Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
-                        
-                        if (!isAlreadyCompressed) {
-                            viewModel.setSelectedImageUri(uri)
-                            // Проверяем, включено ли автоматическое сжатие
-                            if (!viewModel.isAutoCompressionEnabled()) {
-                                // Если автоматическое сжатие выключено, запускаем сжатие вручную
-                                viewModel.compressSelectedImage()
-                            } else {
-                                // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
-                                Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
-                                // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
-                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
-                            }
-                        } else {
-                            // Снимаем регистрацию URI, так как он не будет обрабатываться
-                            ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
                             
-                            // Показываем сообщение, что файл уже обработан
-                            Toast.makeText(
-                                applicationContext,
-                                getString(R.string.image_already_compressed),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                        // Проверяем, не было ли изображение уже обработано
+                            val isAlreadyCompressed = hasCompressionMarker || isInAppDir
+                            
+                            Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
+                            
+                            if (!isAlreadyCompressed) {
+                            viewModel.setSelectedImageUri(uri)
+                                // Проверяем, включено ли автоматическое сжатие
+                                if (!viewModel.isAutoCompressionEnabled()) {
+                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
+                                    viewModel.compressSelectedImage()
+                                } else {
+                                    // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
+                                    Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
+                                    // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
+                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                                }
+                            } else {
+                                // Снимаем регистрацию URI, так как он не будет обрабатываться
+                            ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                                
+                                // Показываем сообщение, что файл уже обработан
+                                Toast.makeText(
+                                    applicationContext,
+                                    getString(R.string.image_already_compressed),
+                                    Toast.LENGTH_SHORT
+                                ).show()
                         }
                     }
                 }
@@ -284,10 +284,10 @@ class MainActivity : AppCompatActivity() {
         try {
             val contentResolver = contentResolver
             val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATE_ADDED,
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.SIZE,
+                    MediaStore.Images.Media.DATE_ADDED,
                 MediaStore.Images.Media.MIME_TYPE
             )
             
@@ -317,7 +317,7 @@ class MainActivity : AppCompatActivity() {
             Timber.e(e, "Ошибка при логировании информации о файле: $uri")
         }
     }
-    
+
     /**
      * Настройка пользовательского интерфейса
      */
