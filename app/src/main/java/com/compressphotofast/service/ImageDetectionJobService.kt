@@ -15,6 +15,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageTrackingUtil
+import com.compressphotofast.util.FileUtil
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
@@ -91,24 +92,10 @@ class ImageDetectionJobService : JobService() {
         }
 
         /**
-         * Получает безопасное имя файла с ограничением длины
+         * Создает имя файла для сжатой версии
          */
         private fun getSafeFileName(originalName: String): String {
-            val extension = originalName.substringAfterLast(".", "")
-            var nameWithoutExt = originalName.substringBeforeLast(".")
-            
-            // Удаляем все предыдущие маркеры сжатия
-            nameWithoutExt = nameWithoutExt.replace("_compressed", "")
-                .replace("_сжатое", "")
-                .replace("_small", "")
-            
-            // Ограничиваем длину имени файла
-            val maxBaseLength = MAX_FILENAME_LENGTH - extension.length - "_compressed".length - 1
-            if (nameWithoutExt.length > maxBaseLength) {
-                nameWithoutExt = nameWithoutExt.take(maxBaseLength)
-            }
-            
-            return "${nameWithoutExt}_compressed.$extension"
+            return FileUtil.createCompressedFileName(originalName)
         }
     }
 

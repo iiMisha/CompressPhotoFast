@@ -148,35 +148,28 @@ class MainActivity : AppCompatActivity() {
                         intent.getParcelableExtra(Intent.EXTRA_STREAM)
                     }
                     
-                    uri?.let {
-                        Timber.d("handleIntent: Получено изображение через Intent.ACTION_SEND: $it")
+                    if (uri != null) {
+                        // Получаем имя файла из URI
+                        val fileName = FileUtil.getFileNameFromUri(this, uri)
                         
-                        // Логируем подробную информацию о файле
-                        logFileDetails(it)
-                        
-                        // Регистрируем URI как обрабатываемый через MainActivity
-                        ImageTrackingUtil.registerUriBeingProcessedByMainActivity(it)
-                        
-                        // Проверяем, не было ли изображение уже обработано
-                        lifecycleScope.launch {
-                            // Проверяем, есть ли у изображения маркеры сжатия или оно находится в директории приложения
-                            val fileName = getFileNameFromUri(it)
+                        // Проверяем, содержит ли имя файла маркеры сжатого изображения
                             val hasCompressionMarker = fileName?.let { name ->
                                 ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
                                     name.lowercase().contains(marker.lowercase())
                                 }
                             } ?: false
                             
-                            // Проверяем путь файла
-                            val path = getFilePathFromUri(it)
+                        // Получаем путь файла
+                        val path = FileUtil.getFilePathFromUri(this, uri)
                             val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
                             
+                        // Проверяем, не было ли изображение уже обработано
                             val isAlreadyCompressed = hasCompressionMarker || isInAppDir
                             
                             Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
                             
                             if (!isAlreadyCompressed) {
-                                viewModel.setSelectedImageUri(it)
+                            viewModel.setSelectedImageUri(uri)
                                 // Проверяем, включено ли автоматическое сжатие
                                 if (!viewModel.isAutoCompressionEnabled()) {
                                     // Если автоматическое сжатие выключено, запускаем сжатие вручную
@@ -185,11 +178,11 @@ class MainActivity : AppCompatActivity() {
                                     // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
                                     Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
                                     // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
-                                    ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
+                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
                                 }
                             } else {
                                 // Снимаем регистрацию URI, так как он не будет обрабатываться
-                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
+                            ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
                                 
                                 // Показываем сообщение, что файл уже обработан
                                 Toast.makeText(
@@ -197,7 +190,6 @@ class MainActivity : AppCompatActivity() {
                                     getString(R.string.image_already_compressed),
                                     Toast.LENGTH_SHORT
                                 ).show()
-                            }
                         }
                     }
                 }
@@ -228,16 +220,18 @@ class MainActivity : AppCompatActivity() {
                                 Timber.d("handleIntent: Изображение из множества: $uri")
                                 logFileDetails(uri)
                                 
-                                // Проверяем, есть ли у изображения маркеры сжатия или оно находится в директории приложения
-                                val fileName = getFileNameFromUri(uri)
+                                // Получаем имя файла из URI
+                                val fileName = FileUtil.getFileNameFromUri(this@MainActivity, uri)
+                                
+                                // Проверяем, содержит ли имя файла маркеры сжатого изображения
                                 val hasCompressionMarker = fileName?.let { name ->
                                     ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
                                         name.lowercase().contains(marker.lowercase())
                                     }
                                 } ?: false
                                 
-                                // Проверяем путь файла
-                                val path = getFilePathFromUri(uri)
+                                // Получаем путь файла
+                                val path = FileUtil.getFilePathFromUri(this@MainActivity, uri)
                                 val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
                                 
                                 val isAlreadyCompressed = hasCompressionMarker || isInAppDir
@@ -284,108 +278,44 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
-     * Получает имя файла из URI
-     */
-    private fun getFileNameFromUri(uri: Uri): String? {
-        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
-        return contentResolver.query(
-            uri,
-            projection,
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                cursor.getStringOrNull(cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME))
-            } else null
-        }
-    }
-    
-    /**
-     * Получает путь к файлу из URI
-     */
-    private fun getFilePathFromUri(uri: Uri): String? {
-        val projection = arrayOf(MediaStore.Images.Media.DATA)
-        return contentResolver.query(
-            uri,
-            projection,
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                cursor.getStringOrNull(cursor.getColumnIndex(MediaStore.Images.Media.DATA))
-            } else null
-        }
-    }
-    
-    /**
-     * Логирует подробную информацию о файле
+     * Логирует подробную информацию о файле изображения
      */
     private fun logFileDetails(uri: Uri) {
         try {
-            val cursor = contentResolver.query(
-                uri,
-                arrayOf(
+            val contentResolver = contentResolver
+            val projection = arrayOf(
                     MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
                     MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATA,
-                    MediaStore.Images.Media.DESCRIPTION,
                     MediaStore.Images.Media.DATE_ADDED,
-                    MediaStore.Images.Media.DATE_MODIFIED
-                ),
-                null,
-                null,
-                null
+                MediaStore.Images.Media.MIME_TYPE
             )
             
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val id = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media._ID))
-                    val name = it.getStringOrNull(it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME))
-                    val size = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media.SIZE))
-                    val data = it.getStringOrNull(it.getColumnIndex(MediaStore.Images.Media.DATA))
-                    val desc = it.getStringOrNull(it.getColumnIndex(MediaStore.Images.Media.DESCRIPTION))
-                    val dateAdded = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED))
-                    val dateModified = it.getLongOrNull(it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED))
+            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                    val nameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
+                    val dateColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    val mimeColumn = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
                     
-                    Timber.d("Детали файла для URI '$uri':")
-                    Timber.d(" - ID: $id")
-                    Timber.d(" - Имя: $name")
-                    Timber.d(" - Размер: $size")
-                    Timber.d(" - Путь: $data")
-                    Timber.d(" - Описание: $desc")
-                    Timber.d(" - Дата добавления: $dateAdded")
-                    Timber.d(" - Дата изменения: $dateModified")
+                    val id = if (idColumn != -1) cursor.getLong(idColumn) else null
+                    val name = if (nameColumn != -1) cursor.getString(nameColumn) else null
+                    val size = if (sizeColumn != -1) cursor.getLong(sizeColumn) else null
+                    val date = if (dateColumn != -1) cursor.getLong(dateColumn) else null
+                    val mime = if (mimeColumn != -1) cursor.getString(mimeColumn) else null
                     
-                    // Проверяем, имеет ли файл маркеры сжатия в имени
-                    val hasCompressionMarker = name?.let { fileName ->
-                        ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                            fileName.lowercase().contains(marker.lowercase())
-                        }
-                    } ?: false
-                    
-                    Timber.d(" - Имеет маркер сжатия в имени: $hasCompressionMarker")
+                    Timber.d(
+                        "Файл: ID=%s, Имя=%s, Размер=%s, Дата=%s, MIME=%s, URI=%s",
+                        id, name, size, date, mime, uri
+                    )
+                } else {
+                    Timber.d("Не удалось получить информацию о файле из MediaStore: $uri")
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении информации о файле: $uri")
+            Timber.e(e, "Ошибка при логировании информации о файле: $uri")
         }
-    }
-    
-    /**
-     * Расширение для безопасного получения Long из Cursor
-     */
-    private fun Cursor.getLongOrNull(columnIndex: Int): Long? {
-        return if (columnIndex != -1 && !isNull(columnIndex)) getLong(columnIndex) else null
-    }
-    
-    /**
-     * Расширение для безопасного получения String из Cursor
-     */
-    private fun Cursor.getStringOrNull(columnIndex: Int): String? {
-        return if (columnIndex != -1 && !isNull(columnIndex)) getString(columnIndex) else null
     }
 
     /**
