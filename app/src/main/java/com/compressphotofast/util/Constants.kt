@@ -50,10 +50,7 @@ object Constants {
     
     // Маркеры сжатых файлов
     val COMPRESSION_MARKERS = listOf(
-        "_compressed",
-        "_сжатое",
-        "_small",
-        "_reduced"
+        COMPRESSED_SUFFIX // Используем только один стандартный маркер
     )
     
     // Настройки отслеживания файлов
@@ -68,4 +65,5 @@ object Constants {
     // Broadcast действия
     const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.action.REQUEST_DELETE_PERMISSION"
     const val EXTRA_URI = "uri"
+    const val EXTRA_DELETE_INTENT_SENDER = "delete_intent_sender"
 } 

@@ -103,52 +103,31 @@ object FileUtil {
                 originalNameWithoutExtension
             }
             
-            // Создаем имя для сжатого файла
-            var finalFileName: String
+            // Всегда добавляем маркер сжатия, независимо от режима
+            var finalFileName = "${baseNameWithoutMarker}${Constants.COMPRESSED_SUFFIX}.$extension"
             var counter = 1
             
-            if (isReplaceModeEnabled) {
-                // В режиме замены используем оригинальное имя файла
-                finalFileName = "${baseNameWithoutMarker}.$extension"
+            // Проверяем существование файла с таким именем и увеличиваем счетчик при необходимости
+            while (true) {
+                val testFileName = if (counter == 1) finalFileName else {
+                    val baseName = finalFileName.substringBeforeLast(".")
+                    val ext = finalFileName.substringAfterLast(".", "")
+                    "${baseName}_$counter.$ext"
+                }
                 
-                // Проверяем существование файла с таким именем только для логов
                 val exists = context.contentResolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     arrayOf(MediaStore.Images.Media._ID),
                     "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND ${MediaStore.Images.Media._ID} != ?",
-                    arrayOf(finalFileName, originalUri.lastPathSegment ?: ""),
+                    arrayOf(testFileName, originalUri.lastPathSegment ?: ""),
                     null
                 )?.use { cursor -> cursor.count > 0 } ?: false
-                
-                if (exists) {
-                    Timber.d("В режиме замены обнаружен файл с таким же именем, но продолжаем использовать оригинальное имя: $finalFileName")
-                }
-            } else {
-                // В режиме сохранения в отдельной папке добавляем маркер сжатия
-                finalFileName = "${baseNameWithoutMarker}${Constants.COMPRESSED_SUFFIX}.$extension"
-                
-                // Проверяем существование файла с таким именем и увеличиваем счетчик при необходимости
-                while (true) {
-                    val testFileName = if (counter == 1) finalFileName else {
-                        val baseName = finalFileName.substringBeforeLast(".")
-                        val ext = finalFileName.substringAfterLast(".", "")
-                        "${baseName}_$counter.$ext"
-                    }
-                    
-                    val exists = context.contentResolver.query(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        arrayOf(MediaStore.Images.Media._ID),
-                        "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
-                        arrayOf(testFileName),
-                        null
-                    )?.use { cursor -> cursor.count > 0 } ?: false
 
-                    if (!exists) {
-                        finalFileName = testFileName
-                        break
-                    }
-                    counter++
+                if (!exists) {
+                    finalFileName = testFileName
+                    break
                 }
+                counter++
             }
             
             Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $finalFileName")
@@ -171,34 +150,10 @@ object FileUtil {
                         // В режиме замены используем путь оригинального файла
                         put(MediaStore.Images.Media.RELATIVE_PATH, originalPath)
                         Timber.d("Используем относительный путь оригинального файла: $originalPath")
-                    } else if (!isReplaceModeEnabled) {
+                    } else {
                         // В режиме сохранения в отдельной папке используем директорию приложения
                         put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY)
                         Timber.d("Используем путь приложения: ${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}")
-                    } else {
-                        // Если не удалось получить путь, используем директорию оригинального файла или стандартную
-                        val originalFilePath = getFilePathFromUri(context, originalUri)
-                        if (originalFilePath != null) {
-                            val parentPath = File(originalFilePath).parent
-                            if (parentPath != null) {
-                                // Извлекаем относительный путь из абсолютного
-                                val storagePath = Environment.getExternalStorageDirectory().path
-                                if (parentPath.startsWith(storagePath)) {
-                                    val relativePath = parentPath.substring(storagePath.length + 1)
-                                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
-                                    Timber.d("Используем извлеченный относительный путь: $relativePath")
-                                } else {
-                                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
-                                    Timber.d("Используем стандартный путь изображений")
-                                }
-                            } else {
-                                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
-                                Timber.d("Используем стандартный путь изображений (не удалось получить родительскую директорию)")
-                            }
-                        } else {
-                            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
-                            Timber.d("Используем стандартный путь изображений (не удалось получить путь файла)")
-                        }
                     }
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 }

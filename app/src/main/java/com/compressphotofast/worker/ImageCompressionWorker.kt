@@ -654,7 +654,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         originalUri: Uri,
         originalFileName: String,
         stats: CompressionStats
-    ) = withContext(Dispatchers.IO) {
+    ): Boolean = withContext(Dispatchers.IO) {
         try {
             Timber.d("Сохранение сжатого изображения в галерею...")
             
@@ -687,38 +687,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Получение и логирование метаданных файла
                 originalUri.let { logFileDetails(it) }
                 
-                // Проверяем, нужно ли добавить IntentSender в список ожидающих запросов на удаление
+                // Если есть IntentSender для удаления, добавляем его в список ожидающих
                 if (deletePendingIntent != null && deletePendingIntent !is Boolean) {
-                    Timber.d("Требуется разрешение пользователя для удаления оригинального файла: $originalUri")
-                    
-                    // Сохраняем URI в SharedPreferences для последующей обработки
-                    val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-                    val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, mutableSetOf()) ?: mutableSetOf()
-                    val newSet = pendingDeleteUris.toMutableSet()
-                    newSet.add(originalUri.toString())
-                    
-                    prefs.edit()
-                        .putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
-                        .apply()
-                    
-                    // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
-                    val intent = Intent(Constants.ACTION_REQUEST_DELETE_PERMISSION)
-                    intent.putExtra(Constants.EXTRA_URI, originalUri)
-                    context.sendBroadcast(intent)
+                    addPendingDeleteRequest(originalUri, deletePendingIntent)
                 }
                 
-                // Удаляем временный файл
-                if (compressedFile.exists()) {
-                    val deleted = compressedFile.delete()
-                    Timber.d("Временный файл удален: $deleted")
-                }
-                
-                Timber.d("Изображение успешно сжато и сохранено. URI сжатого файла: $compressedUri")
                 return@withContext true
-            } else {
-                Timber.e("Не удалось сохранить сжатое изображение")
-                return@withContext false
             }
+            
+            false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при обработке сжатого изображения")
             return@withContext false
@@ -762,5 +739,30 @@ class ImageCompressionWorker @AssistedInject constructor(
             Timber.e(e, "Ошибка при поиске сжатой версии изображения")
             null
         }
+    }
+
+    /**
+     * Добавляет запрос на удаление файла в список ожидающих
+     */
+    private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: Any) {
+        Timber.d("Требуется разрешение пользователя для удаления оригинального файла: $uri")
+        
+        // Сохраняем URI в SharedPreferences для последующей обработки
+        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, mutableSetOf()) ?: mutableSetOf()
+        val newSet = pendingDeleteUris.toMutableSet()
+        newSet.add(uri.toString())
+        
+        prefs.edit()
+            .putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
+            .apply()
+        
+        // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
+        val intent = Intent(Constants.ACTION_REQUEST_DELETE_PERMISSION).apply {
+            putExtra(Constants.EXTRA_URI, uri)
+            // Добавляем IntentSender как Parcelable
+            putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent as android.os.Parcelable)
+        }
+        context.sendBroadcast(intent)
     }
 } 
