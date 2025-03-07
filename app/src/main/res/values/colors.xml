@@ -15,4 +15,6 @@
     <color name="error">#F44336</color>
     <color name="success">#FF69B4</color>
     <color name="pink_background">#FFF0F5</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="pink_shadow">#40FF69B4</color>
 </resources> 
