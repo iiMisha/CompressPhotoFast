@@ -1,5 +1,5 @@
 ---
-description: Use this rules for android development tasks
+description: Use this rules for Android development tasks
 globs: *.kt
 alwaysApply: false
 ---
