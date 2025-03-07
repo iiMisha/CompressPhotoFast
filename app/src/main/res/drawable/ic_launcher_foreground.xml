@@ -9,13 +9,13 @@
     <!-- Фоновая тень -->
     <path
         android:fillColor="#15000000"
-        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
+        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0"/>
         
     <group
-        android:scaleX="0.7"
-        android:scaleY="0.7"
-        android:translateX="16.2"
-        android:translateY="16.2">
+        android:scaleX="0.85"
+        android:scaleY="0.85"
+        android:translateX="8.1"
+        android:translateY="8.1">
         
         <!-- Левый листок -->
         <path
