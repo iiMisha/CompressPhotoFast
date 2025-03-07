@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Collections
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 /**
  * Утилитарный класс для отслеживания статуса сжатия изображений
@@ -19,6 +21,10 @@ object ImageTrackingUtil {
     
     // Кэш для отслеживания файлов в процессе обработки
     private val processingFiles = ConcurrentHashMap<String, Long>()
+    
+    // Кэш для отслеживания обработанных URI и имен файлов
+    private val processedUris = mutableSetOf<String>()
+    private val processedFileNames = mutableMapOf<String, Uri>()
     
     // Mutex для синхронизации доступа
     private val mutex = Mutex()
@@ -55,47 +61,55 @@ object ImageTrackingUtil {
     }
 
     /**
-     * Проверяет, было ли изображение уже обработано или находится в процессе обработки
+     * Проверяет, было ли изображение уже обработано
      */
-    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = mutex.withLock {
+    fun isImageProcessed(context: Context, uri: Uri): Boolean {
         try {
-            val uriString = uri.toString()
-            Timber.d("isImageProcessed: проверяем URI: $uriString")
+            // Проверяем, находится ли файл в директории приложения
+            val path = FileUtil.getFilePathFromUri(context, uri)
             
-            // Проверяем, не обрабатывается ли URI через MainActivity
-            if (isUriBeingProcessedByMainActivity(uri)) {
-                Timber.d("isImageProcessed: URI обрабатывается через MainActivity: $uriString")
-                return@withLock true
-            }
+            // Проверяем, содержит ли путь или URI название директории приложения
+            val isInAppDir = !path.isNullOrEmpty() && 
+                (path.contains("/${Constants.APP_DIRECTORY}/") || 
+                 path.contains("content://media/external/images/media") && 
+                 path.contains(Constants.APP_DIRECTORY))
             
-            // Проверяем, не находится ли файл в процессе обработки
-            if (isFileProcessing(uriString)) {
-                Timber.d("isImageProcessed: файл уже в процессе обработки: $uri")
-                return@withLock true
-            }
-
-            // Проверяем, находится ли файл в списке обработанных
-            if (isUriInProcessedList(context, uri)) {
-                Timber.d("isImageProcessed: URI найден в списке обработанных: $uri")
-                return@withLock true
-            }
-
-            // Проверяем путь файла
-            val path = getImagePath(context, uri)
-            Timber.d("isImageProcessed: путь к файлу: $path")
-            
-            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
-            Timber.d("isImageProcessed: файл находится в директории приложения: $isInAppDir")
+            Timber.d("isImageProcessed: файл находится в директории приложения: $isInAppDir, путь: $path")
             
             if (isInAppDir) {
-                return@withLock true
+                return true
             }
-
-            // Файл не обработан
-            return@withLock false
+            
+            // Проверяем, есть ли URI в списке обработанных
+            val uriString = uri.toString()
+            if (processedUris.contains(uriString)) {
+                Timber.d("isImageProcessed: URI найден в списке обработанных: $uriString")
+                return true
+            }
+            
+            // Проверяем имя файла
+            val fileName = FileUtil.getFileNameFromUri(context, uri)
+            if (fileName != null) {
+                // Проверяем, содержит ли имя файла маркеры сжатия
+                if (fileName.contains("_compressed") || 
+                    fileName.contains("_сжатое") || 
+                    fileName.contains("_small")) {
+                    Timber.d("isImageProcessed: имя файла содержит маркер сжатия: $fileName")
+                    return true
+                }
+                
+                // Проверяем, есть ли имя файла в списке обработанных
+                if (processedFileNames.containsKey(fileName)) {
+                    Timber.d("isImageProcessed: имя файла найдено в списке обработанных: $fileName")
+                    return true
+                }
+            }
+            
+            // Файл прошел все проверки и не был обработан
+            return false
         } catch (e: Exception) {
-            Timber.e(e, "isImageProcessed: ошибка при проверке статуса изображения: $uri")
-            return@withLock false
+            Timber.e(e, "Ошибка при проверке статуса файла: $uri")
+            return false
         }
     }
 
@@ -229,6 +243,19 @@ object ImageTrackingUtil {
         processingFiles.remove(uriString)
         
         Timber.d("URI добавлен в список обработанных: $uri")
+    }
+
+    /**
+     * Добавляет изображение в список обработанных
+     * Алиас для markImageAsProcessed для обратной совместимости
+     */
+    fun addProcessedImage(context: Context, uri: Uri) {
+        Timber.d("addProcessedImage: Добавление URI в список обработанных: $uri")
+        // Запускаем функцию без ожидания, так как это публичный метод без suspend
+        // и вызывается из FileUtil.saveCompressedImageToGallery
+        GlobalScope.launch {
+            markImageAsProcessed(context, uri)
+        }
     }
 
     /**
