@@ -17,6 +17,36 @@
         android:translateX="16.2"
         android:translateY="16.2">
         
+        <!-- Левый листок -->
+        <path
+            android:pathData="M52,70 C42,75 42,85 52,80 L52,70">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="42"
+                    android:startY="77.5"
+                    android:endX="52"
+                    android:endY="77.5"
+                    android:startColor="#4CAF50"
+                    android:endColor="#388E3C"/>
+            </aapt:attr>
+        </path>
+
+        <!-- Правый листок -->
+        <path
+            android:pathData="M56,65 C66,70 66,80 56,75 L56,65">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="66"
+                    android:startY="72.5"
+                    android:endX="56"
+                    android:endY="72.5"
+                    android:startColor="#4CAF50"
+                    android:endColor="#388E3C"/>
+            </aapt:attr>
+        </path>
+
         <!-- Стебель -->
         <path
             android:fillColor="#4CAF50"
@@ -103,5 +133,13 @@
         <path
             android:fillColor="#20FFFFFF"
             android:pathData="M59,44 Q64,39 69,44 Q64,49 59,49 Q54,49 59,44"/>
+
+        <!-- Блики на листьях -->
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M42,75 Q47,73 52,75 Q47,77 42,75"/>
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M56,70 Q61,68 66,70 Q61,72 56,70"/>
     </group>
 </vector> 
