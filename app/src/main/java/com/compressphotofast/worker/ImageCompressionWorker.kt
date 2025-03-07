@@ -201,14 +201,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                     Timber.d(" - Дата добавления: $added")
                     Timber.d(" - Дата изменения: $modified")
                     
-                    // Анализируем имя файла на наличие маркеров сжатия
-                    name?.let { fileName ->
-                        val hasCompressionMarker = ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                            fileName.lowercase().contains(marker.lowercase())
-                        }
-                        Timber.d(" - Имеет маркер сжатия в имени: $hasCompressionMarker")
-                    }
-                    
                     // Проверяем, находится ли файл в директории приложения
                     data?.let { path ->
                         val isInAppDirectory = path.contains("/${Constants.APP_DIRECTORY}/")
@@ -562,35 +554,20 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun isImageAlreadyProcessed(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Получаем имя файла
-            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext false
+            // Проверяем, находится ли файл в директории приложения
+            val path = FileUtil.getFilePathFromUri(context, uri)
+            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
             
-            // Если файл уже имеет маркер сжатия, пропускаем его
-            if (fileName.contains("_compressed")) {
-                Timber.d("Файл содержит маркер сжатия: $fileName")
-            return@withContext true
-        }
-        
-            // Проверяем, существует ли уже сжатая версия этого файла
-            val baseFileName = fileName.substringBeforeLast(".")
-            val extension = fileName.substringAfterLast(".", "")
-            val compressedFileName = "${baseFileName}_compressed.$extension"
+            if (isInAppDir) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext true
+            }
             
-            val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("$compressedFileName%") // Используем LIKE для поиска всех вариантов
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.count > 0) {
-                    Timber.d("Найдена существующая сжатая версия для $fileName")
-                    return@withContext true
-                }
+            // Проверяем, есть ли URI в списке обработанных
+            val isProcessed = ImageTrackingUtil.isImageProcessed(context, uri)
+            if (isProcessed) {
+                Timber.d("URI найден в списке обработанных: $uri")
+                return@withContext true
             }
             
             // Файл прошел все проверки и должен быть сжат
@@ -608,31 +585,8 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
         try {
-            // Проверяем существование файла с таким именем
-            var finalFileName = fileName
-            var counter = 1
-            
-            while (true) {
-                val testFileName = if (counter == 1) finalFileName else {
-                    val baseName = finalFileName.substringBeforeLast(".")
-                    val ext = finalFileName.substringAfterLast(".", "")
-                    "${baseName}_$counter.$ext"
-                }
-                
-                val exists = context.contentResolver.query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    arrayOf(MediaStore.Images.Media._ID),
-                    "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
-                    arrayOf(testFileName),
-                    null
-                )?.use { cursor -> cursor.count > 0 } ?: false
-
-                if (!exists) {
-                    finalFileName = testFileName
-                    break
-                }
-                counter++
-            }
+            // Используем оригинальное имя файла без изменений
+            val finalFileName = fileName
             
             FileUtil.saveCompressedImageToGallery(
                 context,
@@ -658,8 +612,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         try {
             Timber.d("Сохранение сжатого изображения в галерею...")
             
-            // Получаем финальное имя файла для сжатого изображения
-            val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
+            // Используем оригинальное имя файла без изменений
+            val compressedFileName = originalFileName
             
             // Сохраняем сжатое изображение в галерею
             val result = FileUtil.saveCompressedImageToGallery(
@@ -671,6 +625,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             val compressedUri = result.first
             val deletePendingIntent = result.second
+            
+            // Если требуется разрешение на удаление, но нет URI сжатого файла,
+            // значит процесс сохранения был прерван для запроса разрешения
+            if (compressedUri == null && deletePendingIntent != null && deletePendingIntent !is Boolean) {
+                Timber.d("Требуется разрешение пользователя на удаление оригинального файла")
+                addPendingDeleteRequest(originalUri, deletePendingIntent)
+                return@withContext false
+            }
             
             if (compressedUri != null) {
                 val sizeReduction = (1 - (stats.compressedSize.toDouble() / stats.originalSize.toDouble())) * 100
@@ -704,36 +666,13 @@ class ImageCompressionWorker @AssistedInject constructor(
 
     private suspend fun getCompressedImageUri(uri: Uri): Uri? = withContext(Dispatchers.IO) {
         try {
-            // Получаем имя файла
-            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext null
-            
-            // Если файл уже имеет маркер сжатия, пропускаем его
-            if (fileName.contains("_compressed")) {
-                Timber.d("Файл уже содержит маркер сжатия: $fileName")
+            // Проверяем, есть ли URI в списке обработанных
+            if (ImageTrackingUtil.isImageProcessed(context, uri)) {
+                Timber.d("URI найден в списке обработанных: $uri")
                 return@withContext uri
             }
             
-            // Создаем имя для сжатого файла
-            val compressedFileName = FileUtil.createCompressedFileName(fileName)
-            
-            // Проверяем существование файла с таким именем
-            val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("$compressedFileName%") // Используем LIKE для поиска всех вариантов
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
-                    return@withContext Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
-                }
-            }
-            
+            // Если файл не найден в списке обработанных, возвращаем null
             null
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при поиске сжатой версии изображения")

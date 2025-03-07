@@ -149,47 +149,37 @@ class MainActivity : AppCompatActivity() {
                     }
                     
                     if (uri != null) {
-                        // Получаем имя файла из URI
-                        val fileName = FileUtil.getFileNameFromUri(this, uri)
-                        
-                        // Проверяем, содержит ли имя файла маркеры сжатого изображения
-                            val hasCompressionMarker = fileName?.let { name ->
-                                ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                                    name.lowercase().contains(marker.lowercase())
-                                }
-                            } ?: false
-                            
                         // Получаем путь файла
                         val path = FileUtil.getFilePathFromUri(this, uri)
-                            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
-                            
+                        val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
+                        
                         // Проверяем, не было ли изображение уже обработано
-                            val isAlreadyCompressed = hasCompressionMarker || isInAppDir
-                            
-                            Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
-                            
-                            if (!isAlreadyCompressed) {
+                        val isAlreadyCompressed = isInAppDir
+                        
+                        Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir)")
+                        
+                        if (!isAlreadyCompressed) {
                             viewModel.setSelectedImageUri(uri)
-                                // Проверяем, включено ли автоматическое сжатие
-                                if (!viewModel.isAutoCompressionEnabled()) {
-                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
-                                    viewModel.compressSelectedImage()
-                                } else {
-                                    // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
-                                    Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
-                                    // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
-                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
-                                }
+                            // Проверяем, включено ли автоматическое сжатие
+                            if (!viewModel.isAutoCompressionEnabled()) {
+                                // Если автоматическое сжатие выключено, запускаем сжатие вручную
+                                viewModel.compressSelectedImage()
                             } else {
-                                // Снимаем регистрацию URI, так как он не будет обрабатываться
+                                // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
+                                Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
+                                // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
+                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                            }
+                        } else {
+                            // Снимаем регистрацию URI, так как он не будет обрабатываться
                             ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
-                                
-                                // Показываем сообщение, что файл уже обработан
-                                Toast.makeText(
-                                    applicationContext,
-                                    getString(R.string.image_already_compressed),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                            
+                            // Показываем сообщение, что файл уже обработан
+                            Toast.makeText(
+                                applicationContext,
+                                getString(R.string.image_already_compressed),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 }
@@ -220,23 +210,13 @@ class MainActivity : AppCompatActivity() {
                                 Timber.d("handleIntent: Изображение из множества: $uri")
                                 logFileDetails(uri)
                                 
-                                // Получаем имя файла из URI
-                                val fileName = FileUtil.getFileNameFromUri(this@MainActivity, uri)
-                                
-                                // Проверяем, содержит ли имя файла маркеры сжатого изображения
-                                val hasCompressionMarker = fileName?.let { name ->
-                                    ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                                        name.lowercase().contains(marker.lowercase())
-                                    }
-                                } ?: false
-                                
                                 // Получаем путь файла
                                 val path = FileUtil.getFilePathFromUri(this@MainActivity, uri)
                                 val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
                                 
-                                val isAlreadyCompressed = hasCompressionMarker || isInAppDir
+                                val isAlreadyCompressed = isInAppDir
                                 
-                                Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (hasMarker: $hasCompressionMarker, isInAppDir: $isInAppDir)")
+                                Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir)")
                                 
                                 if (!isAlreadyCompressed) {
                                     unprocessedUris.add(uri)

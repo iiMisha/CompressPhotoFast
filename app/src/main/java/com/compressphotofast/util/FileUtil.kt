@@ -45,27 +45,10 @@ object FileUtil {
 
     /**
      * Создает имя файла для сжатой версии
-     * Удаляет существующие маркеры сжатия и ограничивает длину имени файла
+     * Теперь просто возвращает оригинальное имя файла
      */
     fun createCompressedFileName(originalName: String): String {
-        val extension = originalName.substringAfterLast(".", "")
-        var nameWithoutExt = originalName.substringBeforeLast(".")
-        
-        // Удаляем все предыдущие маркеры сжатия
-        Constants.COMPRESSION_MARKERS.forEach { marker ->
-            nameWithoutExt = nameWithoutExt.replace(marker, "")
-        }
-        
-        // Удаляем хеши и другие дополнительные части из имени файла
-        nameWithoutExt = nameWithoutExt.replace(Regex("-\\d+_[a-f0-9]{32}"), "")
-        
-        // Ограничиваем длину имени файла
-        val maxBaseLength = 100 - extension.length - Constants.COMPRESSED_SUFFIX.length - 1
-        if (nameWithoutExt.length > maxBaseLength) {
-            nameWithoutExt = nameWithoutExt.take(maxBaseLength)
-        }
-        
-        return "${nameWithoutExt}${Constants.COMPRESSED_SUFFIX}.$extension"
+        return originalName
     }
 
     /**
@@ -86,49 +69,8 @@ object FileUtil {
             
             Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${if (isReplaceModeEnabled) "включен" else "выключен"}")
             
-            // Проверяем, что имя файла не содержит уже маркер сжатия
-            val hasCompressionMarker = ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                fileName.lowercase().contains(marker.lowercase())
-            }
-            
-            // Базовое имя файла (без маркера сжатия, если он уже есть)
-            val originalNameWithoutExtension = fileName.substringBeforeLast(".")
-            val extension = fileName.substringAfterLast(".", "jpg")
-            
-            val baseNameWithoutMarker = if (hasCompressionMarker) {
-                ImageTrackingUtil.COMPRESSION_MARKERS.fold(originalNameWithoutExtension) { acc, marker ->
-                    acc.replace(marker, "")
-                }
-            } else {
-                originalNameWithoutExtension
-            }
-            
-            // Всегда добавляем маркер сжатия, независимо от режима
-            var finalFileName = "${baseNameWithoutMarker}${Constants.COMPRESSED_SUFFIX}.$extension"
-            var counter = 1
-            
-            // Проверяем существование файла с таким именем и увеличиваем счетчик при необходимости
-            while (true) {
-                val testFileName = if (counter == 1) finalFileName else {
-                    val baseName = finalFileName.substringBeforeLast(".")
-                    val ext = finalFileName.substringAfterLast(".", "")
-                    "${baseName}_$counter.$ext"
-                }
-                
-                val exists = context.contentResolver.query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    arrayOf(MediaStore.Images.Media._ID),
-                    "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND ${MediaStore.Images.Media._ID} != ?",
-                    arrayOf(testFileName, originalUri.lastPathSegment ?: ""),
-                    null
-                )?.use { cursor -> cursor.count > 0 } ?: false
-
-                if (!exists) {
-                    finalFileName = testFileName
-                    break
-                }
-                counter++
-            }
+            // Используем оригинальное имя файла
+            val finalFileName = fileName
             
             Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $finalFileName")
 
@@ -139,6 +81,26 @@ object FileUtil {
                 null
             }
             
+            // Если включен режим замены, сначала удаляем оригинальный файл
+            var deletePendingIntent: Any? = null
+            if (isReplaceModeEnabled) {
+                try {
+                    Timber.d("saveCompressedImageToGallery: удаление оригинального файла перед созданием нового: $originalUri")
+                    deletePendingIntent = deleteFile(context, originalUri)
+                    // Если функция вернула не boolean, значит требуется запрос разрешения
+                    if (deletePendingIntent !is Boolean) {
+                        Timber.d("saveCompressedImageToGallery: требуется запрос разрешения на удаление")
+                        // Возвращаем результат с запросом разрешения
+                        return Pair(null, deletePendingIntent)
+                    }
+                    
+                    // Даем системе время на обработку удаления
+                    kotlinx.coroutines.delay(300)
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при удалении оригинального файла")
+                }
+            }
+            
             // Создаем запись в MediaStore
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, finalFileName)
@@ -146,12 +108,12 @@ object FileUtil {
                 put(MediaStore.Images.Media.DESCRIPTION, "Compressed")
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    if (isReplaceModeEnabled && originalPath != null) {
-                        // В режиме замены используем путь оригинального файла
+                    if (originalPath != null) {
+                        // Всегда используем путь оригинального файла
                         put(MediaStore.Images.Media.RELATIVE_PATH, originalPath)
                         Timber.d("Используем относительный путь оригинального файла: $originalPath")
                     } else {
-                        // В режиме сохранения в отдельной папке используем директорию приложения
+                        // Только если не удалось получить путь оригинального файла, используем директорию приложения
                         put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY)
                         Timber.d("Используем путь приложения: ${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}")
                     }
@@ -161,7 +123,6 @@ object FileUtil {
 
             // Сохраняем файл
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            var deletePendingIntent: Any? = null
             
             if (uri != null) {
                 // Копируем содержимое файла
@@ -180,20 +141,6 @@ object FileUtil {
                         values.clear()
                         values.put(MediaStore.Images.Media.IS_PENDING, 0)
                         context.contentResolver.update(uri, values, null, null)
-                    }
-                    
-                    // Если включен режим замены, удаляем оригинальный файл
-                    if (isReplaceModeEnabled) {
-                        try {
-                            Timber.d("saveCompressedImageToGallery: удаление оригинального файла: $originalUri")
-                            deletePendingIntent = deleteFile(context, originalUri)
-                            // Если функция вернула не boolean, значит требуется запрос разрешения
-                            if (deletePendingIntent !is Boolean) {
-                                Timber.d("saveCompressedImageToGallery: требуется запрос разрешения на удаление")
-                            }
-                        } catch (e: Exception) {
-                            Timber.e(e, "Ошибка при удалении оригинального файла")
-                        }
                     }
                     
                     return Pair(uri, deletePendingIntent)
