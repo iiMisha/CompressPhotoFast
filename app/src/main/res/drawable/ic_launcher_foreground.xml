@@ -17,37 +17,37 @@
         android:translateX="8.1"
         android:translateY="8.1">
         
-        <!-- Левый листок -->
+        <!-- Левый листок (увеличенный в 2 раза) -->
         <path
-            android:pathData="M52,70 C42,75 42,85 52,80 L52,70">
+            android:pathData="M52,60 C32,70 32,90 52,80 L52,60">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
-                    android:startX="42"
-                    android:startY="77.5"
+                    android:startX="32"
+                    android:startY="75"
                     android:endX="52"
-                    android:endY="77.5"
+                    android:endY="75"
                     android:startColor="#4CAF50"
                     android:endColor="#388E3C"/>
             </aapt:attr>
         </path>
 
-        <!-- Правый листок -->
+        <!-- Правый листок (увеличенный в 2 раза) -->
         <path
-            android:pathData="M56,65 C66,70 66,80 56,75 L56,65">
+            android:pathData="M56,55 C76,65 76,85 56,75 L56,55">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
-                    android:startX="66"
-                    android:startY="72.5"
+                    android:startX="76"
+                    android:startY="70"
                     android:endX="56"
-                    android:endY="72.5"
+                    android:endY="70"
                     android:startColor="#4CAF50"
                     android:endColor="#388E3C"/>
             </aapt:attr>
         </path>
 
-        <!-- Стебель -->
+        <!-- Стебель (увеличенный для соответствия) -->
         <path
             android:fillColor="#4CAF50"
             android:pathData="M54,54 L54,94 Q52,94 52,92 L52,56 Q54,54 56,56 L56,92 Q56,94 54,94"/>
@@ -134,12 +134,12 @@
             android:fillColor="#20FFFFFF"
             android:pathData="M59,44 Q64,39 69,44 Q64,49 59,49 Q54,49 59,44"/>
 
-        <!-- Блики на листьях -->
+        <!-- Блики на листьях (обновленные для увеличенных листьев) -->
         <path
             android:fillColor="#20FFFFFF"
-            android:pathData="M42,75 Q47,73 52,75 Q47,77 42,75"/>
+            android:pathData="M32,70 Q42,68 52,70 Q42,72 32,70"/>
         <path
             android:fillColor="#20FFFFFF"
-            android:pathData="M56,70 Q61,68 66,70 Q61,72 56,70"/>
+            android:pathData="M56,60 Q66,58 76,60 Q66,62 56,60"/>
     </group>
 </vector> 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Темная тема приложения для AMOLED экранов -->
+    <!-- Темная тема приложения с акцентами на 8 марта -->
     <style name="Theme.CompressPhotoFast" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
         <!-- Цвета -->
         <item name="colorPrimary">@color/primary</item>
@@ -8,11 +8,11 @@
         <item name="colorAccent">@color/accent</item>
         <item name="colorSurface">@color/surface</item>
         
-        <!-- Статус бар - pure black для AMOLED -->
-        <item name="android:statusBarColor">@color/black</item>
+        <!-- Статус бар -->
+        <item name="android:statusBarColor">@color/primary_dark</item>
         <item name="android:windowLightStatusBar">false</item>
         
-        <!-- Фон - pure black для AMOLED -->
+        <!-- Фон -->
         <item name="android:windowBackground">@color/background</item>
         
         <!-- Типографика для темной темы -->
@@ -21,6 +21,10 @@
         
         <!-- Специфичные настройки для темной темы -->
         <item name="elevationOverlayEnabled">true</item>
+        <item name="android:windowContentTransitions">true</item>
+        
+        <!-- Стиль для карточек -->
+        <item name="materialCardViewStyle">@style/Widget.CompressPhotoFast.CardView</item>
     </style>
     
     <!-- Стиль для кнопок в темной теме -->
@@ -29,11 +33,25 @@
         <item name="android:padding">12dp</item>
         <item name="android:textSize">16sp</item>
         <item name="backgroundTint">@color/primary</item>
+        <item name="rippleColor">@color/primary_light</item>
+        <item name="cornerRadius">8dp</item>
     </style>
     
     <!-- Стиль для переключателей в темной теме -->
     <style name="Widget.CompressPhotoFast.Switch" parent="Widget.MaterialComponents.CompoundButton.Switch">
         <item name="android:textSize">16sp</item>
         <item name="android:textColor">@color/primary_text</item>
+        <item name="thumbTint">@color/primary</item>
+        <item name="trackTint">@color/primary_dark</item>
+    </style>
+    
+    <!-- Стиль для карточек в темной теме -->
+    <style name="Widget.CompressPhotoFast.CardView" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/card_background</item>
+        <item name="cardElevation">4dp</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="rippleColor">@color/pink_shadow</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/primary</item>
     </style>
 </resources> 
