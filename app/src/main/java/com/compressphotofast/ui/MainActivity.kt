@@ -149,12 +149,22 @@ class MainActivity : AppCompatActivity() {
                     }
                     
                     if (uri != null) {
+                        // Логируем подробную информацию об URI
+                        Timber.d("handleIntent: Получен URI изображения: $uri")
+                        Timber.d("handleIntent: URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
+                        logFileDetails(uri)
+                        
                         // Получаем путь файла
                         val path = FileUtil.getFilePathFromUri(this, uri)
-                        val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
+                        Timber.d("handleIntent: Путь к файлу: $path")
+                        
+                        val isInAppDir = !path.isNullOrEmpty() && 
+                            (path.contains("/${Constants.APP_DIRECTORY}/") || 
+                             path.contains("content://media/external/images/media") && 
+                             path.contains(Constants.APP_DIRECTORY))
                         
                         // Проверяем, не было ли изображение уже обработано
-                        val isAlreadyCompressed = isInAppDir
+                        val isAlreadyCompressed = isInAppDir || ImageTrackingUtil.isImageProcessed(this, uri)
                         
                         Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir)")
                         
@@ -163,10 +173,15 @@ class MainActivity : AppCompatActivity() {
                             // Проверяем, включено ли автоматическое сжатие
                             if (!viewModel.isAutoCompressionEnabled()) {
                                 // Если автоматическое сжатие выключено, запускаем сжатие вручную
+                                Timber.d("handleIntent: Автоматическое сжатие выключено, запускаем сжатие вручную")
                                 viewModel.compressSelectedImage()
                             } else {
                                 // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
                                 Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
+                                
+                                // Регистрируем URI для обработки через фоновый сервис
+                                startBackgroundProcessing(uri)
+                                
                                 // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
                                 ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
                             }
@@ -212,9 +227,12 @@ class MainActivity : AppCompatActivity() {
                                 
                                 // Получаем путь файла
                                 val path = FileUtil.getFilePathFromUri(this@MainActivity, uri)
-                                val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
+                                val isInAppDir = !path.isNullOrEmpty() && 
+                                    (path.contains("/${Constants.APP_DIRECTORY}/") || 
+                                     path.contains("content://media/external/images/media") && 
+                                     path.contains(Constants.APP_DIRECTORY))
                                 
-                                val isAlreadyCompressed = isInAppDir
+                                val isAlreadyCompressed = isInAppDir || ImageTrackingUtil.isImageProcessed(this@MainActivity, uri)
                                 
                                 Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir)")
                                 
@@ -237,8 +255,11 @@ class MainActivity : AppCompatActivity() {
                                 } else {
                                     // Иначе просто показываем изображения в UI, они будут обработаны фоновым сервисом
                                     Timber.d("handleIntent: Автоматическое сжатие включено, ${unprocessedUris.size} файлов будут обработаны фоновым сервисом")
-                                    // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
+                                    
+                                    // Запускаем обработку каждого изображения через фоновый сервис
                                     unprocessedUris.forEach { uri ->
+                                        startBackgroundProcessing(uri)
+                                        // Снимаем регистрацию URI после отправки запроса на обработку
                                         ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
                                     }
                                 }
@@ -258,43 +279,43 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
-     * Логирует подробную информацию о файле изображения
+     * Логирует подробную информацию о файле
      */
     private fun logFileDetails(uri: Uri) {
         try {
-            val contentResolver = contentResolver
             val projection = arrayOf(
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_ADDED,
                 MediaStore.Images.Media.MIME_TYPE
             )
             
-            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                    val nameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
-                    val dateColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                    val mimeColumn = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
+                    val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
+                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
                     
-                    val id = if (idColumn != -1) cursor.getLong(idColumn) else null
-                    val name = if (nameColumn != -1) cursor.getString(nameColumn) else null
-                    val size = if (sizeColumn != -1) cursor.getLong(sizeColumn) else null
-                    val date = if (dateColumn != -1) cursor.getLong(dateColumn) else null
-                    val mime = if (mimeColumn != -1) cursor.getString(mimeColumn) else null
+                    val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
+                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
+                    val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
+                    val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
+                    val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
                     
-                    Timber.d(
-                        "Файл: ID=%s, Имя=%s, Размер=%s, Дата=%s, MIME=%s, URI=%s",
-                        id, name, size, date, mime, uri
-                    )
-                } else {
-                    Timber.d("Не удалось получить информацию о файле из MediaStore: $uri")
+                    Timber.d("Файл: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при логировании информации о файле: $uri")
+            Timber.e(e, "Ошибка при получении информации о файле: $uri")
         }
     }
 
@@ -792,6 +813,26 @@ class MainActivity : AppCompatActivity() {
                 // Продолжаем инициализацию
                 initializeBackgroundServices()
             }
+        }
+    }
+
+    /**
+     * Запускает обработку изображения через фоновый сервис
+     */
+    private fun startBackgroundProcessing(uri: Uri) {
+        try {
+            // Запускаем фоновый сервис, если он еще не запущен
+            val serviceIntent = Intent(this, BackgroundMonitoringService::class.java)
+            ContextCompat.startForegroundService(this, serviceIntent)
+            
+            // Создаем интент для обработки конкретного изображения
+            val processIntent = Intent(Constants.ACTION_PROCESS_IMAGE)
+            processIntent.putExtra(Constants.EXTRA_URI, uri)
+            sendBroadcast(processIntent)
+            
+            Timber.d("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при запуске фонового сервиса")
         }
     }
 

@@ -31,6 +31,8 @@ import java.io.IOException
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import android.content.Intent
+import android.app.PendingIntent
+import com.compressphotofast.ui.MainActivity
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -59,6 +61,11 @@ class ImageCompressionWorker @AssistedInject constructor(
         val imageUri = Uri.parse(imageUriString)
         Timber.d("Начало сжатия изображения: $imageUri")
         Timber.d("Параметры: качество=$compressionQuality")
+        Timber.d("URI scheme: ${imageUri.scheme}, authority: ${imageUri.authority}, path: ${imageUri.path}")
+
+        // Показываем уведомление о начале сжатия
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationId = System.currentTimeMillis().toInt()
 
         return withContext(Dispatchers.IO) {
             try {
@@ -126,9 +133,17 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                     if (result) {
                         Timber.d("Изображение успешно сжато и сохранено")
+                        
+                        // Показываем уведомление о завершении сжатия с информацией о результате
+                        showCompletionNotification(originalFileName, originalSize, compressedSize, sizeReduction)
+                        
                         Result.success()
                     } else {
                         Timber.e("Не удалось сохранить сжатое изображение")
+                        
+                        // Показываем уведомление об ошибке
+                        showErrorNotification(originalFileName)
+                        
                         Result.failure()
                     }
                 } finally {
@@ -150,36 +165,49 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun logFileDetails(uri: Uri) {
         try {
-            // Логируем только основную информацию об URI
+            // Логируем основную информацию об URI
             Timber.d("URI: ${uri.scheme}://${uri.authority}${uri.path}")
             
-            val cursor = context.contentResolver.query(
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.DATA
+            )
+            
+            context.contentResolver.query(
                 uri,
-                arrayOf(
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATA
-                ),
+                projection,
                 null,
                 null,
                 null
-            )
-            
-            cursor?.use {
-                if (it.moveToFirst()) {
-                    val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
-                    val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
+                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
+                    val dataIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
                     
-                    val name = if (nameIndex != -1) it.getString(nameIndex) else null
-                    val size = if (sizeIndex != -1) it.getLong(sizeIndex) else null
-                    val data = if (dataIndex != -1) it.getString(dataIndex) else null
+                    val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
+                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
+                    val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
+                    val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
+                    val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
+                    val data = if (dataIndex != -1) cursor.getString(dataIndex) else "unknown"
                     
-                    Timber.d("Файл: имя='$name', размер=${size?.div(1024)}KB, путь='$data'")
+                    Timber.d("Файл: ID=$id, Имя='$name', Размер=${size/1024}KB, Дата=$date, MIME=$mime, Путь='$data'")
                 } else {
                     Timber.d("Нет метаданных для URI '$uri'")
                 }
             } ?: Timber.d("Не удалось получить курсор для URI '$uri'")
+            
+            // Дополнительно пробуем получить путь через FileUtil
+            val path = FileUtil.getFilePathFromUri(context, uri)
+            Timber.d("Путь к файлу через FileUtil: $path")
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении информации о файле: $uri")
         }
@@ -401,14 +429,104 @@ class ImageCompressionWorker @AssistedInject constructor(
             notificationManager.createNotificationChannel(channel)
         }
         
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
         val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(context.getString(R.string.notification_compressing))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .setProgress(0, 0, true) // Индикатор прогресса в неопределенном состоянии
             .build()
         
         return ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
+    }
+
+    /**
+     * Показывает уведомление о завершении сжатия с информацией о результате
+     */
+    private fun showCompletionNotification(fileName: String, originalSize: Long, compressedSize: Long, sizeReduction: Float) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        // Форматируем размеры в удобочитаемом виде
+        val originalSizeFormatted = formatFileSize(originalSize)
+        val compressedSizeFormatted = formatFileSize(compressedSize)
+        val reductionPercent = String.format("%.1f", sizeReduction)
+        
+        // Создаем уведомление с информацией о результате сжатия
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(context.getString(R.string.notification_compression_complete))
+            .setContentText(context.getString(
+                R.string.notification_compression_details,
+                fileName,
+                originalSizeFormatted,
+                compressedSizeFormatted,
+                reductionPercent
+            ))
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        
+        // Используем уникальный ID для каждого уведомления
+        val notificationId = System.currentTimeMillis().toInt()
+        notificationManager.notify(notificationId, notification)
+    }
+    
+    /**
+     * Показывает уведомление об ошибке сжатия
+     */
+    private fun showErrorNotification(fileName: String) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        // Создаем уведомление об ошибке
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(context.getString(R.string.notification_compression_error))
+            .setContentText(context.getString(R.string.notification_compression_error_details, fileName))
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        
+        // Используем уникальный ID для каждого уведомления
+        val notificationId = System.currentTimeMillis().toInt() + 1
+        notificationManager.notify(notificationId, notification)
+    }
+    
+    /**
+     * Форматирует размер файла в удобочитаемом виде (KB, MB)
+     */
+    private fun formatFileSize(size: Long): String {
+        return when {
+            size < 1024 -> "$size B"
+            size < 1024 * 1024 -> "${size / 1024} KB"
+            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
+        }
     }
 
     /**
@@ -428,7 +546,10 @@ class ImageCompressionWorker @AssistedInject constructor(
         try {
             // Проверяем, находится ли файл в директории приложения
             val path = FileUtil.getFilePathFromUri(context, uri)
-            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
+            val isInAppDir = !path.isNullOrEmpty() && 
+                (path.contains("/${Constants.APP_DIRECTORY}/") || 
+                 path.contains("content://media/external/images/media") && 
+                 path.contains(Constants.APP_DIRECTORY))
             
             if (isInAppDir) {
                 Timber.d("Файл находится в директории приложения: $path")

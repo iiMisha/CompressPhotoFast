@@ -507,25 +507,75 @@ object FileUtil {
      */
     fun getFilePathFromUri(context: Context, uri: Uri): String? {
         try {
-            val projection = arrayOf(MediaStore.Images.Media.DATA)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                    if (columnIndex != -1) {
-                        return cursor.getString(columnIndex)
+            // На Android 10 (API 29) и выше MediaStore.Images.Media.DATA считается устаревшим
+            // и может возвращать null, поэтому используем другой подход
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Для Android 10+ используем относительный путь и имя файла
+                val projection = arrayOf(
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.RELATIVE_PATH
+                )
+                
+                context.contentResolver.query(
+                    uri,
+                    projection,
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                        val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                        
+                        if (nameIndex != -1 && pathIndex != -1) {
+                            val fileName = cursor.getString(nameIndex)
+                            val relativePath = cursor.getString(pathIndex)
+                            
+                            // Проверяем, что получили непустые значения
+                            if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
+                                return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
+                            }
+                        }
+                    }
+                }
+                
+                // Если не удалось получить путь через MediaStore, пробуем через lastPathSegment
+                uri.lastPathSegment?.let { segment ->
+                    if (segment.contains("/")) {
+                        return segment
+                    }
+                }
+                
+                // Для content URI возвращаем сам URI в виде строки, чтобы можно было
+                // проверить, находится ли файл в директории приложения
+                return uri.toString()
+            } else {
+                // Для Android 9 и ниже используем старый подход
+                val projection = arrayOf(MediaStore.Images.Media.DATA)
+                context.contentResolver.query(
+                    uri,
+                    projection,
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                        if (columnIndex != -1) {
+                            val path = cursor.getString(columnIndex)
+                            if (!path.isNullOrEmpty()) {
+                                return path
+                            }
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении пути к файлу из URI")
+            Timber.e(e, "Ошибка при получении пути к файлу из URI: $uri")
         }
-        return null
+        
+        // Если все методы не сработали, возвращаем URI в виде строки
+        return uri.toString()
     }
 
     /**

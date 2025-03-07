@@ -16,11 +16,22 @@
     <!-- Уведомления -->
     <string name="notification_title">CompressPhotoFast</string>
     <string name="notification_background_service">Служба мониторинга фотографий</string>
+    <string name="notification_background_service_description">Приложение автоматически сжимает новые фотографии для экономии места на устройстве</string>
+    <string name="notification_action_stop">Остановить</string>
     <string name="notification_compressing">Сжатие фотографий…</string>
     <string name="notification_compression_complete">Сжатие завершено</string>
     <string name="notification_channel_id">compress_photo_channel</string>
     <string name="notification_channel_name">Сжатие фотографий</string>
     <string name="notification_channel_description">Уведомления о процессе сжатия фотографий</string>
+    <string name="notification_batch_processing_title">Сжатие изображений</string>
+    <string name="notification_batch_processing_start">Начало обработки %1$d изображений</string>
+    <string name="notification_batch_processing_progress">Обработано %1$d из %2$d изображений</string>
+    <string name="notification_batch_processing_complete">Сжатие завершено</string>
+    <string name="notification_batch_processing_success">Все %1$d изображений успешно сжаты</string>
+    <string name="notification_batch_processing_partial">Успешно: %1$d, с ошибками: %2$d</string>
+    <string name="notification_compression_error">Ошибка сжатия</string>
+    <string name="notification_compression_error_details">Не удалось сжать файл: %1$s</string>
+    <string name="notification_compression_details">%1$s: %2$s → %3$s (-%4$s%%)</string>
     
     <!-- Сообщения -->
     <string name="compression_success">Обработка завершена</string>

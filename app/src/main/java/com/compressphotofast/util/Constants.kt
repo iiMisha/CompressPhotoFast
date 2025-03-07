@@ -33,6 +33,7 @@ object Constants {
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
     const val NOTIFICATION_ID_COMPRESSION = 1
     const val NOTIFICATION_ID_BACKGROUND_SERVICE = 2
+    const val NOTIFICATION_ID_BATCH_PROCESSING = 3
     
     // Директории
     const val APP_DIRECTORY = "CompressPhotoFast"
@@ -58,6 +59,8 @@ object Constants {
     
     // Broadcast действия
     const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.action.REQUEST_DELETE_PERMISSION"
+    const val ACTION_STOP_SERVICE = "com.compressphotofast.action.STOP_SERVICE"
+    const val ACTION_PROCESS_IMAGE = "com.compressphotofast.action.PROCESS_IMAGE"
     const val EXTRA_URI = "uri"
     const val EXTRA_DELETE_INTENT_SENDER = "delete_intent_sender"
 } 

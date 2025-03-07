@@ -27,6 +27,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import androidx.core.app.NotificationCompat
 
 /**
  * Модель представления для главного экрана
@@ -154,6 +158,11 @@ class MainViewModel @Inject constructor(
             // Создаем карту для отслеживания связей между заданиями и URI
             val requestToUriMap = workRequests.zip(uris).toMap()
             
+            // Показываем уведомление о начале обработки нескольких изображений
+            if (uris.size > 1) {
+                showBatchProcessingStartedNotification(uris.size)
+            }
+            
             // Отправляем все запросы в WorkManager
             workRequests.forEach { request ->
                 workManager.enqueue(request)
@@ -187,9 +196,19 @@ class MainViewModel @Inject constructor(
                                     )
                                     _multipleImagesProgress.value = newProgress
                                     
+                                    // Обновляем уведомление о прогрессе
+                                    if (uris.size > 1) {
+                                        updateBatchProcessingNotification(newProgress)
+                                    }
+                                    
                                     // Показываем результат только когда все изображения обработаны
                                     if (newProgress.processed >= newProgress.total) {
                                         _isLoading.value = false
+                                        
+                                        // Показываем уведомление о завершении обработки
+                                        if (uris.size > 1) {
+                                            showBatchProcessingCompletedNotification(newProgress)
+                                        }
                                         
                                         // Показываем результат только если это не было частью автоматической обработки
                                         if (newProgress.total <= 10) {
@@ -398,6 +417,109 @@ class MainViewModel @Inject constructor(
         sharedPreferences.edit()
             .putBoolean(Constants.PREF_SAVE_MODE, replace)
             .apply()
+    }
+
+    /**
+     * Показывает уведомление о начале обработки нескольких изображений
+     */
+    private fun showBatchProcessingStartedNotification(count: Int) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Создание канала уведомлений для Android 8.0+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                context.getString(R.string.notification_channel_id),
+                context.getString(R.string.notification_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            )
+            channel.description = context.getString(R.string.notification_channel_description)
+            notificationManager.createNotificationChannel(channel)
+        }
+        
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        // Создаем уведомление о начале обработки
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(context.getString(R.string.notification_batch_processing_title))
+            .setContentText(context.getString(R.string.notification_batch_processing_start, count))
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .setProgress(count, 0, false)
+            .build()
+        
+        notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
+    }
+    
+    /**
+     * Обновляет уведомление о прогрессе обработки нескольких изображений
+     */
+    private fun updateBatchProcessingNotification(progress: MultipleImagesProgress) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        // Создаем уведомление о прогрессе обработки
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(context.getString(R.string.notification_batch_processing_title))
+            .setContentText(context.getString(
+                R.string.notification_batch_processing_progress,
+                progress.processed,
+                progress.total
+            ))
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .setProgress(progress.total, progress.processed, false)
+            .build()
+        
+        notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
+    }
+    
+    /**
+     * Показывает уведомление о завершении обработки нескольких изображений
+     */
+    private fun showBatchProcessingCompletedNotification(progress: MultipleImagesProgress) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        // Формируем текст результата
+        val resultText = if (progress.failed > 0) {
+            context.getString(R.string.notification_batch_processing_partial, progress.successful, progress.failed)
+        } else {
+            context.getString(R.string.notification_batch_processing_success, progress.total)
+        }
+        
+        // Создаем уведомление о завершении обработки
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(context.getString(R.string.notification_batch_processing_complete))
+            .setContentText(resultText)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        
+        notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
     }
 }
 
