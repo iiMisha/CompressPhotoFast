@@ -38,7 +38,6 @@ object Constants {
     const val APP_DIRECTORY = "CompressPhotoFast"
     
     // Настройки сжатия
-    const val COMPRESSED_SUFFIX = "_compressed"
     const val COMPRESSION_QUALITY_LOW = 50
     const val COMPRESSION_QUALITY_MEDIUM = 75
     const val COMPRESSION_QUALITY_HIGH = 90
@@ -47,11 +46,6 @@ object Constants {
     
     // Интервалы
     const val BACKGROUND_SCAN_INTERVAL_MINUTES = 30L
-    
-    // Маркеры сжатых файлов
-    val COMPRESSION_MARKERS = listOf(
-        COMPRESSED_SUFFIX // Используем только один стандартный маркер
-    )
     
     // Настройки отслеживания файлов
     const val MAX_TRACKED_FILES = 1000

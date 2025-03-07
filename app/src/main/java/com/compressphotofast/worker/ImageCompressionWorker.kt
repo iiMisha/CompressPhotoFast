@@ -150,24 +150,15 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun logFileDetails(uri: Uri) {
         try {
-            // Получаем базовую информацию об URI
-            Timber.d("Детали URI: $uri")
-            Timber.d(" - Scheme: ${uri.scheme}")
-            Timber.d(" - Authority: ${uri.authority}")
-            Timber.d(" - Path: ${uri.path}")
-            Timber.d(" - Query: ${uri.query}")
-            Timber.d(" - Fragment: ${uri.fragment}")
+            // Логируем только основную информацию об URI
+            Timber.d("URI: ${uri.scheme}://${uri.authority}${uri.path}")
             
             val cursor = context.contentResolver.query(
                 uri,
                 arrayOf(
-                    MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
                     MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATA,
-                    MediaStore.Images.Media.DESCRIPTION,
-                    MediaStore.Images.Media.DATE_ADDED,
-                    MediaStore.Images.Media.DATE_MODIFIED
+                    MediaStore.Images.Media.DATA
                 ),
                 null,
                 null,
@@ -176,44 +167,15 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             cursor?.use {
                 if (it.moveToFirst()) {
-                    val idIndex = it.getColumnIndex(MediaStore.Images.Media._ID)
                     val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
                     val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
                     val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
-                    val descIndex = it.getColumnIndex(MediaStore.Images.Media.DESCRIPTION)
-                    val addedIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                    val modifiedIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
                     
-                    val id = if (idIndex != -1) it.getLong(idIndex) else null
                     val name = if (nameIndex != -1) it.getString(nameIndex) else null
                     val size = if (sizeIndex != -1) it.getLong(sizeIndex) else null
                     val data = if (dataIndex != -1) it.getString(dataIndex) else null
-                    val desc = if (descIndex != -1) it.getString(descIndex) else null
-                    val added = if (addedIndex != -1) it.getLong(addedIndex) else null
-                    val modified = if (modifiedIndex != -1) it.getLong(modifiedIndex) else null
                     
-                    Timber.d("Метаданные файла для URI '$uri':")
-                    Timber.d(" - ID: $id")
-                    Timber.d(" - Имя: $name")
-                    Timber.d(" - Размер: $size")
-                    Timber.d(" - Путь: $data")
-                    Timber.d(" - Описание: $desc")
-                    Timber.d(" - Дата добавления: $added")
-                    Timber.d(" - Дата изменения: $modified")
-                    
-                    // Анализируем имя файла на наличие маркеров сжатия
-                    name?.let { fileName ->
-                        val hasCompressionMarker = ImageTrackingUtil.COMPRESSION_MARKERS.any { marker ->
-                            fileName.lowercase().contains(marker.lowercase())
-                        }
-                        Timber.d(" - Имеет маркер сжатия в имени: $hasCompressionMarker")
-                    }
-                    
-                    // Проверяем, находится ли файл в директории приложения
-                    data?.let { path ->
-                        val isInAppDirectory = path.contains("/${Constants.APP_DIRECTORY}/")
-                        Timber.d(" - Находится в директории приложения: $isInAppDirectory")
-                    }
+                    Timber.d("Файл: имя='$name', размер=${size?.div(1024)}KB, путь='$data'")
                 } else {
                     Timber.d("Нет метаданных для URI '$uri'")
                 }
@@ -362,13 +324,10 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Создаем временный файл из URI
             val inputFile = createTempFileFromUri(uri) ?: throw IOException("Не удалось создать временный файл")
             
-            // Логируем EXIF данные исходного изображения до сжатия
-            logExifData(uri)
-            
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
                 quality(quality)
-            format(android.graphics.Bitmap.CompressFormat.JPEG)
+                format(android.graphics.Bitmap.CompressFormat.JPEG)
             }.copyTo(outputFile, overwrite = true)
             
             // Удаляем временный входной файл
@@ -377,8 +336,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Копируем EXIF данные
             FileUtil.copyExifDataFromUriToFile(context, uri, outputFile)
             
-            // Логируем EXIF данные после копирования
-            Timber.d("EXIF данные после копирования:")
+            // Проверяем EXIF данные после копирования
             logExifDataFromFile(outputFile)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения")
@@ -387,137 +345,43 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Логирует EXIF данные из URI изображения
+     * Проверяет EXIF данные из URI изображения
      */
     private suspend fun logExifData(uri: Uri) = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Логирование EXIF данных для URI: $uri")
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val exif = ExifInterface(inputStream)
+                // Просто проверяем наличие основных тегов
+                val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
+                                 exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
+                                 exif.getAttribute(ExifInterface.TAG_MODEL) != null
                 
-                // Логируем основные теги EXIF
-                val datetime = exif.getAttribute(ExifInterface.TAG_DATETIME) ?: "Нет данных"
-                val make = exif.getAttribute(ExifInterface.TAG_MAKE) ?: "Нет данных"
-                val model = exif.getAttribute(ExifInterface.TAG_MODEL) ?: "Нет данных"
-                val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1).toString()
-                val exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME) ?: "Нет данных"
-                val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER) ?: "Нет данных"
-                val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY) ?: "Нет данных"
-                val flash = exif.getAttribute(ExifInterface.TAG_FLASH) ?: "Нет данных"
-                
-                Timber.d("EXIF данные изображения:")
-                Timber.d(" - Дата и время: $datetime")
-                Timber.d(" - Производитель: $make")
-                Timber.d(" - Модель: $model")
-                Timber.d(" - Ориентация: $orientation")
-                Timber.d(" - Время экспозиции: $exposureTime")
-                Timber.d(" - Число диафрагмы: $fNumber")
-                Timber.d(" - ISO: $iso")
-                Timber.d(" - Вспышка: $flash")
-                
-                // Логируем GPS данные, если они есть
-                val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null
-                if (hasGps) {
-                    val latitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                    val latitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                    val longitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                    val longitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
-                    
-                    if (latitude != null && latitudeRef != null && longitude != null && longitudeRef != null) {
-                        val lat = convertToDegrees(latitude)
-                        val lon = convertToDegrees(longitude)
-                        
-                        // Корректируем координаты в зависимости от ref (N/S, E/W)
-                        val finalLat = if (latitudeRef == "N") lat else -lat
-                        val finalLon = if (longitudeRef == "E") lon else -lon
-                        
-                        Timber.d(" - GPS координаты: Широта=$finalLat, Долгота=$finalLon")
-                    } else {
-                        Timber.d(" - GPS данные неполные или повреждены")
-                    }
-                } else {
-                    Timber.d(" - GPS данные отсутствуют")
+                if (hasBasicTags) {
+                    Timber.d("EXIF данные найдены в исходном файле")
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при чтении EXIF данных из URI")
+            Timber.e(e, "Ошибка при проверке EXIF данных из URI")
         }
     }
     
     /**
-     * Логирует EXIF данные из файла
+     * Проверяет EXIF данные из файла
      */
     private fun logExifDataFromFile(file: File) {
         try {
-            Timber.d("Логирование EXIF данных для файла: ${file.absolutePath}")
             val exif = ExifInterface(file.absolutePath)
+            // Просто проверяем наличие основных тегов
+            val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
+                             exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
+                             exif.getAttribute(ExifInterface.TAG_MODEL) != null
             
-            // Логируем основные теги EXIF
-            val datetime = exif.getAttribute(ExifInterface.TAG_DATETIME) ?: "Нет данных"
-            val make = exif.getAttribute(ExifInterface.TAG_MAKE) ?: "Нет данных"
-            val model = exif.getAttribute(ExifInterface.TAG_MODEL) ?: "Нет данных"
-            val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1).toString()
-            val exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME) ?: "Нет данных"
-            val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER) ?: "Нет данных"
-            val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY) ?: "Нет данных"
-            val flash = exif.getAttribute(ExifInterface.TAG_FLASH) ?: "Нет данных"
-            
-            Timber.d("EXIF данные изображения:")
-            Timber.d(" - Дата и время: $datetime")
-            Timber.d(" - Производитель: $make")
-            Timber.d(" - Модель: $model")
-            Timber.d(" - Ориентация: $orientation")
-            Timber.d(" - Время экспозиции: $exposureTime")
-            Timber.d(" - Число диафрагмы: $fNumber")
-            Timber.d(" - ISO: $iso")
-            Timber.d(" - Вспышка: $flash")
-            
-            // Логируем GPS данные, если они есть
-            val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null
-            if (hasGps) {
-                val latitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                val latitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                val longitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                val longitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
-                
-                if (latitude != null && latitudeRef != null && longitude != null && longitudeRef != null) {
-                    val lat = convertToDegrees(latitude)
-                    val lon = convertToDegrees(longitude)
-                    
-                    // Корректируем координаты в зависимости от ref (N/S, E/W)
-                    val finalLat = if (latitudeRef == "N") lat else -lat
-                    val finalLon = if (longitudeRef == "E") lon else -lon
-                    
-                    Timber.d(" - GPS координаты: Широта=$finalLat, Долгота=$finalLon")
-                } else {
-                    Timber.d(" - GPS данные неполные или повреждены")
-                }
-            } else {
-                Timber.d(" - GPS данные отсутствуют")
+            if (hasBasicTags) {
+                Timber.d("EXIF данные сохранены")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при чтении EXIF данных из файла")
+            Timber.e(e, "Ошибка при проверке EXIF данных из файла")
         }
-    }
-
-    /**
-     * Конвертирует GPS координаты из формата EXIF в десятичные градусы
-     */
-    private fun convertToDegrees(coordinate: String): Double {
-        val parts = coordinate.split(",", limit = 3)
-        if (parts.size != 3) return 0.0
-        
-        val degrees = parts[0].split("/").let { 
-            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
-        }
-        val minutes = parts[1].split("/").let { 
-            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
-        }
-        val seconds = parts[2].split("/").let { 
-            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
-        }
-        
-        return degrees + (minutes / 60.0) + (seconds / 3600.0)
     }
 
     /**
@@ -562,35 +426,20 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun isImageAlreadyProcessed(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Получаем имя файла
-            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext false
+            // Проверяем, находится ли файл в директории приложения
+            val path = FileUtil.getFilePathFromUri(context, uri)
+            val isInAppDir = !path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")
             
-            // Если файл уже имеет маркер сжатия, пропускаем его
-            if (fileName.contains("_compressed")) {
-                Timber.d("Файл содержит маркер сжатия: $fileName")
-            return@withContext true
-        }
-        
-            // Проверяем, существует ли уже сжатая версия этого файла
-            val baseFileName = fileName.substringBeforeLast(".")
-            val extension = fileName.substringAfterLast(".", "")
-            val compressedFileName = "${baseFileName}_compressed.$extension"
+            if (isInAppDir) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext true
+            }
             
-            val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("$compressedFileName%") // Используем LIKE для поиска всех вариантов
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.count > 0) {
-                    Timber.d("Найдена существующая сжатая версия для $fileName")
-                    return@withContext true
-                }
+            // Проверяем, есть ли URI в списке обработанных
+            val isProcessed = ImageTrackingUtil.isImageProcessed(context, uri)
+            if (isProcessed) {
+                Timber.d("URI найден в списке обработанных: $uri")
+                return@withContext true
             }
             
             // Файл прошел все проверки и должен быть сжат
@@ -608,31 +457,8 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
         try {
-            // Проверяем существование файла с таким именем
-            var finalFileName = fileName
-            var counter = 1
-            
-            while (true) {
-                val testFileName = if (counter == 1) finalFileName else {
-                    val baseName = finalFileName.substringBeforeLast(".")
-                    val ext = finalFileName.substringAfterLast(".", "")
-                    "${baseName}_$counter.$ext"
-                }
-                
-                val exists = context.contentResolver.query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    arrayOf(MediaStore.Images.Media._ID),
-                    "${MediaStore.Images.Media.DISPLAY_NAME} = ?",
-                    arrayOf(testFileName),
-                    null
-                )?.use { cursor -> cursor.count > 0 } ?: false
-
-                if (!exists) {
-                    finalFileName = testFileName
-                    break
-                }
-                counter++
-            }
+            // Используем оригинальное имя файла без изменений
+            val finalFileName = fileName
             
             FileUtil.saveCompressedImageToGallery(
                 context,
@@ -656,12 +482,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         stats: CompressionStats
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Сохранение сжатого изображения в галерею...")
-            
-            // Получаем финальное имя файла для сжатого изображения
-            val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
-            
             // Сохраняем сжатое изображение в галерею
+            val compressedFileName = originalFileName
             val result = FileUtil.saveCompressedImageToGallery(
                 context,
                 compressedFile,
@@ -672,20 +494,32 @@ class ImageCompressionWorker @AssistedInject constructor(
             val compressedUri = result.first
             val deletePendingIntent = result.second
             
+            if (compressedUri == null && deletePendingIntent != null && deletePendingIntent !is Boolean) {
+                Timber.d("Требуется разрешение пользователя на удаление оригинального файла")
+                addPendingDeleteRequest(originalUri, deletePendingIntent)
+                return@withContext false
+            }
+            
             if (compressedUri != null) {
                 val sizeReduction = (1 - (stats.compressedSize.toDouble() / stats.originalSize.toDouble())) * 100
-                Timber.d("Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
+                Timber.d("Результат сжатия: оригинал=${stats.originalSize/1024}KB, сжатый=${stats.compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
                 
-                // Логируем детальную информацию о сжатии
-                Timber.d("Детали URI: $originalUri")
-                Timber.d(" - Scheme: ${originalUri.scheme}")
-                Timber.d(" - Authority: ${originalUri.authority}")
-                Timber.d(" - Path: ${originalUri.path}")
-                Timber.d(" - Query: ${originalUri.query}")
-                Timber.d(" - Fragment: ${originalUri.fragment}")
-                
-                // Получение и логирование метаданных файла
-                originalUri.let { logFileDetails(it) }
+                // Логируем путь сохранения сжатого файла
+                context.contentResolver.query(
+                    compressedUri,
+                    arrayOf(MediaStore.Images.Media.DATA),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                        if (pathIndex != -1) {
+                            val path = cursor.getString(pathIndex)
+                            Timber.d("Сжатый файл сохранен: $path")
+                        }
+                    }
+                }
                 
                 // Если есть IntentSender для удаления, добавляем его в список ожидающих
                 if (deletePendingIntent != null && deletePendingIntent !is Boolean) {
@@ -704,36 +538,13 @@ class ImageCompressionWorker @AssistedInject constructor(
 
     private suspend fun getCompressedImageUri(uri: Uri): Uri? = withContext(Dispatchers.IO) {
         try {
-            // Получаем имя файла
-            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext null
-            
-            // Если файл уже имеет маркер сжатия, пропускаем его
-            if (fileName.contains("_compressed")) {
-                Timber.d("Файл уже содержит маркер сжатия: $fileName")
+            // Проверяем, есть ли URI в списке обработанных
+            if (ImageTrackingUtil.isImageProcessed(context, uri)) {
+                Timber.d("URI найден в списке обработанных: $uri")
                 return@withContext uri
             }
             
-            // Создаем имя для сжатого файла
-            val compressedFileName = FileUtil.createCompressedFileName(fileName)
-            
-            // Проверяем существование файла с таким именем
-            val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("$compressedFileName%") // Используем LIKE для поиска всех вариантов
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
-                    return@withContext Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
-                }
-            }
-            
+            // Если файл не найден в списке обработанных, возвращаем null
             null
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при поиске сжатой версии изображения")

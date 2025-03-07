@@ -27,16 +27,6 @@ object ImageTrackingUtil {
     private val urisBeingProcessedByMainActivity = Collections.synchronizedSet(HashSet<String>())
     
     /**
-     * Маркеры сжатых изображений
-     */
-    val COMPRESSION_MARKERS = listOf(
-        "_compressed",
-        "_сжатое",
-        "_small",
-        "_reduced"
-    )
-
-    /**
      * Регистрирует URI, который обрабатывается через MainActivity
      */
     fun registerUriBeingProcessedByMainActivity(uri: Uri) {
@@ -84,20 +74,9 @@ object ImageTrackingUtil {
                 return@withLock true
             }
 
-            // Получаем имя файла
-            val fileName = getFileNameFromUri(context, uri)
-            Timber.d("isImageProcessed: имя файла: $fileName")
-            
-            if (fileName == null) {
-                Timber.e("isImageProcessed: не удалось получить имя файла для URI: $uri")
-                return@withLock false
-            }
-
-            // Проверяем наличие маркеров сжатия в имени файла
-            val hasMarker = hasCompressionMarker(fileName)
-            Timber.d("isImageProcessed: файл имеет маркер сжатия в имени: $hasMarker (имя: $fileName)")
-            
-            if (hasMarker) {
+            // Проверяем, находится ли файл в списке обработанных
+            if (isUriInProcessedList(context, uri)) {
+                Timber.d("isImageProcessed: URI найден в списке обработанных: $uri")
                 return@withLock true
             }
 
@@ -112,33 +91,10 @@ object ImageTrackingUtil {
                 return@withLock true
             }
 
-            // Проверяем наличие сжатой версии
-            val hasCompressed = hasCompressedVersion(context, fileName)
-            Timber.d("isImageProcessed: найдена существующая сжатая версия: $hasCompressed (для $fileName)")
-            
-            if (hasCompressed) {
-                return@withLock true
-            }
-
-            // Проверяем по сохраненным URI
-            val isInList = isUriInProcessedList(context, uri)
-            Timber.d("isImageProcessed: URI найден в списке обработанных: $isInList")
-            
-            if (isInList) {
-                return@withLock true
-            }
-
-            // Если файл не обработан, помечаем его как находящийся в процессе обработки
-            markFileAsProcessing(uriString)
-            Timber.d("isImageProcessed: помечаем файл как находящийся в процессе обработки: $uri")
-            
-            // Добавляем URI в список обработанных сразу, чтобы избежать параллельной обработки
-            addToProcessedList(context, uri)
-            Timber.d("isImageProcessed: добавляем URI в список обработанных: $uri")
-            
+            // Файл не обработан
             return@withLock false
         } catch (e: Exception) {
-            Timber.e(e, "isImageProcessed: ошибка при проверке статуса файла")
+            Timber.e(e, "isImageProcessed: ошибка при проверке статуса изображения: $uri")
             return@withLock false
         }
     }
@@ -148,38 +104,27 @@ object ImageTrackingUtil {
      */
     private fun addToProcessedList(context: Context, uri: Uri) {
         val prefs = context.getSharedPreferences(PREF_COMPRESSED_IMAGES, Context.MODE_PRIVATE)
-        val processedImages = prefs.getStringSet("uris", mutableSetOf()) ?: mutableSetOf()
+        val processedImages = prefs.getStringSet("uris", setOf()) ?: setOf()
+        val uriString = uri.toString()
         
         // Создаем новый набор, так как SharedPreferences возвращает неизменяемый набор
-        val updatedImages = HashSet(processedImages)
+        val newSet = HashSet(processedImages)
+        newSet.add(uriString)
         
-        // Проверяем, не содержится ли уже URI в списке
-        val uriString = uri.toString()
-        val alreadyExists = updatedImages.contains(uriString)
-        if (alreadyExists) {
-            Timber.d("addToProcessedList: URI '$uriString' уже присутствует в списке обработанных")
-            return
-        }
-        
-        // Добавляем новый URI
-        updatedImages.add(uriString)
-        Timber.d("addToProcessedList: добавлен URI '$uriString'. Текущий размер списка: ${updatedImages.size}")
-        
-        // Если список слишком большой, удаляем старые записи
-        var removedCount = 0
-        while (updatedImages.size > MAX_TRACKED_IMAGES) {
-            updatedImages.iterator().next()?.let { 
-                updatedImages.remove(it)
-                removedCount++
+        // Ограничиваем размер списка
+        if (newSet.size > MAX_TRACKED_IMAGES) {
+            val toRemove = newSet.size - MAX_TRACKED_IMAGES
+            val iterator = newSet.iterator()
+            var removed = 0
+            while (iterator.hasNext() && removed < toRemove) {
+                iterator.next()
+                iterator.remove()
+                removed++
             }
         }
         
-        if (removedCount > 0) {
-            Timber.d("addToProcessedList: удалено $removedCount старых записей для поддержания ограничения размера")
-        }
-        
-        // Сохраняем обновленный список
-        prefs.edit().putStringSet("uris", updatedImages).apply()
+        prefs.edit().putStringSet("uris", newSet).apply()
+        Timber.d("addToProcessedList: URI '$uriString' добавлен в список обработанных (всего: ${newSet.size})")
     }
 
     /**
@@ -226,61 +171,6 @@ object ImageTrackingUtil {
         
         Timber.d("isUriInProcessedList: URI '$uriString' ${if (contains) "найден" else "не найден"} в списке обработанных")
         return contains
-    }
-
-    /**
-     * Проверяет наличие маркеров сжатия в имени файла
-     */
-    private fun hasCompressionMarker(fileName: String): Boolean {
-        val lowerFileName = fileName.lowercase()
-        
-        for (marker in COMPRESSION_MARKERS) {
-            if (lowerFileName.contains(marker.lowercase())) {
-                Timber.d("hasCompressionMarker: найден маркер '$marker' в имени файла '$fileName'")
-                return true
-            }
-        }
-        
-        Timber.d("hasCompressionMarker: маркеры сжатия не найдены в имени файла '$fileName'")
-        return false
-    }
-
-    /**
-     * Проверяет существование сжатой версии файла
-     */
-    private suspend fun hasCompressedVersion(context: Context, fileName: String): Boolean {
-        val baseFileName = fileName.substringBeforeLast(".")
-        val extension = fileName.substringAfterLast(".", "")
-        
-        Timber.d("hasCompressedVersion: проверка наличия сжатой версии для '$fileName' (базовое имя: '$baseFileName', расширение: '$extension')")
-        
-        // Проверяем все возможные варианты имен сжатых файлов
-        for (marker in COMPRESSION_MARKERS) {
-            val compressedFileName = "${baseFileName}$marker.$extension"
-            
-            Timber.d("hasCompressedVersion: поиск возможного сжатого файла '$compressedFileName'")
-            
-            val projection = arrayOf(MediaStore.Images.Media._ID)
-            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-            val selectionArgs = arrayOf(compressedFileName)
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                val found = cursor.count > 0
-                if (found) {
-                    Timber.d("hasCompressedVersion: найден сжатый файл '$compressedFileName'")
-                    return true
-                }
-            }
-        }
-        
-        Timber.d("hasCompressedVersion: сжатые версии не найдены для '$fileName'")
-        return false
     }
 
     /**
@@ -352,20 +242,6 @@ object ImageTrackingUtil {
 
     private suspend fun checkImageStatus(context: Context, uri: Uri): Boolean = mutex.withLock {
         try {
-            // Получаем имя файла
-            val fileName = getFileNameFromUri(context, uri)
-            if (fileName == null) {
-                Timber.d("checkImageStatus: не удалось получить имя файла для URI: $uri")
-                return@withLock false
-            }
-            
-            // Проверяем наличие маркеров сжатия в имени файла
-            if (hasCompressionMarker(fileName)) {
-                Timber.d("checkImageStatus: найден маркер сжатия в имени файла: $fileName")
-                markImageAsProcessed(context, uri)
-                return@withLock true
-            }
-
             // Проверяем путь файла
             val path = getImagePath(context, uri)
             Timber.d("checkImageStatus: путь к файлу: $path")
@@ -374,14 +250,6 @@ object ImageTrackingUtil {
             Timber.d("checkImageStatus: файл находится в директории приложения: $isInAppDir")
             
             if (isInAppDir) {
-                return@withLock true
-            }
-
-            // Проверяем наличие сжатой версии
-            val hasCompressed = hasCompressedVersion(context, fileName)
-            Timber.d("checkImageStatus: найдена существующая сжатая версия: $hasCompressed (для $fileName)")
-            
-            if (hasCompressed) {
                 return@withLock true
             }
 

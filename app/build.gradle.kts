@@ -7,10 +7,6 @@ plugins {
 
 kapt {
     correctErrorTypes = true
-    arguments {
-        arg("dagger.fastInit", "enabled")
-        arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
-    }
 }
 
 android {
