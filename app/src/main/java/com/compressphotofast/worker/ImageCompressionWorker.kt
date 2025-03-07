@@ -354,13 +354,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Создаем временный файл из URI
             val inputFile = createTempFileFromUri(uri) ?: throw IOException("Не удалось создать временный файл")
             
-            // Логируем EXIF данные исходного изображения до сжатия
+            // Проверяем EXIF данные исходного изображения
             logExifData(uri)
             
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
                 quality(quality)
-            format(android.graphics.Bitmap.CompressFormat.JPEG)
+                format(android.graphics.Bitmap.CompressFormat.JPEG)
             }.copyTo(outputFile, overwrite = true)
             
             // Удаляем временный входной файл
@@ -369,8 +369,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Копируем EXIF данные
             FileUtil.copyExifDataFromUriToFile(context, uri, outputFile)
             
-            // Логируем EXIF данные после копирования
-            Timber.d("EXIF данные после копирования:")
+            // Проверяем EXIF данные после копирования
             logExifDataFromFile(outputFile)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения")
@@ -379,137 +378,43 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Логирует EXIF данные из URI изображения
+     * Проверяет EXIF данные из URI изображения
      */
     private suspend fun logExifData(uri: Uri) = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Логирование EXIF данных для URI: $uri")
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val exif = ExifInterface(inputStream)
+                // Просто проверяем наличие основных тегов
+                val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
+                                 exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
+                                 exif.getAttribute(ExifInterface.TAG_MODEL) != null
                 
-                // Логируем основные теги EXIF
-                val datetime = exif.getAttribute(ExifInterface.TAG_DATETIME) ?: "Нет данных"
-                val make = exif.getAttribute(ExifInterface.TAG_MAKE) ?: "Нет данных"
-                val model = exif.getAttribute(ExifInterface.TAG_MODEL) ?: "Нет данных"
-                val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1).toString()
-                val exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME) ?: "Нет данных"
-                val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER) ?: "Нет данных"
-                val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY) ?: "Нет данных"
-                val flash = exif.getAttribute(ExifInterface.TAG_FLASH) ?: "Нет данных"
-                
-                Timber.d("EXIF данные изображения:")
-                Timber.d(" - Дата и время: $datetime")
-                Timber.d(" - Производитель: $make")
-                Timber.d(" - Модель: $model")
-                Timber.d(" - Ориентация: $orientation")
-                Timber.d(" - Время экспозиции: $exposureTime")
-                Timber.d(" - Число диафрагмы: $fNumber")
-                Timber.d(" - ISO: $iso")
-                Timber.d(" - Вспышка: $flash")
-                
-                // Логируем GPS данные, если они есть
-                val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null
-                if (hasGps) {
-                    val latitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                    val latitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                    val longitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                    val longitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
-                    
-                    if (latitude != null && latitudeRef != null && longitude != null && longitudeRef != null) {
-                        val lat = convertToDegrees(latitude)
-                        val lon = convertToDegrees(longitude)
-                        
-                        // Корректируем координаты в зависимости от ref (N/S, E/W)
-                        val finalLat = if (latitudeRef == "N") lat else -lat
-                        val finalLon = if (longitudeRef == "E") lon else -lon
-                        
-                        Timber.d(" - GPS координаты: Широта=$finalLat, Долгота=$finalLon")
-                    } else {
-                        Timber.d(" - GPS данные неполные или повреждены")
-                    }
-                } else {
-                    Timber.d(" - GPS данные отсутствуют")
+                if (hasBasicTags) {
+                    Timber.d("EXIF данные присутствуют в исходном файле")
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при чтении EXIF данных из URI")
+            Timber.e(e, "Ошибка при проверке EXIF данных из URI")
         }
     }
     
     /**
-     * Логирует EXIF данные из файла
+     * Проверяет EXIF данные из файла
      */
     private fun logExifDataFromFile(file: File) {
         try {
-            Timber.d("Логирование EXIF данных для файла: ${file.absolutePath}")
             val exif = ExifInterface(file.absolutePath)
+            // Просто проверяем наличие основных тегов
+            val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
+                             exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
+                             exif.getAttribute(ExifInterface.TAG_MODEL) != null
             
-            // Логируем основные теги EXIF
-            val datetime = exif.getAttribute(ExifInterface.TAG_DATETIME) ?: "Нет данных"
-            val make = exif.getAttribute(ExifInterface.TAG_MAKE) ?: "Нет данных"
-            val model = exif.getAttribute(ExifInterface.TAG_MODEL) ?: "Нет данных"
-            val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1).toString()
-            val exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME) ?: "Нет данных"
-            val fNumber = exif.getAttribute(ExifInterface.TAG_F_NUMBER) ?: "Нет данных"
-            val iso = exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY) ?: "Нет данных"
-            val flash = exif.getAttribute(ExifInterface.TAG_FLASH) ?: "Нет данных"
-            
-            Timber.d("EXIF данные изображения:")
-            Timber.d(" - Дата и время: $datetime")
-            Timber.d(" - Производитель: $make")
-            Timber.d(" - Модель: $model")
-            Timber.d(" - Ориентация: $orientation")
-            Timber.d(" - Время экспозиции: $exposureTime")
-            Timber.d(" - Число диафрагмы: $fNumber")
-            Timber.d(" - ISO: $iso")
-            Timber.d(" - Вспышка: $flash")
-            
-            // Логируем GPS данные, если они есть
-            val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null
-            if (hasGps) {
-                val latitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                val latitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                val longitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                val longitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
-                
-                if (latitude != null && latitudeRef != null && longitude != null && longitudeRef != null) {
-                    val lat = convertToDegrees(latitude)
-                    val lon = convertToDegrees(longitude)
-                    
-                    // Корректируем координаты в зависимости от ref (N/S, E/W)
-                    val finalLat = if (latitudeRef == "N") lat else -lat
-                    val finalLon = if (longitudeRef == "E") lon else -lon
-                    
-                    Timber.d(" - GPS координаты: Широта=$finalLat, Долгота=$finalLon")
-                } else {
-                    Timber.d(" - GPS данные неполные или повреждены")
-                }
-            } else {
-                Timber.d(" - GPS данные отсутствуют")
+            if (hasBasicTags) {
+                Timber.d("EXIF данные успешно сохранены в сжатом файле")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при чтении EXIF данных из файла")
+            Timber.e(e, "Ошибка при проверке EXIF данных из файла")
         }
-    }
-
-    /**
-     * Конвертирует GPS координаты из формата EXIF в десятичные градусы
-     */
-    private fun convertToDegrees(coordinate: String): Double {
-        val parts = coordinate.split(",", limit = 3)
-        if (parts.size != 3) return 0.0
-        
-        val degrees = parts[0].split("/").let { 
-            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
-        }
-        val minutes = parts[1].split("/").let { 
-            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
-        }
-        val seconds = parts[2].split("/").let { 
-            if (it.size == 2) it[0].toDouble() / it[1].toDouble() else 0.0 
-        }
-        
-        return degrees + (minutes / 60.0) + (seconds / 3600.0)
     }
 
     /**
