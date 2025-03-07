@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:background="@color/pink_background">
+    android:background="@drawable/bg_march8_pattern">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -16,15 +16,41 @@
         android:paddingBottom="12dp"
         tools:context=".ui.MainActivity">
 
+        <!-- Декоративный цветок в верхнем левом углу -->
+        <ImageView
+            android:id="@+id/ivTopLeftFlower"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_corner_flower"
+            android:alpha="0.7"
+            android:rotation="0"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:contentDescription="@null" />
+
+        <!-- Декоративный цветок в верхнем правом углу -->
+        <ImageView
+            android:id="@+id/ivTopRightFlower"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_corner_flower"
+            android:alpha="0.7"
+            android:rotation="90"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@null" />
+
         <!-- Праздничная карточка -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardGreeting"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp"
             app:cardBackgroundColor="#F8F8FF"
+            app:strokeWidth="2dp"
+            app:strokeColor="@color/primary"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -39,8 +65,8 @@
                     android:id="@+id/tvGreeting"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="С 8 марта, Полина! 🌷"
-                    android:textSize="20sp"
+                    android:text="С 8 марта! 🌷"
+                    android:textSize="22sp"
                     android:textColor="#FF69B4"
                     android:textStyle="bold"
                     android:gravity="center"/>
@@ -78,6 +104,10 @@
             app:cornerRadius="24dp"
             android:padding="12dp"
             android:textSize="14sp"
+            app:icon="@drawable/ic_corner_flower"
+            app:iconSize="24dp"
+            app:iconGravity="textStart"
+            app:iconTint="#FFFFFF"
             app:layout_constraintWidth_max="@dimen/max_button_width"
             app:layout_constraintTop_toBottomOf="@id/cardGreeting"
             app:layout_constraintStart_toStartOf="parent"
@@ -216,6 +246,30 @@
                 android:textSize="12sp"
                 android:text="@string/compression_quality_high" />
         </RadioGroup>
+
+        <!-- Декоративный цветок в нижнем левом углу -->
+        <ImageView
+            android:id="@+id/ivBottomLeftFlower"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_corner_flower"
+            android:alpha="0.7"
+            android:rotation="270"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:contentDescription="@null" />
+
+        <!-- Декоративный цветок в нижнем правом углу -->
+        <ImageView
+            android:id="@+id/ivBottomRightFlower"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_corner_flower"
+            android:alpha="0.7"
+            android:rotation="180"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@null" />
 
         <!-- Индикатор загрузки -->
         <ProgressBar

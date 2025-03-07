@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    
+    <!-- Лепесток 1 -->
+    <path
+        android:fillColor="#20FF69B4"
+        android:pathData="M24,12 C18,18 18,30 24,36 C30,30 30,18 24,12"/>
+    
+    <!-- Лепесток 2 -->
+    <path
+        android:fillColor="#20FF69B4"
+        android:pathData="M12,24 C18,18 30,18 36,24 C30,30 18,30 12,24"/>
+    
+    <!-- Центр цветка -->
+    <path
+        android:fillColor="#30FF69B4"
+        android:pathData="M24,24m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+    
+    <!-- Блик -->
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M22,22 C24,20 26,20 28,22 C26,24 24,24 22,22"/>
+</vector> 
