@@ -150,24 +150,15 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun logFileDetails(uri: Uri) {
         try {
-            // Получаем базовую информацию об URI
-            Timber.d("Детали URI: $uri")
-            Timber.d(" - Scheme: ${uri.scheme}")
-            Timber.d(" - Authority: ${uri.authority}")
-            Timber.d(" - Path: ${uri.path}")
-            Timber.d(" - Query: ${uri.query}")
-            Timber.d(" - Fragment: ${uri.fragment}")
+            // Логируем только основную информацию об URI
+            Timber.d("URI: ${uri.scheme}://${uri.authority}${uri.path}")
             
             val cursor = context.contentResolver.query(
                 uri,
                 arrayOf(
-                    MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
                     MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATA,
-                    MediaStore.Images.Media.DESCRIPTION,
-                    MediaStore.Images.Media.DATE_ADDED,
-                    MediaStore.Images.Media.DATE_MODIFIED
+                    MediaStore.Images.Media.DATA
                 ),
                 null,
                 null,
@@ -176,36 +167,15 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             cursor?.use {
                 if (it.moveToFirst()) {
-                    val idIndex = it.getColumnIndex(MediaStore.Images.Media._ID)
                     val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
                     val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
                     val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
-                    val descIndex = it.getColumnIndex(MediaStore.Images.Media.DESCRIPTION)
-                    val addedIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                    val modifiedIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
                     
-                    val id = if (idIndex != -1) it.getLong(idIndex) else null
                     val name = if (nameIndex != -1) it.getString(nameIndex) else null
                     val size = if (sizeIndex != -1) it.getLong(sizeIndex) else null
                     val data = if (dataIndex != -1) it.getString(dataIndex) else null
-                    val desc = if (descIndex != -1) it.getString(descIndex) else null
-                    val added = if (addedIndex != -1) it.getLong(addedIndex) else null
-                    val modified = if (modifiedIndex != -1) it.getLong(modifiedIndex) else null
                     
-                    Timber.d("Метаданные файла для URI '$uri':")
-                    Timber.d(" - ID: $id")
-                    Timber.d(" - Имя: $name")
-                    Timber.d(" - Размер: $size")
-                    Timber.d(" - Путь: $data")
-                    Timber.d(" - Описание: $desc")
-                    Timber.d(" - Дата добавления: $added")
-                    Timber.d(" - Дата изменения: $modified")
-                    
-                    // Проверяем, находится ли файл в директории приложения
-                    data?.let { path ->
-                        val isInAppDirectory = path.contains("/${Constants.APP_DIRECTORY}/")
-                        Timber.d(" - Находится в директории приложения: $isInAppDirectory")
-                    }
+                    Timber.d("Файл: имя='$name', размер=${size?.div(1024)}KB, путь='$data'")
                 } else {
                     Timber.d("Нет метаданных для URI '$uri'")
                 }
@@ -354,9 +324,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Создаем временный файл из URI
             val inputFile = createTempFileFromUri(uri) ?: throw IOException("Не удалось создать временный файл")
             
-            // Проверяем EXIF данные исходного изображения
-            logExifData(uri)
-            
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
                 quality(quality)
@@ -390,7 +357,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                                  exif.getAttribute(ExifInterface.TAG_MODEL) != null
                 
                 if (hasBasicTags) {
-                    Timber.d("EXIF данные присутствуют в исходном файле")
+                    Timber.d("EXIF данные найдены в исходном файле")
                 }
             }
         } catch (e: Exception) {
@@ -410,7 +377,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                              exif.getAttribute(ExifInterface.TAG_MODEL) != null
             
             if (hasBasicTags) {
-                Timber.d("EXIF данные успешно сохранены в сжатом файле")
+                Timber.d("EXIF данные сохранены")
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке EXIF данных из файла")
@@ -515,12 +482,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         stats: CompressionStats
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Сохранение сжатого изображения в галерею...")
-            
-            // Используем оригинальное имя файла без изменений
-            val compressedFileName = originalFileName
-            
             // Сохраняем сжатое изображение в галерею
+            val compressedFileName = originalFileName
             val result = FileUtil.saveCompressedImageToGallery(
                 context,
                 compressedFile,
@@ -531,8 +494,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             val compressedUri = result.first
             val deletePendingIntent = result.second
             
-            // Если требуется разрешение на удаление, но нет URI сжатого файла,
-            // значит процесс сохранения был прерван для запроса разрешения
             if (compressedUri == null && deletePendingIntent != null && deletePendingIntent !is Boolean) {
                 Timber.d("Требуется разрешение пользователя на удаление оригинального файла")
                 addPendingDeleteRequest(originalUri, deletePendingIntent)
@@ -541,18 +502,24 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             if (compressedUri != null) {
                 val sizeReduction = (1 - (stats.compressedSize.toDouble() / stats.originalSize.toDouble())) * 100
-                Timber.d("Сокращение размера: ${String.format("%.1f", sizeReduction)}%")
+                Timber.d("Результат сжатия: оригинал=${stats.originalSize/1024}KB, сжатый=${stats.compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
                 
-                // Логируем детальную информацию о сжатии
-                Timber.d("Детали URI: $originalUri")
-                Timber.d(" - Scheme: ${originalUri.scheme}")
-                Timber.d(" - Authority: ${originalUri.authority}")
-                Timber.d(" - Path: ${originalUri.path}")
-                Timber.d(" - Query: ${originalUri.query}")
-                Timber.d(" - Fragment: ${originalUri.fragment}")
-                
-                // Получение и логирование метаданных файла
-                originalUri.let { logFileDetails(it) }
+                // Логируем путь сохранения сжатого файла
+                context.contentResolver.query(
+                    compressedUri,
+                    arrayOf(MediaStore.Images.Media.DATA),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                        if (pathIndex != -1) {
+                            val path = cursor.getString(pathIndex)
+                            Timber.d("Сжатый файл сохранен: $path")
+                        }
+                    }
+                }
                 
                 // Если есть IntentSender для удаления, добавляем его в список ожидающих
                 if (deletePendingIntent != null && deletePendingIntent !is Boolean) {
