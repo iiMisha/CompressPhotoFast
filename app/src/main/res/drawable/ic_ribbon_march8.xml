@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="48dp"
+    android:viewportWidth="240"
+    android:viewportHeight="48">
+    
+    <!-- Основная лента -->
+    <path
+        android:pathData="M0,12 L240,12 L240,36 L0,36 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="24"
+                android:endX="240"
+                android:endY="24"
+                android:startColor="#FF69B4"
+                android:endColor="#FF1493"/>
+        </aapt:attr>
+    </path>
+    
+    <!-- Верхняя волнистая линия -->
+    <path
+        android:pathData="M0,12 Q10,8 20,12 Q30,16 40,12 Q50,8 60,12 Q70,16 80,12 Q90,8 100,12 Q110,16 120,12 Q130,8 140,12 Q150,16 160,12 Q170,8 180,12 Q190,16 200,12 Q210,8 220,12 Q230,16 240,12"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"/>
+    
+    <!-- Нижняя волнистая линия -->
+    <path
+        android:pathData="M0,36 Q10,40 20,36 Q30,32 40,36 Q50,40 60,36 Q70,32 80,36 Q90,40 100,36 Q110,32 120,36 Q130,40 140,36 Q150,32 160,36 Q170,40 180,36 Q190,32 200,36 Q210,40 220,36 Q230,32 240,36"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"/>
+    
+    <!-- Декоративные цветы на ленте вместо текста -->
+    <!-- Цветок 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,24m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M60,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,24m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0"/>
+    
+    <!-- Цветок 2 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,24m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M90,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,24m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0"/>
+    
+    <!-- Цветок 3 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120,24m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M120,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120,24m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0"/>
+    
+    <!-- Цветок 4 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M150,24m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M150,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M150,24m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0"/>
+    
+    <!-- Цветок 5 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M180,24m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M180,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M180,24m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0"/>
+    
+    <!-- Декоративные элементы между цветами -->
+    <!-- Элемент 1 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M30,24m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
+    
+    <!-- Элемент 2 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M210,24m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    <path
+        android:fillColor="#FF69B4"
+        android:pathData="M210,24m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
+    
+    <!-- Декоративные линии между цветами -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M36,24 L54,24"/>
+    
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M66,24 L84,24"/>
+    
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M96,24 L114,24"/>
+    
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M126,24 L144,24"/>
+    
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M156,24 L174,24"/>
+    
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M186,24 L204,24"/>
+</vector> 

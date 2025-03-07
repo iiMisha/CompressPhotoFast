@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    
+    <!-- Стебель -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M24,48 L24,30 C24,30 24,30 24,30"/>
+    
+    <!-- Листья -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M24,40 C20,36 16,38 14,42 C18,40 22,42 24,40"/>
+    
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M24,36 C28,32 32,34 34,38 C30,36 26,38 24,36"/>
+    
+    <!-- Цветок тюльпана -->
+    <path
+        android:pathData="M24,30 C18,30 14,24 14,18 C14,12 18,6 24,6 C30,6 34,12 34,18 C34,24 30,30 24,30 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="24"
+                android:centerY="18"
+                android:gradientRadius="15"
+                android:startColor="#FFFF69B4"
+                android:endColor="#FFFF1493"/>
+        </aapt:attr>
+    </path>
+    
+    <!-- Внутренние лепестки -->
+    <path
+        android:pathData="M24,28 C20,28 16,24 16,18 C16,14 20,8 24,8 C28,8 32,14 32,18 C32,24 28,28 24,28 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="24"
+                android:centerY="18"
+                android:gradientRadius="12"
+                android:startColor="#FFFF69B4"
+                android:endColor="#FFFF1493"/>
+        </aapt:attr>
+    </path>
+    
+    <!-- Блики на лепестках -->
+    <path
+        android:fillColor="#30FFFFFF"
+        android:pathData="M20,14 C22,12 26,12 28,14 C26,16 22,16 20,14"/>
+    
+    <path
+        android:fillColor="#30FFFFFF"
+        android:pathData="M18,18 C20,16 22,16 24,18 C22,20 20,20 18,18"/>
+    
+    <path
+        android:fillColor="#30FFFFFF"
+        android:pathData="M24,18 C26,16 28,16 30,18 C28,20 26,20 24,18"/>
+</vector> 

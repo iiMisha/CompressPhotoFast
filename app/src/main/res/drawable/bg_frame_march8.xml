@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Фон -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+    
+    <!-- Верхняя граница с цветами -->
+    <item android:top="0dp" android:left="0dp" android:right="0dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="#20FF69B4" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    
+    <!-- Верхний левый цветок -->
+    <item android:gravity="top|left" android:width="24dp" android:height="24dp">
+        <rotate android:fromDegrees="45">
+            <shape android:shape="oval">
+                <solid android:color="#20FF69B4" />
+            </shape>
+        </rotate>
+    </item>
+    
+    <!-- Верхний правый цветок -->
+    <item android:gravity="top|right" android:width="24dp" android:height="24dp">
+        <rotate android:fromDegrees="45">
+            <shape android:shape="oval">
+                <solid android:color="#20FF69B4" />
+            </shape>
+        </rotate>
+    </item>
+    
+    <!-- Нижний левый цветок -->
+    <item android:gravity="bottom|left" android:width="24dp" android:height="24dp">
+        <rotate android:fromDegrees="45">
+            <shape android:shape="oval">
+                <solid android:color="#20FF69B4" />
+            </shape>
+        </rotate>
+    </item>
+    
+    <!-- Нижний правый цветок -->
+    <item android:gravity="bottom|right" android:width="24dp" android:height="24dp">
+        <rotate android:fromDegrees="45">
+            <shape android:shape="oval">
+                <solid android:color="#20FF69B4" />
+            </shape>
+        </rotate>
+    </item>
+</layer-list> 

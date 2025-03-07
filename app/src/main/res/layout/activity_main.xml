@@ -14,7 +14,21 @@
         android:paddingEnd="16dp"
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
+        android:background="@drawable/bg_frame_march8"
         tools:context=".ui.MainActivity">
+
+        <!-- Декоративная лента вверху -->
+        <ImageView
+            android:id="@+id/ivRibbon"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_ribbon_march8"
+            android:scaleType="fitXY"
+            android:layout_marginTop="-12dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@null" />
 
         <!-- Декоративный цветок в верхнем левом углу -->
         <ImageView
@@ -24,6 +38,7 @@
             android:src="@drawable/ic_corner_flower"
             android:alpha="0.7"
             android:rotation="0"
+            android:layout_marginTop="40dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             android:contentDescription="@null" />
@@ -36,16 +51,44 @@
             android:src="@drawable/ic_corner_flower"
             android:alpha="0.7"
             android:rotation="90"
+            android:layout_marginTop="40dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@null" />
+
+        <!-- Тюльпан слева от карточки -->
+        <ImageView
+            android:id="@+id/ivLeftTulip"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_tulip_march8"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintTop_toTopOf="@id/cardGreeting"
+            app:layout_constraintBottom_toBottomOf="@id/cardGreeting"
+            app:layout_constraintEnd_toStartOf="@id/cardGreeting"
+            android:contentDescription="@null" />
+
+        <!-- Тюльпан справа от карточки -->
+        <ImageView
+            android:id="@+id/ivRightTulip"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_tulip_march8"
+            android:scaleX="-1"
+            android:layout_marginStart="8dp"
+            app:layout_constraintTop_toTopOf="@id/cardGreeting"
+            app:layout_constraintBottom_toBottomOf="@id/cardGreeting"
+            app:layout_constraintStart_toEndOf="@id/cardGreeting"
             android:contentDescription="@null" />
 
         <!-- Праздничная карточка -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardGreeting"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="56dp"
+            android:layout_marginStart="48dp"
+            android:layout_marginEnd="48dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp"
             app:cardBackgroundColor="#F8F8FF"
@@ -65,7 +108,7 @@
                     android:id="@+id/tvGreeting"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="С 8 марта! 🌷"
+                    android:text="С 8 марта,Полина!🌷"
                     android:textSize="22sp"
                     android:textColor="#FF69B4"
                     android:textStyle="bold"
@@ -113,16 +156,31 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
 
-        <!-- Разделитель -->
-        <View
-            android:id="@+id/divider"
+        <!-- Разделитель с декоративными элементами -->
+        <FrameLayout
+            android:id="@+id/dividerContainer"
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/divider"
+            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             app:layout_constraintTop_toBottomOf="@id/btnSelectImage"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+            
+            <View
+                android:id="@+id/divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_gravity="center_vertical"
+                android:background="@color/divider" />
+                
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_corner_flower"
+                android:layout_gravity="center"
+                android:alpha="0.5"
+                android:contentDescription="@null" />
+        </FrameLayout>
 
         <!-- Переключатель автоматического сжатия -->
         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -131,7 +189,7 @@
             android:layout_height="wrap_content"
             android:text="@string/auto_compression_toggle"
             android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/divider"
+            app:layout_constraintTop_toBottomOf="@id/dividerContainer"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             style="@style/Widget.CompressPhotoFast.Switch" />
@@ -174,16 +232,31 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
         
-        <!-- Разделитель для секции качества -->
-        <View
-            android:id="@+id/divider2"
+        <!-- Разделитель для секции качества с декоративными элементами -->
+        <FrameLayout
+            android:id="@+id/divider2Container"
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/divider"
+            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             app:layout_constraintTop_toBottomOf="@id/tvSaveModeDescription"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
+            
+            <View
+                android:id="@+id/divider2"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_gravity="center_vertical"
+                android:background="@color/divider" />
+                
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_corner_flower"
+                android:layout_gravity="center"
+                android:alpha="0.5"
+                android:contentDescription="@null" />
+        </FrameLayout>
         
         <!-- Заголовок для уровня сжатия -->
         <TextView
@@ -194,7 +267,7 @@
             android:textSize="14sp"
             android:textStyle="bold"
             android:layout_marginTop="16dp"
-            app:layout_constraintTop_toBottomOf="@id/divider2"
+            app:layout_constraintTop_toBottomOf="@id/divider2Container"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
         
