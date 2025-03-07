@@ -52,6 +52,8 @@
     <!-- Диалоги -->
     <string name="dialog_permission_title">Требуются разрешения</string>
     <string name="dialog_permission_message">Для корректной работы приложения необходимы разрешения на доступ к фотографиям</string>
+    <string name="dialog_notification_permission_title">Разрешение на уведомления</string>
+    <string name="dialog_notification_permission_message">Для получения уведомлений о завершении сжатия необходимо разрешение на отправку уведомлений.</string>
     <string name="dialog_delete_permission_title">Разрешение на удаление файлов</string>
     <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы. Сейчас будет создан тестовый файл, который мы попросим вас разрешить удалить.</string>
     <string name="dialog_ok">OK</string>

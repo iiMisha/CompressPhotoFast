@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Collections
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 /**
  * Утилитарный класс для отслеживания статуса сжатия изображений
@@ -241,6 +243,19 @@ object ImageTrackingUtil {
         processingFiles.remove(uriString)
         
         Timber.d("URI добавлен в список обработанных: $uri")
+    }
+
+    /**
+     * Добавляет изображение в список обработанных
+     * Алиас для markImageAsProcessed для обратной совместимости
+     */
+    fun addProcessedImage(context: Context, uri: Uri) {
+        Timber.d("addProcessedImage: Добавление URI в список обработанных: $uri")
+        // Запускаем функцию без ожидания, так как это публичный метод без suspend
+        // и вызывается из FileUtil.saveCompressedImageToGallery
+        GlobalScope.launch {
+            markImageAsProcessed(context, uri)
+        }
     }
 
     /**

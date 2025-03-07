@@ -32,6 +32,8 @@ import java.util.concurrent.Executors
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -48,6 +50,16 @@ class BackgroundMonitoringService : Service() {
     // Список последних обработанных URI для предотвращения повторной обработки
     private val processedUris = mutableSetOf<String>()
     private val maxProcessedUrisSize = 100 // Ограничиваем размер истории
+    
+    // Набор URI, которые в данный момент находятся в обработке
+    private val processingUris = Collections.synchronizedSet(HashSet<String>())
+    
+    // Таймаут для обработки изображения (мс)
+    private val processingTimeout = 30000L // 30 секунд
+    
+    // Игнорировать изменения в MediaStore на указанное время после удачного сжатия (мс)
+    private val ignoreMediaStoreChangesAfterCompression = 5000L // 5 секунд
+    private val ignoreChangesUntil = ConcurrentHashMap<String, Long>()
 
     // Handler для периодического сканирования
     private val handler = Handler(Looper.getMainLooper())
@@ -110,9 +122,44 @@ class BackgroundMonitoringService : Service() {
         }
     }
     
+    // BroadcastReceiver для получения уведомлений о завершении сжатия
+    private val compressionCompletedReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
+                val uriString = intent.getStringExtra(Constants.EXTRA_URI)
+                if (uriString != null) {
+                    // Удаляем URI из списка обрабатываемых
+                    processingUris.remove(uriString)
+                    
+                    // Устанавливаем таймер игнорирования изменений
+                    ignoreChangesUntil[uriString] = System.currentTimeMillis() + ignoreMediaStoreChangesAfterCompression
+                    
+                    // Запускаем таймер для очистки игнорируемого URI
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        ignoreChangesUntil.remove(uriString)
+                    }, ignoreMediaStoreChangesAfterCompression * 2)
+                    
+                    Timber.d("Обработка URI $uriString завершена, будет игнорироваться в течение ${ignoreMediaStoreChangesAfterCompression}мс")
+                }
+            }
+        }
+    }
+    
     override fun onCreate() {
         super.onCreate()
-        Timber.d("BackgroundMonitoringService: onCreate()")
+        Timber.d("BackgroundMonitoringService: onCreate")
+        
+        // Создаем уведомление и запускаем сервис как Foreground Service
+        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+        
+        // Настраиваем ContentObserver для отслеживания изменений в MediaStore
+        setupContentObserver()
+        
+        // Регистрируем BroadcastReceiver для обработки запросов на сжатие
+        registerProcessImageReceiver()
+        
+        // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
+        registerReceiver(compressionCompletedReceiver, IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED))
         
         // Проверяем состояние автоматического сжатия при создании сервиса
         val isEnabled = isAutoCompressionEnabled()
@@ -123,16 +170,6 @@ class BackgroundMonitoringService : Service() {
             stopSelf()
             return
         }
-        
-        // Регистрируем BroadcastReceiver для обработки запросов на обработку изображений
-        registerReceiver(
-            imageProcessingReceiver,
-            IntentFilter(Constants.ACTION_PROCESS_IMAGE)
-        )
-        Timber.d("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
-        
-        setupContentObserver()
-        Timber.d("BackgroundMonitoringService: ContentObserver настроен")
         
         // Запускаем периодическое сканирование для обеспечения обработки всех изображений
         handler.post(scanRunnable)
@@ -181,6 +218,7 @@ class BackgroundMonitoringService : Service() {
         // Отменяем регистрацию BroadcastReceiver
         try {
             unregisterReceiver(imageProcessingReceiver)
+            unregisterReceiver(compressionCompletedReceiver)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
         }
@@ -381,6 +419,21 @@ class BackgroundMonitoringService : Service() {
         Timber.d("BackgroundMonitoringService: URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
         
         try {
+            val uriString = uri.toString()
+            
+            // Проверяем, обрабатывается ли уже это изображение
+            if (processingUris.contains(uriString)) {
+                Timber.d("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
+                return
+            }
+            
+            // Проверяем, не следует ли игнорировать это изменение
+            val ignoreUntil = ignoreChangesUntil[uriString]
+            if (ignoreUntil != null && System.currentTimeMillis() < ignoreUntil) {
+                Timber.d("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
+                return
+            }
+            
             // Проверяем, включено ли автоматическое сжатие
             if (!isAutoCompressionEnabled()) {
                 Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено")
@@ -415,6 +468,16 @@ class BackgroundMonitoringService : Service() {
                 Timber.d("BackgroundMonitoringService: файл слишком велик для обработки: ${fileSize / (1024 * 1024)} MB")
                 return
             }
+            
+            // Помечаем URI как находящийся в обработке
+            processingUris.add(uriString)
+            
+            // Запускаем таймер для очистки состояния обработки
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (processingUris.remove(uriString)) {
+                    Timber.d("BackgroundMonitoringService: тайм-аут обработки для URI: $uri")
+                }
+            }, processingTimeout)
             
             // Получаем имя файла для логирования
             val fileName = FileUtil.getFileNameFromUri(applicationContext, uri) ?: "unknown"
@@ -454,7 +517,7 @@ class BackgroundMonitoringService : Service() {
             }
             
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при обработке изображения: $uri")
+            Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
         }
     }
     
@@ -676,5 +739,17 @@ class BackgroundMonitoringService : Service() {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сканировании галереи")
         }
+    }
+
+    /**
+     * Регистрация BroadcastReceiver для обработки запросов на сжатие изображений
+     */
+    private fun registerProcessImageReceiver() {
+        // Регистрируем BroadcastReceiver для обработки запросов на обработку изображений
+        registerReceiver(
+            imageProcessingReceiver,
+            IntentFilter(Constants.ACTION_PROCESS_IMAGE)
+        )
+        Timber.d("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
     }
 } 

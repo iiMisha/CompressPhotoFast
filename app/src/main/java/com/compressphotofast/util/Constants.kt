@@ -12,6 +12,9 @@ object Constants {
     const val PREF_PENDING_DELETE_URIS = "pending_delete_uris"
     const val PREF_FIRST_LAUNCH = "first_launch"
     const val PREF_DELETE_PERMISSION_REQUESTED = "delete_permission_requested"
+    const val PREF_PERMISSION_SKIPPED = "permission_skipped"
+    const val PREF_NOTIFICATION_PERMISSION_SKIPPED = "notification_permission_skipped"
+    const val PREF_PERMISSION_REQUEST_COUNT = "permission_request_count"
     
     // Значения по умолчанию
     const val DEFAULT_COMPRESSION_QUALITY = 80
@@ -57,10 +60,17 @@ object Constants {
     const val REQUEST_CODE_DELETE_FILE = 12345
     const val REQUEST_CODE_DELETE_PERMISSION = 12346
     
-    // Broadcast действия
-    const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.action.REQUEST_DELETE_PERMISSION"
-    const val ACTION_STOP_SERVICE = "com.compressphotofast.action.STOP_SERVICE"
-    const val ACTION_PROCESS_IMAGE = "com.compressphotofast.action.PROCESS_IMAGE"
-    const val EXTRA_URI = "uri"
-    const val EXTRA_DELETE_INTENT_SENDER = "delete_intent_sender"
+    // BroadcastReceiver actions
+    const val ACTION_PROCESS_IMAGE = "com.compressphotofast.PROCESS_IMAGE"
+    const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.REQUEST_DELETE_PERMISSION"
+    const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.COMPRESSION_COMPLETED"
+    const val ACTION_STOP_SERVICE = "com.compressphotofast.STOP_SERVICE"
+    
+    // Intent extras
+    const val EXTRA_URI = "extra_uri"
+    const val EXTRA_DELETE_INTENT_SENDER = "extra_delete_intent_sender"
+    const val EXTRA_FILE_NAME = "extra_file_name"
+    const val EXTRA_ORIGINAL_SIZE = "extra_original_size"
+    const val EXTRA_COMPRESSED_SIZE = "extra_compressed_size"
+    const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
 } 
