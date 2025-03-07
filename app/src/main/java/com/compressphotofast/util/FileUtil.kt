@@ -59,6 +59,16 @@ object FileUtil {
     }
 
     /**
+     * Создает уникальное имя файла для ручного сжатия
+     */
+    private fun createUniqueFileName(originalName: String): String {
+        val baseName = originalName.substringBeforeLast(".")
+        val extension = originalName.substringAfterLast(".", "")
+        val timestamp = System.currentTimeMillis()
+        return "${baseName}_${timestamp}.$extension"
+    }
+
+    /**
      * Сохраняет сжатое изображение в галерею
      * 
      * @param context Контекст приложения
@@ -83,8 +93,12 @@ object FileUtil {
                 Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${if (isReplaceModeEnabled) "включен" else "выключен"}")
                 Timber.d("saveCompressedImageToGallery: ручное сжатие: ${if (isManualCompression) "да" else "нет"}")
                 
-                // Используем оригинальное имя файла
-                val finalFileName = fileName
+                // При ручном сжатии генерируем уникальное имя файла
+                val finalFileName = if (isManualCompression) {
+                    createUniqueFileName(fileName)
+                } else {
+                    fileName
+                }
                 
                 Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $finalFileName")
 
@@ -96,13 +110,17 @@ object FileUtil {
                 }
 
                 // Определяем целевой путь
-                val targetPath = if (isReplaceModeEnabled && originalPath != null) {
-                    originalPath
+                val targetPath = if (isReplaceModeEnabled) {
+                    // В режиме замены всегда используем путь оригинального файла
+                    originalPath ?: run {
+                        Timber.e("Не удалось получить путь оригинального файла")
+                        return@withLock Pair(null, null)
+                    }
                 } else {
                     Environment.DIRECTORY_PICTURES + "/" + Constants.APP_DIRECTORY
                 }
 
-                // Проверяем наличие уже сжатого файла только если это не ручное сжатие
+                // При ручном сжатии пропускаем проверку существования файла
                 if (!isManualCompression) {
                     val existingUri = findExistingFileUri(context, finalFileName, targetPath)
                     if (existingUri != null) {
@@ -141,7 +159,7 @@ object FileUtil {
                     }
                 }
 
-                // Повторная проверка перед сохранением только если это не ручное сжатие
+                // При ручном сжатии пропускаем повторную проверку
                 if (!isManualCompression) {
                     val lastCheckUri = findExistingFileUri(context, finalFileName, targetPath)
                     if (lastCheckUri != null) {
@@ -169,7 +187,7 @@ object FileUtil {
                             context.contentResolver.update(uri, values, null, null)
                         }
 
-                        // Сохраняем URI в кэш только если это не ручное сжатие
+                        // При ручном сжатии не сохраняем в кэш
                         if (!isManualCompression) {
                             val cacheKey = "$targetPath/$finalFileName"
                             processedFileNames[cacheKey] = uri
