@@ -210,6 +210,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Показывает Toast с увеличенной длительностью путем последовательного показа нескольких Toast
+     */
+    private fun showLongToast(context: Context, message: String, repetitions: Int = 2) {
+        var counter = 0
+        val handler = Handler(Looper.getMainLooper())
+        
+        val runnable = object : Runnable {
+            override fun run() {
+                if (counter < repetitions) {
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    counter++
+                    handler.postDelayed(this, 3500) // Показываем следующий Toast через 3.5 секунды
+                }
+            }
+        }
+        
+        handler.post(runnable)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -234,9 +254,6 @@ class MainActivity : AppCompatActivity() {
         // Настраиваем наблюдателей ViewModel
         observeViewModel()
         
-        // Проверяем и запрашиваем необходимые разрешения
-        checkAndRequestPermissions()
-        
         // Регистрируем приемник для уведомлений о завершении сжатия
         val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
         registerReceiver(compressionCompletedReceiver, filter)
@@ -250,6 +267,11 @@ class MainActivity : AppCompatActivity() {
         
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
+        
+        // Запрашиваем разрешения только если это не Share интент
+        if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_SEND_MULTIPLE) {
+            checkAndRequestPermissions()
+        }
     }
     
     override fun onNewIntent(intent: Intent?) {
@@ -533,6 +555,14 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.clearAnimation()
                 binding.progressBar.visibility = View.GONE
                 binding.btnSelectImage.isEnabled = true
+                
+                // Показываем Toast с результатом обработки
+                if (progress.total > 1) {
+                    showLongToast(
+                        this,
+                        getString(R.string.batch_processing_completed)
+                    )
+                }
                 
                 // Логируем завершение для отладки
                 Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
@@ -913,8 +943,15 @@ class MainActivity : AppCompatActivity() {
         val isFirstLaunch = prefs.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
         val deletePermissionRequested = prefs.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false)
         
-        // Если это первый запуск и разрешение еще не запрашивалось, показываем диалог
-        if (isFirstLaunch && !deletePermissionRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // Запрашиваем разрешение на удаление только если:
+        // 1. Это первый запуск
+        // 2. Разрешение еще не запрашивалось
+        // 3. Включен режим замены файлов
+        // 4. Версия Android >= Q (10)
+        if (isFirstLaunch && !deletePermissionRequested && 
+            viewModel.isSaveModeReplace() && 
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            
             // Устанавливаем флаг первого запуска в false
             prefs.edit().putBoolean(Constants.PREF_FIRST_LAUNCH, false).apply()
             
