@@ -1,0 +1,1 @@
+const val ACTION_STOP_SERVICE = "com.compressphotofast.STOP_SERVICE" 

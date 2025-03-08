@@ -25,12 +25,16 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 import timber.log.Timber
 import javax.inject.Inject
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 
 /**
  * Модель представления для главного экрана
@@ -61,6 +65,9 @@ class MainViewModel @Inject constructor(
     // LiveData для отслеживания прогресса обработки нескольких изображений
     private val _multipleImagesProgress = MutableLiveData<MultipleImagesProgress>()
     val multipleImagesProgress: LiveData<MultipleImagesProgress> = _multipleImagesProgress
+    
+    // Job для отслеживания текущей обработки
+    private var processingJob: kotlinx.coroutines.Job? = null
     
     init {
         // Загрузить сохраненный уровень сжатия
@@ -132,7 +139,7 @@ class MainViewModel @Inject constructor(
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
         
-        viewModelScope.launch(Dispatchers.Main) {
+        processingJob = viewModelScope.launch(Dispatchers.Main) {
             _isLoading.value = true
             // Сбрасываем предыдущий результат
             _compressionResult.value = null
@@ -463,11 +470,14 @@ class MainViewModel @Inject constructor(
     private fun updateBatchProcessingNotification(progress: MultipleImagesProgress) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = PendingIntent.getActivity(
+        // Создаем Intent для остановки обработки
+        val stopIntent = Intent(context, MainActivity::class.java).apply {
+            action = Constants.ACTION_STOP_SERVICE
+        }
+        val stopPendingIntent = PendingIntent.getActivity(
             context,
-            0,
-            Intent(context, MainActivity::class.java),
+            1,
+            stopIntent,
             PendingIntent.FLAG_IMMUTABLE
         )
         
@@ -481,7 +491,11 @@ class MainViewModel @Inject constructor(
             ))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
-            .setContentIntent(pendingIntent)
+            .addAction(
+                R.drawable.ic_launcher_foreground,
+                context.getString(R.string.notification_action_stop),
+                stopPendingIntent
+            )
             .setProgress(progress.total, progress.processed, false)
             .build()
         
@@ -493,14 +507,6 @@ class MainViewModel @Inject constructor(
      */
     private fun showBatchProcessingCompletedNotification(progress: MultipleImagesProgress) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
-        )
         
         // Формируем текст результата
         val resultText = if (progress.failed > 0) {
@@ -515,11 +521,31 @@ class MainViewModel @Inject constructor(
             .setContentText(resultText)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         
+        // Показываем финальное уведомление
         notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
+        
+        // Удаляем уведомление через 3 секунды
+        Handler(Looper.getMainLooper()).postDelayed({
+            notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
+        }, 3000)
+    }
+
+    /**
+     * Останавливает текущую обработку изображений
+     */
+    fun stopBatchProcessing() {
+        processingJob?.cancel()
+        processingJob = null
+        
+        // Удаляем уведомление о прогрессе
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
+        
+        // Показываем уведомление об остановке
+        Toast.makeText(context, R.string.batch_processing_stopped, Toast.LENGTH_SHORT).show()
     }
 }
 

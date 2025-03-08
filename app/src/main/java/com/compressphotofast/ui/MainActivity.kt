@@ -151,6 +151,9 @@ class MainActivity : AppCompatActivity() {
                         val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                         val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                         
+                        // Сокращаем длинное имя файла
+                        val truncatedFileName = truncateFileName(fileName)
+                        
                         // Форматируем размеры
                         val originalSizeStr = formatFileSize(originalSize)
                         val compressedSizeStr = formatFileSize(compressedSize)
@@ -163,7 +166,7 @@ class MainActivity : AppCompatActivity() {
                             
                             val toast = Toast.makeText(
                                 this@MainActivity,
-                                "$fileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
+                                "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
                                 Toast.LENGTH_LONG
                             )
                             
@@ -186,6 +189,17 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
+     * Сокращает длинное имя файла, заменяя середину на "..."
+     */
+    private fun truncateFileName(fileName: String, maxLength: Int = 25): String {
+        if (fileName.length <= maxLength) return fileName
+        
+        val start = fileName.substring(0, maxLength / 2 - 2)
+        val end = fileName.substring(fileName.length - maxLength / 2 + 1)
+        return "$start...$end"
+    }
+
+    /**
      * Форматирует размер файла в удобочитаемый вид
      */
     private fun formatFileSize(size: Long): String {
@@ -194,6 +208,26 @@ class MainActivity : AppCompatActivity() {
             size < 1024 * 1024 -> "${size / 1024} KB"
             else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
         }
+    }
+
+    /**
+     * Показывает Toast с увеличенной длительностью путем последовательного показа нескольких Toast
+     */
+    private fun showLongToast(context: Context, message: String, repetitions: Int = 2) {
+        var counter = 0
+        val handler = Handler(Looper.getMainLooper())
+        
+        val runnable = object : Runnable {
+            override fun run() {
+                if (counter < repetitions) {
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    counter++
+                    handler.postDelayed(this, 3500) // Показываем следующий Toast через 3.5 секунды
+                }
+            }
+        }
+        
+        handler.post(runnable)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -209,14 +243,16 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
+        // Обрабатываем действие остановки
+        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+            viewModel.stopBatchProcessing()
+        }
+        
         // Настраиваем пользовательский интерфейс
         setupUI()
         
         // Настраиваем наблюдателей ViewModel
         observeViewModel()
-        
-        // Проверяем и запрашиваем необходимые разрешения
-        checkAndRequestPermissions()
         
         // Регистрируем приемник для уведомлений о завершении сжатия
         val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
@@ -231,10 +267,18 @@ class MainActivity : AppCompatActivity() {
         
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
+        
+        // Запрашиваем разрешения только если это не Share интент
+        if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_SEND_MULTIPLE) {
+            checkAndRequestPermissions()
+        }
     }
     
-    override fun onNewIntent(intent: Intent) {
+    override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+            viewModel.stopBatchProcessing()
+        }
         handleIntent(intent)
     }
     
@@ -261,7 +305,9 @@ class MainActivity : AppCompatActivity() {
      * Важно: При включенном автоматическом сжатии, мы позволяем BackgroundMonitoringService обрабатывать изображения
      * вместо того, чтобы запускать принудительное сжатие из MainActivity, чтобы избежать дублирования обработки.
      */
-    private fun handleIntent(intent: Intent) {
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+        
         Timber.d("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
         
         // Логируем все данные интента для отладки
@@ -485,52 +531,119 @@ class MainActivity : AppCompatActivity() {
     private fun observeViewModel() {
         // Наблюдение за состоянием загрузки
         viewModel.isLoading.observe(this) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            if (isLoading) {
+                binding.progressBar.visibility = View.VISIBLE
+                // Запускаем анимацию
+                val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
+                binding.progressBar.startAnimation(rotateAnim)
+            } else {
+                binding.progressBar.clearAnimation()
+                binding.progressBar.visibility = View.GONE
+            }
             binding.btnSelectImage.isEnabled = !isLoading
         }
         
         // Наблюдение за прогрессом обработки нескольких изображений
         viewModel.multipleImagesProgress.observe(this) { progress ->
-            if (progress.total > 1) {
-                // Только если обработка не завершена полностью, показываем прогресс
-                // Это предотвратит "застывание" на 93% при завершении всех задач
-                if (!progress.isComplete) {
-                    // Обновляем статус для отображения прогресса
-                    val progressText = getString(
-                        R.string.multiple_images_progress,
-                        progress.processed,
-                        progress.total,
-                        progress.percentComplete
+            if (progress.total > 1 && !progress.isComplete) {
+                binding.progressBar.visibility = View.VISIBLE
+                // Запускаем анимацию
+                val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
+                binding.progressBar.startAnimation(rotateAnim)
+                binding.btnSelectImage.isEnabled = false
+            } else if (progress.isComplete) {
+                binding.progressBar.clearAnimation()
+                binding.progressBar.visibility = View.GONE
+                binding.btnSelectImage.isEnabled = true
+                
+                // Показываем Toast с результатом обработки
+                if (progress.total > 1) {
+                    showLongToast(
+                        this,
+                        getString(R.string.batch_processing_completed)
                     )
-                    binding.tvStatus.text = progressText
-                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.primary))
-                    binding.tvStatus.visibility = View.VISIBLE
                 }
                 
-                // Если обработка завершена, логируем это для отладки
-                if (progress.isComplete) {
-                    Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
-                }
+                // Логируем завершение для отладки
+                Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
             }
         }
         
-        // Наблюдение за результатом сжатия
+        // Наблюдение за результатом сжатия (только для логирования)
         viewModel.compressionResult.observe(this) { result ->
             result?.let {
-                // Всегда показываем сообщение об успешном сжатии, независимо от результата
-                val message = getString(R.string.compression_success)
-                
-                binding.tvStatus.text = message
-                // Всегда показываем зеленый цвет (успех)
-                binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
-                binding.tvStatus.visibility = View.VISIBLE
-                
-                // Добавляем дополнительное логирование для отладки, но показываем успех пользователю
+                // Только логируем результат для отладки
                 Timber.d("Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, totalImages=${it.totalImages}, successfulImages=${it.successfulImages}")
-                Timber.d("Показываем пользователю успешное сжатие")
-                
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    /**
+     * Показывает диалог с объяснением необходимости полного доступа к файловой системе
+     */
+    private fun showStoragePermissionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_storage_permission_title)
+            .setMessage(R.string.dialog_storage_permission_message)
+            .setPositiveButton(R.string.dialog_ok) { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.addCategory("android.intent.category.DEFAULT")
+                    intent.data = Uri.parse("package:${applicationContext.packageName}")
+                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                } catch (e: Exception) {
+                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                }
+            }
+            .setNegativeButton(R.string.dialog_skip) { _, _ ->
+                // Продолжаем запрос других разрешений
+                requestOtherPermissions()
+            }
+            .setCancelable(false)
+            .create()
+            .show()
+    }
+
+    /**
+     * Запрашивает остальные разрешения (кроме MANAGE_EXTERNAL_STORAGE)
+     */
+    private fun requestOtherPermissions() {
+        val permissions = mutableListOf<String>()
+
+        // Разрешения для Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+            
+            if (!hasNotificationPermission()) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
+            }
+        } 
+        // Разрешения для Android 12 и ниже
+        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+
+        if (permissions.isNotEmpty()) {
+            Timber.d("Запрашиваем разрешения: ${permissions.joinToString()}")
+            
+            // Увеличиваем счетчик попыток запроса разрешений
+            val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+            val permissionRequestCount = prefs.getInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
+            prefs.edit().putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, permissionRequestCount + 1).apply()
+            
+            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        } else {
+            Timber.d("Все необходимые разрешения уже предоставлены")
+            initializeBackgroundServices()
         }
     }
 
@@ -538,8 +651,6 @@ class MainActivity : AppCompatActivity() {
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
-        val permissions = mutableListOf<String>()
-        
         // Проверяем, был ли ранее пропущен запрос разрешений пользователем
         val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         val permissionSkipped = prefs.getBoolean(Constants.PREF_PERMISSION_SKIPPED, false)
@@ -555,55 +666,13 @@ class MainActivity : AppCompatActivity() {
         // Разрешение на управление всеми файлами (Android 11+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.addCategory("android.intent.category.DEFAULT")
-                    intent.data = Uri.parse("package:${applicationContext.packageName}")
-                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
-                } catch (e: Exception) {
-                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
-                }
+                showStoragePermissionDialog()
+                return
             }
         }
 
-        // Разрешения для Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Разрешение на доступ к медиафайлам
-            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
-            }
-            
-            // Разрешение на отправку уведомлений
-            if (!hasNotificationPermission()) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
-            } else {
-                Timber.d("Разрешение POST_NOTIFICATIONS уже предоставлено")
-            }
-        } 
-        // Разрешения для Android 12 и ниже
-        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) { // Для Android 10 и ниже
-            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
-
-        // Запрашиваем разрешения, если они необходимы
-        if (permissions.isNotEmpty()) {
-            Timber.d("Запрашиваем разрешения: ${permissions.joinToString()}")
-            
-            // Увеличиваем счетчик попыток запроса разрешений
-            prefs.edit().putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, permissionRequestCount + 1).apply()
-            
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
-        } else {
-            Timber.d("Все необходимые разрешения уже предоставлены")
-            initializeBackgroundServices()
-        }
+        // Запрашиваем остальные разрешения
+        requestOtherPermissions()
     }
 
     /**
@@ -649,7 +718,7 @@ class MainActivity : AppCompatActivity() {
                             showNotificationPermissionExplanation()
                         } else {
                             Timber.d("Пользователь выбрал 'больше не спрашивать' для уведомлений")
-                            prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
+                            prefs.edit().putBoolean(Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
                             initializeBackgroundServices()
                         }
                     } else {
@@ -874,8 +943,15 @@ class MainActivity : AppCompatActivity() {
         val isFirstLaunch = prefs.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
         val deletePermissionRequested = prefs.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false)
         
-        // Если это первый запуск и разрешение еще не запрашивалось, показываем диалог
-        if (isFirstLaunch && !deletePermissionRequested && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // Запрашиваем разрешение на удаление только если:
+        // 1. Это первый запуск
+        // 2. Разрешение еще не запрашивалось
+        // 3. Включен режим замены файлов
+        // 4. Версия Android >= Q (10)
+        if (isFirstLaunch && !deletePermissionRequested && 
+            viewModel.isSaveModeReplace() && 
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            
             // Устанавливаем флаг первого запуска в false
             prefs.edit().putBoolean(Constants.PREF_FIRST_LAUNCH, false).apply()
             

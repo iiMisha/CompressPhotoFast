@@ -42,6 +42,7 @@
     <string name="image_already_compressed">Изображение уже сжато</string>
     <string name="all_images_already_compressed">Все изображения уже сжаты</string>
     <string name="file_deleted_successfully">Оригинальный файл успешно удален</string>
+    <string name="batch_processing_stopped">Обработка остановлена</string>
     
     <!-- Сообщения для нескольких изображений -->
     <string name="multiple_images_progress">Обработка завершена</string>
@@ -54,9 +55,12 @@
     <string name="dialog_permission_message">Для корректной работы приложения необходимы разрешения на доступ к фотографиям</string>
     <string name="dialog_notification_permission_title">Разрешение на уведомления</string>
     <string name="dialog_notification_permission_message">Для получения уведомлений о завершении сжатия необходимо разрешение на отправку уведомлений.</string>
+    <string name="dialog_storage_permission_title">Доступ к файловой системе</string>
+    <string name="dialog_storage_permission_message">Для полноценной работы с файлами приложению требуется разрешение на управление всеми файлами. Сейчас откроются системные настройки, где вы сможете предоставить это разрешение.</string>
     <string name="dialog_delete_permission_title">Разрешение на удаление файлов</string>
-    <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы. Сейчас будет создан тестовый файл, который мы попросим вас разрешить удалить.</string>
+    <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы.</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="dialog_skip">Пропустить</string>
+    <string name="batch_processing_completed">Обработка изображений завершена</string>
 </resources> 

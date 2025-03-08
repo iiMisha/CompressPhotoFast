@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Стиль для большого ProgressBar -->
+    <style name="LargeProgressBar" parent="@style/Widget.AppCompat.ProgressBar">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:indeterminateTint">@color/primary</item>
+        <item name="android:indeterminateTintMode">src_atop</item>
+    </style>
+</resources> 
