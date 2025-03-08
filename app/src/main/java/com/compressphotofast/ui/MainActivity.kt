@@ -45,6 +45,9 @@ import android.content.SharedPreferences
 import java.util.concurrent.ConcurrentHashMap
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.TextView
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -108,6 +111,32 @@ class MainActivity : AppCompatActivity() {
     private val toastLock = Object()
 
     /**
+     * Показывает Toast в верхней части экрана
+     */
+    private fun showTopToast(message: String, duration: Int = Toast.LENGTH_LONG) {
+        try {
+            val toast = Toast.makeText(this, message, duration)
+            toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
+            
+            // Получаем View из Toast для установки дополнительных параметров
+            val group = toast.view as ViewGroup?
+            group?.let {
+                for (i in 0 until it.childCount) {
+                    val messageView = it.getChildAt(i)
+                    if (messageView is TextView) {
+                        messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+                    }
+                }
+            }
+            
+            toast.show()
+        } catch (e: Exception) {
+            // Если что-то пошло не так, показываем обычный Toast
+            Toast.makeText(this, message, duration).show()
+        }
+    }
+
+    /**
      * Приемник для получения уведомлений о завершении сжатия
      */
     private val compressionCompletedReceiver = object : BroadcastReceiver() {
@@ -169,6 +198,7 @@ class MainActivity : AppCompatActivity() {
                                 "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
                                 Toast.LENGTH_LONG
                             )
+                            toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 150)
                             
                             toast.addCallback(object : Toast.Callback() {
                                 override fun onToastHidden() {
@@ -220,9 +250,11 @@ class MainActivity : AppCompatActivity() {
         val runnable = object : Runnable {
             override fun run() {
                 if (counter < repetitions) {
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                    val toast = Toast.makeText(context, message, Toast.LENGTH_LONG)
+                    toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 150)
+                    toast.show()
                     counter++
-                    handler.postDelayed(this, 3500) // Показываем следующий Toast через 3.5 секунды
+                    handler.postDelayed(this, 3500)
                 }
             }
         }
@@ -368,11 +400,7 @@ class MainActivity : AppCompatActivity() {
                             ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
                             
                             // Показываем сообщение, что файл уже обработан
-                            Toast.makeText(
-                                applicationContext,
-                                getString(R.string.image_already_compressed),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            showTopToast(getString(R.string.image_already_compressed))
                         }
                     }
                 }
@@ -443,11 +471,7 @@ class MainActivity : AppCompatActivity() {
                                 }
                             } else {
                                 // Если все изображения уже обработаны, показываем сообщение
-                                Toast.makeText(
-                                    applicationContext,
-                                    getString(R.string.all_images_already_compressed),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                showTopToast(getString(R.string.all_images_already_compressed))
                             }
                         }
                     }
@@ -783,11 +807,9 @@ class MainActivity : AppCompatActivity() {
                 initializeBackgroundServices()
                 
                 // Показываем toast о том, что уведомления не будут отображаться
-                Toast.makeText(
-                    this,
-                    "Уведомления о завершении сжатия не будут отображаться",
-                    Toast.LENGTH_LONG
-                ).show()
+                showTopToast(
+                    "Уведомления о завершении сжатия не будут отображаться"
+                )
             }
             .create()
             .show()
@@ -809,11 +831,9 @@ class MainActivity : AppCompatActivity() {
                 initializeBackgroundServices()
                 
                 // Показываем toast о том, что функциональность может быть ограничена
-                Toast.makeText(
-                    this,
-                    "Функциональность приложения может быть ограничена без необходимых разрешений",
-                    Toast.LENGTH_LONG
-                ).show()
+                showTopToast(
+                    "Функциональность приложения может быть ограничена без необходимых разрешений"
+                )
             }
             .create()
             .show()
@@ -1142,11 +1162,7 @@ class MainActivity : AppCompatActivity() {
             Constants.REQUEST_CODE_DELETE_FILE -> {
                 if (FileUtil.handleDeleteFileRequest(resultCode)) {
                     Timber.d("Файл успешно удален")
-                    Toast.makeText(
-                        this,
-                        getString(R.string.file_deleted_successfully),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showTopToast(getString(R.string.file_deleted_successfully))
                 } else {
                     Timber.d("Пользователь отклонил запрос на удаление файла")
                 }
