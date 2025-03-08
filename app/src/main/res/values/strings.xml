@@ -58,7 +58,7 @@
     <string name="dialog_storage_permission_title">Доступ к файловой системе</string>
     <string name="dialog_storage_permission_message">Для полноценной работы с файлами приложению требуется разрешение на управление всеми файлами. Сейчас откроются системные настройки, где вы сможете предоставить это разрешение.</string>
     <string name="dialog_delete_permission_title">Разрешение на удаление файлов</string>
-    <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы. Сейчас будет создан тестовый файл, который мы попросим вас разрешить удалить.</string>
+    <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы.</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="dialog_skip">Пропустить</string>
