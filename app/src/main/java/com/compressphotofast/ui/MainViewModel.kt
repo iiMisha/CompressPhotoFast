@@ -25,6 +25,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 import timber.log.Timber
 import javax.inject.Inject
 import android.app.NotificationChannel
@@ -64,6 +65,9 @@ class MainViewModel @Inject constructor(
     // LiveData для отслеживания прогресса обработки нескольких изображений
     private val _multipleImagesProgress = MutableLiveData<MultipleImagesProgress>()
     val multipleImagesProgress: LiveData<MultipleImagesProgress> = _multipleImagesProgress
+    
+    // Job для отслеживания текущей обработки
+    private var processingJob: kotlinx.coroutines.Job? = null
     
     init {
         // Загрузить сохраненный уровень сжатия
@@ -135,7 +139,7 @@ class MainViewModel @Inject constructor(
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
         
-        viewModelScope.launch(Dispatchers.Main) {
+        processingJob = viewModelScope.launch(Dispatchers.Main) {
             _isLoading.value = true
             // Сбрасываем предыдущий результат
             _compressionResult.value = null

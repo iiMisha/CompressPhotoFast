@@ -212,16 +212,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            CompressPhotoFastTheme {
-                MainScreen(viewModel)
-            }
-        }
-        
-        // Обрабатываем действие остановки
-        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
-            viewModel.stopBatchProcessing()
-        }
         
         // Инициализация Timber для логирования
         Timber.d("MainActivity onCreate")
@@ -232,6 +222,11 @@ class MainActivity : AppCompatActivity() {
         // Инициализация ViewBinding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        // Обрабатываем действие остановки
+        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+            viewModel.stopBatchProcessing()
+        }
         
         // Настраиваем пользовательский интерфейс
         setupUI()
@@ -288,7 +283,9 @@ class MainActivity : AppCompatActivity() {
      * Важно: При включенном автоматическом сжатии, мы позволяем BackgroundMonitoringService обрабатывать изображения
      * вместо того, чтобы запускать принудительное сжатие из MainActivity, чтобы избежать дублирования обработки.
      */
-    private fun handleIntent(intent: Intent) {
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+        
         Timber.d("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
         
         // Логируем все данные интента для отладки
@@ -512,51 +509,41 @@ class MainActivity : AppCompatActivity() {
     private fun observeViewModel() {
         // Наблюдение за состоянием загрузки
         viewModel.isLoading.observe(this) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            if (isLoading) {
+                binding.progressBar.visibility = View.VISIBLE
+                // Запускаем анимацию
+                val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
+                binding.progressBar.startAnimation(rotateAnim)
+            } else {
+                binding.progressBar.clearAnimation()
+                binding.progressBar.visibility = View.GONE
+            }
             binding.btnSelectImage.isEnabled = !isLoading
         }
         
         // Наблюдение за прогрессом обработки нескольких изображений
         viewModel.multipleImagesProgress.observe(this) { progress ->
-            if (progress.total > 1) {
-                // Только если обработка не завершена полностью, показываем прогресс
-                // Это предотвратит "застывание" на 93% при завершении всех задач
-                if (!progress.isComplete) {
-                    // Обновляем статус для отображения прогресса
-                    val progressText = getString(
-                        R.string.multiple_images_progress,
-                        progress.processed,
-                        progress.total,
-                        progress.percentComplete
-                    )
-                    binding.tvStatus.text = progressText
-                    binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.primary))
-                    binding.tvStatus.visibility = View.VISIBLE
-                }
+            if (progress.total > 1 && !progress.isComplete) {
+                binding.progressBar.visibility = View.VISIBLE
+                // Запускаем анимацию
+                val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
+                binding.progressBar.startAnimation(rotateAnim)
+                binding.btnSelectImage.isEnabled = false
+            } else if (progress.isComplete) {
+                binding.progressBar.clearAnimation()
+                binding.progressBar.visibility = View.GONE
+                binding.btnSelectImage.isEnabled = true
                 
-                // Если обработка завершена, логируем это для отладки
-                if (progress.isComplete) {
-                    Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
-                }
+                // Логируем завершение для отладки
+                Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
             }
         }
         
-        // Наблюдение за результатом сжатия
+        // Наблюдение за результатом сжатия (только для логирования)
         viewModel.compressionResult.observe(this) { result ->
             result?.let {
-                // Всегда показываем сообщение об успешном сжатии, независимо от результата
-                val message = getString(R.string.compression_success)
-                
-                binding.tvStatus.text = message
-                // Всегда показываем зеленый цвет (успех)
-                binding.tvStatus.setTextColor(ContextCompat.getColor(this, R.color.success))
-                binding.tvStatus.visibility = View.VISIBLE
-                
-                // Добавляем дополнительное логирование для отладки, но показываем успех пользователю
+                // Только логируем результат для отладки
                 Timber.d("Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, totalImages=${it.totalImages}, successfulImages=${it.successfulImages}")
-                Timber.d("Показываем пользователю успешное сжатие")
-                
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             }
         }
     }
