@@ -151,6 +151,9 @@ class MainActivity : AppCompatActivity() {
                         val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                         val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                         
+                        // Сокращаем длинное имя файла
+                        val truncatedFileName = truncateFileName(fileName)
+                        
                         // Форматируем размеры
                         val originalSizeStr = formatFileSize(originalSize)
                         val compressedSizeStr = formatFileSize(compressedSize)
@@ -163,7 +166,7 @@ class MainActivity : AppCompatActivity() {
                             
                             val toast = Toast.makeText(
                                 this@MainActivity,
-                                "$fileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
+                                "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
                                 Toast.LENGTH_LONG
                             )
                             
@@ -186,6 +189,17 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
+     * Сокращает длинное имя файла, заменяя середину на "..."
+     */
+    private fun truncateFileName(fileName: String, maxLength: Int = 25): String {
+        if (fileName.length <= maxLength) return fileName
+        
+        val start = fileName.substring(0, maxLength / 2 - 2)
+        val end = fileName.substring(fileName.length - maxLength / 2 + 1)
+        return "$start...$end"
+    }
+
+    /**
      * Форматирует размер файла в удобочитаемый вид
      */
     private fun formatFileSize(size: Long): String {
@@ -198,6 +212,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContent {
+            CompressPhotoFastTheme {
+                MainScreen(viewModel)
+            }
+        }
+        
+        // Обрабатываем действие остановки
+        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+            viewModel.stopBatchProcessing()
+        }
         
         // Инициализация Timber для логирования
         Timber.d("MainActivity onCreate")
@@ -233,8 +257,11 @@ class MainActivity : AppCompatActivity() {
         checkPendingDeleteRequests()
     }
     
-    override fun onNewIntent(intent: Intent) {
+    override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+            viewModel.stopBatchProcessing()
+        }
         handleIntent(intent)
     }
     
@@ -535,11 +562,78 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Показывает диалог с объяснением необходимости полного доступа к файловой системе
+     */
+    private fun showStoragePermissionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_storage_permission_title)
+            .setMessage(R.string.dialog_storage_permission_message)
+            .setPositiveButton(R.string.dialog_ok) { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    intent.addCategory("android.intent.category.DEFAULT")
+                    intent.data = Uri.parse("package:${applicationContext.packageName}")
+                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                } catch (e: Exception) {
+                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                }
+            }
+            .setNegativeButton(R.string.dialog_skip) { _, _ ->
+                // Продолжаем запрос других разрешений
+                requestOtherPermissions()
+            }
+            .setCancelable(false)
+            .create()
+            .show()
+    }
+
+    /**
+     * Запрашивает остальные разрешения (кроме MANAGE_EXTERNAL_STORAGE)
+     */
+    private fun requestOtherPermissions() {
+        val permissions = mutableListOf<String>()
+
+        // Разрешения для Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+            
+            if (!hasNotificationPermission()) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
+            }
+        } 
+        // Разрешения для Android 12 и ниже
+        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+
+        if (permissions.isNotEmpty()) {
+            Timber.d("Запрашиваем разрешения: ${permissions.joinToString()}")
+            
+            // Увеличиваем счетчик попыток запроса разрешений
+            val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+            val permissionRequestCount = prefs.getInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
+            prefs.edit().putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, permissionRequestCount + 1).apply()
+            
+            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        } else {
+            Timber.d("Все необходимые разрешения уже предоставлены")
+            initializeBackgroundServices()
+        }
+    }
+
+    /**
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
-        val permissions = mutableListOf<String>()
-        
         // Проверяем, был ли ранее пропущен запрос разрешений пользователем
         val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         val permissionSkipped = prefs.getBoolean(Constants.PREF_PERMISSION_SKIPPED, false)
@@ -555,55 +649,13 @@ class MainActivity : AppCompatActivity() {
         // Разрешение на управление всеми файлами (Android 11+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.addCategory("android.intent.category.DEFAULT")
-                    intent.data = Uri.parse("package:${applicationContext.packageName}")
-                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
-                } catch (e: Exception) {
-                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
-                }
+                showStoragePermissionDialog()
+                return
             }
         }
 
-        // Разрешения для Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Разрешение на доступ к медиафайлам
-            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
-            }
-            
-            // Разрешение на отправку уведомлений
-            if (!hasNotificationPermission()) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
-            } else {
-                Timber.d("Разрешение POST_NOTIFICATIONS уже предоставлено")
-            }
-        } 
-        // Разрешения для Android 12 и ниже
-        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) { // Для Android 10 и ниже
-            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
-
-        // Запрашиваем разрешения, если они необходимы
-        if (permissions.isNotEmpty()) {
-            Timber.d("Запрашиваем разрешения: ${permissions.joinToString()}")
-            
-            // Увеличиваем счетчик попыток запроса разрешений
-            prefs.edit().putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, permissionRequestCount + 1).apply()
-            
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
-        } else {
-            Timber.d("Все необходимые разрешения уже предоставлены")
-            initializeBackgroundServices()
-        }
+        // Запрашиваем остальные разрешения
+        requestOtherPermissions()
     }
 
     /**
@@ -649,7 +701,7 @@ class MainActivity : AppCompatActivity() {
                             showNotificationPermissionExplanation()
                         } else {
                             Timber.d("Пользователь выбрал 'больше не спрашивать' для уведомлений")
-                            prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
+                            prefs.edit().putBoolean(Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
                             initializeBackgroundServices()
                         }
                     } else {
