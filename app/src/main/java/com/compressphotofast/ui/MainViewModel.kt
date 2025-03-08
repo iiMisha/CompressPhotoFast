@@ -35,6 +35,9 @@ import androidx.core.app.NotificationCompat
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.TextView
 
 /**
  * Модель представления для главного экрана
@@ -545,7 +548,35 @@ class MainViewModel @Inject constructor(
         notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
         
         // Показываем уведомление об остановке
-        Toast.makeText(context, R.string.batch_processing_stopped, Toast.LENGTH_SHORT).show()
+        showTopToast(context.getString(R.string.batch_processing_stopped))
+    }
+
+    /**
+     * Показывает Toast в верхней части экрана
+     */
+    private fun showTopToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+        Handler(Looper.getMainLooper()).post {
+            try {
+                val toast = Toast.makeText(context, message, duration)
+                toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
+                
+                // Получаем View из Toast для установки дополнительных параметров
+                val group = toast.view as ViewGroup?
+                group?.let {
+                    for (i in 0 until it.childCount) {
+                        val messageView = it.getChildAt(i)
+                        if (messageView is TextView) {
+                            messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+                        }
+                    }
+                }
+                
+                toast.show()
+            } catch (e: Exception) {
+                // Если что-то пошло не так, показываем обычный Toast
+                Toast.makeText(context, message, duration).show()
+            }
+        }
     }
 }
 
