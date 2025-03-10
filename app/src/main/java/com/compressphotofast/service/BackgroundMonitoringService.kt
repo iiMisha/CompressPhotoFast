@@ -71,6 +71,17 @@ class BackgroundMonitoringService : Service() {
             handler.postDelayed(this, 60000) // Каждую минуту
         }
     }
+
+    // Handler для периодической очистки временных файлов
+    private val cleanupHandler = Handler(Looper.getMainLooper())
+    private val cleanupRunnable = object : Runnable {
+        override fun run() {
+            Timber.d("Запуск периодической очистки временных файлов")
+            cleanupTempFiles()
+            // Планируем следующую очистку через 24 часа
+            cleanupHandler.postDelayed(this, 24 * 60 * 60 * 1000) // 24 часа
+        }
+    }
     
     // BroadcastReceiver для обработки запросов на обработку изображений
     private val imageProcessingReceiver = object : android.content.BroadcastReceiver() {
@@ -174,6 +185,10 @@ class BackgroundMonitoringService : Service() {
         // Запускаем периодическое сканирование для обеспечения обработки всех изображений
         handler.post(scanRunnable)
         Timber.d("BackgroundMonitoringService: периодическое сканирование запущено")
+
+        // Запускаем периодическую очистку временных файлов
+        cleanupHandler.post(cleanupRunnable)
+        Timber.d("BackgroundMonitoringService: периодическая очистка временных файлов запущена")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -214,6 +229,8 @@ class BackgroundMonitoringService : Service() {
         executorService.shutdown()
         // Останавливаем периодическое сканирование
         handler.removeCallbacks(scanRunnable)
+        // Останавливаем периодическую очистку
+        cleanupHandler.removeCallbacks(cleanupRunnable)
         
         // Отменяем регистрацию BroadcastReceiver
         try {
@@ -476,8 +493,6 @@ class BackgroundMonitoringService : Service() {
             Handler(Looper.getMainLooper()).postDelayed({
                 if (processingUris.remove(uriString)) {
                     Timber.d("BackgroundMonitoringService: тайм-аут обработки для URI: $uri")
-                    // Очищаем временные файлы при таймауте
-                    cleanupTempFiles()
                 }
             }, processingTimeout)
             
