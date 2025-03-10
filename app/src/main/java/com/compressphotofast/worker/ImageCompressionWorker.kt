@@ -72,6 +72,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Проверяем, обрабатывается ли уже это изображение
             if (isImageAlreadyProcessed(imageUri)) {
                 Timber.d("Изображение уже обработано: $imageUri")
+                cleanupTempFiles() // Дополнительная очистка
                 return@withContext Result.success()
             }
             
@@ -125,6 +126,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                         Timber.d("Временный файл удален")
                     }
                     
+                    // Дополнительная очистка временных файлов
+                    cleanupTempFiles()
+                    
                     return@withContext Result.success()
                 }
                 
@@ -165,6 +169,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 Timber.d("Изображение успешно сжато и сохранено")
                 
+                // Дополнительная очистка временных файлов после успешного сжатия
+                cleanupTempFiles()
+                
+                // Очищаем кэш перед завершением
+                cleanupTempFiles()
+                
+                // Принудительно запускаем сборщик мусора
+                System.gc()
+                
                 return@withContext Result.success()
             } catch (e: Exception) {
                 // В случае ошибки, удаляем временный файл
@@ -172,10 +185,16 @@ class ImageCompressionWorker @AssistedInject constructor(
                     Timber.w("Не удалось удалить временный файл при ошибке: ${tempFile.absolutePath}")
                 }
                 
+                // Дополнительная очистка временных файлов при ошибке
+                cleanupTempFiles()
+                
                 Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
                 return@withContext Result.failure(createFailureOutput(e.message ?: "Неизвестная ошибка"))
             }
         } catch (e: Exception) {
+            // Очищаем кэш даже в случае ошибки
+            cleanupTempFiles()
+            
             Timber.e(e, "Неожиданная ошибка в worker: ${e.message}")
             return@withContext Result.failure(createFailureOutput(e.message ?: "Неожиданная ошибка"))
         }
@@ -369,10 +388,12 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Сжатие изображения (база)
      */
     private suspend fun compressImage(uri: Uri, tempFile: File, quality: Int) = withContext(Dispatchers.IO) {
+        var inputFile: File? = null
+        
         try {
             // Создаем временный файл из URI с уникальным именем
             val inputFileName = "input_${System.currentTimeMillis()}_${uri.lastPathSegment}"
-            val inputFile = File(context.cacheDir, inputFileName)
+            inputFile = File(context.cacheDir, inputFileName)
             
             // Копируем данные из URI во временный файл
             context.contentResolver.openInputStream(uri)?.use { input ->
@@ -396,11 +417,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 throw IOException("Сжатый файл не создан или пуст")
             }
             
-            // Удаляем временный входной файл
-            if (!inputFile.delete()) {
-                Timber.w("Не удалось удалить временный входной файл: ${inputFile.absolutePath}")
-            }
-            
             // Копируем EXIF данные
             FileUtil.copyExifDataFromUriToFile(context, uri, tempFile)
             
@@ -409,6 +425,21 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
             throw e
+        } finally {
+            // Удаляем временный входной файл в блоке finally для гарантированной очистки
+            try {
+                inputFile?.let {
+                    if (it.exists() && !isFileInUse(it)) {
+                        if (!it.delete()) {
+                            Timber.w("Не удалось удалить временный входной файл: ${it.absolutePath}")
+                        } else {
+                            Timber.d("Временный входной файл удален: ${it.absolutePath}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.w("Ошибка при удалении временного входного файла: ${e.message}")
+            }
         }
     }
 
@@ -629,8 +660,10 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun isImageAlreadyProcessed(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем, находится ли файл в директории приложения
+            // Получаем путь к файлу
             val path = FileUtil.getFilePathFromUri(context, uri)
+            
+            // Проверяем, находится ли файл в директории приложения
             val isInAppDir = !path.isNullOrEmpty() && 
                 (path.contains("/${Constants.APP_DIRECTORY}/") || 
                  path.contains("content://media/external/images/media") && 
@@ -647,8 +680,39 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Timber.d("URI найден в списке обработанных: $uri")
                 return@withContext true
             }
+
+            // Дополнительная проверка - если файл уже был сжат (по размеру)
+            val fileSize = getFileSize(uri)
+            if (fileSize > 0 && fileSize < Constants.MIN_FILE_SIZE * 2) { // Если размер меньше 100KB
+                Timber.d("Файл уже достаточно мал (${fileSize/1024}KB), пропускаем")
+                return@withContext true
+            }
+
+            // Проверяем, не является ли этот файл результатом предыдущего сжатия
+            context.contentResolver.query(
+                uri,
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_ADDED),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    
+                    if (nameIndex != -1 && dateIndex != -1) {
+                        val fileName = cursor.getString(nameIndex)
+                        val dateAdded = cursor.getLong(dateIndex)
+                        
+                        // Если файл был создан менее 5 секунд назад и его размер уже оптимальный
+                        if (System.currentTimeMillis() / 1000 - dateAdded < 5 && fileSize < 1024 * 1024) {
+                            Timber.d("Файл был недавно создан и уже оптимального размера: $fileName")
+                            return@withContext true
+                        }
+                    }
+                }
+            }
             
-            // Файл прошел все проверки и должен быть сжат
             false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса файла")
@@ -790,31 +854,65 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Uri.parse(uri).lastPathSegment
             }
             
+            // Получаем все временные файлы в кэше
             val files = cacheDir.listFiles { file ->
-                // Проверяем, что файл является временным и достаточно старым
-                val isOldTempFile = file.name.startsWith("temp_image_") && 
-                    (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
+                // Проверяем все временные файлы, созданные приложением
+                val isTempFile = file.name.startsWith("temp_image_") || 
+                                file.name.startsWith("input_") ||
+                                file.name.endsWith(".jpg") ||
+                                file.name.endsWith(".jpeg")
+                
+                // Проверяем, что файл достаточно старый или имеет нулевой размер
+                val isOldOrEmpty = (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE) || 
+                                   file.length() == 0L
                 
                 // Не удаляем файл, если он используется в текущем процессе
                 val isCurrentlyInUse = currentTempFile != null && file.name.contains(currentTempFile)
                 
-                isOldTempFile && !isCurrentlyInUse
+                isTempFile && (isOldOrEmpty || !isCurrentlyInUse)
             }
+            
+            var deletedCount = 0
+            var totalSize = 0L
             
             files?.forEach { file ->
                 // Дополнительная проверка перед удалением
-                if (file.exists() && !isFileInUse(file)) {
-                    if (!file.delete()) {
-                        Timber.w("Не удалось удалить старый временный файл: ${file.absolutePath}")
-                    } else {
-                        Timber.d("Удален старый временный файл: ${file.absolutePath}")
+                if (file.exists()) {
+                    val fileSize = file.length()
+                    
+                    // Пытаемся принудительно освободить файл
+                    System.gc()
+                    
+                    try {
+                        // Пробуем сначала очистить содержимое файла
+                        if (fileSize > 0) {
+                            FileOutputStream(file).use { it.channel.truncate(0) }
+                        }
+                        
+                        // Теперь пытаемся удалить файл
+                        if (file.delete()) {
+                            totalSize += fileSize
+                            deletedCount++
+                            Timber.d("Удален временный файл: ${file.absolutePath}, размер: ${fileSize/1024}KB")
+                        } else {
+                            Timber.w("Не удалось удалить временный файл: ${file.absolutePath}")
+                            // Помечаем файл для удаления при выходе
+                            file.deleteOnExit()
+                        }
+                    } catch (e: Exception) {
+                        Timber.w(e, "Ошибка при удалении файла: ${file.absolutePath}")
+                        // Помечаем файл для удаления при выходе
+                        file.deleteOnExit()
                     }
-                } else {
-                    Timber.d("Пропуск удаления файла, возможно используется: ${file.absolutePath}")
                 }
             }
             
-            Timber.d("Очистка временных файлов завершена, обработано файлов: ${files?.size ?: 0}")
+            // Принудительно запускаем сборщик мусора после удаления файлов
+            if (deletedCount > 0) {
+                System.gc()
+            }
+            
+            Timber.d("Очистка временных файлов завершена, удалено файлов: $deletedCount, освобождено: ${totalSize/1024}KB")
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при очистке временных файлов")
         }

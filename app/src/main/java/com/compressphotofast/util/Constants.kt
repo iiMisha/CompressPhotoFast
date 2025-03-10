@@ -75,5 +75,5 @@ object Constants {
     const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
     
     // Временные файлы
-    const val TEMP_FILE_MAX_AGE = 24 * 60 * 60 * 1000L // 24 часа
+    const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут вместо 24 часов
 } 
