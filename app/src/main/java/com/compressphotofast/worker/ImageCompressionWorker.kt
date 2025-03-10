@@ -504,7 +504,16 @@ class ImageCompressionWorker @AssistedInject constructor(
             .setSilent(true) // Отключаем звук для foreground уведомления
             .build()
         
-        return ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
+        // Если Android 14 и выше, указываем тип сервиса
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ForegroundInfo(
+                Constants.NOTIFICATION_ID_COMPRESSION,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
+        }
     }
 
     /**

@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name=".CompressPhotoApp"
@@ -71,6 +72,12 @@
                 tools:node="remove" />
         </provider>
 
+        <!-- Сервис WorkManager для foreground операций -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
         <!-- JobService для отслеживания новых изображений -->
         <service
             android:name=".service.ImageDetectionJobService"
@@ -81,6 +88,7 @@
         <service
             android:name=".service.BackgroundMonitoringService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest> 

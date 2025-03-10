@@ -288,14 +288,15 @@ class MainActivity : AppCompatActivity() {
         
         // Регистрируем приемник для уведомлений о завершении сжатия
         val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
-        registerReceiver(compressionCompletedReceiver, filter)
+        registerReceiver(compressionCompletedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         
         // Обрабатываем входящий Intent (если есть)
         handleIntent(intent)
         
         // Регистрируем BroadcastReceiver для запросов на удаление файлов
         registerReceiver(deleteRequestReceiver, 
-            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION))
+            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
+            Context.RECEIVER_NOT_EXPORTED)
         
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()

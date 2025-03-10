@@ -34,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
+import android.content.pm.ServiceInfo
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -161,7 +162,11 @@ class BackgroundMonitoringService : Service() {
         Timber.d("BackgroundMonitoringService: onCreate")
         
         // Создаем уведомление и запускаем сервис как Foreground Service
-        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+        }
         
         // Настраиваем ContentObserver для отслеживания изменений в MediaStore
         setupContentObserver()
@@ -170,7 +175,11 @@ class BackgroundMonitoringService : Service() {
         registerProcessImageReceiver()
         
         // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
-        registerReceiver(compressionCompletedReceiver, IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED))
+        registerReceiver(
+            compressionCompletedReceiver, 
+            IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
+            Context.RECEIVER_NOT_EXPORTED
+        )
         
         // Проверяем состояние автоматического сжатия при создании сервиса
         val isEnabled = isAutoCompressionEnabled()
@@ -765,7 +774,8 @@ class BackgroundMonitoringService : Service() {
         // Регистрируем BroadcastReceiver для обработки запросов на обработку изображений
         registerReceiver(
             imageProcessingReceiver,
-            IntentFilter(Constants.ACTION_PROCESS_IMAGE)
+            IntentFilter(Constants.ACTION_PROCESS_IMAGE),
+            Context.RECEIVER_NOT_EXPORTED
         )
         Timber.d("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
     }
