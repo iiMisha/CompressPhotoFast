@@ -35,6 +35,7 @@ import android.app.PendingIntent
 import com.compressphotofast.ui.MainActivity
 import java.util.Collections
 import java.util.HashSet
+import java.io.FileOutputStream
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -59,6 +60,9 @@ class ImageCompressionWorker @AssistedInject constructor(
         setForegroundAsync(createForegroundInfo())
         
         try {
+            // Очищаем старые временные файлы
+            cleanupTempFiles()
+            
             // Получаем URI из InputData
             val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
                 ?: return@withContext Result.failure(workDataOf(Constants.WORK_ERROR_MSG to "Отсутствует URI"))
@@ -139,8 +143,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 }
                 
                 // Удаляем временный файл
-                tempFile.delete()
-                Timber.d("Временный файл удален")
+                if (!tempFile.delete()) {
+                    Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
+                } else {
+                    Timber.d("Временный файл удален")
+                }
                 
                 // Показываем уведомление о завершении сжатия
                 showCompletionNotification(fileName, originalSize, compressedSize, sizeReduction)
@@ -153,7 +160,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.success()
             } catch (e: Exception) {
                 // В случае ошибки, удаляем временный файл
-                tempFile.delete()
+                if (!tempFile.delete()) {
+                    Timber.w("Не удалось удалить временный файл при ошибке: ${tempFile.absolutePath}")
+                }
                 
                 Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
                 return@withContext Result.failure(createFailureOutput(e.message ?: "Неизвестная ошибка"))
@@ -353,8 +362,20 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun compressImage(uri: Uri, tempFile: File, quality: Int) = withContext(Dispatchers.IO) {
         try {
-            // Создаем временный файл из URI
-            val inputFile = createTempFileFromUri(uri) ?: throw IOException("Не удалось создать временный файл")
+            // Создаем временный файл из URI с уникальным именем
+            val inputFileName = "input_${System.currentTimeMillis()}_${uri.lastPathSegment}"
+            val inputFile = File(context.cacheDir, inputFileName)
+            
+            // Копируем данные из URI во временный файл
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                inputFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Не удалось открыть входной поток")
+            
+            if (!inputFile.exists() || inputFile.length() <= 0) {
+                throw IOException("Временный входной файл не создан или пуст")
+            }
             
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
@@ -362,8 +383,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 format(android.graphics.Bitmap.CompressFormat.JPEG)
             }.copyTo(tempFile, overwrite = true)
             
+            // Проверяем, что сжатый файл существует и не пуст
+            if (!tempFile.exists() || tempFile.length() <= 0) {
+                throw IOException("Сжатый файл не создан или пуст")
+            }
+            
             // Удаляем временный входной файл
-            inputFile.delete()
+            if (!inputFile.delete()) {
+                Timber.w("Не удалось удалить временный входной файл: ${inputFile.absolutePath}")
+            }
             
             // Копируем EXIF данные
             FileUtil.copyExifDataFromUriToFile(context, uri, tempFile)
@@ -371,7 +399,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Проверяем EXIF данные после копирования
             logExifDataFromFile(tempFile)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сжатии изображения")
+            Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
             throw e
         }
     }
@@ -430,6 +458,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 NotificationManager.IMPORTANCE_LOW
             )
             channel.description = context.getString(R.string.notification_channel_description)
+            channel.setShowBadge(false)
+            channel.enableLights(false)
+            channel.enableVibration(false)
             notificationManager.createNotificationChannel(channel)
         }
         
@@ -448,6 +479,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             .setOngoing(true)
             .setContentIntent(pendingIntent)
             .setProgress(0, 0, true) // Индикатор прогресса в неопределенном состоянии
+            .setSilent(true) // Отключаем звук для foreground уведомления
             .build()
         
         return ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
@@ -518,11 +550,14 @@ class ImageCompressionWorker @AssistedInject constructor(
         // Создание канала уведомлений для Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                context.getString(R.string.notification_channel_id),
-                context.getString(R.string.notification_channel_name),
+                "compression_completion_channel",
+                context.getString(R.string.notification_completion_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             )
-            channel.description = context.getString(R.string.notification_channel_description)
+            channel.description = context.getString(R.string.notification_completion_channel_description)
+            channel.setShowBadge(true)
+            channel.enableLights(true)
+            channel.enableVibration(true)
             notificationManager.createNotificationChannel(channel)
         }
         
@@ -535,7 +570,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         )
         
         // Создаем уведомление об ошибке
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+        val notification = NotificationCompat.Builder(context, "compression_completion_channel")
             .setContentTitle(context.getString(R.string.notification_compression_error))
             .setContentText(context.getString(R.string.notification_compression_error_details, fileName))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -714,5 +749,63 @@ class ImageCompressionWorker @AssistedInject constructor(
             putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent as android.os.Parcelable)
         }
         context.sendBroadcast(intent)
+    }
+
+    /**
+     * Очистка старых временных файлов
+     */
+    private fun cleanupTempFiles() {
+        try {
+            val cacheDir = context.cacheDir
+            val currentTime = System.currentTimeMillis()
+            
+            // Получаем список файлов, которые сейчас используются в текущем процессе
+            val currentTempFile = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)?.let { uri ->
+                Uri.parse(uri).lastPathSegment
+            }
+            
+            val files = cacheDir.listFiles { file ->
+                // Проверяем, что файл является временным и достаточно старым
+                val isOldTempFile = file.name.startsWith("temp_image_") && 
+                    (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
+                
+                // Не удаляем файл, если он используется в текущем процессе
+                val isCurrentlyInUse = currentTempFile != null && file.name.contains(currentTempFile)
+                
+                isOldTempFile && !isCurrentlyInUse
+            }
+            
+            files?.forEach { file ->
+                // Дополнительная проверка перед удалением
+                if (file.exists() && !isFileInUse(file)) {
+                    if (!file.delete()) {
+                        Timber.w("Не удалось удалить старый временный файл: ${file.absolutePath}")
+                    } else {
+                        Timber.d("Удален старый временный файл: ${file.absolutePath}")
+                    }
+                } else {
+                    Timber.d("Пропуск удаления файла, возможно используется: ${file.absolutePath}")
+                }
+            }
+            
+            Timber.d("Очистка временных файлов завершена, обработано файлов: ${files?.size ?: 0}")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при очистке временных файлов")
+        }
+    }
+    
+    /**
+     * Проверяет, используется ли файл в данный момент
+     */
+    private fun isFileInUse(file: File): Boolean {
+        return try {
+            // Пробуем открыть файл для записи - если не получается, значит файл используется
+            val channel = FileOutputStream(file, true).channel
+            channel.close()
+            false // Файл не используется
+        } catch (e: Exception) {
+            Timber.d("Файл используется другим процессом: ${file.absolutePath}")
+            true // Файл используется
+        }
     }
 } 

@@ -47,12 +47,30 @@ class CompressPhotoApp : Application(), Configuration.Provider {
                 importance
             ).apply {
                 this.description = description
+                // Устанавливаем настройки для предотвращения ошибки "weird-custom-notification"
+                setShowBadge(false)
+                enableLights(false)
+                enableVibration(false)
             }
             
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
             
-            Timber.d("Notification channel created")
+            // Создаем дополнительный канал для уведомлений о завершении сжатия
+            val completionChannel = NotificationChannel(
+                "compression_completion_channel",
+                getString(R.string.notification_completion_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                this.description = getString(R.string.notification_completion_channel_description)
+                setShowBadge(true)
+                enableLights(true)
+                enableVibration(true)
+            }
+            
+            notificationManager.createNotificationChannel(completionChannel)
+            
+            Timber.d("Notification channels created")
         }
     }
 

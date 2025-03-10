@@ -476,6 +476,8 @@ class BackgroundMonitoringService : Service() {
             Handler(Looper.getMainLooper()).postDelayed({
                 if (processingUris.remove(uriString)) {
                     Timber.d("BackgroundMonitoringService: тайм-аут обработки для URI: $uri")
+                    // Очищаем временные файлы при таймауте
+                    cleanupTempFiles()
                 }
             }, processingTimeout)
             
@@ -751,5 +753,31 @@ class BackgroundMonitoringService : Service() {
             IntentFilter(Constants.ACTION_PROCESS_IMAGE)
         )
         Timber.d("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
+    }
+
+    /**
+     * Очистка старых временных файлов
+     */
+    private fun cleanupTempFiles() {
+        try {
+            val cacheDir = applicationContext.cacheDir
+            val currentTime = System.currentTimeMillis()
+            val files = cacheDir.listFiles { file ->
+                file.name.startsWith("temp_image_") && 
+                (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
+            }
+            
+            files?.forEach { file ->
+                if (!file.delete()) {
+                    Timber.w("Не удалось удалить старый временный файл: ${file.absolutePath}")
+                } else {
+                    Timber.d("Удален старый временный файл: ${file.absolutePath}")
+                }
+            }
+            
+            Timber.d("Очистка временных файлов завершена, обработано файлов: ${files?.size ?: 0}")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при очистке временных файлов")
+        }
     }
 } 

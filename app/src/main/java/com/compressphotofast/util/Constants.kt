@@ -73,4 +73,7 @@ object Constants {
     const val EXTRA_ORIGINAL_SIZE = "extra_original_size"
     const val EXTRA_COMPRESSED_SIZE = "extra_compressed_size"
     const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
+    
+    // Временные файлы
+    const val TEMP_FILE_MAX_AGE = 24 * 60 * 60 * 1000L // 24 часа
 } 
