@@ -47,11 +47,9 @@ object FileUtil {
         try {
             val exif = ExifInterface(filePath)
             
-            // Добавляем маркер сжатия
-            exif.setAttribute(EXIF_USER_COMMENT, EXIF_COMPRESSION_MARKER)
-            
-            // Добавляем информацию об уровне компрессии
-            exif.setAttribute(ExifInterface.TAG_SOFTWARE, "${EXIF_COMPRESSION_LEVEL}:$quality")
+            // Добавляем маркер сжатия и уровень компрессии в один тег UserComment
+            val markerWithQuality = "${EXIF_COMPRESSION_MARKER}:$quality"
+            exif.setAttribute(EXIF_USER_COMMENT, markerWithQuality)
             
             // Сохраняем EXIF данные
             exif.saveAttributes()
@@ -77,11 +75,9 @@ object FileUtil {
             pfd.use { fileDescriptor ->
                 val exif = ExifInterface(fileDescriptor.fileDescriptor)
                 
-                // Добавляем маркер сжатия
-                exif.setAttribute(EXIF_USER_COMMENT, EXIF_COMPRESSION_MARKER)
-                
-                // Добавляем информацию об уровне компрессии
-                exif.setAttribute(ExifInterface.TAG_SOFTWARE, "${EXIF_COMPRESSION_LEVEL}:$quality")
+                // Добавляем маркер сжатия и уровень компрессии в один тег UserComment
+                val markerWithQuality = "${EXIF_COMPRESSION_MARKER}:$quality"
+                exif.setAttribute(EXIF_USER_COMMENT, markerWithQuality)
                 
                 // Сохраняем EXIF данные
                 exif.saveAttributes()
@@ -106,9 +102,9 @@ object FileUtil {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val exif = ExifInterface(inputStream)
                 
-                // Проверяем маркер сжатия
+                // Проверяем маркер сжатия в UserComment
                 val userComment = exif.getAttribute(EXIF_USER_COMMENT)
-                val isCompressed = userComment == EXIF_COMPRESSION_MARKER
+                val isCompressed = userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true
                 
                 if (isCompressed) {
                     Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
@@ -135,11 +131,10 @@ object FileUtil {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val exif = ExifInterface(inputStream)
                 
-                // Проверяем маркер сжатия
-                val software = exif.getAttribute(ExifInterface.TAG_SOFTWARE)
-                
-                if (software != null && software.startsWith(EXIF_COMPRESSION_LEVEL)) {
-                    val quality = software.substringAfter("$EXIF_COMPRESSION_LEVEL:").toIntOrNull()
+                // Получаем информацию о качестве из UserComment
+                val userComment = exif.getAttribute(EXIF_USER_COMMENT)
+                if (userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true) {
+                    val quality = userComment.substringAfter("$EXIF_COMPRESSION_MARKER:").toIntOrNull()
                     Timber.d("Получен уровень компрессии из EXIF: $quality для URI: $uri")
                     return@withContext quality
                 }
