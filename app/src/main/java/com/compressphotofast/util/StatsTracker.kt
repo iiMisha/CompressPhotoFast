@@ -51,26 +51,14 @@ object StatsTracker {
 
     /**
      * Проверяет, является ли изображение сжатым
-     * Использует новую систему EXIF маркировки
+     * Использует только систему EXIF маркировки
      */
     suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем EXIF маркер
+            // Проверяем EXIF маркер - единственный надежный способ
             val isCompressed = FileUtil.isCompressedByExif(context, uri)
             if (isCompressed) {
                 Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
-                return@withContext true
-            }
-            
-            // Проверяем, находится ли файл в директории приложения (для обратной совместимости)
-            val path = FileUtil.getFilePathFromUri(context, uri)
-            val isInAppDir = !path.isNullOrEmpty() && 
-                (path.contains("/${Constants.APP_DIRECTORY}/") || 
-                 path.contains("content://media/external/images/media") && 
-                 path.contains(Constants.APP_DIRECTORY))
-            
-            if (isInAppDir) {
-                Timber.d("Изображение по URI $uri находится в директории приложения")
                 return@withContext true
             }
             
@@ -82,18 +70,17 @@ object StatsTracker {
     }
     
     /**
-     * Добавляет изображение в список обработанных
-     * Устаревший метод, оставлен для обратной совместимости
+     * Добавляет EXIF-маркер сжатия в изображение
      */
     fun addProcessedImage(context: Context, uri: Uri) {
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                // Вместо добавления в старый список просто добавляем EXIF метку
+                // Добавляем EXIF метку
                 val quality = 85 // Значение по умолчанию
                 FileUtil.markCompressedImage(context, uri, quality)
                 Timber.d("Добавлен EXIF маркер сжатия для URI: $uri")
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при добавлении URI в список обработанных: ${e.message}")
+                Timber.e(e, "Ошибка при добавлении маркера сжатия: ${e.message}")
             }
         }
     }
