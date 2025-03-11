@@ -472,79 +472,73 @@ class BackgroundMonitoringService : Service() {
                 Timber.d("BackgroundMonitoringService: URI $uri уже обрабатывается через MainActivity, пропускаем")
                 return
             }
-            
-            // Логируем подробную информацию о файле для отладки
+
+            // Ждем пока файл станет доступным
+            if (!FileUtil.waitForFileAvailability(applicationContext, uri)) {
+                Timber.d("BackgroundMonitoringService: файл недоступен после ожидания: $uri")
+                return
+            }
+
+            // Проверяем размер файла
+            val fileSize = FileUtil.getFileSize(applicationContext, uri)
+            if (fileSize < Constants.MIN_FILE_SIZE || fileSize > Constants.MAX_FILE_SIZE) {
+                Timber.d("BackgroundMonitoringService: пропускаем файл из-за размера ($fileSize байт): $uri")
+                return
+            }
+
+            // Логируем подробную информацию о файле
             logDetailedFileInfo(uri)
-            
+
             // Проверяем, не было ли изображение уже обработано
             if (StatsTracker.isImageProcessed(applicationContext, uri)) {
                 Timber.d("BackgroundMonitoringService: изображение уже обработано: $uri")
                 return
             }
-            
-            // Проверяем размер файла
-            val fileSize = getFileSize(uri)
-            Timber.d("BackgroundMonitoringService: размер файла: $fileSize байт (${fileSize / 1024} KB)")
-            
-            if (fileSize <= Constants.MIN_FILE_SIZE) {
-                Timber.d("BackgroundMonitoringService: файл слишком мал для сжатия: $fileSize байт")
-                return
-            }
-            
-            if (fileSize > Constants.MAX_FILE_SIZE) {
-                Timber.d("BackgroundMonitoringService: файл слишком велик для обработки: ${fileSize / (1024 * 1024)} MB")
-                return
-            }
-            
-            // Помечаем URI как находящийся в обработке
+
+            // Помечаем URI как обрабатываемый
             processingUris.add(uriString)
             
-            // Запускаем таймер для очистки состояния обработки
+            // Устанавливаем таймаут для очистки состояния обработки
             Handler(Looper.getMainLooper()).postDelayed({
-                if (processingUris.remove(uriString)) {
-                    Timber.d("BackgroundMonitoringService: тайм-аут обработки для URI: $uri")
-                }
-            }, processingTimeout)
+                processingUris.remove(uriString)
+            }, 30000) // 30 секунд таймаут
             
-            // Получаем имя файла для логирования
-            val fileName = FileUtil.getFileNameFromUri(applicationContext, uri) ?: "unknown"
-            Timber.d("BackgroundMonitoringService: обработка файла: $fileName ($uri)")
-            
-            // Получаем текущее качество сжатия
-            val quality = getCompressionQuality()
-            Timber.d("BackgroundMonitoringService: качество сжатия: $quality")
+            // Получаем имя файла и качество сжатия
+            val fileName = FileUtil.getFileNameFromUri(applicationContext, uri)
+            val compressionQuality = Constants.DEFAULT_COMPRESSION_QUALITY
             
             // Создаем уникальный тег для работы
-            val workTag = "compression_${System.currentTimeMillis()}"
+            val workTag = "compress_${System.currentTimeMillis()}_${fileName}"
             
-            // Запускаем worker для сжатия изображения
-            val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                .setInputData(workDataOf(
-                    Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                    "compression_quality" to quality
-                ))
-                .addTag(Constants.WORK_TAG_COMPRESSION)
+            // Создаем и запускаем работу по сжатию
+            val compressionWork = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                .setInputData(
+                    workDataOf(
+                        "uri" to uri.toString(),
+                        "compression_quality" to compressionQuality
+                    )
+                )
                 .addTag(workTag)
                 .build()
             
-            // Запускаем работу с уникальным именем для предотвращения дублирования
-            workManager.beginUniqueWork(
-                workTag,
-                ExistingWorkPolicy.REPLACE,
-                compressionWorkRequest
-            ).enqueue()
+            WorkManager.getInstance(applicationContext)
+                .enqueueUniqueWork(
+                    workTag,
+                    ExistingWorkPolicy.REPLACE,
+                    compressionWork
+                )
             
-            Timber.d("BackgroundMonitoringService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
+            Timber.d("BackgroundMonitoringService: запущена работа по сжатию для $uri с тегом $workTag")
             
             // Добавляем URI в список обработанных
-            processedUris.add(uri.toString())
+            processedUris.add(uriString)
             if (processedUris.size > maxProcessedUrisSize) {
-                // Удаляем самый старый элемент, если превышен лимит
                 processedUris.iterator().next()?.let { processedUris.remove(it) }
             }
             
         } catch (e: Exception) {
             Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
+            processingUris.remove(uri.toString())
         }
     }
     

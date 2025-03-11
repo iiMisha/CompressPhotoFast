@@ -19,6 +19,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -987,5 +988,70 @@ object FileUtil {
         
         // Возвращаем стандартный путь, если не удалось определить директорию
         return "${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}"
+    }
+
+    /**
+     * Проверяет, является ли файл временным (pending)
+     */
+    suspend fun isFilePending(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return@withContext cursor.getInt(0) == 1
+                }
+            }
+            true // В случае ошибки считаем файл временным
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке состояния файла: $uri")
+            true
+        }
+    }
+
+    /**
+     * Ожидает, пока файл станет доступным
+     */
+    suspend fun waitForFileAvailability(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val maxAttempts = 10
+        val delayMs = 200L
+
+        repeat(maxAttempts) { attempt ->
+            // Проверяем размер файла
+            val size = getFileSize(context, uri)
+            if (size <= 0) {
+                Timber.d("Файл недоступен (попытка ${attempt + 1}/$maxAttempts): размер = $size")
+                delay(delayMs)
+                return@repeat
+            }
+
+            // Проверяем, не является ли файл временным
+            if (isFilePending(context, uri)) {
+                Timber.d("Файл временно недоступен (попытка ${attempt + 1}/$maxAttempts)")
+                delay(delayMs)
+                return@repeat
+            }
+
+            return@withContext true
+        }
+
+        false
+    }
+
+    /**
+     * Получает размер файла из MediaStore
+     */
+    suspend fun getFileSize(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return@withContext cursor.getLong(0)
+                }
+            }
+            -1L
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении размера файла: $uri")
+            -1L
+        }
     }
 } 
