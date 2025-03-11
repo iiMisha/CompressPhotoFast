@@ -293,9 +293,30 @@ object FileUtil {
                 
                 // Добавляем маркер сжатия в EXIF метаданные
                 try {
-                    // Получаем значение качества из настроек
-                    val quality = getCompressionQuality(context)
-                    markCompressedImage(context, uri, quality)
+                    // Проверяем, есть ли уже маркер сжатия, перед добавлением нового
+                    var hasExifMarker = false
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            val exif = ExifInterface(inputStream)
+                            // Проверяем наличие маркера сжатия в UserComment
+                            val userComment = exif.getAttribute(EXIF_USER_COMMENT)
+                            hasExifMarker = userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true
+                            
+                            if (hasExifMarker) {
+                                Timber.d("EXIF маркер сжатия уже присутствует, пропускаем добавление")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Timber.d("Не удалось проверить EXIF маркер: ${e.message}")
+                        hasExifMarker = false
+                    }
+                    
+                    // Добавляем маркер только если он еще не установлен
+                    if (!hasExifMarker) {
+                        // Получаем значение качества из настроек
+                        val quality = getCompressionQuality(context)
+                        markCompressedImage(context, uri, quality)
+                    }
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при добавлении EXIF маркера: ${e.message}")
                 }
