@@ -593,19 +593,11 @@ class MainViewModel @Inject constructor(
                     // Устанавливаем флаг
                     isToastShowing = true
                     
+                    // Используем обычный Toast без setGravity, так как для текстовых тостов он не работает
                     val toast = Toast.makeText(context, message, duration)
-                    toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
                     
                     // Получаем View из Toast для установки дополнительных параметров
                     val group = toast.view as ViewGroup?
-                    group?.let {
-                        for (i in 0 until it.childCount) {
-                            val messageView = it.getChildAt(i)
-                            if (messageView is TextView) {
-                                messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
-                            }
-                        }
-                    }
                     
                     // Добавляем callback для сброса флага
                     toast.addCallback(object : Toast.Callback() {

@@ -143,8 +143,8 @@ class MainActivity : AppCompatActivity() {
                 // Устанавливаем флаг
                 isToastShowing = true
                 
+                // Используем обычный Toast без вызова setGravity
                 val toast = Toast.makeText(this, message, duration)
-                toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
                 
                 // Получаем View из Toast для установки дополнительных параметров
                 val group = toast.view as ViewGroup?
@@ -248,7 +248,6 @@ class MainActivity : AppCompatActivity() {
                                 "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
                                 Toast.LENGTH_LONG
                             )
-                            toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 150)
                             
                             toast.addCallback(object : Toast.Callback() {
                                 override fun onToastHidden() {
@@ -301,7 +300,6 @@ class MainActivity : AppCompatActivity() {
             override fun run() {
                 if (counter < repetitions) {
                     val toast = Toast.makeText(context, message, Toast.LENGTH_LONG)
-                    toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 150)
                     toast.show()
                     counter++
                     handler.postDelayed(this, 3500)
