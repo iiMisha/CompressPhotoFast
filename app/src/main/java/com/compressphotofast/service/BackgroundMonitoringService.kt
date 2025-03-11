@@ -55,7 +55,7 @@ class BackgroundMonitoringService : Service() {
     
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
-    private val contentObserverDebounceTime = 500L // 500мс для дедупликации событий
+    private val contentObserverDebounceTime = 2000L // 2000мс (2 секунды) для дедупликации событий
     
     // Кэш информации о файлах, чтобы не запрашивать повторно
     private val fileInfoCache = Collections.synchronizedMap(HashMap<String, FileInfo>())
@@ -327,9 +327,9 @@ class BackgroundMonitoringService : Service() {
                         // Обновляем время последнего наблюдения
                         recentlyObservedUris[uriString] = currentTime
                         
-                        // Удаляем старые записи (старше 5 секунд)
+                        // Удаляем старые записи (старше 10 секунд)
                         val urisToRemove = recentlyObservedUris.entries
-                            .filter { (currentTime - it.value) > 5000 }
+                            .filter { (currentTime - it.value) > 10000 }
                             .map { it.key }
                         
                         urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
