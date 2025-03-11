@@ -18,7 +18,8 @@ import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.ImageTrackingUtil
+import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -113,7 +114,6 @@ class MainViewModel @Inject constructor(
                     
                     // Снимаем регистрацию URI после обработки
                     uri.let { 
-                        ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
                         Timber.d("compressSelectedImage: снимаем регистрацию URI после обработки: $it")
                     }
                     
@@ -192,7 +192,6 @@ class MainViewModel @Inject constructor(
                                 
                                 // Снимаем регистрацию URI после обработки
                                 uri?.let { 
-                                    ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(it)
                                     Timber.d("compressMultipleImages: снимаем регистрацию URI после обработки: $it")
                                 }
                                 

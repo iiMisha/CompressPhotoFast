@@ -32,6 +32,128 @@ object FileUtil {
     private val processedUris = mutableSetOf<String>()
     private val processedFileNames = mutableMapOf<String, Uri>()
 
+    // Константы для EXIF маркировки
+    private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
+    private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
+    private const val EXIF_COMPRESSION_LEVEL = "CompressPhotoFast_Quality"
+
+    /**
+     * Добавляет маркер сжатия и уровень компрессии в EXIF-метаданные изображения
+     * @param filePath путь к файлу
+     * @param quality уровень качества (0-100)
+     * @return true если маркировка успешна, false в противном случае
+     */
+    suspend fun markCompressedImage(filePath: String, quality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val exif = ExifInterface(filePath)
+            
+            // Добавляем маркер сжатия
+            exif.setAttribute(EXIF_USER_COMMENT, EXIF_COMPRESSION_MARKER)
+            
+            // Добавляем информацию об уровне компрессии
+            exif.setAttribute(ExifInterface.TAG_SOFTWARE, "${EXIF_COMPRESSION_LEVEL}:$quality")
+            
+            // Сохраняем EXIF данные
+            exif.saveAttributes()
+            Timber.d("EXIF маркер сжатия добавлен в файл: $filePath с качеством: $quality")
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Добавляет маркер сжатия и уровень компрессии в EXIF-метаданные изображения
+     * @param context контекст
+     * @param uri URI изображения
+     * @param quality уровень качества (0-100)
+     * @return true если маркировка успешна, false в противном случае
+     */
+    suspend fun markCompressedImage(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val pfd = context.contentResolver.openFileDescriptor(uri, "rw") ?: return@withContext false
+            
+            pfd.use { fileDescriptor ->
+                val exif = ExifInterface(fileDescriptor.fileDescriptor)
+                
+                // Добавляем маркер сжатия
+                exif.setAttribute(EXIF_USER_COMMENT, EXIF_COMPRESSION_MARKER)
+                
+                // Добавляем информацию об уровне компрессии
+                exif.setAttribute(ExifInterface.TAG_SOFTWARE, "${EXIF_COMPRESSION_LEVEL}:$quality")
+                
+                // Сохраняем EXIF данные
+                exif.saveAttributes()
+                Timber.d("EXIF маркер сжатия добавлен в URI: $uri с качеством: $quality")
+            }
+            
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия в URI: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверяет, является ли изображение сжатым по EXIF-метаданным
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение сжато, false в противном случае
+     */
+    suspend fun isCompressedByExif(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                
+                // Проверяем маркер сжатия
+                val userComment = exif.getAttribute(EXIF_USER_COMMENT)
+                val isCompressed = userComment == EXIF_COMPRESSION_MARKER
+                
+                if (isCompressed) {
+                    Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
+                }
+                
+                return@withContext isCompressed
+            }
+            
+            return@withContext false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке EXIF маркера сжатия: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Получает уровень компрессии из EXIF-метаданных изображения
+     * @param context контекст
+     * @param uri URI изображения
+     * @return уровень качества (0-100) или null если информация не найдена
+     */
+    suspend fun getCompressionLevel(context: Context, uri: Uri): Int? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                
+                // Проверяем маркер сжатия
+                val software = exif.getAttribute(ExifInterface.TAG_SOFTWARE)
+                
+                if (software != null && software.startsWith(EXIF_COMPRESSION_LEVEL)) {
+                    val quality = software.substringAfter("$EXIF_COMPRESSION_LEVEL:").toIntOrNull()
+                    Timber.d("Получен уровень компрессии из EXIF: $quality для URI: $uri")
+                    return@withContext quality
+                }
+                
+                return@withContext null
+            }
+            
+            return@withContext null
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении уровня компрессии из EXIF: ${e.message}")
+            return@withContext null
+        }
+    }
+
     /**
      * Получение имени файла из URI
      */
@@ -140,12 +262,12 @@ object FileUtil {
                     // Продолжаем даже если не удалось скопировать EXIF данные
                 }
                 
-                // Сохраняем оригинальный URI в списке обработанных для предотвращения повторной обработки
-                // Это делаем в любом случае, даже если возникли ошибки с EXIF
+                // Добавляем маркер сжатия в EXIF метаданные
                 try {
-                    ImageTrackingUtil.addProcessedImage(context, originalUri)
+                    val quality = 85 // Значение по умолчанию
+                    markCompressedImage(context, uri, quality)
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при добавлении URI в список обработанных: ${e.message}")
+                    Timber.e(e, "Ошибка при добавлении EXIF маркера: ${e.message}")
                 }
                 
                 return@withContext Pair(uri, deleteIntentSender)

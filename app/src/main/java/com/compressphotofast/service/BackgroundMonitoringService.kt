@@ -24,13 +24,15 @@ import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
-import com.compressphotofast.util.ImageTrackingUtil
+import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import java.util.concurrent.Executors
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
@@ -99,35 +101,34 @@ class BackgroundMonitoringService : Service() {
                     Timber.d("Получен запрос на обработку изображения через broadcast: $uri")
                     
                     // Проверяем, не обрабатывается ли URI уже через MainActivity
-                    if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+                    if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
                         Timber.d("URI $uri уже обрабатывается через MainActivity, пропускаем")
                         return
                     }
                     
-                    // Проверяем, не было ли изображение уже обработано
-                    if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
-                        Timber.d("Изображение уже обработано: $uri, пропускаем")
-                        return
-                    }
-                    
-                    // Проверяем, не находится ли URI уже в списке обработанных
-                    if (processedUris.contains(uri.toString())) {
-                        Timber.d("URI уже в списке обработанных: $uri, пропускаем")
-                        return
-                    }
-                    
-                    // Добавляем URI в список обработанных, чтобы избежать повторной обработки
-                    processedUris.add(uri.toString())
-                    if (processedUris.size > maxProcessedUrisSize) {
-                        // Удаляем самый старый элемент, если превышен лимит
-                        processedUris.iterator().next()?.let { processedUris.remove(it) }
-                    }
-                    
-                    // Запускаем обработку изображения в отдельном потоке
-                    executorService.execute {
-                        kotlinx.coroutines.runBlocking {
-                            processNewImage(it)
+                    // Запускаем корутину для проверки статуса изображения
+                    GlobalScope.launch(Dispatchers.IO) {
+                        // Проверяем, не было ли изображение уже обработано
+                        if (StatsTracker.isImageProcessed(context, uri)) {
+                            Timber.d("Изображение уже обработано: $uri, пропускаем")
+                            return@launch
                         }
+                        
+                        // Проверяем, не находится ли URI уже в списке обработанных
+                        if (processedUris.contains(uri.toString())) {
+                            Timber.d("URI уже в списке обработанных: $uri, пропускаем")
+                            return@launch
+                        }
+                        
+                        // Добавляем URI в список обработанных, чтобы избежать повторной обработки
+                        processedUris.add(uri.toString())
+                        if (processedUris.size > maxProcessedUrisSize) {
+                            // Удаляем самый старый элемент, если превышен лимит
+                            processedUris.iterator().next()?.let { processedUris.remove(it) }
+                        }
+                        
+                        // Запускаем обработку изображения
+                        processNewImage(uri)
                     }
                 }
             }
@@ -398,14 +399,14 @@ class BackgroundMonitoringService : Service() {
                             )
                             
                             // Проверяем, не обрабатывается ли URI уже через MainActivity
-                            if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(contentUri)) {
+                            if (StatsTracker.isUriBeingProcessedByMainActivity(contentUri)) {
                                 Timber.d("BackgroundMonitoringService: URI $contentUri уже обрабатывается через MainActivity, пропускаем")
                                 skippedCount++
                                 continue
                             }
                             
                             // Проверяем, не было ли изображение уже обработано
-                            if (ImageTrackingUtil.isImageProcessed(applicationContext, contentUri)) {
+                            if (StatsTracker.isImageProcessed(applicationContext, contentUri)) {
                                 Timber.d("BackgroundMonitoringService: изображение уже обработано: $contentUri")
                                 skippedCount++
                                 continue
@@ -467,7 +468,7 @@ class BackgroundMonitoringService : Service() {
             }
             
             // Проверяем, не обрабатывается ли URI уже через MainActivity
-            if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+            if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
                 Timber.d("BackgroundMonitoringService: URI $uri уже обрабатывается через MainActivity, пропускаем")
                 return
             }
@@ -476,7 +477,7 @@ class BackgroundMonitoringService : Service() {
             logDetailedFileInfo(uri)
             
             // Проверяем, не было ли изображение уже обработано
-            if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
+            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
                 Timber.d("BackgroundMonitoringService: изображение уже обработано: $uri")
                 return
             }
@@ -752,7 +753,7 @@ class BackgroundMonitoringService : Service() {
                         id
                     )
 
-                    if (!ImageTrackingUtil.isImageProcessed(applicationContext, contentUri)) {
+                    if (!StatsTracker.isImageProcessed(applicationContext, contentUri)) {
                         processNewImage(contentUri)
                         processedCount++
                     } else {

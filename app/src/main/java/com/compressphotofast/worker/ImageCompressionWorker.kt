@@ -15,8 +15,8 @@ import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
-import com.compressphotofast.util.ImageTrackingUtil
-import com.compressphotofast.util.CompressionTracker
+import com.compressphotofast.util.NotificationHelper
+import com.compressphotofast.util.StatsTracker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
+import java.util.Locale
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import android.content.Intent
@@ -56,6 +57,9 @@ class ImageCompressionWorker @AssistedInject constructor(
     // Множество для отслеживания отправленных уведомлений
     private val notificationsSent = Collections.synchronizedSet(HashSet<String>())
 
+    // Качество сжатия (получаем из входных данных)
+    private val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         // Устанавливаем foreground notification
         setForegroundAsync(createForegroundInfo())
@@ -68,8 +72,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             val imageUri = Uri.parse(imageUriString)
             
             // Начинаем отслеживание сжатия
-            CompressionTracker.startTracking(imageUri)
-            CompressionTracker.updateStatus(context, imageUri, CompressionTracker.COMPRESSION_STATUS_PROCESSING)
+            StatsTracker.startTracking(imageUri)
+            StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
             // Проверяем, обрабатывается ли уже это изображение
             if (isImageAlreadyProcessed(imageUri)) {
@@ -128,7 +132,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     }
                     
                     // Обновляем статус при успешном сжатии
-                    CompressionTracker.updateStatus(context, imageUri, CompressionTracker.COMPRESSION_STATUS_COMPLETED)
+                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                     
                     return@withContext Result.success()
                 }
@@ -153,6 +157,18 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Добавляем URI в список обработанных
                 savedUri?.let {
                     Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
+                    
+                    // Добавляем EXIF маркер сжатия в сохраненный файл
+                    val quality = compressionQuality
+                    FileUtil.markCompressedImage(context, it, quality)
+                    
+                    // Отправляем broadcast о завершении сжатия
+                    sendCompletionBroadcast(
+                        fileName = fileName,
+                        originalSize = originalSize,
+                        compressedSize = compressedSize,
+                        sizeReduction = sizeReduction
+                    )
                 }
                 
                 // Удаляем временный файл
@@ -166,17 +182,17 @@ class ImageCompressionWorker @AssistedInject constructor(
                 showCompletionNotification(fileName, originalSize, compressedSize, sizeReduction)
                 
                 // Помечаем изображение как обработанное
-                ImageTrackingUtil.addProcessedImage(context, imageUri)
+                StatsTracker.addProcessedImage(context, imageUri)
                 
                 Timber.d("Изображение успешно сжато и сохранено")
                 
                 // Обновляем статус при успешном сжатии
-                CompressionTracker.updateStatus(context, imageUri, CompressionTracker.COMPRESSION_STATUS_COMPLETED)
+                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                 
                 return@withContext Result.success()
             } catch (e: Exception) {
                 // Обновляем статус при ошибке
-                CompressionTracker.updateStatus(context, imageUri, CompressionTracker.COMPRESSION_STATUS_FAILED)
+                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                 
                 // В случае ошибки, удаляем временный файл
                 if (!tempFile.delete()) {
@@ -191,7 +207,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (imageUriString != null) {
                 val uri = Uri.parse(imageUriString)
-                CompressionTracker.updateStatus(context, uri, CompressionTracker.COMPRESSION_STATUS_FAILED)
+                StatsTracker.updateStatus(context, uri, StatsTracker.COMPRESSION_STATUS_FAILED)
             }
             
             Timber.e(e, "Неожиданная ошибка в worker: ${e.message}")
@@ -417,6 +433,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Копируем EXIF данные
             FileUtil.copyExifDataFromUriToFile(context, uri, tempFile)
+            
+            // Добавляем EXIF маркер сжатия с информацией об уровне компрессии
+            FileUtil.markCompressedImage(tempFile.absolutePath, quality)
             
             // Проверяем EXIF данные после копирования
             logExifDataFromFile(tempFile)
@@ -667,7 +686,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Проверяем, есть ли URI в списке обработанных
-            val isProcessed = ImageTrackingUtil.isImageProcessed(context, uri)
+            val isProcessed = StatsTracker.isImageProcessed(context, uri)
             if (isProcessed) {
                 Timber.d("URI найден в списке обработанных: $uri")
                 return@withContext true
@@ -770,8 +789,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             savedUri?.let {
                 Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                 
-                // Помечаем изображение как обработанное
-                ImageTrackingUtil.addProcessedImage(context, originalUri)
+                // Добавляем EXIF маркер сжатия в сохраненный файл
+                val quality = compressionQuality
+                FileUtil.markCompressedImage(context, it, quality)
                 
                 // Отправляем broadcast о завершении сжатия
                 sendCompletionBroadcast(
@@ -795,7 +815,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private suspend fun getCompressedImageUri(uri: Uri): Uri? = withContext(Dispatchers.IO) {
         try {
             // Проверяем, есть ли URI в списке обработанных
-            if (ImageTrackingUtil.isImageProcessed(context, uri)) {
+            if (StatsTracker.isImageProcessed(context, uri)) {
                 Timber.d("URI найден в списке обработанных: $uri")
                 return@withContext uri
             }

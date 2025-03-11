@@ -14,8 +14,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.ImageTrackingUtil
 import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
@@ -229,7 +229,7 @@ class ImageDetectionJobService : JobService() {
         }
         
         // Проверяем, не обрабатывается ли URI уже через MainActivity
-        if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+        if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
             Timber.d("ImageDetectionJobService: URI $uri уже обрабатывается через MainActivity, пропускаем")
             return false
         }
@@ -251,7 +251,7 @@ class ImageDetectionJobService : JobService() {
                     }
 
                     // Проверяем, не является ли файл уже сжатым
-                    return !ImageTrackingUtil.isImageProcessed(applicationContext, uri)
+                    return !StatsTracker.isImageProcessed(applicationContext, uri)
                 }
             }
         } catch (e: Exception) {
@@ -299,7 +299,7 @@ class ImageDetectionJobService : JobService() {
         Timber.d("ImageDetectionJobService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
 
         // Отмечаем изображение как обработанное
-        ImageTrackingUtil.markImageAsProcessed(applicationContext, uri)
+        StatsTracker.markImageAsProcessed(applicationContext, uri)
         Timber.d("ImageDetectionJobService: изображение отмечено как обработанное: $uri")
     }
 

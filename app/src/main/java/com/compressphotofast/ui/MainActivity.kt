@@ -24,8 +24,9 @@ import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.ImageTrackingUtil
 import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.StatsTracker
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -48,6 +49,7 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.TextView
+import kotlinx.coroutines.async
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -375,33 +377,34 @@ class MainActivity : AppCompatActivity() {
                              path.contains(Constants.APP_DIRECTORY))
                         
                         // Проверяем, не было ли изображение уже обработано
-                        val isAlreadyCompressed = isInAppDir || ImageTrackingUtil.isImageProcessed(this, uri)
-                        
-                        Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir)")
-                        
-                        if (!isAlreadyCompressed) {
-                            viewModel.setSelectedImageUri(uri)
-                            // Проверяем, включено ли автоматическое сжатие
-                            if (!viewModel.isAutoCompressionEnabled()) {
-                                // Если автоматическое сжатие выключено, запускаем сжатие вручную
-                                Timber.d("handleIntent: Автоматическое сжатие выключено, запускаем сжатие вручную")
-                                viewModel.compressSelectedImage()
-                            } else {
-                                // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
-                                Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
-                                
-                                // Регистрируем URI для обработки через фоновый сервис
-                                startBackgroundProcessing(uri)
-                                
-                                // Снимаем регистрацию URI, так как будем полагаться на фоновый сервис
-                                ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
-                            }
-                        } else {
-                            // Снимаем регистрацию URI, так как он не будет обрабатываться
-                            ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                        // Запускаем проверку через EXIF асинхронно
+                        lifecycleScope.launch {
+                            val isCompressedByExif = FileUtil.isCompressedByExif(this@MainActivity, uri)
+                            val isAlreadyCompressed = isInAppDir || isCompressedByExif
                             
-                            // Показываем сообщение, что файл уже обработан
-                            showTopToast(getString(R.string.image_already_compressed))
+                            Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir, isCompressedByExif: $isCompressedByExif)")
+                            
+                            if (!isAlreadyCompressed) {
+                                viewModel.setSelectedImageUri(uri)
+                                // Проверяем, включено ли автоматическое сжатие
+                                if (!viewModel.isAutoCompressionEnabled()) {
+                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
+                                    Timber.d("handleIntent: Автоматическое сжатие выключено, запускаем сжатие вручную")
+                                    viewModel.compressSelectedImage()
+                                } else {
+                                    // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
+                                    Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
+                                    
+                                    // Регистрируем URI для обработки через фоновый сервис
+                                    startBackgroundProcessing(uri)
+                                }
+                            } else {
+                                // Снимаем регистрацию URI, так как он не будет обрабатываться
+                                // Больше не требуется с новой системой EXIF маркировки
+                                
+                                // Показываем сообщение, что файл уже обработан
+                                showTopToast(getString(R.string.image_already_compressed))
+                            }
                         }
                     }
                 }
@@ -418,11 +421,6 @@ class MainActivity : AppCompatActivity() {
                     uris?.let { uriList ->
                         Timber.d("handleIntent: Получено ${uriList.size} изображений через Intent.ACTION_SEND_MULTIPLE")
                         
-                        // Регистрируем все URI как обрабатываемые через MainActivity
-                        uriList.forEach { uri ->
-                            ImageTrackingUtil.registerUriBeingProcessedByMainActivity(uri)
-                        }
-                        
                         // Собираем список необработанных изображений
                         lifecycleScope.launch {
                             val unprocessedUris = ArrayList<Uri>()
@@ -432,22 +430,23 @@ class MainActivity : AppCompatActivity() {
                                 Timber.d("handleIntent: Изображение из множества: $uri")
                                 logFileDetails(uri)
                                 
-                                // Получаем путь файла
                                 val path = FileUtil.getFilePathFromUri(this@MainActivity, uri)
                                 val isInAppDir = !path.isNullOrEmpty() && 
                                     (path.contains("/${Constants.APP_DIRECTORY}/") || 
                                      path.contains("content://media/external/images/media") && 
                                      path.contains(Constants.APP_DIRECTORY))
                                 
-                                val isAlreadyCompressed = isInAppDir || ImageTrackingUtil.isImageProcessed(this@MainActivity, uri)
-                                
-                                Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir)")
-                                
-                                if (!isAlreadyCompressed) {
-                                    unprocessedUris.add(uri)
-                                } else {
-                                    // Снимаем регистрацию URI, если он уже обработан
-                                    ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
+                                // Запускаем проверку через EXIF асинхронно
+                                launch {
+                                    val isCompressedByExif = FileUtil.isCompressedByExif(this@MainActivity, uri)
+                                    val isAlreadyCompressed = isInAppDir || isCompressedByExif
+                                    
+                                    Timber.d("Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir, isCompressedByExif: $isCompressedByExif)")
+                                    
+                                    if (!isAlreadyCompressed) {
+                                        unprocessedUris.add(uri)
+                                        processImages()
+                                    }
                                 }
                             }
                             
@@ -466,8 +465,6 @@ class MainActivity : AppCompatActivity() {
                                     // Запускаем обработку каждого изображения через фоновый сервис
                                     unprocessedUris.forEach { uri ->
                                         startBackgroundProcessing(uri)
-                                        // Снимаем регистрацию URI после отправки запроса на обработку
-                                        ImageTrackingUtil.unregisterUriBeingProcessedByMainActivity(uri)
                                     }
                                 }
                             } else {
@@ -1205,6 +1202,24 @@ class MainActivity : AppCompatActivity() {
             Timber.d("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при запуске фонового сервиса")
+        }
+    }
+
+    /**
+     * Обработка списка изображений
+     */
+    private fun processImages() {
+        // Проверяем, включено ли автоматическое сжатие
+        if (!viewModel.isAutoCompressionEnabled()) {
+            // Если автоматическое сжатие выключено, запускаем сжатие вручную
+            viewModel.selectedImageUri.value?.let { uri ->
+                viewModel.compressSelectedImage()
+            }
+        } else {
+            // Иначе запускаем обработку через фоновый сервис
+            viewModel.selectedImageUri.value?.let { uri ->
+                startBackgroundProcessing(uri)
+            }
         }
     }
 
