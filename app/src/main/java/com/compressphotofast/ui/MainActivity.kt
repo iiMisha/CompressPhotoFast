@@ -103,6 +103,9 @@ class MainActivity : AppCompatActivity() {
     // Карта для отслеживания времени последнего уведомления для URI
     private val lastNotificationTime = ConcurrentHashMap<String, Long>()
     
+    // Карта для отслеживания времени последнего показа конкретного сообщения
+    private val lastMessageTime = ConcurrentHashMap<String, Long>()
+    
     // Минимальный интервал между показом Toast для одного URI (мс)
     private val MIN_TOAST_INTERVAL = 3000L
 
@@ -113,28 +116,73 @@ class MainActivity : AppCompatActivity() {
     private val toastLock = Object()
 
     /**
-     * Показывает Toast в верхней части экрана
+     * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showTopToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-        try {
-            val toast = Toast.makeText(this, message, duration)
-            toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
+        synchronized(toastLock) {
+            // Проверяем, не показывали ли мы недавно это сообщение
+            val lastTime = lastMessageTime[message] ?: 0L
+            val currentTime = System.currentTimeMillis()
+            val timePassed = currentTime - lastTime
             
-            // Получаем View из Toast для установки дополнительных параметров
-            val group = toast.view as ViewGroup?
-            group?.let {
-                for (i in 0 until it.childCount) {
-                    val messageView = it.getChildAt(i)
-                    if (messageView is TextView) {
-                        messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
-                    }
-                }
+            if (timePassed <= MIN_TOAST_INTERVAL) {
+                Timber.d("Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
+                return
             }
             
-            toast.show()
-        } catch (e: Exception) {
-            // Если что-то пошло не так, показываем обычный Toast
-            Toast.makeText(this, message, duration).show()
+            // Если Toast уже отображается, пропускаем
+            if (isToastShowing) {
+                Timber.d("Пропуск Toast - другое сообщение уже отображается")
+                return
+            }
+            
+            try {
+                // Обновляем время последнего показа этого сообщения
+                lastMessageTime[message] = currentTime
+                
+                // Устанавливаем флаг
+                isToastShowing = true
+                
+                val toast = Toast.makeText(this, message, duration)
+                toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
+                
+                // Получаем View из Toast для установки дополнительных параметров
+                val group = toast.view as ViewGroup?
+                group?.let {
+                    for (i in 0 until it.childCount) {
+                        val messageView = it.getChildAt(i)
+                        if (messageView is TextView) {
+                            messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+                        }
+                    }
+                }
+                
+                // Добавляем callback для сброса флага
+                toast.addCallback(object : Toast.Callback() {
+                    override fun onToastHidden() {
+                        super.onToastHidden()
+                        isToastShowing = false
+                    }
+                })
+                
+                toast.show()
+                
+                // Запускаем очистку через двойной интервал
+                Handler(Looper.getMainLooper()).postDelayed({
+                    lastMessageTime.remove(message)
+                }, MIN_TOAST_INTERVAL * 2)
+            } catch (e: Exception) {
+                // Если что-то пошло не так, показываем обычный Toast
+                isToastShowing = true
+                val toast = Toast.makeText(this, message, duration)
+                toast.addCallback(object : Toast.Callback() {
+                    override fun onToastHidden() {
+                        super.onToastHidden()
+                        isToastShowing = false
+                    }
+                })
+                toast.show()
+            }
         }
     }
 

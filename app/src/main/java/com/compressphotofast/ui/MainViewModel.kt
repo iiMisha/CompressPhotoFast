@@ -39,6 +39,8 @@ import android.widget.Toast
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.TextView
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * Модель представления для главного экрана
@@ -72,6 +74,18 @@ class MainViewModel @Inject constructor(
     
     // Job для отслеживания текущей обработки
     private var processingJob: kotlinx.coroutines.Job? = null
+    
+    // Карта для отслеживания времени последнего показа конкретного сообщения
+    private val lastMessageTime = ConcurrentHashMap<String, Long>()
+    
+    // Минимальный интервал между показом Toast (мс)
+    private val MIN_TOAST_INTERVAL = 3000L
+
+    // Флаг, указывающий что Toast в процессе отображения
+    private var isToastShowing = false
+
+    // Блокировка для синхронизации доступа к обработке Toast
+    private val toastLock = ReentrantLock()
     
     init {
         // Загрузить сохраненный уровень сжатия
@@ -551,29 +565,74 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Показывает Toast в верхней части экрана
+     * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showTopToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
         Handler(Looper.getMainLooper()).post {
-            try {
-                val toast = Toast.makeText(context, message, duration)
-                toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
+            synchronized(toastLock) {
+                // Проверяем, не показывали ли мы недавно это сообщение
+                val lastTime = lastMessageTime[message] ?: 0L
+                val currentTime = System.currentTimeMillis()
+                val timePassed = currentTime - lastTime
                 
-                // Получаем View из Toast для установки дополнительных параметров
-                val group = toast.view as ViewGroup?
-                group?.let {
-                    for (i in 0 until it.childCount) {
-                        val messageView = it.getChildAt(i)
-                        if (messageView is TextView) {
-                            messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
-                        }
-                    }
+                if (timePassed <= MIN_TOAST_INTERVAL) {
+                    Timber.d("Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
+                    return@synchronized
                 }
                 
-                toast.show()
-            } catch (e: Exception) {
-                // Если что-то пошло не так, показываем обычный Toast
-                Toast.makeText(context, message, duration).show()
+                // Если Toast уже отображается, пропускаем
+                if (isToastShowing) {
+                    Timber.d("Пропуск Toast - другое сообщение уже отображается")
+                    return@synchronized
+                }
+                
+                try {
+                    // Обновляем время последнего показа этого сообщения
+                    lastMessageTime[message] = currentTime
+                    
+                    // Устанавливаем флаг
+                    isToastShowing = true
+                    
+                    val toast = Toast.makeText(context, message, duration)
+                    toast.setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL or Gravity.FILL_HORIZONTAL, 0, 50)
+                    
+                    // Получаем View из Toast для установки дополнительных параметров
+                    val group = toast.view as ViewGroup?
+                    group?.let {
+                        for (i in 0 until it.childCount) {
+                            val messageView = it.getChildAt(i)
+                            if (messageView is TextView) {
+                                messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+                            }
+                        }
+                    }
+                    
+                    // Добавляем callback для сброса флага
+                    toast.addCallback(object : Toast.Callback() {
+                        override fun onToastHidden() {
+                            super.onToastHidden()
+                            isToastShowing = false
+                        }
+                    })
+                    
+                    toast.show()
+                    
+                    // Запускаем очистку через двойной интервал
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        lastMessageTime.remove(message)
+                    }, MIN_TOAST_INTERVAL * 2)
+                } catch (e: Exception) {
+                    // Если что-то пошло не так, показываем обычный Toast
+                    isToastShowing = true
+                    val toast = Toast.makeText(context, message, duration)
+                    toast.addCallback(object : Toast.Callback() {
+                        override fun onToastHidden() {
+                            super.onToastHidden()
+                            isToastShowing = false
+                        }
+                    })
+                    toast.show()
+                }
             }
         }
     }
