@@ -23,6 +23,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.Collections
+import java.util.HashMap
 
 /**
  * Утилитарный класс для работы с файлами
@@ -32,6 +34,13 @@ object FileUtil {
     private val saveMutex = Mutex()
     private val processedUris = mutableSetOf<String>()
     private val processedFileNames = mutableMapOf<String, Uri>()
+    
+    // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
+    private val exifCheckCache = Collections.synchronizedMap(HashMap<String, Boolean>())
+    // Время жизни кэша EXIF (5 минут)
+    private val exifCacheExpiration = 5 * 60 * 1000L
+    // Время последнего обновления кэша
+    private val exifCacheTimestamps = Collections.synchronizedMap(HashMap<String, Long>())
 
     // Константы для EXIF маркировки
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
@@ -100,6 +109,22 @@ object FileUtil {
      */
     suspend fun isCompressedByExif(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
+            val uriString = uri.toString()
+            
+            // Проверяем кэш
+            val cachedResult = exifCheckCache[uriString]
+            val lastChecked = exifCacheTimestamps[uriString] ?: 0L
+            val isCacheValid = cachedResult != null && (System.currentTimeMillis() - lastChecked < exifCacheExpiration)
+            
+            if (isCacheValid) {
+                val isCompressed = cachedResult ?: false
+                if (isCompressed) {
+                    Timber.d("Изображение по URI $uri уже сжато (из кэша)")
+                }
+                return@withContext isCompressed
+            }
+            
+            // Если нет в кэше или кэш устарел, выполняем проверку
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val exif = ExifInterface(inputStream)
                 
@@ -107,12 +132,20 @@ object FileUtil {
                 val userComment = exif.getAttribute(EXIF_USER_COMMENT)
                 val isCompressed = userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true
                 
+                // Кэшируем результат
+                exifCheckCache[uriString] = isCompressed
+                exifCacheTimestamps[uriString] = System.currentTimeMillis()
+                
                 if (isCompressed) {
                     Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
                 }
                 
                 return@withContext isCompressed
             }
+            
+            // Если не удалось открыть поток, сохраняем отрицательный результат в кэше
+            exifCheckCache[uriString] = false
+            exifCacheTimestamps[uriString] = System.currentTimeMillis()
             
             return@withContext false
         } catch (e: Exception) {
@@ -260,11 +293,16 @@ object FileUtil {
                 
                 // Добавляем маркер сжатия в EXIF метаданные
                 try {
-                    val quality = 85 // Значение по умолчанию
+                    // Получаем значение качества из настроек
+                    val quality = getCompressionQuality(context)
                     markCompressedImage(context, uri, quality)
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при добавлении EXIF маркера: ${e.message}")
                 }
+                
+                // Добавляем URI в кэш обработанных изображений
+                exifCheckCache[uri.toString()] = true
+                exifCacheTimestamps[uri.toString()] = System.currentTimeMillis()
                 
                 return@withContext Pair(uri, deleteIntentSender)
             }
@@ -929,6 +967,14 @@ object FileUtil {
         } else {
             Constants.SAVE_MODE_SEPARATE
         }
+    }
+
+    /**
+     * Получает уровень качества сжатия из настроек
+     */
+    fun getCompressionQuality(context: Context): Int {
+        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
     }
 
     /**

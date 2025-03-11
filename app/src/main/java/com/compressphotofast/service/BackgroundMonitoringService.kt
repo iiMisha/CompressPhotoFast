@@ -53,6 +53,25 @@ class BackgroundMonitoringService : Service() {
     // Набор URI, которые в данный момент находятся в обработке
     private val processingUris = Collections.synchronizedSet(HashSet<String>())
     
+    // Система для предотвращения дублирования событий от ContentObserver
+    private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
+    private val contentObserverDebounceTime = 500L // 500мс для дедупликации событий
+    
+    // Кэш информации о файлах, чтобы не запрашивать повторно
+    private val fileInfoCache = Collections.synchronizedMap(HashMap<String, FileInfo>())
+    private val fileInfoCacheExpiration = 5 * 60 * 1000L // 5 минут
+    
+    // Хранит базовую информацию о файле
+    private data class FileInfo(
+        val id: Long,
+        val name: String,
+        val size: Long,
+        val date: Long,
+        val mime: String,
+        val path: String,
+        val timestamp: Long = System.currentTimeMillis()
+    )
+    
     // Таймаут для обработки изображения (мс)
     private val processingTimeout = 30000L // 30 секунд
     
@@ -293,10 +312,31 @@ class BackgroundMonitoringService : Service() {
                 super.onChange(selfChange, uri)
                 
                 uri?.let {
-                    Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri")
-                    
                     // Проверяем, что это новое изображение с базовой фильтрацией
                     if (it.toString().contains("media") && it.toString().contains("image")) {
+                        // Предотвращаем дублирование событий для одного URI за короткий период времени
+                        val uriString = it.toString()
+                        val currentTime = System.currentTimeMillis()
+                        val lastObservedTime = recentlyObservedUris[uriString]
+                        
+                        if (lastObservedTime != null && (currentTime - lastObservedTime < contentObserverDebounceTime)) {
+                            // Если URI был недавно обработан, пропускаем его
+                            return
+                        }
+                        
+                        // Обновляем время последнего наблюдения
+                        recentlyObservedUris[uriString] = currentTime
+                        
+                        // Удаляем старые записи (старше 5 секунд)
+                        val urisToRemove = recentlyObservedUris.entries
+                            .filter { (currentTime - it.value) > 5000 }
+                            .map { it.key }
+                        
+                        urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
+                        
+                        // Логируем событие
+                        Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri")
+                        
                         executorService.execute {
                             kotlinx.coroutines.runBlocking {
                                 processNewImage(it)
@@ -530,6 +570,18 @@ class BackgroundMonitoringService : Service() {
      */
     private fun logDetailedFileInfo(uri: Uri) {
         try {
+            val uriString = uri.toString()
+            
+            // Проверяем кэш
+            val cachedInfo = fileInfoCache[uriString]
+            if (cachedInfo != null && (System.currentTimeMillis() - cachedInfo.timestamp < fileInfoCacheExpiration)) {
+                // Используем кэшированную информацию
+                Timber.d("BackgroundMonitoringService: Информация о файле (из кэша): ID=${cachedInfo.id}, Имя=${cachedInfo.name}, Размер=${cachedInfo.size}, Дата=${cachedInfo.date}, MIME=${cachedInfo.mime}, URI=$uri")
+                Timber.d("BackgroundMonitoringService: Путь к файлу: ${cachedInfo.path}")
+                return
+            }
+            
+            // Если нет в кэше или кэш устарел, запрашиваем информацию
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
@@ -558,10 +610,14 @@ class BackgroundMonitoringService : Service() {
                     val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
                     val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
                     
-                    Timber.d("BackgroundMonitoringService: Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
-                    
                     // Получаем путь к файлу
-                    val path = FileUtil.getFilePathFromUri(applicationContext, uri)
+                    val path = FileUtil.getFilePathFromUri(applicationContext, uri) ?: "неизвестно"
+                    
+                    // Кэшируем полученную информацию
+                    val fileInfo = FileInfo(id, name, size, date, mime, path)
+                    fileInfoCache[uriString] = fileInfo
+                    
+                    Timber.d("BackgroundMonitoringService: Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
                     Timber.d("BackgroundMonitoringService: Путь к файлу: $path")
                 }
             }

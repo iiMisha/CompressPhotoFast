@@ -158,10 +158,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 savedUri?.let {
                     Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                     
-                    // Добавляем EXIF маркер сжатия в сохраненный файл
-                    val quality = compressionQuality
-                    FileUtil.markCompressedImage(context, it, quality)
-                    
                     // Отправляем broadcast о завершении сжатия
                     sendCompletionBroadcast(
                         fileName = fileName,
@@ -788,10 +784,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Добавляем URI в список обработанных
             savedUri?.let {
                 Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
-                
-                // Добавляем EXIF маркер сжатия в сохраненный файл
-                val quality = compressionQuality
-                FileUtil.markCompressedImage(context, it, quality)
                 
                 // Отправляем broadcast о завершении сжатия
                 sendCompletionBroadcast(
