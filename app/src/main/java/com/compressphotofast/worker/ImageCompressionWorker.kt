@@ -181,8 +181,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Показываем уведомление о завершении сжатия только если было достаточное сжатие
                 showCompletionNotification(fileName, originalSize, compressedSize, sizeReduction)
                 
-                // Помечаем изображение как обработанное
-                StatsTracker.addProcessedImage(context, imageUri)
+                // Не помечаем оригинальный URI как обработанный, так как файл мог быть заменен
+                // StatsTracker.addProcessedImage(context, imageUri)
                 
                 Timber.d("Изображение успешно сжато и сохранено")
                 

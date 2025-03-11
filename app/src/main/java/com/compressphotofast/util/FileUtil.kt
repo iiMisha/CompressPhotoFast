@@ -1009,32 +1009,32 @@ object FileUtil {
     }
 
     /**
-     * Ожидает, пока файл станет доступным
+     * Ожидает, пока файл станет доступным, используя таймер
      */
     suspend fun waitForFileAvailability(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val maxAttempts = 10
-        val delayMs = 200L
-
-        repeat(maxAttempts) { attempt ->
+        val maxWaitTimeMs = 2000L // Максимальное время ожидания: 2 секунды
+        val checkIntervalMs = 300L // Интервал проверки: 300 мс
+        val startTime = System.currentTimeMillis()
+        
+        while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
             // Проверяем размер файла
             val size = getFileSize(context, uri)
-            if (size <= 0) {
-                Timber.d("Файл недоступен (попытка ${attempt + 1}/$maxAttempts): размер = $size")
-                delay(delayMs)
-                return@repeat
+            if (size > 0 && !isFilePending(context, uri)) {
+                // Файл доступен
+                return@withContext true
             }
-
-            // Проверяем, не является ли файл временным
-            if (isFilePending(context, uri)) {
-                Timber.d("Файл временно недоступен (попытка ${attempt + 1}/$maxAttempts)")
-                delay(delayMs)
-                return@repeat
-            }
-
-            return@withContext true
+            
+            // Файл недоступен, логируем и ждем
+            val elapsedTime = System.currentTimeMillis() - startTime
+            val remainingTime = maxWaitTimeMs - elapsedTime
+            Timber.d("Файл недоступен (прошло ${elapsedTime}мс, осталось ${remainingTime}мс): размер = $size")
+            
+            // Ждем следующую проверку
+            delay(checkIntervalMs)
         }
-
-        false
+        
+        Timber.d("Файл не стал доступен после ${maxWaitTimeMs}мс ожидания")
+        return@withContext false
     }
 
     /**
