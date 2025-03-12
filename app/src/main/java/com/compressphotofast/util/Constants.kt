@@ -43,8 +43,8 @@ object Constants {
     
     // Настройки сжатия
     const val COMPRESSION_QUALITY_LOW = 50
-    const val COMPRESSION_QUALITY_MEDIUM = 65
-    const val COMPRESSION_QUALITY_HIGH = 80
+    const val COMPRESSION_QUALITY_MEDIUM = 70
+    const val COMPRESSION_QUALITY_HIGH = 85
     const val MAX_IMAGE_WIDTH = 1920
     const val MAX_IMAGE_HEIGHT = 1080
     
