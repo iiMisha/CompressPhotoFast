@@ -119,24 +119,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 Timber.d("Результат сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
                 
-                // Проверяем, есть ли достаточное сокращение размера
-                // Если меньше 10%, пропускаем сохранение
-                if (sizeReduction < 10) {
-                    Timber.d("Недостаточное сжатие (${String.format("%.1f", sizeReduction)}%), пропускаем файл")
-                    
-                    // Удаляем временный файл
-                    if (!tempFile.delete()) {
-                        Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
-                    } else {
-                        Timber.d("Временный файл удален")
-                    }
-                    
-                    // Обновляем статус при успешном сжатии
-                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
-                    
-                    return@withContext Result.success()
-                }
-                
                 // Получаем имя файла из URI
                 val fileName = FileUtil.getFileNameFromUri(context, imageUri) ?: "unknown"
                 Timber.d("Имя исходного файла: $fileName")
@@ -567,13 +549,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             return
         }
         
-        // Проверяем, есть ли достаточное сокращение размера
-        // Если меньше 10%, не отправляем уведомление
-        if (sizeReduction < 10) {
-            Timber.d("Пропуск отправки бродкаста: недостаточное сжатие (${String.format("%.1f", sizeReduction)}%)")
-            return
-        }
-        
         // Логируем отправку
         Timber.d("Отправка broadcast о завершении сжатия: Файл=$fileName, URI=$uriString")
         
@@ -763,12 +738,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             val sizeReduction = if (stats.originalSize > 0) {
                 ((stats.originalSize - stats.compressedSize).toFloat() / stats.originalSize) * 100
             } else 0f
-            
-            // Проверяем, есть ли достаточное сокращение размера
-            if (sizeReduction < 10) {
-                Timber.d("Недостаточное сжатие (${String.format("%.1f", sizeReduction)}%), пропускаем сохранение")
-                return@withContext false
-            }
             
             // Создаем имя файла для сжатой версии
             val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
