@@ -50,6 +50,8 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.TextView
 import kotlinx.coroutines.async
+import com.compressphotofast.util.IPermissionsManager
+import com.compressphotofast.util.PermissionsManager
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -57,6 +59,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
     private lateinit var prefs: SharedPreferences
+    private lateinit var permissionsManager: IPermissionsManager
     
     // Запуск выбора изображения
     private val selectImageLauncher = registerForActivityResult(
@@ -322,6 +325,9 @@ class MainActivity : AppCompatActivity() {
         // Инициализация ViewBinding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        // Инициализация менеджера разрешений
+        permissionsManager = PermissionsManager(this)
         
         // Обрабатываем действие остановки
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
@@ -650,107 +656,28 @@ class MainActivity : AppCompatActivity() {
      * Показывает диалог с объяснением необходимости полного доступа к файловой системе
      */
     private fun showStoragePermissionDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.dialog_storage_permission_title)
-            .setMessage(R.string.dialog_storage_permission_message)
-            .setPositiveButton(R.string.dialog_ok) { _, _ ->
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                    intent.addCategory("android.intent.category.DEFAULT")
-                    intent.data = Uri.parse("package:${applicationContext.packageName}")
-                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
-                } catch (e: Exception) {
-                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
-                }
-            }
-            .setNegativeButton(R.string.dialog_skip) { _, _ ->
-                // Продолжаем запрос других разрешений
-                requestOtherPermissions()
-            }
-            .setCancelable(false)
-            .create()
-            .show()
+        permissionsManager.showStoragePermissionDialog { initializeBackgroundServices() }
     }
 
     /**
      * Запрашивает остальные разрешения (кроме MANAGE_EXTERNAL_STORAGE)
      */
     private fun requestOtherPermissions() {
-        val permissions = mutableListOf<String>()
-
-        // Разрешения для Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
-            }
-            
-            if (!hasNotificationPermission()) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
-            }
-        } 
-        // Разрешения для Android 12 и ниже
-        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
-
-        if (permissions.isNotEmpty()) {
-            Timber.d("Запрашиваем разрешения: ${permissions.joinToString()}")
-            
-            // Увеличиваем счетчик попыток запроса разрешений
-            val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-            val permissionRequestCount = prefs.getInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
-            prefs.edit().putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, permissionRequestCount + 1).apply()
-            
-            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
-        } else {
-            Timber.d("Все необходимые разрешения уже предоставлены")
-            initializeBackgroundServices()
-        }
+        permissionsManager.requestOtherPermissions { initializeBackgroundServices() }
     }
 
     /**
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
-        // Проверяем, был ли ранее пропущен запрос разрешений пользователем
-        val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        val permissionSkipped = prefs.getBoolean(Constants.PREF_PERMISSION_SKIPPED, false)
-        val permissionRequestCount = prefs.getInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
-        
-        // Если пользователь уже 3 раза отказал или пропустил запрос, не показываем больше
-        if (permissionSkipped || permissionRequestCount >= 3) {
-            Timber.d("Запрос разрешений был пропущен или превышено количество попыток, не запрашиваем снова")
-            initializeBackgroundServices()
-            return
-        }
-        
-        // Разрешение на управление всеми файлами (Android 11+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                showStoragePermissionDialog()
-                return
-            }
-        }
-
-        // Запрашиваем остальные разрешения
-        requestOtherPermissions()
+        permissionsManager.checkAndRequestAllPermissions { initializeBackgroundServices() }
     }
 
     /**
      * Проверка разрешения на отправку уведомлений
      */
     private fun hasNotificationPermission(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        }
-        return true // На более старых версиях Android разрешение не требуется
+        return permissionsManager.hasNotificationPermission()
     }
 
     /**
@@ -763,124 +690,50 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            
-            if (allGranted) {
-                Timber.d("Все запрошенные разрешения получены")
-                initializeBackgroundServices()
-            } else {
-                Timber.d("Не все разрешения были предоставлены")
-                
-                // Получаем доступ к SharedPreferences
-                val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-                
-                // Проверяем, было ли отклонено разрешение на уведомления
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val notificationPermissionIndex = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
-                    if (notificationPermissionIndex != -1 && grantResults[notificationPermissionIndex] != PackageManager.PERMISSION_GRANTED) {
-                        Timber.d("Разрешение на уведомления было отклонено")
-                        
-                        // Проверяем, можно ли повторно показать запрос
-                        if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                            showNotificationPermissionExplanation()
-                        } else {
-                            Timber.d("Пользователь выбрал 'больше не спрашивать' для уведомлений")
-                            prefs.edit().putBoolean(Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
-                            initializeBackgroundServices()
-                        }
-                    } else {
-                        // Обработка других отклоненных разрешений
-                        val storagePermissionDenied = permissions.any {
-                            (it == Manifest.permission.READ_MEDIA_IMAGES || 
-                             it == Manifest.permission.READ_EXTERNAL_STORAGE || 
-                             it == Manifest.permission.WRITE_EXTERNAL_STORAGE) &&
-                            !shouldShowRequestPermissionRationale(it)
-                        }
-                        
-                        if (storagePermissionDenied) {
-                            Timber.d("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
-                            prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
-                            initializeBackgroundServices()
-                        } else {
-                            showPermissionExplanationDialog()
-                        }
-                    }
-                } else {
-                    // Для более старых версий Android - проверяем STORAGE разрешения
-                    val storagePermissionDenied = permissions.any {
-                        (it == Manifest.permission.READ_EXTERNAL_STORAGE || 
-                         it == Manifest.permission.WRITE_EXTERNAL_STORAGE) &&
-                        !shouldShowRequestPermissionRationale(it)
-                    }
-                    
-                    if (storagePermissionDenied) {
-                        Timber.d("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
-                        prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
-                        initializeBackgroundServices()
-                    } else {
-                        showPermissionExplanationDialog()
-                    }
-                }
-            }
-        }
+        permissionsManager.handlePermissionResult(
+            requestCode,
+            permissions,
+            grantResults,
+            onAllGranted = { initializeBackgroundServices() },
+            onSomePermissionsDenied = { /* Ничего не делаем, т.к. это обрабатывается внутри handlePermissionResult */ }
+        )
     }
 
     /**
      * Показывает объяснение о необходимости разрешения на уведомления
      */
     private fun showNotificationPermissionExplanation() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.dialog_notification_permission_title)
-            .setMessage(R.string.dialog_notification_permission_message)
-            .setPositiveButton(R.string.dialog_ok) { _, _ ->
-                // Повторный запрос разрешения
+        permissionsManager.showNotificationPermissionExplanation(
+            onRetry = { 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     ActivityCompat.requestPermissions(
                         this,
                         arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        PERMISSION_REQUEST_CODE
+                        PermissionsManager.PERMISSION_REQUEST_CODE
                     )
                 }
-            }
-            .setNegativeButton(R.string.dialog_skip) { _, _ ->
-                // Запоминаем, что пользователь решил пропустить разрешение на уведомления
-                prefs.edit().putBoolean(Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
-                
-                // Продолжаем без разрешения на уведомления
+            },
+            onSkip = {
                 initializeBackgroundServices()
-                
                 // Показываем toast о том, что уведомления не будут отображаться
-                showTopToast(
-                    "Уведомления о завершении сжатия не будут отображаться"
-                )
+                showTopToast("Уведомления о завершении сжатия не будут отображаться")
             }
-            .create()
-            .show()
+        )
     }
 
     /**
      * Показать диалог с объяснением необходимости разрешений
      */
     private fun showPermissionExplanationDialog() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.dialog_permission_title)
-            .setMessage(R.string.dialog_permission_message)
-            .setPositiveButton(R.string.dialog_ok) { _, _ -> checkAndRequestPermissions() }
-            .setNegativeButton(R.string.dialog_skip) { _, _ -> 
-                // Запоминаем, что пользователь решил пропустить запрос разрешений
-                prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
-                
-                // Продолжаем инициализацию сервисов даже без разрешений
+        permissionsManager.showPermissionExplanationDialog(
+            IPermissionsManager.PermissionType.ALL,
+            onRetry = { checkAndRequestPermissions() },
+            onSkip = {
                 initializeBackgroundServices()
-                
                 // Показываем toast о том, что функциональность может быть ограничена
-                showTopToast(
-                    "Функциональность приложения может быть ограничена без необходимых разрешений"
-                )
+                showTopToast("Функциональность приложения может быть ограничена без необходимых разрешений")
             }
-            .create()
-            .show()
+        )
     }
 
     /**
@@ -1202,6 +1055,12 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         
+        permissionsManager.handleActivityResult(
+            requestCode,
+            resultCode,
+            onSuccess = { initializeBackgroundServices() }
+        )
+        
         when (requestCode) {
             Constants.REQUEST_CODE_DELETE_FILE -> {
                 if (FileUtil.handleDeleteFileRequest(resultCode)) {
@@ -1270,7 +1129,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val PERMISSION_REQUEST_CODE = 100
-        private const val REQUEST_MANAGE_EXTERNAL_STORAGE = 101
+        // Удаляем дублирующиеся константы, т.к. они теперь в PermissionsManager
+        // Оставляем остальные константы
     }
 } 
