@@ -770,7 +770,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupCompressionQualityRadioButtons() {
         val currentQuality = viewModel.getCompressionQuality()
-        Timber.d("★★★ Начальное качество сжатия: $currentQuality")
         
         // Выбираем соответствующую радиокнопку
         when (currentQuality) {
@@ -782,20 +781,14 @@ class MainActivity : AppCompatActivity() {
         // Устанавливаем обработчики событий
         binding.rbQualityLow.setOnClickListener {
             viewModel.setCompressionPreset(CompressionPreset.LOW)
-            Timber.d("★★★ Установлено LOW качество (${Constants.COMPRESSION_QUALITY_LOW})")
-            showTopToast("Установлено низкое качество: ${Constants.COMPRESSION_QUALITY_LOW}")
         }
         
         binding.rbQualityMedium.setOnClickListener {
             viewModel.setCompressionPreset(CompressionPreset.MEDIUM)
-            Timber.d("★★★ Установлено MEDIUM качество (${Constants.COMPRESSION_QUALITY_MEDIUM})")
-            showTopToast("Установлено среднее качество: ${Constants.COMPRESSION_QUALITY_MEDIUM}")
         }
         
         binding.rbQualityHigh.setOnClickListener {
             viewModel.setCompressionPreset(CompressionPreset.HIGH)
-            Timber.d("★★★ Установлено HIGH качество (${Constants.COMPRESSION_QUALITY_HIGH})")
-            showTopToast("Установлено высокое качество: ${Constants.COMPRESSION_QUALITY_HIGH}")
         }
         
         // Добавим проверку для сжатия изображений
@@ -804,14 +797,12 @@ class MainActivity : AppCompatActivity() {
             val sharedPrefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
             val savedQ = sharedPrefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
             
-            Timber.d("★★★ Проверка качества: ViewModel=$currentQ, SharedPrefs=$savedQ")
-            showTopToast("Текущее качество: ViewModel=$currentQ, SharedPrefs=$savedQ")
             true
         }
         
         // Наблюдаем за изменениями качества сжатия
         viewModel.compressionQuality.observe(this) { quality ->
-            Timber.d("★★★ Обновление качества в LiveData: $quality")
+            Timber.d("Установлено качество сжатия: $quality")
             when (quality) {
                 Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
                 Constants.COMPRESSION_QUALITY_MEDIUM -> binding.rbQualityMedium.isChecked = true
