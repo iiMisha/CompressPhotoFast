@@ -1079,7 +1079,7 @@ object FileUtil {
      * Ожидает, пока файл станет доступным, используя таймер
      */
     suspend fun waitForFileAvailability(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val maxWaitTimeMs = 2000L // Максимальное время ожидания: 2 секунды
+        val maxWaitTimeMs = 5000L // Максимальное время ожидания: 5 секунд
         val checkIntervalMs = 300L // Интервал проверки: 300 мс
         val startTime = System.currentTimeMillis()
         
