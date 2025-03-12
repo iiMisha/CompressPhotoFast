@@ -560,26 +560,6 @@ object FileUtil {
     }
     
     /**
-     * Проверяет, поддерживается ли тег EXIF в текущей версии Android
-     * 
-     * @param tag название тега
-     * @return true если тег существует в ExifInterface, false в противном случае
-     */
-    private fun isExifTagAvailable(tag: String): Boolean {
-        return try {
-            // Пытаемся получить доступ к полю через рефлексию
-            ExifInterface::class.java.getField(tag)
-            true
-        } catch (e: NoSuchFieldException) {
-            Timber.d("EXIF тег $tag не поддерживается в текущей версии Android")
-            false
-        } catch (e: Exception) {
-            Timber.d("Ошибка при проверке EXIF тега $tag: ${e.message}")
-            false
-        }
-    }
-
-    /**
      * Общий метод для копирования тегов EXIF между двумя объектами ExifInterface
      */
     private fun copyExifTags(sourceExif: ExifInterface, destExif: ExifInterface) {

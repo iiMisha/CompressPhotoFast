@@ -106,11 +106,11 @@ class MainActivity : AppCompatActivity() {
     // Карта для отслеживания времени последнего уведомления для URI
     private val lastNotificationTime = ConcurrentHashMap<String, Long>()
     
-    // Карта для отслеживания времени последнего показа конкретного сообщения
-    private val lastMessageTime = ConcurrentHashMap<String, Long>()
-    
     // Минимальный интервал между показом Toast для одного URI (мс)
     private val MIN_TOAST_INTERVAL = 3000L
+
+    // Карта для отслеживания времени последнего показа конкретного сообщения
+    private val lastMessageTime = ConcurrentHashMap<String, Long>()
 
     // Флаг, указывающий что Toast в процессе отображения
     private var isToastShowing = false

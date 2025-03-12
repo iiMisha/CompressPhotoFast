@@ -37,6 +37,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
 import android.content.pm.ServiceInfo
+import com.compressphotofast.util.TempFilesCleaner
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -818,25 +819,6 @@ class BackgroundMonitoringService : Service() {
      * Очистка старых временных файлов
      */
     private fun cleanupTempFiles() {
-        try {
-            val cacheDir = applicationContext.cacheDir
-            val currentTime = System.currentTimeMillis()
-            val files = cacheDir.listFiles { file ->
-                file.name.startsWith("temp_image_") && 
-                (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
-            }
-            
-            files?.forEach { file ->
-                if (!file.delete()) {
-                    Timber.w("Не удалось удалить старый временный файл: ${file.absolutePath}")
-                } else {
-                    Timber.d("Удален старый временный файл: ${file.absolutePath}")
-                }
-            }
-            
-            Timber.d("Очистка временных файлов завершена, обработано файлов: ${files?.size ?: 0}")
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при очистке временных файлов")
-        }
+        TempFilesCleaner.cleanupTempFiles(applicationContext)
     }
 } 

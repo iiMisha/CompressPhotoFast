@@ -117,12 +117,4 @@ object StatsTracker {
         urisBeingProcessedByMainActivity.remove(uriString)
         Timber.d("Снята регистрация URI для обработки через MainActivity: $uriString")
     }
-    
-    /**
-     * Отмечает изображение как обработанное
-     * Метод для обратной совместимости
-     */
-    fun markImageAsProcessed(context: Context, uri: Uri) {
-        addProcessedImage(context, uri)
-    }
 } 

@@ -299,7 +299,7 @@ class ImageDetectionJobService : JobService() {
         Timber.d("ImageDetectionJobService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
 
         // Отмечаем изображение как обработанное
-        StatsTracker.markImageAsProcessed(applicationContext, uri)
+        StatsTracker.addProcessedImage(applicationContext, uri)
         Timber.d("ImageDetectionJobService: изображение отмечено как обработанное: $uri")
     }
 
