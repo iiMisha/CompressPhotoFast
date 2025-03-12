@@ -535,7 +535,8 @@ class BackgroundMonitoringService : Service() {
             
             // Получаем имя файла и качество сжатия
             val fileName = FileUtil.getFileNameFromUri(applicationContext, uri)
-            val compressionQuality = Constants.DEFAULT_COMPRESSION_QUALITY
+            val compressionQuality = applicationContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
             
             // Создаем уникальный тег для работы
             val workTag = "compress_${System.currentTimeMillis()}_${fileName}"

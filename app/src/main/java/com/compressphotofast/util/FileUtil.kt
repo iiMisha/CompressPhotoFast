@@ -55,18 +55,31 @@ object FileUtil {
      */
     suspend fun markCompressedImage(filePath: String, quality: Int): Boolean = withContext(Dispatchers.IO) {
         try {
+            Timber.d("★★★ Добавляем EXIF маркер сжатия в файл: $filePath с качеством: $quality")
+            
             val exif = ExifInterface(filePath)
+            
+            // Проверяем текущее значение UserComment перед изменением
+            val oldUserComment = exif.getAttribute(EXIF_USER_COMMENT)
+            Timber.d("★★★ Текущий EXIF маркер для $filePath: $oldUserComment")
             
             // Добавляем маркер сжатия и уровень компрессии в один тег UserComment
             val markerWithQuality = "${EXIF_COMPRESSION_MARKER}:$quality"
+            Timber.d("★★★ Устанавливаем новый маркер: $markerWithQuality")
             exif.setAttribute(EXIF_USER_COMMENT, markerWithQuality)
             
             // Сохраняем EXIF данные
+            Timber.d("★★★ Сохраняем EXIF атрибуты")
             exif.saveAttributes()
-            Timber.d("EXIF маркер сжатия добавлен в файл: $filePath с качеством: $quality")
+            
+            // Проверяем, что маркер был установлен правильно
+            val newExif = ExifInterface(filePath)
+            val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
+            Timber.d("★★★ EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality. Записанное значение: $newUserComment")
+            
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия: ${e.message}")
+            Timber.e(e, "★★★ Ошибка при добавлении EXIF маркера сжатия: ${e.message}")
             return@withContext false
         }
     }
@@ -82,6 +95,14 @@ object FileUtil {
         try {
             val pfd = context.contentResolver.openFileDescriptor(uri, "rw") ?: return@withContext false
             
+            // Сначала проверяем текущее значение UserComment
+            var oldUserComment: String? = null
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val oldExif = ExifInterface(inputStream)
+                oldUserComment = oldExif.getAttribute(EXIF_USER_COMMENT)
+            }
+            Timber.d("Текущий EXIF маркер для $uri: $oldUserComment")
+            
             pfd.use { fileDescriptor ->
                 val exif = ExifInterface(fileDescriptor.fileDescriptor)
                 
@@ -91,7 +112,13 @@ object FileUtil {
                 
                 // Сохраняем EXIF данные
                 exif.saveAttributes()
-                Timber.d("EXIF маркер сжатия добавлен в URI: $uri с качеством: $quality")
+            }
+            
+            // Проверяем, что маркер был установлен правильно
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val newExif = ExifInterface(inputStream)
+                val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
+                Timber.d("EXIF маркер сжатия установлен в URI: $uri с качеством: $quality. Записанное значение: $newUserComment")
             }
             
             return@withContext true
@@ -180,6 +207,30 @@ object FileUtil {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении уровня компрессии из EXIF: ${e.message}")
             return@withContext null
+        }
+    }
+
+    /**
+     * Верифицирует, что указанный в EXIF уровень компрессии соответствует ожидаемому значению
+     * @param context контекст
+     * @param uri URI изображения
+     * @param expectedQuality ожидаемый уровень качества (0-100)
+     * @return true если уровень компрессии соответствует, false в противном случае
+     */
+    suspend fun verifyExifCompressionLevel(context: Context, uri: Uri, expectedQuality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val actualQuality = getCompressionLevel(context, uri)
+            
+            if (actualQuality == expectedQuality) {
+                Timber.d("Верификация EXIF: уровень компрессии соответствует ожидаемому: $actualQuality")
+                return@withContext true
+            } else {
+                Timber.e("Верификация EXIF: уровень компрессии ($actualQuality) не соответствует ожидаемому ($expectedQuality)")
+                return@withContext false
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при верификации уровня компрессии в EXIF: ${e.message}")
+            return@withContext false
         }
     }
 
@@ -316,6 +367,9 @@ object FileUtil {
                         // Получаем значение качества из настроек
                         val quality = getCompressionQuality(context)
                         markCompressedImage(context, uri, quality)
+                        
+                        // Верифицируем, что уровень компрессии правильно записан в EXIF
+                        verifyExifCompressionLevel(context, uri, quality)
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при добавлении EXIF маркера: ${e.message}")

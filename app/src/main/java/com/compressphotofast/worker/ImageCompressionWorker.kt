@@ -75,6 +75,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             StatsTracker.startTracking(imageUri)
             StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
+            // Логируем переданное качество сжатия для отладки
+            Timber.d("★★★ Используется качество сжатия: $compressionQuality (исходный параметр)")
+            
+            // Получаем качество из настроек для сравнения
+            val settingsQuality = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
+            Timber.d("★★★ Сохраненное в настройках качество: $settingsQuality")
+            
             // Проверяем, обрабатывается ли уже это изображение
             if (isImageAlreadyProcessed(imageUri)) {
                 Timber.d("Изображение уже обработано: $imageUri")
@@ -95,18 +103,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Продолжаем выполнение, так как ошибка может быть временной
             }
             
-            // Получаем параметры компрессии
-            val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
-            
             // Создаем временный файл
             val tempFile = createTempImageFile()
             Timber.d("Создан временный файл: ${tempFile.absolutePath}")
             
             try {
                 // Сжимаем изображение
-                Timber.d("Начало сжатия изображения...")
+                Timber.d("Начало сжатия изображения с качеством: $compressionQuality")
                 compressImage(imageUri, tempFile, compressionQuality)
-                Timber.d("Изображение успешно сжато")
+                Timber.d("Изображение успешно сжато с качеством: $compressionQuality")
                 
                 // Получаем размеры для логирования
                 val originalSize = getFileSize(imageUri)
@@ -398,6 +403,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 throw IOException("Временный входной файл не создан или пуст")
             }
             
+            // Дополнительное логирование перед сжатием для отладки
+            Timber.d("★★★ Сжимаю изображение с параметром качества: $quality")
+            
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
                 quality(quality)
@@ -417,6 +425,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Проверяем EXIF данные после копирования
             logExifDataFromFile(tempFile)
+            
+            // Верифицируем, что указанный уровень компрессии соответствует фактическому
+            verifyCompressionLevel(tempFile, quality)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
             throw e
@@ -460,6 +471,37 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке EXIF данных из файла")
+        }
+    }
+
+    /**
+     * Проверяет, что указанный в EXIF уровень компрессии соответствует фактическому
+     */
+    private fun verifyCompressionLevel(file: File, expectedQuality: Int) {
+        try {
+            Timber.d("★★★ Проверка уровня компрессии в файле: ${file.absolutePath}")
+            Timber.d("★★★ Ожидаемый уровень компрессии: $expectedQuality")
+            
+            val exif = ExifInterface(file.absolutePath)
+            val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+            
+            Timber.d("★★★ Обнаружен EXIF UserComment: $userComment")
+            
+            if (userComment?.startsWith("CompressPhotoFast_Compressed:") == true) {
+                val actualQuality = userComment.substringAfter("CompressPhotoFast_Compressed:").toIntOrNull()
+                
+                Timber.d("★★★ Извлеченный уровень компрессии из EXIF: $actualQuality")
+                
+                if (actualQuality == expectedQuality) {
+                    Timber.d("★★★ Уровень компрессии в EXIF соответствует фактическому: $actualQuality")
+                } else {
+                    Timber.e("★★★ ОШИБКА: уровень компрессии в EXIF ($actualQuality) не соответствует фактическому ($expectedQuality)")
+                }
+            } else {
+                Timber.e("★★★ ОШИБКА: маркер CompressPhotoFast_Compressed не найден в EXIF. UserComment: $userComment")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "★★★ Ошибка при проверке уровня компрессии в EXIF: ${e.message}")
         }
     }
 
