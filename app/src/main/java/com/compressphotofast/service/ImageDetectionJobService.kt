@@ -33,7 +33,6 @@ class ImageDetectionJobService : JobService() {
         private const val JOB_ID = 1000
         private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
         private const val OVERRIDE_DEADLINE_MILLIS = 1000L // Максимальная задержка
-        private const val MAX_FILENAME_LENGTH = 100 // Максимальная длина имени файла
 
         /**
          * Настройка и планирование задания для отслеживания новых изображений

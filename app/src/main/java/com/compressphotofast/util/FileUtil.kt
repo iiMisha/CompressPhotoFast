@@ -55,31 +55,25 @@ object FileUtil {
      */
     suspend fun markCompressedImage(filePath: String, quality: Int): Boolean = withContext(Dispatchers.IO) {
         try {
-            Timber.d("★★★ Добавляем EXIF маркер сжатия в файл: $filePath с качеством: $quality")
-            
             val exif = ExifInterface(filePath)
             
             // Проверяем текущее значение UserComment перед изменением
             val oldUserComment = exif.getAttribute(EXIF_USER_COMMENT)
-            Timber.d("★★★ Текущий EXIF маркер для $filePath: $oldUserComment")
             
             // Добавляем маркер сжатия и уровень компрессии в один тег UserComment
             val markerWithQuality = "${EXIF_COMPRESSION_MARKER}:$quality"
-            Timber.d("★★★ Устанавливаем новый маркер: $markerWithQuality")
             exif.setAttribute(EXIF_USER_COMMENT, markerWithQuality)
             
             // Сохраняем EXIF данные
-            Timber.d("★★★ Сохраняем EXIF атрибуты")
             exif.saveAttributes()
             
             // Проверяем, что маркер был установлен правильно
             val newExif = ExifInterface(filePath)
             val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
-            Timber.d("★★★ EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality. Записанное значение: $newUserComment")
             
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "★★★ Ошибка при добавлении EXIF маркера сжатия: ${e.message}")
+            Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия: ${e.message}")
             return@withContext false
         }
     }

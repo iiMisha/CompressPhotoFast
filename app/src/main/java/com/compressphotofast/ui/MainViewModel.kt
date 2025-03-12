@@ -302,8 +302,6 @@ class MainViewModel @Inject constructor(
             .apply()
         
         _compressionQuality.value = quality
-        
-        Timber.d("Уровень сжатия установлен: $quality")
     }
     
     /**

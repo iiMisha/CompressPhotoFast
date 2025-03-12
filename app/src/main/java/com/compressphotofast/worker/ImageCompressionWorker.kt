@@ -76,12 +76,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
             // Логируем переданное качество сжатия для отладки
-            Timber.d("★★★ Используется качество сжатия: $compressionQuality (исходный параметр)")
+            Timber.d("Используется качество сжатия: $compressionQuality (исходный параметр)")
             
             // Получаем качество из настроек для сравнения
             val settingsQuality = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
                 .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
-            Timber.d("★★★ Сохраненное в настройках качество: $settingsQuality")
+            Timber.d("Сохраненное в настройках качество: $settingsQuality")
             
             // Проверяем, обрабатывается ли уже это изображение
             if (isImageAlreadyProcessed(imageUri)) {
@@ -167,7 +167,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Не помечаем оригинальный URI как обработанный, так как файл мог быть заменен
                 // StatsTracker.addProcessedImage(context, imageUri)
                 
-                Timber.d("Изображение успешно сжато и сохранено")
+                Timber.d("★★★ Изображение успешно сжато и сохранено: ${FileUtil.getFilePathFromUri(context, imageUri)} ★★★")
                 
                 // Обновляем статус при успешном сжатии
                 StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
@@ -404,7 +404,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Дополнительное логирование перед сжатием для отладки
-            Timber.d("★★★ Сжимаю изображение с параметром качества: $quality")
+            Timber.d("Сжимаю изображение с параметром качества: $quality")
             
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
@@ -479,29 +479,22 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun verifyCompressionLevel(file: File, expectedQuality: Int) {
         try {
-            Timber.d("★★★ Проверка уровня компрессии в файле: ${file.absolutePath}")
-            Timber.d("★★★ Ожидаемый уровень компрессии: $expectedQuality")
-            
             val exif = ExifInterface(file.absolutePath)
             val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-            
-            Timber.d("★★★ Обнаружен EXIF UserComment: $userComment")
             
             if (userComment?.startsWith("CompressPhotoFast_Compressed:") == true) {
                 val actualQuality = userComment.substringAfter("CompressPhotoFast_Compressed:").toIntOrNull()
                 
-                Timber.d("★★★ Извлеченный уровень компрессии из EXIF: $actualQuality")
-                
                 if (actualQuality == expectedQuality) {
-                    Timber.d("★★★ Уровень компрессии в EXIF соответствует фактическому: $actualQuality")
+                    Timber.d("Уровень компрессии в EXIF соответствует ожидаемому: $actualQuality")
                 } else {
-                    Timber.e("★★★ ОШИБКА: уровень компрессии в EXIF ($actualQuality) не соответствует фактическому ($expectedQuality)")
+                    Timber.e("Уровень компрессии в EXIF ($actualQuality) не соответствует ожидаемому ($expectedQuality)")
                 }
             } else {
-                Timber.e("★★★ ОШИБКА: маркер CompressPhotoFast_Compressed не найден в EXIF. UserComment: $userComment")
+                Timber.e("Маркер CompressPhotoFast_Compressed не найден в EXIF. UserComment: $userComment")
             }
         } catch (e: Exception) {
-            Timber.e(e, "★★★ Ошибка при проверке уровня компрессии в EXIF: ${e.message}")
+            Timber.e(e, "Ошибка при проверке уровня компрессии в EXIF: ${e.message}")
         }
     }
 
