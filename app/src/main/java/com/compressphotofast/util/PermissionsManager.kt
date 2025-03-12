@@ -65,6 +65,13 @@ class PermissionsManager(
      * @return true если все разрешения уже предоставлены
      */
     override fun checkAndRequestAllPermissions(onPermissionsGranted: () -> Unit): Boolean {
+        // Проверяем, были ли уже предоставлены все разрешения
+        if (hasStoragePermissions()) {
+            Timber.d("Все разрешения уже предоставлены")
+            onPermissionsGranted()
+            return true
+        }
+
         // Проверяем, был ли ранее пропущен запрос разрешений пользователем
         val permissionSkipped = prefs.getBoolean(PREF_PERMISSION_SKIPPED, false)
         val permissionRequestCount = prefs.getInt(PREF_PERMISSION_REQUEST_COUNT, 0)
@@ -215,22 +222,37 @@ class PermissionsManager(
      * Проверка разрешений на доступ к хранилищу
      */
     override fun hasStoragePermissions(): Boolean {
+        // Проверяем сохраненное состояние разрешений
+        val hasStoragePermissionGranted = prefs.getBoolean("has_storage_permission_granted", false)
+        if (hasStoragePermissionGranted) {
+            return true
+        }
+
+        var hasPermissions = false
+        
         // Для Android 11+ проверяем разрешение MANAGE_EXTERNAL_STORAGE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return Environment.isExternalStorageManager()
-        }
-        
+            hasPermissions = Environment.isExternalStorageManager()
+        } 
         // Для Android 13+ проверяем READ_MEDIA_IMAGES
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == 
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasPermissions = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == 
+                    PackageManager.PERMISSION_GRANTED
+        } 
+        // Для более старых версий проверяем READ_EXTERNAL_STORAGE и WRITE_EXTERNAL_STORAGE
+        else {
+            hasPermissions = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) == 
+                    PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == 
                     PackageManager.PERMISSION_GRANTED
         }
-        
-        // Для более старых версий проверяем READ_EXTERNAL_STORAGE и WRITE_EXTERNAL_STORAGE
-        return ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) == 
-                PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == 
-                PackageManager.PERMISSION_GRANTED
+
+        // Сохраняем состояние разрешений
+        if (hasPermissions) {
+            prefs.edit().putBoolean("has_storage_permission_granted", true).apply()
+        }
+
+        return hasPermissions
     }
 
     /**
@@ -327,10 +349,17 @@ class PermissionsManager(
         onSomePermissionsDenied: () -> Unit
     ) {
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            val allGranted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            
-            if (allGranted) {
-                Timber.d("Все запрошенные разрешения получены")
+            // Увеличиваем счетчик запросов разрешений
+            val currentCount = prefs.getInt(PREF_PERMISSION_REQUEST_COUNT, 0)
+            prefs.edit().putInt(PREF_PERMISSION_REQUEST_COUNT, currentCount + 1).apply()
+
+            // Проверяем результаты
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                Timber.d("Все разрешения предоставлены")
+                prefs.edit()
+                    .putBoolean("has_storage_permission_granted", true)
+                    .putBoolean(PREF_PERMISSION_SKIPPED, false)
+                    .apply()
                 onAllGranted()
             } else {
                 Timber.d("Не все разрешения были предоставлены")
