@@ -131,15 +131,15 @@ class MainViewModel @Inject constructor(
                         Timber.d("compressSelectedImage: снимаем регистрацию URI после обработки: $it")
                     }
                     
-                    // Всегда показываем успешный результат независимо от реального результата
+                    // Показываем корректный результат
                     _compressionResult.postValue(
                         CompressionResult(
-                            success = true, // Всегда успешно
-                            errorMessage = null, // Нет сообщения об ошибке
+                            success = success,
+                            errorMessage = if (!success) errorMessage else null,
                             totalImages = 1,
-                            successfulImages = 1, // Всегда показываем успех
-                            failedImages = 0, // Без ошибок
-                            allSuccessful = true // Всегда успешно
+                            successfulImages = if (success) 1 else 0,
+                            failedImages = if (success) 0 else 1,
+                            allSuccessful = success
                         )
                     )
                     
@@ -236,12 +236,12 @@ class MainViewModel @Inject constructor(
                                         // Показываем результат только если это не было частью автоматической обработки
                                         if (newProgress.total <= 10) {
                                             _compressionResult.value = CompressionResult(
-                                                success = true,
-                                                errorMessage = null,
+                                                success = newProgress.failed == 0,
+                                                errorMessage = if (newProgress.failed > 0) "Не удалось обработать ${newProgress.failed} изображений" else null,
                                                 totalImages = newProgress.total,
-                                                successfulImages = newProgress.total,
-                                                failedImages = 0,
-                                                allSuccessful = true
+                                                successfulImages = newProgress.successful,
+                                                failedImages = newProgress.failed,
+                                                allSuccessful = newProgress.failed == 0
                                             )
                                         }
                                         
