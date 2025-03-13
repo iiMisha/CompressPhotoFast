@@ -480,6 +480,12 @@ class BackgroundMonitoringService : Service() {
         Timber.d("BackgroundMonitoringService: URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
         
         try {
+            // Проверяем, включено ли автоматическое сжатие
+            if (!isAutoCompressionEnabled()) {
+                Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем обработку")
+                return
+            }
+
             val uriString = uri.toString()
             
             // Проверяем, обрабатывается ли уже это изображение

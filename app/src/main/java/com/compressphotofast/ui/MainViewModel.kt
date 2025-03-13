@@ -16,6 +16,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.R
+import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
@@ -278,6 +279,11 @@ class MainViewModel @Inject constructor(
             viewModelScope.launch {
                 processUncompressedImages()
             }
+        } else {
+            // Останавливаем фоновый сервис при выключении
+            val intent = Intent(context, BackgroundMonitoringService::class.java)
+            intent.action = Constants.ACTION_STOP_SERVICE
+            ContextCompat.startForegroundService(context, intent)
         }
         
         Timber.d("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
