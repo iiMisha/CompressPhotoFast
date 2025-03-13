@@ -392,6 +392,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             val inputFileName = "input_${System.currentTimeMillis()}_${uri.lastPathSegment}"
             inputFile = File(context.cacheDir, inputFileName)
             
+            Timber.d("compressImage: создан временный файл: ${inputFile.absolutePath}")
+            
             // Копируем данные из URI во временный файл
             context.contentResolver.openInputStream(uri)?.use { input ->
                 inputFile.outputStream().use { output ->
@@ -403,14 +405,18 @@ class ImageCompressionWorker @AssistedInject constructor(
                 throw IOException("Временный входной файл не создан или пуст")
             }
             
+            Timber.d("compressImage: размер входного файла: ${inputFile.length()} байт")
+            
             // Дополнительное логирование перед сжатием для отладки
-            Timber.d("Сжимаю изображение с параметром качества: $quality")
+            Timber.d("compressImage: начало сжатия с параметром качества: $quality")
             
             // Сжимаем изображение
             Compressor.compress(context, inputFile) {
                 quality(quality)
                 format(android.graphics.Bitmap.CompressFormat.JPEG)
             }.copyTo(tempFile, overwrite = true)
+            
+            Timber.d("compressImage: размер сжатого файла: ${tempFile.length()} байт")
             
             // Проверяем, что сжатый файл существует и не пуст
             if (!tempFile.exists() || tempFile.length() <= 0) {
@@ -428,9 +434,15 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Верифицируем, что указанный уровень компрессии соответствует фактическому
             verifyCompressionLevel(tempFile, quality)
+            
+            Timber.d("compressImage: сжатие успешно завершено")
+            
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
+            Timber.e(e, "compressImage: ошибка при сжатии изображения")
             throw e
+        } finally {
+            // Удаляем временный входной файл
+            inputFile?.delete()
         }
     }
 

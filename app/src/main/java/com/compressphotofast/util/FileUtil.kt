@@ -280,106 +280,43 @@ object FileUtil {
         fileName: String,
         originalUri: Uri
     ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
+        Timber.d("saveCompressedImageToGallery: начало сохранения файла: $fileName")
+        Timber.d("saveCompressedImageToGallery: размер сжатого файла: ${compressedFile.length()} байт")
         Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${isSaveModeReplace(context)}")
         Timber.d("saveCompressedImageToGallery: ручное сжатие: ${isManualCompression(context)}")
-        Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $fileName")
         
         try {
-            // Получаем режим сохранения из настроек
-            val saveMode = getSaveMode(context)
-            val isReplace = saveMode == Constants.SAVE_MODE_REPLACE
+            // Используем оригинальное имя файла без изменений
+            val finalFileName = fileName
             
-            // Проверяем, можно ли удалить исходный файл без запроса
-            val canDelete = canDeleteWithoutPermission(context)
-            
-            // Определяем целевую директорию для сохранения
-            val directory = if (isReplace) {
+            // Получаем путь к директории для сохранения
+            val directory = if (isSaveModeReplace(context)) {
+                // Если включен режим замены, сохраняем в той же директории
                 getDirectoryFromUri(context, originalUri)
             } else {
-                Timber.d("Используем стандартный путь для сохранения: ${Constants.APP_DIRECTORY}")
-                "${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}"
+                // Иначе сохраняем в директории приложения
+                Constants.APP_DIRECTORY
             }
             
-            Timber.d("Используем путь: $directory")
+            Timber.d("saveCompressedImageToGallery: директория для сохранения: $directory")
             
-            // Если режим замены, пытаемся удалить оригинальный файл перед созданием нового
-            var deleteIntentSender: Any? = null
-            if (isReplace) {
-                try {
-                    Timber.d("saveCompressedImageToGallery: удаление оригинального файла перед созданием нового: $originalUri")
-                    // Попытка удалить оригинальный файл
-                    deleteIntentSender = safeDeleteOriginalFile(context, originalUri)
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при удалении оригинального файла: $originalUri")
-                    // Продолжаем процесс даже если не удалось удалить оригинал
-                }
+            // Сохраняем файл
+            val (savedUri, deleteIntentSender) = insertImageIntoMediaStore(
+                context,
+                compressedFile,
+                finalFileName,
+                directory
+            )
+            
+            if (savedUri != null) {
+                Timber.d("saveCompressedImageToGallery: файл успешно сохранен: $savedUri")
+            } else {
+                Timber.e("saveCompressedImageToGallery: не удалось сохранить файл")
             }
             
-            // Создаем новую запись в MediaStore
-            val uri = insertImageIntoMediaStore(context, compressedFile, fileName, directory)
-            
-            if (uri != null) {
-                // Пробуем копировать EXIF данные, не прерывая процесс в случае ошибки
-                try {
-                    // Проверяем, существует ли оригинальный URI
-                    val checkCursor = context.contentResolver.query(originalUri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
-                    val sourceExists = checkCursor?.use { it.count > 0 } ?: false
-                    
-                    if (sourceExists) {
-                        // Копируем EXIF данные из оригинального файла в сжатый
-                        copyExifData(context, originalUri, uri)
-                    } else {
-                        Timber.d("Оригинальный URI не существует, пропускаем копирование EXIF: $originalUri")
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
-                    // Продолжаем даже если не удалось скопировать EXIF данные
-                }
-                
-                // Добавляем маркер сжатия в EXIF метаданные
-                try {
-                    // Проверяем, есть ли уже маркер сжатия, перед добавлением нового
-                    var hasExifMarker = false
-                    try {
-                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                            val exif = ExifInterface(inputStream)
-                            // Проверяем наличие маркера сжатия в UserComment
-                            val userComment = exif.getAttribute(EXIF_USER_COMMENT)
-                            hasExifMarker = userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true
-                            
-                            if (hasExifMarker) {
-                                Timber.d("EXIF маркер сжатия уже присутствует, пропускаем добавление")
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Timber.d("Не удалось проверить EXIF маркер: ${e.message}")
-                        hasExifMarker = false
-                    }
-                    
-                    // Добавляем маркер только если он еще не установлен
-                    if (!hasExifMarker) {
-                        // Получаем значение качества из настроек
-                        val quality = getCompressionQuality(context)
-                        markCompressedImage(context, uri, quality)
-                        
-                        // Верифицируем, что уровень компрессии правильно записан в EXIF
-                        verifyExifCompressionLevel(context, uri, quality)
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при добавлении EXIF маркера: ${e.message}")
-                }
-                
-                // Добавляем URI в кэш обработанных изображений
-                exifCheckCache[uri.toString()] = true
-                exifCacheTimestamps[uri.toString()] = System.currentTimeMillis()
-                
-                return@withContext Pair(uri, deleteIntentSender)
-            }
-            
-            Timber.e("Не удалось создать запись в MediaStore")
-            return@withContext Pair(null, deleteIntentSender)
+            return@withContext Pair(savedUri, deleteIntentSender)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
+            Timber.e(e, "saveCompressedImageToGallery: ошибка при сохранении файла")
             return@withContext Pair(null, null)
         }
     }
@@ -425,7 +362,7 @@ object FileUtil {
         compressedFile: File,
         fileName: String,
         directory: String
-    ): Uri? = withContext(Dispatchers.IO) {
+    ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
         try {
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
@@ -469,13 +406,13 @@ object FileUtil {
                     context.contentResolver.update(uri, contentValues, null, null)
                 }
                 
-                return@withContext uri
+                return@withContext Pair(uri, null)
             }
             
-            return@withContext null
+            return@withContext Pair(null, null)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при записи файла: ${e.message}")
-            return@withContext null
+            return@withContext Pair(null, null)
         }
     }
 
@@ -1003,7 +940,8 @@ object FileUtil {
      * Проверяет, запущено ли сжатие вручную
      */
     fun isManualCompression(context: Context): Boolean {
-        return false // В текущей версии все сжатия запускаются автоматически
+        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        return !prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
     }
 
     /**

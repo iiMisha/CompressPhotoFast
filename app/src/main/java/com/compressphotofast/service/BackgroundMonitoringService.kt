@@ -495,12 +495,6 @@ class BackgroundMonitoringService : Service() {
                 return
             }
             
-            // Проверяем, включено ли автоматическое сжатие
-            if (!isAutoCompressionEnabled()) {
-                Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено")
-                return
-            }
-            
             // Проверяем, не обрабатывается ли URI уже через MainActivity
             if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
                 Timber.d("BackgroundMonitoringService: URI $uri уже обрабатывается через MainActivity, пропускаем")

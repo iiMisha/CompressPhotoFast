@@ -438,24 +438,9 @@ class MainActivity : AppCompatActivity() {
                             
                             if (!isAlreadyCompressed) {
                                 viewModel.setSelectedImageUri(uri)
-                                // Проверяем, включено ли автоматическое сжатие
-                                if (!viewModel.isAutoCompressionEnabled()) {
-                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
-                                    Timber.d("handleIntent: Автоматическое сжатие выключено, запускаем сжатие вручную")
-                                    viewModel.compressSelectedImage()
-                                } else {
-                                    // Иначе просто показываем изображение в UI, оно будет обработано фоновым сервисом
-                                    Timber.d("handleIntent: Автоматическое сжатие включено, файл будет обработан фоновым сервисом")
-                                    
-                                    // Регистрируем URI для обработки через фоновый сервис
-                                    startBackgroundProcessing(uri)
-                                }
-                            } else {
-                                // Снимаем регистрацию URI, так как он не будет обрабатываться
-                                // Больше не требуется с новой системой EXIF маркировки
-                                
-                                // Показываем сообщение, что файл уже обработан
-                                showTopToast(getString(R.string.image_already_compressed))
+                                // Запускаем сжатие вручную
+                                Timber.d("handleIntent: Запускаем сжатие вручную")
+                                viewModel.compressSelectedImage()
                             }
                         }
                     }
@@ -488,17 +473,14 @@ class MainActivity : AppCompatActivity() {
                                      path.contains("content://media/external/images/media") && 
                                      path.contains(Constants.APP_DIRECTORY))
                                 
-                                // Запускаем проверку через EXIF асинхронно
-                                launch {
-                                    val isCompressedByExif = FileUtil.isCompressedByExif(this@MainActivity, uri)
-                                    val isAlreadyCompressed = isInAppDir || isCompressedByExif
-                                    
-                                    Timber.d("Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir, isCompressedByExif: $isCompressedByExif)")
-                                    
-                                    if (!isAlreadyCompressed) {
-                                        unprocessedUris.add(uri)
-                                        processImages()
-                                    }
+                                // Проверяем через EXIF
+                                val isCompressedByExif = FileUtil.isCompressedByExif(this@MainActivity, uri)
+                                val isAlreadyCompressed = isInAppDir || isCompressedByExif
+                                
+                                Timber.d("Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir, isCompressedByExif: $isCompressedByExif)")
+                                
+                                if (!isAlreadyCompressed) {
+                                    unprocessedUris.add(uri)
                                 }
                             }
                             
@@ -506,19 +488,9 @@ class MainActivity : AppCompatActivity() {
                                 // Показываем первое изображение в UI
                                 viewModel.setSelectedImageUri(unprocessedUris[0])
                                 
-                                // Проверяем, включено ли автоматическое сжатие
-                                if (!viewModel.isAutoCompressionEnabled()) {
-                                    // Если автоматическое сжатие выключено, запускаем сжатие вручную
-                                    viewModel.compressMultipleImages(unprocessedUris)
-                                } else {
-                                    // Иначе просто показываем изображения в UI, они будут обработаны фоновым сервисом
-                                    Timber.d("handleIntent: Автоматическое сжатие включено, ${unprocessedUris.size} файлов будут обработаны фоновым сервисом")
-                                    
-                                    // Запускаем обработку каждого изображения через фоновый сервис
-                                    unprocessedUris.forEach { uri ->
-                                        startBackgroundProcessing(uri)
-                                    }
-                                }
+                                // Запускаем сжатие вручную
+                                Timber.d("handleIntent: Запускаем сжатие ${unprocessedUris.size} файлов вручную")
+                                viewModel.compressMultipleImages(unprocessedUris)
                             } else {
                                 // Если все изображения уже обработаны, показываем сообщение
                                 showTopToast(getString(R.string.all_images_already_compressed))
