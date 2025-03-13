@@ -108,7 +108,7 @@
                     android:id="@+id/tvGreeting"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Поздравляю с 8 марта!🌷"
+                    android:text="С 8 марта, Полина!🌷"
                     android:textSize="22sp"
                     android:textColor="#FF69B4"
                     android:textStyle="bold"
