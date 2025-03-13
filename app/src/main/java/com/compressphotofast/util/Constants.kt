@@ -42,7 +42,7 @@ object Constants {
     const val APP_DIRECTORY = "CompressPhotoFast"
     
     // Настройки сжатия
-    const val COMPRESSION_QUALITY_LOW = 50
+    const val COMPRESSION_QUALITY_LOW = 60
     const val COMPRESSION_QUALITY_MEDIUM = 70
     const val COMPRESSION_QUALITY_HIGH = 85
     const val MAX_IMAGE_WIDTH = 1920
