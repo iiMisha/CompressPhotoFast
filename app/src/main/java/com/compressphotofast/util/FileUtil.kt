@@ -1076,15 +1076,40 @@ object FileUtil {
     suspend fun getFileSize(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
         try {
             val projection = arrayOf(MediaStore.MediaColumns.SIZE)
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    return@withContext cursor.getLong(0)
+                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                    return@withContext cursor.getLong(sizeIndex)
                 }
             }
             -1L
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении размера файла: $uri")
+            Timber.e(e, "Ошибка при получении размера файла")
             -1L
         }
+    }
+
+    /**
+     * Проверка валидности размера файла
+     */
+    fun isFileSizeValid(size: Long): Boolean {
+        return size in Constants.MIN_FILE_SIZE..Constants.MAX_FILE_SIZE
+    }
+
+    /**
+     * Создание временного файла для изображения
+     */
+    fun createTempImageFile(context: Context): File {
+        return File.createTempFile(
+            "temp_image_",
+            ".jpg",
+            context.cacheDir
+        )
     }
 } 

@@ -104,7 +104,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Создаем временный файл
-            val tempFile = createTempImageFile()
+            val tempFile = FileUtil.createTempImageFile(context)
             Timber.d("Создан временный файл: ${tempFile.absolutePath}")
             
             try {
@@ -114,7 +114,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Timber.d("Изображение успешно сжато с качеством: $compressionQuality")
                 
                 // Получаем размеры для логирования
-                val originalSize = getFileSize(imageUri)
+                val originalSize = FileUtil.getFileSize(context, imageUri)
                 val compressedSize = tempFile.length()
                 
                 // Вычисляем процент сокращения размера
@@ -711,8 +711,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             // Дополнительная проверка - если файл уже был сжат (по размеру)
-            val fileSize = getFileSize(uri)
-            if (fileSize > 0 && fileSize < Constants.MIN_FILE_SIZE * 2) { // Если размер меньше 100KB
+            val fileSize = FileUtil.getFileSize(context, uri)
+            if (!FileUtil.isFileSizeValid(fileSize)) {
                 Timber.d("Файл уже достаточно мал (${fileSize/1024}KB), пропускаем")
                 return@withContext true
             }

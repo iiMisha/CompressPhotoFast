@@ -623,106 +623,53 @@ class BackgroundMonitoringService : Service() {
     }
     
     /**
-     * Проверка, является ли файл временным (pending)
+     * Проверяет, нужно ли обрабатывать изображение
      */
-    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun shouldProcessImage(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val isPendingIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
-                    return@withContext cursor.getInt(isPendingIndex) == 1
-                }
+            // Проверяем, существует ли URI
+            val exists = applicationContext.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
+                it.count > 0
+            } ?: false
+            
+            if (!exists) {
+                Timber.d("URI не существует: $uri")
+                return@withContext false
             }
+            
+            // Проверяем, не обрабатывается ли уже это изображение
+            if (processingUris.contains(uri.toString())) {
+                Timber.d("URI уже обрабатывается: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем, было ли изображение уже обработано
+            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
+                Timber.d("URI уже был обработан: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем размер файла
+            val fileSize = FileUtil.getFileSize(applicationContext, uri)
+            if (!FileUtil.isFileSizeValid(fileSize)) {
+                Timber.d("Файл уже оптимального размера (${fileSize/1024}KB): $uri")
+                return@withContext false
+            }
+            
+            // Проверяем путь к файлу
+            val path = FileUtil.getFilePathFromUri(applicationContext, uri)
+            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext false
+            }
+            
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке изображения: $uri")
             false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса файла")
-            true // В случае ошибки считаем файл временным
-        }
-    }
-
-    /**
-     * Получение размера файла
-     */
-    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    return@withContext cursor.getLong(sizeIndex)
-                }
-            }
-            -1
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении размера файла")
-            -1
         }
     }
     
-    /**
-     * Получение информации о файле для отладки
-     */
-    private fun getFileInfo(uri: Uri): String {
-        val cursor = contentResolver.query(
-            uri,
-            arrayOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATA
-            ),
-            null,
-            null,
-            null
-        )
-        
-        var info = "Нет данных"
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                val dateIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
-                val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
-                
-                val name = if (nameIndex != -1) it.getString(nameIndex) else "неизвестно"
-                val date = if (dateIndex != -1) it.getLong(dateIndex) else 0
-                val size = if (sizeIndex != -1) it.getLong(sizeIndex) else 0
-                val data = if (dataIndex != -1) it.getString(dataIndex) else "неизвестно"
-                
-                info = "Имя: $name, Дата: $date, Размер: $size, Путь: $data"
-            }
-        }
-        
-        return info
-    }
-    
-    /**
-     * Получение текущего уровня сжатия из SharedPreferences
-     */
-    private fun getCompressionQuality(): Int {
-        val sharedPreferences = applicationContext.getSharedPreferences(
-            Constants.PREF_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-        return sharedPreferences.getInt(
-            Constants.PREF_COMPRESSION_QUALITY,
-            Constants.DEFAULT_COMPRESSION_QUALITY
-        )
-    }
-
     /**
      * Проверка состояния автоматического сжатия
      */
