@@ -1,16 +1,145 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
-    android:viewportHeight="108"
-    android:tint="@color/white">
-    <group android:scaleX="2.349"
-        android:scaleY="2.349"
-        android:translateX="25.812"
-        android:translateY="25.812">
+    android:viewportHeight="108">
+    
+    <!-- Фоновая тень -->
+    <path
+        android:fillColor="#15000000"
+        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0"/>
+        
+    <group
+        android:scaleX="0.85"
+        android:scaleY="0.85"
+        android:translateX="8.1"
+        android:translateY="8.1">
+        
+        <!-- Левый листок (увеличенный в 2 раза) -->
         <path
-            android:fillColor="@android:color/white"
-            android:pathData="M21,19V5c0,-1.1 -0.9,-2 -2,-2H5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2zM8.5,13.5l2.5,3.01L14.5,12l4.5,6H5l3.5,-4.5z"/>
+            android:pathData="M52,60 C32,70 32,90 52,80 L52,60">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="32"
+                    android:startY="75"
+                    android:endX="52"
+                    android:endY="75"
+                    android:startColor="#4CAF50"
+                    android:endColor="#388E3C"/>
+            </aapt:attr>
+        </path>
+
+        <!-- Правый листок (увеличенный в 2 раза) -->
+        <path
+            android:pathData="M56,55 C76,65 76,85 56,75 L56,55">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="76"
+                    android:startY="70"
+                    android:endX="56"
+                    android:endY="70"
+                    android:startColor="#4CAF50"
+                    android:endColor="#388E3C"/>
+            </aapt:attr>
+        </path>
+
+        <!-- Стебель (увеличенный для соответствия) -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M54,54 L54,94 Q52,94 52,92 L52,56 Q54,54 56,56 L56,92 Q56,94 54,94"/>
+            
+        <!-- Лепестки цветка (внутренний слой) -->
+        <path
+            android:pathData="M54,34 C44,44 44,64 54,74 C64,64 64,44 54,34">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="54"
+                    android:centerY="54"
+                    android:gradientRadius="30"
+                    android:startColor="#FFFF69B4"
+                    android:endColor="#FFFF1493"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- Левый лепесток -->
+        <path
+            android:pathData="M34,54 C34,34 54,34 54,54 C54,74 34,74 34,54">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="44"
+                    android:centerY="54"
+                    android:gradientRadius="25"
+                    android:startColor="#FFFF69B4"
+                    android:endColor="#FFFF1493"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- Правый лепесток -->
+        <path
+            android:pathData="M74,54 C74,34 54,34 54,54 C54,74 74,74 74,54">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="64"
+                    android:centerY="54"
+                    android:gradientRadius="25"
+                    android:startColor="#FFFF69B4"
+                    android:endColor="#FFFF1493"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- Верхние лепестки -->
+        <path
+            android:pathData="M44,24 C54,24 64,24 64,44 C54,44 44,44 44,24">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="54"
+                    android:centerY="34"
+                    android:gradientRadius="25"
+                    android:startColor="#FFFF69B4"
+                    android:endColor="#FFFF1493"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- Центр цветка -->
+        <path
+            android:pathData="M54,54m-12,0a12,12 0,1 1,24 0a12,12 0,1 1,-24 0">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="radial"
+                    android:centerX="54"
+                    android:centerY="54"
+                    android:gradientRadius="12"
+                    android:startColor="#FFFFFFFF"
+                    android:centerColor="#FFFF69B4"
+                    android:endColor="#FFFF1493"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- Блики на лепестках -->
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M44,34 Q54,29 64,34 Q59,39 54,39 Q49,39 44,34"/>
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M39,44 Q44,39 49,44 Q44,49 39,49 Q34,49 39,44"/>
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M59,44 Q64,39 69,44 Q64,49 59,49 Q54,49 59,44"/>
+
+        <!-- Блики на листьях (обновленные для увеличенных листьев) -->
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M32,70 Q42,68 52,70 Q42,72 32,70"/>
+        <path
+            android:fillColor="#20FFFFFF"
+            android:pathData="M56,60 Q66,58 76,60 Q66,62 56,60"/>
     </group>
 </vector> 
