@@ -20,9 +20,9 @@
     <string name="notification_action_stop">Остановить</string>
     <string name="notification_compressing">Сжатие фотографий…</string>
     <string name="notification_compression_complete">Сжатие завершено</string>
-    <string name="notification_channel_id">compress_photo_channel</string>
-    <string name="notification_channel_name">Сжатие фотографий</string>
-    <string name="notification_channel_description">Уведомления о процессе сжатия фотографий</string>
+    <string name="notification_channel_id">compression_channel</string>
+    <string name="notification_channel_name">Сжатие изображений</string>
+    <string name="notification_channel_description">Уведомления о процессе сжатия изображений</string>
     <string name="notification_batch_processing_title">Сжатие изображений</string>
     <string name="notification_batch_processing_start">Начало обработки %1$d изображений</string>
     <string name="notification_batch_processing_progress">Обработано %1$d из %2$d изображений</string>
@@ -63,4 +63,7 @@
     <string name="dialog_cancel">Отмена</string>
     <string name="dialog_skip">Пропустить</string>
     <string name="batch_processing_completed">Обработка изображений завершена</string>
+    
+    <string name="notification_completion_channel_name">Результаты сжатия</string>
+    <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
 </resources> 

@@ -24,16 +24,20 @@ import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
-import com.compressphotofast.util.ImageTrackingUtil
+import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import java.util.concurrent.Executors
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
+import android.content.pm.ServiceInfo
+import com.compressphotofast.util.TempFilesCleaner
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -47,12 +51,27 @@ class BackgroundMonitoringService : Service() {
     private lateinit var contentObserver: ContentObserver
     private val executorService = Executors.newSingleThreadExecutor()
     
-    // Список последних обработанных URI для предотвращения повторной обработки
-    private val processedUris = mutableSetOf<String>()
-    private val maxProcessedUrisSize = 100 // Ограничиваем размер истории
-    
     // Набор URI, которые в данный момент находятся в обработке
     private val processingUris = Collections.synchronizedSet(HashSet<String>())
+    
+    // Система для предотвращения дублирования событий от ContentObserver
+    private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
+    private val contentObserverDebounceTime = 2000L // 2000мс (2 секунды) для дедупликации событий
+    
+    // Кэш информации о файлах, чтобы не запрашивать повторно
+    private val fileInfoCache = Collections.synchronizedMap(HashMap<String, FileInfo>())
+    private val fileInfoCacheExpiration = 5 * 60 * 1000L // 5 минут
+    
+    // Хранит базовую информацию о файле
+    private data class FileInfo(
+        val id: Long,
+        val name: String,
+        val size: Long,
+        val date: Long,
+        val mime: String,
+        val path: String,
+        val timestamp: Long = System.currentTimeMillis()
+    )
     
     // Таймаут для обработки изображения (мс)
     private val processingTimeout = 30000L // 30 секунд
@@ -71,6 +90,17 @@ class BackgroundMonitoringService : Service() {
             handler.postDelayed(this, 60000) // Каждую минуту
         }
     }
+
+    // Handler для периодической очистки временных файлов
+    private val cleanupHandler = Handler(Looper.getMainLooper())
+    private val cleanupRunnable = object : Runnable {
+        override fun run() {
+            Timber.d("Запуск периодической очистки временных файлов")
+            cleanupTempFiles()
+            // Планируем следующую очистку через 24 часа
+            cleanupHandler.postDelayed(this, 24 * 60 * 60 * 1000) // 24 часа
+        }
+    }
     
     // BroadcastReceiver для обработки запросов на обработку изображений
     private val imageProcessingReceiver = object : android.content.BroadcastReceiver() {
@@ -87,35 +117,30 @@ class BackgroundMonitoringService : Service() {
                     Timber.d("Получен запрос на обработку изображения через broadcast: $uri")
                     
                     // Проверяем, не обрабатывается ли URI уже через MainActivity
-                    if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+                    if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
                         Timber.d("URI $uri уже обрабатывается через MainActivity, пропускаем")
                         return
                     }
                     
-                    // Проверяем, не было ли изображение уже обработано
-                    if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
-                        Timber.d("Изображение уже обработано: $uri, пропускаем")
-                        return
-                    }
-                    
-                    // Проверяем, не находится ли URI уже в списке обработанных
-                    if (processedUris.contains(uri.toString())) {
-                        Timber.d("URI уже в списке обработанных: $uri, пропускаем")
-                        return
-                    }
-                    
-                    // Добавляем URI в список обработанных, чтобы избежать повторной обработки
-                    processedUris.add(uri.toString())
-                    if (processedUris.size > maxProcessedUrisSize) {
-                        // Удаляем самый старый элемент, если превышен лимит
-                        processedUris.iterator().next()?.let { processedUris.remove(it) }
-                    }
-                    
-                    // Запускаем обработку изображения в отдельном потоке
-                    executorService.execute {
-                        kotlinx.coroutines.runBlocking {
-                            processNewImage(it)
+                    // Запускаем корутину для проверки статуса изображения
+                    GlobalScope.launch(Dispatchers.IO) {
+                        // Проверяем, не было ли изображение уже обработано
+                        if (StatsTracker.isImageProcessed(context, uri)) {
+                            Timber.d("Изображение уже обработано: $uri, пропускаем")
+                            return@launch
                         }
+                        
+                        // Проверяем, не находится ли URI уже в списке обработанных
+                        if (processingUris.contains(uri.toString())) {
+                            Timber.d("URI уже в списке обработанных: $uri, пропускаем")
+                            return@launch
+                        }
+                        
+                        // Добавляем URI в список обработанных, чтобы избежать повторной обработки
+                        processingUris.add(uri.toString())
+                        
+                        // Запускаем обработку изображения
+                        processNewImage(uri)
                     }
                 }
             }
@@ -128,8 +153,13 @@ class BackgroundMonitoringService : Service() {
             if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
                 val uriString = intent.getStringExtra(Constants.EXTRA_URI)
                 if (uriString != null) {
+                    val reductionPercent = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
+                    val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "неизвестный"
+                    
                     // Удаляем URI из списка обрабатываемых
-                    processingUris.remove(uriString)
+                    val wasRemoved = processingUris.remove(uriString)
+                    Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${processingUris.size} URIs)")
+                    Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
                     // Устанавливаем таймер игнорирования изменений
                     ignoreChangesUntil[uriString] = System.currentTimeMillis() + ignoreMediaStoreChangesAfterCompression
@@ -150,7 +180,11 @@ class BackgroundMonitoringService : Service() {
         Timber.d("BackgroundMonitoringService: onCreate")
         
         // Создаем уведомление и запускаем сервис как Foreground Service
-        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+        }
         
         // Настраиваем ContentObserver для отслеживания изменений в MediaStore
         setupContentObserver()
@@ -159,7 +193,11 @@ class BackgroundMonitoringService : Service() {
         registerProcessImageReceiver()
         
         // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
-        registerReceiver(compressionCompletedReceiver, IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED))
+        registerReceiver(
+            compressionCompletedReceiver, 
+            IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
+            Context.RECEIVER_NOT_EXPORTED
+        )
         
         // Проверяем состояние автоматического сжатия при создании сервиса
         val isEnabled = isAutoCompressionEnabled()
@@ -174,6 +212,10 @@ class BackgroundMonitoringService : Service() {
         // Запускаем периодическое сканирование для обеспечения обработки всех изображений
         handler.post(scanRunnable)
         Timber.d("BackgroundMonitoringService: периодическое сканирование запущено")
+
+        // Запускаем периодическую очистку временных файлов
+        cleanupHandler.post(cleanupRunnable)
+        Timber.d("BackgroundMonitoringService: периодическая очистка временных файлов запущена")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -214,6 +256,8 @@ class BackgroundMonitoringService : Service() {
         executorService.shutdown()
         // Останавливаем периодическое сканирование
         handler.removeCallbacks(scanRunnable)
+        // Останавливаем периодическую очистку
+        cleanupHandler.removeCallbacks(cleanupRunnable)
         
         // Отменяем регистрацию BroadcastReceiver
         try {
@@ -269,10 +313,31 @@ class BackgroundMonitoringService : Service() {
                 super.onChange(selfChange, uri)
                 
                 uri?.let {
-                    Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri")
-                    
                     // Проверяем, что это новое изображение с базовой фильтрацией
                     if (it.toString().contains("media") && it.toString().contains("image")) {
+                        // Предотвращаем дублирование событий для одного URI за короткий период времени
+                        val uriString = it.toString()
+                        val currentTime = System.currentTimeMillis()
+                        val lastObservedTime = recentlyObservedUris[uriString]
+                        
+                        if (lastObservedTime != null && (currentTime - lastObservedTime < contentObserverDebounceTime)) {
+                            // Если URI был недавно обработан, пропускаем его
+                            return
+                        }
+                        
+                        // Обновляем время последнего наблюдения
+                        recentlyObservedUris[uriString] = currentTime
+                        
+                        // Удаляем старые записи (старше 10 секунд)
+                        val urisToRemove = recentlyObservedUris.entries
+                            .filter { (currentTime - it.value) > 10000 }
+                            .map { it.key }
+                        
+                        urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
+                        
+                        // Логируем событие
+                        Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri")
+                        
                         executorService.execute {
                             kotlinx.coroutines.runBlocking {
                                 processNewImage(it)
@@ -372,34 +437,30 @@ class BackgroundMonitoringService : Service() {
                             )
                             
                             // Проверяем, не обрабатывается ли URI уже через MainActivity
-                            if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(contentUri)) {
+                            if (StatsTracker.isUriBeingProcessedByMainActivity(contentUri)) {
                                 Timber.d("BackgroundMonitoringService: URI $contentUri уже обрабатывается через MainActivity, пропускаем")
                                 skippedCount++
                                 continue
                             }
                             
-                            // Проверяем, не было ли изображение уже обработано
-                            if (ImageTrackingUtil.isImageProcessed(applicationContext, contentUri)) {
-                                Timber.d("BackgroundMonitoringService: изображение уже обработано: $contentUri")
+                            // Проверяем, не находится ли URI уже в процессе обработки
+                            if (processingUris.contains(contentUri.toString())) {
+                                Timber.d("BackgroundMonitoringService: URI $contentUri уже в процессе обработки, пропускаем")
                                 skippedCount++
                                 continue
                             }
                             
-                            if (!processedUris.contains(contentUri.toString())) {
-                                Timber.d("BackgroundMonitoringService: обработка изображения: $name ($contentUri)")
-                                processNewImage(contentUri)
-                                processedCount++
-                                
-                                // Добавляем URI в список обработанных
-                                processedUris.add(contentUri.toString())
-                                if (processedUris.size > maxProcessedUrisSize) {
-                                    // Удаляем самый старый элемент, если превышен лимит
-                                    processedUris.iterator().next()?.let { processedUris.remove(it) }
-                                }
-                            } else {
-                                Timber.d("BackgroundMonitoringService: пропуск ранее обработанного изображения: $name")
+                            // Проверяем, не было ли изображение уже обработано (по EXIF)
+                            if (StatsTracker.isImageProcessed(applicationContext, contentUri)) {
+                                Timber.d("BackgroundMonitoringService: изображение уже обработано (по EXIF): $contentUri")
                                 skippedCount++
+                                continue
                             }
+                            
+                            // Обрабатываем изображение
+                            Timber.d("BackgroundMonitoringService: обработка изображения: $name ($contentUri)")
+                            processNewImage(contentUri)
+                            processedCount++
                         }
                         
                         Timber.d("BackgroundMonitoringService: сканирование завершено. Обработано: $processedCount, Пропущено: $skippedCount")
@@ -434,90 +495,69 @@ class BackgroundMonitoringService : Service() {
                 return
             }
             
-            // Проверяем, включено ли автоматическое сжатие
-            if (!isAutoCompressionEnabled()) {
-                Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено")
-                return
-            }
-            
             // Проверяем, не обрабатывается ли URI уже через MainActivity
-            if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
+            if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
                 Timber.d("BackgroundMonitoringService: URI $uri уже обрабатывается через MainActivity, пропускаем")
                 return
             }
-            
-            // Логируем подробную информацию о файле для отладки
-            logDetailedFileInfo(uri)
-            
-            // Проверяем, не было ли изображение уже обработано
-            if (ImageTrackingUtil.isImageProcessed(applicationContext, uri)) {
-                Timber.d("BackgroundMonitoringService: изображение уже обработано: $uri")
+
+            // Ждем пока файл станет доступным
+            if (!FileUtil.waitForFileAvailability(applicationContext, uri)) {
+                Timber.d("BackgroundMonitoringService: файл недоступен после ожидания: $uri")
                 return
             }
-            
+
             // Проверяем размер файла
-            val fileSize = getFileSize(uri)
-            Timber.d("BackgroundMonitoringService: размер файла: $fileSize байт (${fileSize / 1024} KB)")
-            
-            if (fileSize <= Constants.MIN_FILE_SIZE) {
-                Timber.d("BackgroundMonitoringService: файл слишком мал для сжатия: $fileSize байт")
+            val fileSize = FileUtil.getFileSize(applicationContext, uri)
+            if (fileSize < Constants.MIN_FILE_SIZE || fileSize > Constants.MAX_FILE_SIZE) {
+                Timber.d("BackgroundMonitoringService: пропускаем файл из-за размера ($fileSize байт): $uri")
                 return
             }
-            
-            if (fileSize > Constants.MAX_FILE_SIZE) {
-                Timber.d("BackgroundMonitoringService: файл слишком велик для обработки: ${fileSize / (1024 * 1024)} MB")
+
+            // Логируем подробную информацию о файле
+            logDetailedFileInfo(uri)
+
+            // Проверяем EXIF-данные 
+            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
+                Timber.d("BackgroundMonitoringService: изображение уже обработано (по EXIF): $uri")
                 return
             }
-            
-            // Помечаем URI как находящийся в обработке
+
+            // Помечаем URI как обрабатываемый
             processingUris.add(uriString)
+            Timber.d("URI добавлен в список обрабатываемых: $uriString (всего ${processingUris.size} URIs)")
             
-            // Запускаем таймер для очистки состояния обработки
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (processingUris.remove(uriString)) {
-                    Timber.d("BackgroundMonitoringService: тайм-аут обработки для URI: $uri")
-                }
-            }, processingTimeout)
-            
-            // Получаем имя файла для логирования
-            val fileName = FileUtil.getFileNameFromUri(applicationContext, uri) ?: "unknown"
-            Timber.d("BackgroundMonitoringService: обработка файла: $fileName ($uri)")
-            
-            // Получаем текущее качество сжатия
-            val quality = getCompressionQuality()
-            Timber.d("BackgroundMonitoringService: качество сжатия: $quality")
+            // Получаем имя файла и качество сжатия
+            val fileName = FileUtil.getFileNameFromUri(applicationContext, uri)
+            val compressionQuality = applicationContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
             
             // Создаем уникальный тег для работы
-            val workTag = "compression_${System.currentTimeMillis()}"
+            val workTag = "compress_${System.currentTimeMillis()}_${fileName}"
             
-            // Запускаем worker для сжатия изображения
-            val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                .setInputData(workDataOf(
-                    Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                    "compression_quality" to quality
-                ))
-                .addTag(Constants.WORK_TAG_COMPRESSION)
+            // Создаем и запускаем работу по сжатию
+            val compressionWork = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                .setInputData(
+                    workDataOf(
+                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                        "compression_quality" to compressionQuality
+                    )
+                )
                 .addTag(workTag)
                 .build()
             
-            // Запускаем работу с уникальным именем для предотвращения дублирования
-            workManager.beginUniqueWork(
-                workTag,
-                ExistingWorkPolicy.REPLACE,
-                compressionWorkRequest
-            ).enqueue()
+            WorkManager.getInstance(applicationContext)
+                .enqueueUniqueWork(
+                    workTag,
+                    ExistingWorkPolicy.REPLACE,
+                    compressionWork
+                )
             
-            Timber.d("BackgroundMonitoringService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
-            
-            // Добавляем URI в список обработанных
-            processedUris.add(uri.toString())
-            if (processedUris.size > maxProcessedUrisSize) {
-                // Удаляем самый старый элемент, если превышен лимит
-                processedUris.iterator().next()?.let { processedUris.remove(it) }
-            }
+            Timber.d("BackgroundMonitoringService: запущена работа по сжатию для $uri с тегом $workTag")
             
         } catch (e: Exception) {
             Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
+            processingUris.remove(uri.toString())
         }
     }
     
@@ -526,6 +566,18 @@ class BackgroundMonitoringService : Service() {
      */
     private fun logDetailedFileInfo(uri: Uri) {
         try {
+            val uriString = uri.toString()
+            
+            // Проверяем кэш
+            val cachedInfo = fileInfoCache[uriString]
+            if (cachedInfo != null && (System.currentTimeMillis() - cachedInfo.timestamp < fileInfoCacheExpiration)) {
+                // Используем кэшированную информацию
+                Timber.d("BackgroundMonitoringService: Информация о файле (из кэша): ID=${cachedInfo.id}, Имя=${cachedInfo.name}, Размер=${cachedInfo.size}, Дата=${cachedInfo.date}, MIME=${cachedInfo.mime}, URI=$uri")
+                Timber.d("BackgroundMonitoringService: Путь к файлу: ${cachedInfo.path}")
+                return
+            }
+            
+            // Если нет в кэше или кэш устарел, запрашиваем информацию
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
@@ -554,10 +606,14 @@ class BackgroundMonitoringService : Service() {
                     val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
                     val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
                     
-                    Timber.d("BackgroundMonitoringService: Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
-                    
                     // Получаем путь к файлу
-                    val path = FileUtil.getFilePathFromUri(applicationContext, uri)
+                    val path = FileUtil.getFilePathFromUri(applicationContext, uri) ?: "неизвестно"
+                    
+                    // Кэшируем полученную информацию
+                    val fileInfo = FileInfo(id, name, size, date, mime, path)
+                    fileInfoCache[uriString] = fileInfo
+                    
+                    Timber.d("BackgroundMonitoringService: Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
                     Timber.d("BackgroundMonitoringService: Путь к файлу: $path")
                 }
             }
@@ -567,106 +623,53 @@ class BackgroundMonitoringService : Service() {
     }
     
     /**
-     * Проверка, является ли файл временным (pending)
+     * Проверяет, нужно ли обрабатывать изображение
      */
-    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun shouldProcessImage(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val isPendingIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
-                    return@withContext cursor.getInt(isPendingIndex) == 1
-                }
+            // Проверяем, существует ли URI
+            val exists = applicationContext.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
+                it.count > 0
+            } ?: false
+            
+            if (!exists) {
+                Timber.d("URI не существует: $uri")
+                return@withContext false
             }
+            
+            // Проверяем, не обрабатывается ли уже это изображение
+            if (processingUris.contains(uri.toString())) {
+                Timber.d("URI уже обрабатывается: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем, было ли изображение уже обработано
+            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
+                Timber.d("URI уже был обработан: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем размер файла
+            val fileSize = FileUtil.getFileSize(applicationContext, uri)
+            if (!FileUtil.isFileSizeValid(fileSize)) {
+                Timber.d("Файл уже оптимального размера (${fileSize/1024}KB): $uri")
+                return@withContext false
+            }
+            
+            // Проверяем путь к файлу
+            val path = FileUtil.getFilePathFromUri(applicationContext, uri)
+            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext false
+            }
+            
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке изображения: $uri")
             false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса файла")
-            true // В случае ошибки считаем файл временным
-        }
-    }
-
-    /**
-     * Получение размера файла
-     */
-    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    return@withContext cursor.getLong(sizeIndex)
-                }
-            }
-            -1
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении размера файла")
-            -1
         }
     }
     
-    /**
-     * Получение информации о файле для отладки
-     */
-    private fun getFileInfo(uri: Uri): String {
-        val cursor = contentResolver.query(
-            uri,
-            arrayOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATA
-            ),
-            null,
-            null,
-            null
-        )
-        
-        var info = "Нет данных"
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                val dateIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
-                val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
-                
-                val name = if (nameIndex != -1) it.getString(nameIndex) else "неизвестно"
-                val date = if (dateIndex != -1) it.getLong(dateIndex) else 0
-                val size = if (sizeIndex != -1) it.getLong(sizeIndex) else 0
-                val data = if (dataIndex != -1) it.getString(dataIndex) else "неизвестно"
-                
-                info = "Имя: $name, Дата: $date, Размер: $size, Путь: $data"
-            }
-        }
-        
-        return info
-    }
-    
-    /**
-     * Получение текущего уровня сжатия из SharedPreferences
-     */
-    private fun getCompressionQuality(): Int {
-        val sharedPreferences = applicationContext.getSharedPreferences(
-            Constants.PREF_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-        return sharedPreferences.getInt(
-            Constants.PREF_COMPRESSION_QUALITY,
-            Constants.DEFAULT_COMPRESSION_QUALITY
-        )
-    }
-
     /**
      * Проверка состояния автоматического сжатия
      */
@@ -726,7 +729,7 @@ class BackgroundMonitoringService : Service() {
                         id
                     )
 
-                    if (!ImageTrackingUtil.isImageProcessed(applicationContext, contentUri)) {
+                    if (!StatsTracker.isImageProcessed(applicationContext, contentUri)) {
                         processNewImage(contentUri)
                         processedCount++
                     } else {
@@ -748,8 +751,16 @@ class BackgroundMonitoringService : Service() {
         // Регистрируем BroadcastReceiver для обработки запросов на обработку изображений
         registerReceiver(
             imageProcessingReceiver,
-            IntentFilter(Constants.ACTION_PROCESS_IMAGE)
+            IntentFilter(Constants.ACTION_PROCESS_IMAGE),
+            Context.RECEIVER_NOT_EXPORTED
         )
         Timber.d("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
+    }
+
+    /**
+     * Очистка старых временных файлов
+     */
+    private fun cleanupTempFiles() {
+        TempFilesCleaner.cleanupTempFiles(applicationContext)
     }
 } 

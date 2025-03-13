@@ -42,9 +42,9 @@ object Constants {
     const val APP_DIRECTORY = "CompressPhotoFast"
     
     // Настройки сжатия
-    const val COMPRESSION_QUALITY_LOW = 50
-    const val COMPRESSION_QUALITY_MEDIUM = 65
-    const val COMPRESSION_QUALITY_HIGH = 80
+    const val COMPRESSION_QUALITY_LOW = 60
+    const val COMPRESSION_QUALITY_MEDIUM = 70
+    const val COMPRESSION_QUALITY_HIGH = 85
     const val MAX_IMAGE_WIDTH = 1920
     const val MAX_IMAGE_HEIGHT = 1080
     
@@ -73,4 +73,7 @@ object Constants {
     const val EXTRA_ORIGINAL_SIZE = "extra_original_size"
     const val EXTRA_COMPRESSED_SIZE = "extra_compressed_size"
     const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
+    
+    // Временные файлы
+    const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут вместо 24 часов
 } 

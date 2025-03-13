@@ -19,9 +19,12 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.Collections
+import java.util.HashMap
 
 /**
  * Утилитарный класс для работы с файлами
@@ -31,6 +34,199 @@ object FileUtil {
     private val saveMutex = Mutex()
     private val processedUris = mutableSetOf<String>()
     private val processedFileNames = mutableMapOf<String, Uri>()
+    
+    // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
+    private val exifCheckCache = Collections.synchronizedMap(HashMap<String, Boolean>())
+    // Время жизни кэша EXIF (5 минут)
+    private val exifCacheExpiration = 5 * 60 * 1000L
+    // Время последнего обновления кэша
+    private val exifCacheTimestamps = Collections.synchronizedMap(HashMap<String, Long>())
+
+    // Константы для EXIF маркировки
+    private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
+    private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
+    private const val EXIF_COMPRESSION_LEVEL = "CompressPhotoFast_Quality"
+
+    /**
+     * Добавляет маркер сжатия и уровень компрессии в EXIF-метаданные изображения
+     * @param filePath путь к файлу
+     * @param quality уровень качества (0-100)
+     * @return true если маркировка успешна, false в противном случае
+     */
+    suspend fun markCompressedImage(filePath: String, quality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val exif = ExifInterface(filePath)
+            
+            // Проверяем текущее значение UserComment перед изменением
+            val oldUserComment = exif.getAttribute(EXIF_USER_COMMENT)
+            
+            // Добавляем маркер сжатия и уровень компрессии в один тег UserComment
+            val markerWithQuality = "${EXIF_COMPRESSION_MARKER}:$quality"
+            exif.setAttribute(EXIF_USER_COMMENT, markerWithQuality)
+            
+            // Сохраняем EXIF данные
+            exif.saveAttributes()
+            
+            // Проверяем, что маркер был установлен правильно
+            val newExif = ExifInterface(filePath)
+            val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
+            
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Добавляет маркер сжатия и уровень компрессии в EXIF-метаданные изображения
+     * @param context контекст
+     * @param uri URI изображения
+     * @param quality уровень качества (0-100)
+     * @return true если маркировка успешна, false в противном случае
+     */
+    suspend fun markCompressedImage(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val pfd = context.contentResolver.openFileDescriptor(uri, "rw") ?: return@withContext false
+            
+            // Сначала проверяем текущее значение UserComment
+            var oldUserComment: String? = null
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val oldExif = ExifInterface(inputStream)
+                oldUserComment = oldExif.getAttribute(EXIF_USER_COMMENT)
+            }
+            Timber.d("Текущий EXIF маркер для $uri: $oldUserComment")
+            
+            pfd.use { fileDescriptor ->
+                val exif = ExifInterface(fileDescriptor.fileDescriptor)
+                
+                // Добавляем маркер сжатия и уровень компрессии в один тег UserComment
+                val markerWithQuality = "${EXIF_COMPRESSION_MARKER}:$quality"
+                exif.setAttribute(EXIF_USER_COMMENT, markerWithQuality)
+                
+                // Сохраняем EXIF данные
+                exif.saveAttributes()
+            }
+            
+            // Проверяем, что маркер был установлен правильно
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val newExif = ExifInterface(inputStream)
+                val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
+                Timber.d("EXIF маркер сжатия установлен в URI: $uri с качеством: $quality. Записанное значение: $newUserComment")
+            }
+            
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия в URI: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверяет, является ли изображение сжатым по EXIF-метаданным
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение сжато, false в противном случае
+     */
+    suspend fun isCompressedByExif(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val uriString = uri.toString()
+            
+            // Проверяем кэш
+            val cachedResult = exifCheckCache[uriString]
+            val lastChecked = exifCacheTimestamps[uriString] ?: 0L
+            val isCacheValid = cachedResult != null && (System.currentTimeMillis() - lastChecked < exifCacheExpiration)
+            
+            if (isCacheValid) {
+                val isCompressed = cachedResult ?: false
+                if (isCompressed) {
+                    Timber.d("Изображение по URI $uri уже сжато (из кэша)")
+                }
+                return@withContext isCompressed
+            }
+            
+            // Если нет в кэше или кэш устарел, выполняем проверку
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                
+                // Проверяем маркер сжатия в UserComment
+                val userComment = exif.getAttribute(EXIF_USER_COMMENT)
+                val isCompressed = userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true
+                
+                // Кэшируем результат
+                exifCheckCache[uriString] = isCompressed
+                exifCacheTimestamps[uriString] = System.currentTimeMillis()
+                
+                if (isCompressed) {
+                    Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
+                }
+                
+                return@withContext isCompressed
+            }
+            
+            // Если не удалось открыть поток, сохраняем отрицательный результат в кэше
+            exifCheckCache[uriString] = false
+            exifCacheTimestamps[uriString] = System.currentTimeMillis()
+            
+            return@withContext false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке EXIF маркера сжатия: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Получает уровень компрессии из EXIF-метаданных изображения
+     * @param context контекст
+     * @param uri URI изображения
+     * @return уровень качества (0-100) или null если информация не найдена
+     */
+    suspend fun getCompressionLevel(context: Context, uri: Uri): Int? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                
+                // Получаем информацию о качестве из UserComment
+                val userComment = exif.getAttribute(EXIF_USER_COMMENT)
+                if (userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true) {
+                    val quality = userComment.substringAfter("$EXIF_COMPRESSION_MARKER:").toIntOrNull()
+                    Timber.d("Получен уровень компрессии из EXIF: $quality для URI: $uri")
+                    return@withContext quality
+                }
+                
+                return@withContext null
+            }
+            
+            return@withContext null
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении уровня компрессии из EXIF: ${e.message}")
+            return@withContext null
+        }
+    }
+
+    /**
+     * Верифицирует, что указанный в EXIF уровень компрессии соответствует ожидаемому значению
+     * @param context контекст
+     * @param uri URI изображения
+     * @param expectedQuality ожидаемый уровень качества (0-100)
+     * @return true если уровень компрессии соответствует, false в противном случае
+     */
+    suspend fun verifyExifCompressionLevel(context: Context, uri: Uri, expectedQuality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val actualQuality = getCompressionLevel(context, uri)
+            
+            if (actualQuality == expectedQuality) {
+                Timber.d("Верификация EXIF: уровень компрессии соответствует ожидаемому: $actualQuality")
+                return@withContext true
+            } else {
+                Timber.e("Верификация EXIF: уровень компрессии ($actualQuality) не соответствует ожидаемому ($expectedQuality)")
+                return@withContext false
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при верификации уровня компрессии в EXIF: ${e.message}")
+            return@withContext false
+        }
+    }
 
     /**
      * Получение имени файла из URI
@@ -84,77 +280,43 @@ object FileUtil {
         fileName: String,
         originalUri: Uri
     ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
+        Timber.d("saveCompressedImageToGallery: начало сохранения файла: $fileName")
+        Timber.d("saveCompressedImageToGallery: размер сжатого файла: ${compressedFile.length()} байт")
         Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${isSaveModeReplace(context)}")
         Timber.d("saveCompressedImageToGallery: ручное сжатие: ${isManualCompression(context)}")
-        Timber.d("saveCompressedImageToGallery: сохранение сжатого файла с именем: $fileName")
         
         try {
-            // Получаем режим сохранения из настроек
-            val saveMode = getSaveMode(context)
-            val isReplace = saveMode == Constants.SAVE_MODE_REPLACE
+            // Используем оригинальное имя файла без изменений
+            val finalFileName = fileName
             
-            // Проверяем, можно ли удалить исходный файл без запроса
-            val canDelete = canDeleteWithoutPermission(context)
-            
-            // Определяем целевую директорию для сохранения
-            val directory = if (isReplace) {
+            // Получаем путь к директории для сохранения
+            val directory = if (isSaveModeReplace(context)) {
+                // Если включен режим замены, сохраняем в той же директории
                 getDirectoryFromUri(context, originalUri)
             } else {
-                Timber.d("Используем стандартный путь для сохранения: ${Constants.APP_DIRECTORY}")
-                "${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}"
+                // Иначе сохраняем в директории приложения
+                Constants.APP_DIRECTORY
             }
             
-            Timber.d("Используем путь: $directory")
+            Timber.d("saveCompressedImageToGallery: директория для сохранения: $directory")
             
-            // Если режим замены, пытаемся удалить оригинальный файл перед созданием нового
-            var deleteIntentSender: Any? = null
-            if (isReplace) {
-                try {
-                    Timber.d("saveCompressedImageToGallery: удаление оригинального файла перед созданием нового: $originalUri")
-                    // Попытка удалить оригинальный файл
-                    deleteIntentSender = safeDeleteOriginalFile(context, originalUri)
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при удалении оригинального файла: $originalUri")
-                    // Продолжаем процесс даже если не удалось удалить оригинал
-                }
+            // Сохраняем файл
+            val (savedUri, deleteIntentSender) = insertImageIntoMediaStore(
+                context,
+                compressedFile,
+                finalFileName,
+                directory
+            )
+            
+            if (savedUri != null) {
+                Timber.d("saveCompressedImageToGallery: файл успешно сохранен: $savedUri")
+            } else {
+                Timber.e("saveCompressedImageToGallery: не удалось сохранить файл")
             }
             
-            // Создаем новую запись в MediaStore
-            val uri = insertImageIntoMediaStore(context, compressedFile, fileName, directory)
-            
-            if (uri != null) {
-                // Пробуем копировать EXIF данные, не прерывая процесс в случае ошибки
-                try {
-                    // Проверяем, существует ли оригинальный URI
-                    val checkCursor = context.contentResolver.query(originalUri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
-                    val sourceExists = checkCursor?.use { it.count > 0 } ?: false
-                    
-                    if (sourceExists) {
-                        // Копируем EXIF данные из оригинального файла в сжатый
-                        copyExifData(context, originalUri, uri)
-                    } else {
-                        Timber.d("Оригинальный URI не существует, пропускаем копирование EXIF: $originalUri")
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
-                    // Продолжаем даже если не удалось скопировать EXIF данные
-                }
-                
-                // Сохраняем оригинальный URI в списке обработанных для предотвращения повторной обработки
-                // Это делаем в любом случае, даже если возникли ошибки с EXIF
-                try {
-                    ImageTrackingUtil.addProcessedImage(context, originalUri)
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при добавлении URI в список обработанных: ${e.message}")
-                }
-                
-                return@withContext Pair(uri, deleteIntentSender)
-            }
-            
-            Timber.e("Не удалось создать запись в MediaStore")
-            return@withContext Pair(null, deleteIntentSender)
+            return@withContext Pair(savedUri, deleteIntentSender)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
+            Timber.e(e, "saveCompressedImageToGallery: ошибка при сохранении файла")
             return@withContext Pair(null, null)
         }
     }
@@ -200,7 +362,7 @@ object FileUtil {
         compressedFile: File,
         fileName: String,
         directory: String
-    ): Uri? = withContext(Dispatchers.IO) {
+    ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
         try {
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
@@ -244,13 +406,13 @@ object FileUtil {
                     context.contentResolver.update(uri, contentValues, null, null)
                 }
                 
-                return@withContext uri
+                return@withContext Pair(uri, null)
             }
             
-            return@withContext null
+            return@withContext Pair(null, null)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при записи файла: ${e.message}")
-            return@withContext null
+            return@withContext Pair(null, null)
         }
     }
 
@@ -382,26 +544,6 @@ object FileUtil {
         }
     }
     
-    /**
-     * Проверяет, поддерживается ли тег EXIF в текущей версии Android
-     * 
-     * @param tag название тега
-     * @return true если тег существует в ExifInterface, false в противном случае
-     */
-    private fun isExifTagAvailable(tag: String): Boolean {
-        return try {
-            // Пытаемся получить доступ к полю через рефлексию
-            ExifInterface::class.java.getField(tag)
-            true
-        } catch (e: NoSuchFieldException) {
-            Timber.d("EXIF тег $tag не поддерживается в текущей версии Android")
-            false
-        } catch (e: Exception) {
-            Timber.d("Ошибка при проверке EXIF тега $tag: ${e.message}")
-            false
-        }
-    }
-
     /**
      * Общий метод для копирования тегов EXIF между двумя объектами ExifInterface
      */
@@ -798,7 +940,8 @@ object FileUtil {
      * Проверяет, запущено ли сжатие вручную
      */
     fun isManualCompression(context: Context): Boolean {
-        return false // В текущей версии все сжатия запускаются автоматически
+        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        return !prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
     }
 
     /**
@@ -811,6 +954,14 @@ object FileUtil {
         } else {
             Constants.SAVE_MODE_SEPARATE
         }
+    }
+
+    /**
+     * Получает уровень качества сжатия из настроек
+     */
+    fun getCompressionQuality(context: Context): Int {
+        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
     }
 
     /**
@@ -870,5 +1021,95 @@ object FileUtil {
         
         // Возвращаем стандартный путь, если не удалось определить директорию
         return "${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}"
+    }
+
+    /**
+     * Проверяет, является ли файл временным (pending)
+     */
+    suspend fun isFilePending(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return@withContext cursor.getInt(0) == 1
+                }
+            }
+            true // В случае ошибки считаем файл временным
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке состояния файла: $uri")
+            true
+        }
+    }
+
+    /**
+     * Ожидает, пока файл станет доступным, используя таймер
+     */
+    suspend fun waitForFileAvailability(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val maxWaitTimeMs = 5000L // Максимальное время ожидания: 5 секунд
+        val checkIntervalMs = 300L // Интервал проверки: 300 мс
+        val startTime = System.currentTimeMillis()
+        
+        while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
+            // Проверяем размер файла
+            val size = getFileSize(context, uri)
+            if (size > 0 && !isFilePending(context, uri)) {
+                // Файл доступен
+                return@withContext true
+            }
+            
+            // Файл недоступен, логируем и ждем
+            val elapsedTime = System.currentTimeMillis() - startTime
+            val remainingTime = maxWaitTimeMs - elapsedTime
+            Timber.d("Файл недоступен (прошло ${elapsedTime}мс, осталось ${remainingTime}мс): размер = $size")
+            
+            // Ждем следующую проверку
+            delay(checkIntervalMs)
+        }
+        
+        Timber.d("Файл не стал доступен после ${maxWaitTimeMs}мс ожидания")
+        return@withContext false
+    }
+
+    /**
+     * Получает размер файла из MediaStore
+     */
+    suspend fun getFileSize(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                    return@withContext cursor.getLong(sizeIndex)
+                }
+            }
+            -1L
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении размера файла")
+            -1L
+        }
+    }
+
+    /**
+     * Проверка валидности размера файла
+     */
+    fun isFileSizeValid(size: Long): Boolean {
+        return size in Constants.MIN_FILE_SIZE..Constants.MAX_FILE_SIZE
+    }
+
+    /**
+     * Создание временного файла для изображения
+     */
+    fun createTempImageFile(context: Context): File {
+        return File.createTempFile(
+            "temp_image_",
+            ".jpg",
+            context.cacheDir
+        )
     }
 } 

@@ -14,8 +14,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.ImageTrackingUtil
 import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
@@ -33,7 +33,6 @@ class ImageDetectionJobService : JobService() {
         private const val JOB_ID = 1000
         private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
         private const val OVERRIDE_DEADLINE_MILLIS = 1000L // Максимальная задержка
-        private const val MAX_FILENAME_LENGTH = 100 // Максимальная длина имени файла
 
         /**
          * Настройка и планирование задания для отслеживания новых изображений
@@ -222,44 +221,43 @@ class ImageDetectionJobService : JobService() {
     /**
      * Проверяет, нужно ли обрабатывать изображение
      */
-    private suspend fun shouldProcessImage(uri: Uri): Boolean {
-        // Проверяем, что это изображение из MediaStore
-        if (!uri.toString().contains("media") || !uri.toString().contains("image")) {
-            return false
-        }
-        
-        // Проверяем, не обрабатывается ли URI уже через MainActivity
-        if (ImageTrackingUtil.isUriBeingProcessedByMainActivity(uri)) {
-            Timber.d("ImageDetectionJobService: URI $uri уже обрабатывается через MainActivity, пропускаем")
-            return false
-        }
-
-        // Получаем информацию о файле
-        val projection = arrayOf(
-            MediaStore.Images.Media.SIZE
-        )
-
+    private suspend fun shouldProcessImage(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE))
-
-                    // Проверяем размер файла
-                    if (size <= 0) {
-                        Timber.d("Пропуск файла с нулевым размером")
-                        return false
-                    }
-
-                    // Проверяем, не является ли файл уже сжатым
-                    return !ImageTrackingUtil.isImageProcessed(applicationContext, uri)
-                }
+            // Проверяем, существует ли URI
+            val exists = contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
+                it.count > 0
+            } ?: false
+            
+            if (!exists) {
+                Timber.d("URI не существует: $uri")
+                return@withContext false
             }
+            
+            // Проверяем, было ли изображение уже обработано
+            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
+                Timber.d("URI уже был обработан: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем размер файла
+            val fileSize = FileUtil.getFileSize(applicationContext, uri)
+            if (!FileUtil.isFileSizeValid(fileSize)) {
+                Timber.d("Файл уже оптимального размера (${fileSize/1024}KB): $uri")
+                return@withContext false
+            }
+            
+            // Проверяем путь к файлу
+            val path = FileUtil.getFilePathFromUri(applicationContext, uri)
+            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext false
+            }
+            
+            true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке файла")
-            return false
+            Timber.e(e, "Ошибка при проверке изображения: $uri")
+            false
         }
-
-        return false
     }
 
     /**
@@ -299,7 +297,7 @@ class ImageDetectionJobService : JobService() {
         Timber.d("ImageDetectionJobService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
 
         // Отмечаем изображение как обработанное
-        ImageTrackingUtil.markImageAsProcessed(applicationContext, uri)
+        StatsTracker.addProcessedImage(applicationContext, uri)
         Timber.d("ImageDetectionJobService: изображение отмечено как обработанное: $uri")
     }
 
