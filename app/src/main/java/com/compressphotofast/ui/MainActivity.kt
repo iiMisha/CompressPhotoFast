@@ -196,80 +196,45 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
                 val uriString = intent.getStringExtra(Constants.EXTRA_URI)
-                
-                // Синхронизируем доступ к обработке Toast
-                synchronized(toastLock) {
-                    // Если Toast уже отображается, пропускаем
-                    if (isToastShowing) {
-                        Timber.d("Пропуск Toast - другое сообщение уже отображается")
-                        return
-                    }
+                if (uriString != null) {
+                    val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
+                    val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
+                    val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
+                    val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                     
-                    // Проверяем, не показывали ли мы недавно Toast для этого URI
-                    val canShowToast = if (uriString != null) {
-                        val lastTime = lastNotificationTime[uriString] ?: 0L
-                        val currentTime = System.currentTimeMillis()
-                        val timePassed = currentTime - lastTime
-                        
-                        if (timePassed > MIN_TOAST_INTERVAL) {
-                            // Обновляем время последнего уведомления
-                            lastNotificationTime[uriString] = currentTime
-                            // Запускаем задачу очистки через некоторое время
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                lastNotificationTime.remove(uriString)
-                            }, MIN_TOAST_INTERVAL * 2)
-                            true
-                        } else {
-                            Timber.d("Пропуск Toast для URI $uriString - слишком быстрое повторение (прошло ${timePassed}мс)")
-                            false
-                        }
-                    } else {
-                        true
-                    }
+                    // Фоматируем размеры для логов
+                    val originalSizeStr = formatFileSize(originalSize)
+                    val compressedSizeStr = formatFileSize(compressedSize)
+                    val reductionStr = String.format("%.1f", reduction)
                     
-                    if (canShowToast) {
-                        val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
-                        val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
-                        val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
-                        val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
-                        
-                        // Сокращаем длинное имя файла
-                        val truncatedFileName = truncateFileName(fileName)
-                        
-                        // Форматируем размеры
-                        val originalSizeStr = formatFileSize(originalSize)
-                        val compressedSizeStr = formatFileSize(compressedSize)
-                        val reductionStr = String.format("%.1f", reduction)
-                        
-                        // Показываем уведомление
-                        runOnUiThread {
-                            // Устанавливаем флаг перед показом Toast
-                            isToastShowing = true
-                            
-                            val toast = Toast.makeText(
-                                this@MainActivity,
-                                "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)",
-                                Toast.LENGTH_LONG
-                            )
-                            
-                            toast.addCallback(object : Toast.Callback() {
-                                override fun onToastHidden() {
-                                    super.onToastHidden()
-                                    // Сбрасываем флаг после скрытия Toast
-                                    isToastShowing = false
-                                }
-                            })
-                            
-                            toast.show()
-                        }
-                        
-                        Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
-                    }
+                    // Только логируем информацию о завершении сжатия, без показа toast
+                    Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
+                    
+                    // Toast уже показывается напрямую в ImageCompressionWorker
+                    // showCompressionResultToast(fileName, originalSize, compressedSize, reduction)
                 }
             }
         }
     }
     
+    /**
+     * Показывает toast с результатом сжатия, если он еще не был показан для данного URI
+     */
+    private fun showCompressionResultToast(fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
+        // Сокращаем длинное имя файла
+        val truncatedFileName = truncateFileName(fileName)
+        
+        // Форматируем размеры
+        val originalSizeStr = formatFileSize(originalSize)
+        val compressedSizeStr = formatFileSize(compressedSize)
+        val reductionStr = String.format("%.1f", reduction)
+        
+        // Показываем toast с результатом сжатия
+        showTopToast(
+            "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+        )
+    }
+
     /**
      * Сокращает длинное имя файла, заменяя середину на "..."
      */
@@ -340,7 +305,7 @@ class MainActivity : AppCompatActivity() {
         // Настраиваем наблюдателей ViewModel
         observeViewModel()
         
-        // Регистрируем приемник для уведомлений о завершении сжатия
+        // Регистрируем приемник для уведомлений о завершении сжатия только для обновления статуса
         val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
         registerReceiver(compressionCompletedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         

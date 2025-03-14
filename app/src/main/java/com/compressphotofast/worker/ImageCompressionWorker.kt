@@ -38,6 +38,9 @@ import com.compressphotofast.ui.MainActivity
 import java.util.Collections
 import java.util.HashSet
 import java.io.FileOutputStream
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -145,13 +148,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 savedUri?.let {
                     Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                     
-                    // Отправляем broadcast о завершении сжатия
-                    sendCompletionBroadcast(
-                        fileName = fileName,
-                        originalSize = originalSize,
-                        compressedSize = compressedSize,
-                        sizeReduction = sizeReduction
-                    )
+                    // Показываем уведомление о завершении сжатия
+                    showCompletionNotification(fileName, originalSize, compressedSize, sizeReduction)
                 }
                 
                 // Удаляем временный файл
@@ -160,14 +158,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 } else {
                     Timber.d("Временный файл удален")
                 }
-                
-                // Показываем уведомление о завершении сжатия только если было достаточное сжатие
-                showCompletionNotification(fileName, originalSize, compressedSize, sizeReduction)
-                
-                // Не помечаем оригинальный URI как обработанный, так как файл мог быть заменен
-                // StatsTracker.addProcessedImage(context, imageUri)
-                
-                Timber.d("★★★ Изображение успешно сжато и сохранено: ${FileUtil.getFilePathFromUri(context, imageUri)} ★★★")
                 
                 // Обновляем статус при успешном сжатии
                 StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
@@ -564,10 +554,24 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Показывает уведомление о завершении сжатия с информацией о результате
      */
     private fun showCompletionNotification(fileName: String, originalSize: Long, compressedSize: Long, sizeReduction: Float) {
-        // Вызываем отправку бродкаста только один раз
+        // Вызываем функцию добавления в недавно обработанные, чтобы MediaStore Observer не обрабатывал этот файл заново
         try {
-            // Отправляем только broadcast для MainActivity, без системного уведомления
-            sendCompletionBroadcast(fileName, originalSize, compressedSize, sizeReduction)
+            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+            if (uriString != null) {
+                // Отправляем только информацию о завершении для обновления статуса в BackgroundMonitoringService
+                val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED).apply {
+                    putExtra(Constants.EXTRA_FILE_NAME, fileName)
+                    putExtra(Constants.EXTRA_URI, uriString) 
+                    putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
+                    putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
+                    putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
+                    flags = Intent.FLAG_RECEIVER_FOREGROUND
+                }
+                context.sendBroadcast(intent)
+                
+                // Показываем уведомление о завершении сжатия в UI потоке
+                showCompletionToast(fileName, originalSize, compressedSize, sizeReduction)
+            }
             
             // Логируем для отладки
             Timber.d("Уведомление о завершении сжатия отправлено: Файл=$fileName")
@@ -577,94 +581,31 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
     
     /**
-     * Отправляет broadcast о завершении сжатия
+     * Показывает Toast-уведомление о результате сжатия
      */
-    private fun sendCompletionBroadcast(fileName: String, originalSize: Long, compressedSize: Long, sizeReduction: Float) {
-        // Получаем исходный URI из входных данных
-        val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-        
-        // Предотвращаем отправку бродкаста, если URI отсутствует
-        if (uriString == null) {
-            Timber.w("Невозможно отправить broadcast о завершении сжатия: отсутствует URI")
-            return
+    private fun showCompletionToast(fileName: String, originalSize: Long, compressedSize: Long, sizeReduction: Float) {
+        // Запускаем в главном потоке
+        Handler(Looper.getMainLooper()).post {
+            // Сокращаем длинное имя файла
+            val truncatedFileName = if (fileName.length <= 25) fileName else {
+                val start = fileName.substring(0, 12)
+                val end = fileName.substring(fileName.length - 12)
+                "$start...$end"
+            }
+            
+            // Форматируем размеры
+            val originalSizeStr = formatFileSize(originalSize)
+            val compressedSizeStr = formatFileSize(compressedSize)
+            val reductionStr = String.format("%.1f", sizeReduction)
+            
+            // Показываем Toast
+            val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
-        
-        // Проверяем, не отправляли ли мы уже бродкаст для этого URI
-        val wasSent = notificationsSent.contains(uriString)
-        if (wasSent) {
-            Timber.d("Пропуск отправки бродкаста: уже был отправлен для URI=$uriString")
-            return
-        }
-        
-        // Логируем отправку
-        Timber.d("Отправка broadcast о завершении сжатия: Файл=$fileName, URI=$uriString")
-        
-        val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED).apply {
-            putExtra(Constants.EXTRA_FILE_NAME, fileName)
-            putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
-            putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
-            putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
-            putExtra(Constants.EXTRA_URI, uriString) // Важно: добавляем URI для отслеживания завершения
-            // Добавляем флаг для предотвращения многократного создания активити
-            flags = Intent.FLAG_RECEIVER_FOREGROUND
-        }
-        
-        // Отмечаем, что бродкаст для этого URI уже был отправлен
-        notificationsSent.add(uriString)
-        
-        context.sendBroadcast(intent)
-        Timber.d("Отправлен broadcast о завершении сжатия: $fileName")
     }
     
     /**
-     * Показывает уведомление об ошибке сжатия
-     */
-    private fun showErrorNotification(fileName: String) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Создание канала уведомлений для Android 8.0+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "compression_completion_channel",
-                context.getString(R.string.notification_completion_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            channel.description = context.getString(R.string.notification_completion_channel_description)
-            channel.setShowBadge(true)
-            channel.enableLights(true)
-            channel.enableVibration(true)
-            notificationManager.createNotificationChannel(channel)
-        }
-        
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Создаем уведомление об ошибке
-        val notification = NotificationCompat.Builder(context, "compression_completion_channel")
-            .setContentTitle(context.getString(R.string.notification_compression_error))
-            .setContentText(context.getString(R.string.notification_compression_error_details, fileName))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-        
-        // Используем уникальный ID для каждого уведомления
-        val notificationId = System.currentTimeMillis().toInt() + 1
-        
-        // Логируем перед отправкой уведомления
-        Timber.d("Отправка уведомления об ошибке сжатия: ID=$notificationId, Файл=$fileName")
-        
-        notificationManager.notify(notificationId, notification)
-    }
-    
-    /**
-     * Форматирует размер файла в удобочитаемом виде (KB, MB)
+     * Форматирует размер файла в удобочитаемый вид
      */
     private fun formatFileSize(size: Long): String {
         return when {
@@ -801,8 +742,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             savedUri?.let {
                 Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                 
-                // Отправляем broadcast о завершении сжатия
-                sendCompletionBroadcast(
+                // Показываем уведомление о завершении сжатия
+                showCompletionNotification(
                     fileName = originalFileName,
                     originalSize = stats.originalSize,
                     compressedSize = stats.compressedSize,
