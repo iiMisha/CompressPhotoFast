@@ -807,12 +807,21 @@ class MainActivity : AppCompatActivity() {
         val isFirstLaunch = prefs.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
         val deletePermissionRequested = prefs.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false)
         
+        // Проверяем, есть ли уже разрешение на управление файлами
+        val hasStoragePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            false
+        }
+        
         // Запрашиваем разрешение на удаление только если:
         // 1. Это первый запуск
         // 2. Разрешение еще не запрашивалось
-        // 3. Включен режим замены файлов
-        // 4. Версия Android >= Q (10)
+        // 3. Разрешение не получено
+        // 4. Включен режим замены файлов
+        // 5. Версия Android >= Q (10)
         if (isFirstLaunch && !deletePermissionRequested && 
+            !hasStoragePermission &&
             viewModel.isSaveModeReplace() && 
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             
@@ -839,9 +848,17 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
-     * Показывает диалог с объяснением необходимости разрешения на удаление файлов
+     * Показывает диалог с объяснением необходимости разрешения на удаление
      */
     private fun showDeletePermissionDialog() {
+        // Проверяем, есть ли уже разрешение MANAGE_EXTERNAL_STORAGE для Android 11+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+            Timber.d("Разрешение на управление файлами уже получено, пропускаем запрос")
+            prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
+            initializeBackgroundServices()
+            return
+        }
+        
         AlertDialog.Builder(this)
             .setTitle(R.string.dialog_delete_permission_title)
             .setMessage(R.string.dialog_delete_permission_message)
@@ -867,6 +884,16 @@ class MainActivity : AppCompatActivity() {
      */
     private suspend fun requestDeletePermission() = withContext(Dispatchers.IO) {
         try {
+            // Проверяем, есть ли уже разрешение MANAGE_EXTERNAL_STORAGE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+                Timber.d("Разрешение на управление файлами уже получено, пропускаем запрос")
+                withContext(Dispatchers.Main) {
+                    prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
+                    initializeBackgroundServices()
+                }
+                return@withContext
+            }
+            
             Timber.d("Создание тестового файла для запроса разрешения на удаление")
             
             // Создаем тестовое изображение
