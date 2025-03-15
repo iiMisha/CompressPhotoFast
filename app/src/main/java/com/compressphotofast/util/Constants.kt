@@ -48,6 +48,7 @@ object Constants {
     
     // Интервалы
     const val BACKGROUND_SCAN_INTERVAL_MINUTES = 30L
+    const val RECENT_SCAN_WINDOW_SECONDS = 5 * 60L // 5 минут в секундах
     
     // Настройки отслеживания файлов
     const val MAX_TRACKED_FILES = 1000

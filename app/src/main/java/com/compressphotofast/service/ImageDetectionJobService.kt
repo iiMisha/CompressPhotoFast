@@ -24,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.util.GalleryScanUtil
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -104,14 +106,7 @@ class ImageDetectionJobService : JobService() {
         Timber.d("ImageDetectionJobService: onStartJob вызван")
         
         // Проверяем, включено ли автоматическое сжатие
-        val prefs = applicationContext.getSharedPreferences(
-            Constants.PREF_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-        val isAutoCompressionEnabled = prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
-        Timber.d("ImageDetectionJobService: состояние автоматического сжатия: ${if (isAutoCompressionEnabled) "включено" else "выключено"}")
-        
-        if (!isAutoCompressionEnabled) {
+        if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
             Timber.d("ImageDetectionJobService: автоматическое сжатие отключено, завершаем Job")
             jobFinished(params, false)
             return false
@@ -143,11 +138,35 @@ class ImageDetectionJobService : JobService() {
                         return@forEach
                     }
                     
-                    if (shouldProcessImage(uri)) {
+                    // Проверяем, не обрабатывается ли URI уже
+                    if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                        Timber.d("ImageDetectionJobService: URI $uri уже в процессе обработки, пропускаем")
+                        skippedCount++
+                        return@forEach
+                    }
+                    
+                    // Проверяем, не должен ли URI игнорироваться
+                    if (UriProcessingTracker.shouldIgnoreUri(uri.toString())) {
+                        Timber.d("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
+                        skippedCount++
+                        return@forEach
+                    }
+                    
+                    if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
                         withContext(Dispatchers.IO) {
-                            processImage(uri)
+                            // Регистрируем URI как обрабатываемый
+                            UriProcessingTracker.addProcessingUri(uri.toString())
+                            
+                            // Обрабатываем изображение
+                            if (ImageProcessingUtil.processImage(applicationContext, uri)) {
+                                Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
+                                processedCount++
+                            } else {
+                                Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
+                                UriProcessingTracker.removeProcessingUri(uri.toString())
+                                skippedCount++
+                            }
                         }
-                        processedCount++
                     } else {
                         Timber.d("ImageDetectionJobService: URI пропущен: $uri")
                         skippedCount++
@@ -218,27 +237,6 @@ class ImageDetectionJobService : JobService() {
         Timber.d("onStopJob: задание остановлено")
         // Возвращаем true, чтобы перепланировать задание
         return true
-    }
-
-    /**
-     * Проверяет, нужно ли обрабатывать изображение
-     */
-    private suspend fun shouldProcessImage(uri: Uri): Boolean {
-        return ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
-    }
-
-    /**
-     * Запускает обработку изображения
-     */
-    private suspend fun processImage(uri: Uri) = withContext(Dispatchers.IO) {
-        Timber.d("ImageDetectionJobService: начало обработки изображения: $uri")
-        
-        // Используем централизованную логику обработки изображений
-        if (ImageProcessingUtil.processImage(applicationContext, uri)) {
-            Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
-        } else {
-            Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-        }
     }
 
     /**

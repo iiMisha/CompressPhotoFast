@@ -40,6 +40,9 @@ import android.content.pm.ServiceInfo
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.GalleryScanUtil
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -155,14 +158,14 @@ class BackgroundMonitoringService : Service() {
                             return@launch
                         }
                         
-                        // Проверяем, не находится ли URI уже в списке обработанных
-                        if (processingUris.contains(uri.toString())) {
-                            Timber.d("URI уже в списке обработанных: $uri, пропускаем")
+                        // Проверяем, не находится ли URI уже в списке обрабатываемых
+                        if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                            Timber.d("URI уже в списке обрабатываемых: $uri, пропускаем")
                             return@launch
                         }
                         
-                        // Добавляем URI в список обработанных, чтобы избежать повторной обработки
-                        processingUris.add(uri.toString())
+                        // Добавляем URI в список обрабатываемых, чтобы избежать повторной обработки
+                        UriProcessingTracker.addProcessingUri(uri.toString())
                         
                         // Запускаем обработку изображения
                         processNewImage(uri)
@@ -184,23 +187,17 @@ class BackgroundMonitoringService : Service() {
                     val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                     
                     // Удаляем URI из списка обрабатываемых
-                    val wasRemoved = removeProcessingUri(uriString)
-                    processingUris.remove(uriString)
-                    Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${processingUris.size} URIs)")
+                    val wasRemoved = UriProcessingTracker.removeProcessingUri(uriString)
+                    Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
                     Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
                     // Показываем Toast-уведомление о результате сжатия
-                    showCompressionResultToast(fileName, originalSize, compressedSize, reductionPercent)
+                    NotificationUtil.showCompressionResultToast(applicationContext, fileName, originalSize, compressedSize, reductionPercent)
                     
                     // Устанавливаем таймер игнорирования изменений
-                    ignoreChangesUntil[uriString] = System.currentTimeMillis() + ignoreMediaStoreChangesAfterCompression
+                    UriProcessingTracker.setIgnorePeriod(uriString)
                     
-                    // Запускаем таймер для очистки игнорируемого URI
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        ignoreChangesUntil.remove(uriString)
-                    }, ignoreMediaStoreChangesAfterCompression * 2)
-                    
-                    Timber.d("Обработка URI $uriString завершена, будет игнорироваться в течение ${ignoreMediaStoreChangesAfterCompression}мс")
+                    Timber.d("Обработка URI $uriString завершена и будет игнорироваться")
                 }
             }
         }
@@ -210,11 +207,17 @@ class BackgroundMonitoringService : Service() {
         super.onCreate()
         Timber.d("BackgroundMonitoringService: onCreate")
         
+        // Создаем канал уведомлений
+        NotificationUtil.createNotificationChannel(applicationContext)
+        
         // Создаем уведомление и запускаем сервис как Foreground Service
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+                NotificationUtil.createBackgroundServiceNotification(applicationContext), 
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, createNotification())
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+                NotificationUtil.createBackgroundServiceNotification(applicationContext))
         }
         
         // Настраиваем ContentObserver для отслеживания изменений в MediaStore
@@ -231,7 +234,7 @@ class BackgroundMonitoringService : Service() {
         )
         
         // Проверяем состояние автоматического сжатия при создании сервиса
-        val isEnabled = isAutoCompressionEnabled()
+        val isEnabled = SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
         Timber.d("BackgroundMonitoringService: состояние автоматического сжатия: ${if (isEnabled) "включено" else "выключено"}")
         
         if (!isEnabled) {
@@ -257,8 +260,7 @@ class BackgroundMonitoringService : Service() {
             Timber.d("BackgroundMonitoringService: получен запрос на остановку сервиса")
             
             // Отключаем автоматическое сжатие в настройках
-            val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putBoolean(Constants.PREF_AUTO_COMPRESSION, false).apply()
+            SettingsManager.getInstance(applicationContext).setAutoCompression(false)
             
             // Останавливаем сервис
             stopSelf()
@@ -266,8 +268,8 @@ class BackgroundMonitoringService : Service() {
         }
         
         // Создание уведомления для foreground сервиса
-        val notification = createNotification()
-        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, notification)
+        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+            NotificationUtil.createBackgroundServiceNotification(applicationContext))
         Timber.d("BackgroundMonitoringService: запущен как foreground сервис")
         
         // Выполняем первоначальное сканирование при запуске сервиса
@@ -299,40 +301,6 @@ class BackgroundMonitoringService : Service() {
         }
         
         Timber.d("Фоновый сервис остановлен")
-    }
-    
-    /**
-     * Создание уведомления для foreground сервиса
-     */
-    private fun createNotification(): Notification {
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Создаем действие для остановки сервиса
-        val stopIntent = Intent(this, BackgroundMonitoringService::class.java).apply {
-            action = Constants.ACTION_STOP_SERVICE
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        return NotificationCompat.Builder(this, getString(R.string.notification_channel_id))
-            .setContentTitle(getString(R.string.notification_title))
-            .setContentText(getString(R.string.notification_background_service))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(
-                R.drawable.ic_launcher_foreground,
-                getString(R.string.notification_action_stop),
-                stopPendingIntent
-            )
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(getString(R.string.notification_background_service_description)))
-            .build()
     }
     
     /**
@@ -401,104 +369,19 @@ class BackgroundMonitoringService : Service() {
     private fun scanForNewImages() {
         executorService.execute {
             kotlinx.coroutines.runBlocking {
-                Timber.d("BackgroundMonitoringService: начало сканирования галереи")
+                // Используем централизованную логику сканирования
+                val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
                 
-                // Проверяем состояние автоматического сжатия
-                if (!isAutoCompressionEnabled()) {
-                    Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем сканирование")
-                    return@runBlocking
-                }
-                
-                // Запрашиваем последние изображения из MediaStore
-                val projection = arrayOf(
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DATE_ADDED,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.SIZE
-                )
-                
-                // Ищем фотографии, созданные за последние 5 минут
-                val selection = "${MediaStore.Images.Media.DATE_ADDED} > ?"
-                val currentTimeInSeconds = System.currentTimeMillis() / 1000
-                val fiveMinutesAgo = currentTimeInSeconds - (5 * 60) // 5 минут назад
-                val selectionArgs = arrayOf(fiveMinutesAgo.toString())
-                
-                // Сортируем по времени создания (сначала новые)
-                val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-                
-                try {
-                    contentResolver.query(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        projection,
-                        selection,
-                        selectionArgs,
-                        sortOrder
-                    )?.use { cursor ->
-                        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                        val nameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                        val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
-                        
-                        val totalImages = cursor.count
-                        Timber.d("BackgroundMonitoringService: найдено $totalImages изображений за последние 5 минут")
-                        
-                        var processedCount = 0
-                        var skippedCount = 0
-                        
-                        while (cursor.moveToNext()) {
-                            val id = cursor.getLong(idColumn)
-                            val name = if (nameColumn != -1) cursor.getString(nameColumn) else "unknown"
-                            val size = if (sizeColumn != -1) cursor.getLong(sizeColumn) else 0L
-                            
-                            // Пропускаем слишком маленькие файлы
-                            if (size < Constants.MIN_FILE_SIZE) {
-                                Timber.d("BackgroundMonitoringService: пропуск маленького файла: $name ($size байт)")
-                                skippedCount++
-                                continue
-                            }
-                            
-                            // Пропускаем слишком большие файлы
-                            if (size > Constants.MAX_FILE_SIZE) {
-                                Timber.d("BackgroundMonitoringService: пропуск большого файла: $name (${size / (1024 * 1024)} MB)")
-                                skippedCount++
-                                continue
-                            }
-                            
-                            val contentUri = ContentUris.withAppendedId(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
-                            )
-                            
-                            // Проверяем, не обрабатывается ли URI уже через MainActivity
-                            if (StatsTracker.isUriBeingProcessedByMainActivity(contentUri)) {
-                                Timber.d("BackgroundMonitoringService: URI $contentUri уже обрабатывается через MainActivity, пропускаем")
-                                skippedCount++
-                                continue
-                            }
-                            
-                            // Проверяем, не находится ли URI уже в процессе обработки
-                            if (isImageBeingProcessed(contentUri.toString())) {
-                                Timber.d("BackgroundMonitoringService: URI $contentUri уже в процессе обработки, пропускаем")
-                                skippedCount++
-                                continue
-                            }
-                            
-                            // Проверяем, не было ли изображение уже обработано (по EXIF)
-                            if (!StatsTracker.shouldProcessImage(applicationContext, contentUri)) {
-                                Timber.d("BackgroundMonitoringService: изображение не требует обработки: $contentUri")
-                                skippedCount++
-                                continue
-                            }
-                            
-                            // Обрабатываем изображение
-                            Timber.d("BackgroundMonitoringService: обработка изображения: $name ($contentUri)")
-                            processNewImage(contentUri)
-                            processedCount++
-                        }
-                        
-                        Timber.d("BackgroundMonitoringService: сканирование завершено. Обработано: $processedCount, Пропущено: $skippedCount")
+                // Обрабатываем найденные изображения
+                scanResult.foundUris.forEach { uri ->
+                    // Проверяем состояние автоматического сжатия еще раз перед началом обработки
+                    if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+                        Timber.d("BackgroundMonitoringService: обработка изображения: $uri")
+                        processNewImage(uri)
                     }
-                } catch (e: Exception) {
-                    Timber.e(e, "BackgroundMonitoringService: ошибка при сканировании галереи")
                 }
+                
+                Timber.d("BackgroundMonitoringService: сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
             }
         }
     }
@@ -521,14 +404,13 @@ class BackgroundMonitoringService : Service() {
             val uriString = uri.toString()
             
             // Проверяем, обрабатывается ли уже это изображение
-            if (isImageBeingProcessed(uriString)) {
+            if (UriProcessingTracker.isImageBeingProcessed(uriString)) {
                 Timber.d("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
                 return
             }
             
             // Проверяем, не следует ли игнорировать это изменение
-            val ignoreUntil = ignoreChangesUntil[uriString]
-            if (ignoreUntil != null && System.currentTimeMillis() < ignoreUntil) {
+            if (UriProcessingTracker.shouldIgnoreUri(uriString)) {
                 Timber.d("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
                 return
             }
@@ -538,6 +420,10 @@ class BackgroundMonitoringService : Service() {
             
             // Используем централизованную логику проверки и обработки изображения
             if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
+                // Регистрируем URI как обрабатываемый перед началом обработки
+                UriProcessingTracker.addProcessingUri(uriString)
+                
+                // Запускаем обработку изображения
                 ImageProcessingUtil.processImage(applicationContext, uri)
                 Timber.d("BackgroundMonitoringService: запрос на обработку изображения отправлен: $uri")
             } else {
@@ -547,7 +433,7 @@ class BackgroundMonitoringService : Service() {
         } catch (e: Exception) {
             Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
             val uriString = uri.toString()
-            removeProcessingUri(uriString)
+            UriProcessingTracker.removeProcessingUri(uriString)
         }
     }
     
@@ -611,83 +497,20 @@ class BackgroundMonitoringService : Service() {
             Timber.e(e, "Ошибка при получении информации о файле: $uri")
         }
     }
-    
-    /**
-     * Проверяет, нужно ли обрабатывать изображение
-     */
-    private suspend fun shouldProcessImage(uri: Uri): Boolean {
-        return ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
-    }
-    
-    /**
-     * Проверка состояния автоматического сжатия
-     */
-    private fun isAutoCompressionEnabled(): Boolean {
-        return SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
-    }
 
     /**
      * Сканирование галереи для поиска необработанных изображений
      */
     private suspend fun scanGalleryForUnprocessedImages() = withContext(Dispatchers.IO) {
-        if (!isAutoCompressionEnabled()) {
-            Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем сканирование")
-            return@withContext
+        // Используем централизованную логику сканирования за 24 часа
+        val scanResult = GalleryScanUtil.scanDayOldImages(applicationContext)
+        
+        // Обрабатываем найденные изображения
+        scanResult.foundUris.forEach { uri ->
+            processNewImage(uri)
         }
-
-        try {
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATE_ADDED
-            )
-
-            // Ищем только недавно добавленные изображения (за последние 24 часа)
-            val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
-            val oneDayAgo = (System.currentTimeMillis() / 1000) - (24 * 60 * 60)
-            val selectionArgs = arrayOf(oneDayAgo.toString())
-            
-            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-
-            contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-            )?.use { cursor ->
-                var processedCount = 0
-                var skippedCount = 0
-
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
-                    val size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE))
-                    
-                    if (size < Constants.MIN_FILE_SIZE || size > Constants.MAX_FILE_SIZE) {
-                        skippedCount++
-                        continue
-                    }
-
-                    val contentUri = ContentUris.withAppendedId(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        id
-                    )
-
-                    if (!StatsTracker.shouldProcessImage(applicationContext, contentUri)) {
-                        skippedCount++
-                        continue
-                    } else {
-                        processNewImage(contentUri)
-                        processedCount++
-                    }
-                }
-
-                Timber.d("BackgroundMonitoringService: сканирование завершено. Обработано: $processedCount, Пропущено: $skippedCount")
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сканировании галереи")
-        }
+        
+        Timber.d("BackgroundMonitoringService: начальное сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
     }
 
     /**
@@ -708,32 +531,5 @@ class BackgroundMonitoringService : Service() {
      */
     private fun cleanupTempFiles() {
         TempFilesCleaner.cleanupTempFiles(applicationContext)
-    }
-    
-    /**
-     * Показывает toast с результатом сжатия
-     */
-    private fun showCompressionResultToast(fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
-        // Запускаем на главном потоке
-        Handler(Looper.getMainLooper()).post {
-            try {
-                // Сокращаем длинное имя файла
-                val truncatedFileName = FileUtil.truncateFileName(fileName)
-                
-                // Форматируем размеры
-                val originalSizeStr = FileUtil.formatFileSize(originalSize)
-                val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
-                val reductionStr = String.format("%.1f", reduction)
-                
-                // Создаем текст уведомления
-                val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
-                
-                // Показываем Toast
-                val toast = android.widget.Toast.makeText(applicationContext, message, android.widget.Toast.LENGTH_LONG)
-                toast.show()
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при показе Toast")
-            }
-        }
     }
 } 
