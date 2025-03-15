@@ -44,6 +44,7 @@ import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.FileInfoUtil
+import com.compressphotofast.util.MediaStoreObserver
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -54,8 +55,10 @@ class BackgroundMonitoringService : Service() {
     @Inject
     lateinit var workManager: WorkManager
 
-    private lateinit var contentObserver: ContentObserver
     private val executorService = Executors.newSingleThreadExecutor()
+    
+    // MediaStoreObserver для централизованной работы с ContentObserver
+    private lateinit var mediaStoreObserver: MediaStoreObserver
     
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
@@ -252,7 +255,11 @@ class BackgroundMonitoringService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        contentResolver.unregisterContentObserver(contentObserver)
+        // Отменяем регистрацию MediaStoreObserver
+        if (::mediaStoreObserver.isInitialized) {
+            mediaStoreObserver.unregister()
+        }
+        
         executorService.shutdown()
         // Останавливаем периодическое сканирование
         handler.removeCallbacks(scanRunnable)
@@ -281,68 +288,18 @@ class BackgroundMonitoringService : Service() {
      * Настройка наблюдателя за контент-провайдером MediaStore
      */
     private fun setupContentObserver() {
-        contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean, uri: Uri?) {
-                super.onChange(selfChange, uri)
-                
-                uri?.let {
-                    // Проверяем, что это новое изображение с базовой фильтрацией
-                    if (it.toString().contains("media") && it.toString().contains("image")) {
-                        // Предотвращаем дублирование событий для одного URI за короткий период времени
-                        val uriString = it.toString()
-                        val currentTime = System.currentTimeMillis()
-                        val lastObservedTime = recentlyObservedUris[uriString]
-                        
-                        if (lastObservedTime != null && (currentTime - lastObservedTime < contentObserverDebounceTime)) {
-                            // Если URI был недавно обработан, пропускаем его
-                            return
-                        }
-                        
-                        // Обновляем время последнего наблюдения
-                        recentlyObservedUris[uriString] = currentTime
-                        
-                        // Удаляем старые записи (старше 10 секунд)
-                        val urisToRemove = recentlyObservedUris.entries
-                            .filter { (currentTime - it.value) > 10000 }
-                            .map { it.key }
-                        
-                        urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
-                        
-                        // Логируем событие
-                        Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
-                        
-                        // Отменяем предыдущую отложенную задачу для этого URI, если она существует
-                        pendingTasks[uriString]?.let { runnable ->
-                            handler.removeCallbacks(runnable)
-                            Timber.d("ContentObserver: предыдущая задача для $uriString отменена")
-                        }
-                        
-                        // Создаем новую задачу с задержкой
-                        val delayTask = Runnable {
-                            executorService.execute {
-                                kotlinx.coroutines.runBlocking {
-                                    Timber.d("ContentObserver: начинаем обработку URI $uriString после задержки")
-                                    processNewImage(it)
-                                    pendingTasks.remove(uriString)
-                                }
-                            }
-                        }
-                        
-                        // Сохраняем задачу и планируем ее выполнение с задержкой
-                        pendingTasks[uriString] = delayTask
-                        handler.postDelayed(delayTask, Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000)
-                    }
+        // Создаем MediaStoreObserver
+        mediaStoreObserver = MediaStoreObserver(applicationContext, Handler(Looper.getMainLooper())) { uri ->
+            // Этот код будет выполнен при обнаружении изменений после задержки
+            executorService.execute {
+                kotlinx.coroutines.runBlocking {
+                    processNewImage(uri)
                 }
             }
         }
         
-        contentResolver.registerContentObserver(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            true,
-            contentObserver
-        )
-        
-        Timber.d("ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI")
+        // Регистрируем MediaStoreObserver
+        mediaStoreObserver.register()
         
         // Запускаем начальное сканирование
         executorService.execute {

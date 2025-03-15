@@ -19,6 +19,8 @@ import com.compressphotofast.util.NotificationHelper
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.TempFilesCleaner
+import com.compressphotofast.util.CompressionTestUtil
+import com.compressphotofast.util.NotificationUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -139,8 +141,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
                 Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие в RAM")
                 
-                // Проверяем эффективность сжатия
-                val compressionEffective = testCompression(imageUri, fileSize)
+                // Проверяем эффективность сжатия с использованием централизованной логики
+                val compressionEffective = CompressionTestUtil.testCompression(
+                    context, 
+                    imageUri, 
+                    fileSize, 
+                    compressionQuality
+                )
                 
                 if (compressionEffective) {
                     // Если сжатие эффективно (>10%), создаем файл и сжимаем
@@ -639,8 +646,8 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Создает информацию для foreground сервиса
      */
     private fun createForegroundInfo(notificationId: Int, notificationTitle: String): ForegroundInfo {
-        // Создаем или обновляем канал уведомлений
-        createNotificationChannel()
+        // Создаем или обновляем канал уведомлений с использованием NotificationUtil
+        NotificationUtil.createNotificationChannel(applicationContext)
         
         val notification = NotificationCompat.Builder(applicationContext, Constants.NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -776,59 +783,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
     }
     
-    /**
-     * Выполняет тестовое сжатие и проверяет эффективность, полностью в памяти
-     * @return true если сжатие эффективно (экономия >10%), false в противном случае
-     */
-    private suspend fun testCompression(uri: Uri, originalSize: Long): Boolean = withContext(Dispatchers.IO) {
-        try {
-            Timber.d("Начинаем тестовое сжатие в RAM для URI: $uri")
-            
-            // Загружаем изображение в Bitmap
-            val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input)
-            } ?: throw IOException("Не удалось открыть изображение")
-            
-            // Создаем ByteArrayOutputStream для сжатия в память
-            val outputStream = ByteArrayOutputStream()
-            
-            // Сжимаем Bitmap в ByteArrayOutputStream
-            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, compressionQuality, outputStream)
-            
-            if (!success) {
-                Timber.w("Ошибка при сжатии Bitmap")
-                inputBitmap.recycle() // Освобождаем ресурсы Bitmap
-                return@withContext false
-            }
-            
-            // Получаем размер сжатого изображения в байтах
-            val compressedSize = outputStream.size().toLong()
-            
-            // Вычисляем процент сокращения размера
-            val sizeReduction = if (originalSize > 0) {
-                ((originalSize - compressedSize).toFloat() / originalSize) * 100
-            } else 0f
-            
-            Timber.d("Результат тестового сжатия в RAM: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
-            
-            // Освобождаем ресурсы
-            inputBitmap.recycle()
-            outputStream.close()
-            
-            // Если сжатие дало более 10% экономии
-            if (sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
-                Timber.d("Тестовое сжатие в RAM эффективно (экономия ${String.format("%.1f", sizeReduction)}% > порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), будем сжимать")
-                return@withContext true
-            } else {
-                Timber.d("Тестовое сжатие в RAM неэффективно (экономия ${String.format("%.1f", sizeReduction)}% < порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
-                return@withContext false
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при тестовом сжатии в RAM: ${e.message}")
-            return@withContext false
-        }
-    }
-
     /**
      * Сохранение сжатого изображения в галерею
      * 
@@ -997,30 +951,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке доступности файла: $uri")
             return@withContext false
-        }
-    }
-
-    /**
-     * Создает канал уведомлений для Android 8.0+
-     */
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            
-            // Проверяем, существует ли канал
-            if (notificationManager.getNotificationChannel(Constants.NOTIFICATION_CHANNEL_ID) == null) {
-                val channel = NotificationChannel(
-                    Constants.NOTIFICATION_CHANNEL_ID,
-                    applicationContext.getString(R.string.notification_channel_name),
-                    NotificationManager.IMPORTANCE_LOW
-                )
-                channel.description = applicationContext.getString(R.string.notification_channel_description)
-                channel.setShowBadge(false)
-                channel.enableLights(false)
-                channel.enableVibration(false)
-                notificationManager.createNotificationChannel(channel)
-                Timber.d("Создан канал уведомлений: ${Constants.NOTIFICATION_CHANNEL_ID}")
-            }
         }
     }
 

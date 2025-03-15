@@ -136,4 +136,34 @@ object NotificationUtil {
             }
         }
     }
+
+    /**
+     * Показывает уведомление о завершении операции
+     */
+    fun showCompletionNotification(
+        context: Context,
+        title: String,
+        message: String,
+        notificationId: Int
+    ) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        val intent = Intent(context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+        
+        notificationManager.notify(notificationId, notification)
+    }
 } 
