@@ -41,6 +41,9 @@ import java.io.FileOutputStream
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -103,26 +106,21 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Продолжаем выполнение, так как ошибка может быть временной
             }
             
-            // Для файлов больше 1.5 МБ выполняем тестовое сжатие независимо от EXIF маркера и других условий
+            // Для файлов больше 1.5 МБ выполняем тестовое сжатие в RAM
             if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
-                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие независимо от EXIF маркера")
-                val tempTestFile = File.createTempFile("test_compress_", ".jpg", context.cacheDir)
+                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие в RAM")
                 
-                try {
-                    // Сжимаем изображение во временный тестовый файл
-                    compressImage(imageUri, tempTestFile, compressionQuality)
+                // Проверяем эффективность сжатия
+                val compressionEffective = testCompression(imageUri, fileSize)
+                
+                if (compressionEffective) {
+                    // Если сжатие эффективно (>10%), создаем файл и сжимаем
+                    Timber.d("Тестовое сжатие эффективно, создаем временный файл для дальнейшей обработки")
+                    val tempFile = FileUtil.createTempImageFile(context)
                     
-                    // Проверяем эффективность сжатия
-                    val compressedSize = tempTestFile.length()
-                    val sizeReduction = if (fileSize > 0) {
-                        ((fileSize - compressedSize).toFloat() / fileSize) * 100
-                    } else 0f
-                    
-                    Timber.d("Результат тестового сжатия: оригинал=${fileSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
-                    
-                    if (sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
-                        // Если сжатие эффективно (>10%), используем тестовый файл
-                        Timber.d("Тестовое сжатие эффективно (экономия ${String.format("%.1f", sizeReduction)}% > порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%)")
+                    try {
+                        // Сжимаем изображение
+                        compressImage(imageUri, tempFile, compressionQuality)
                         
                         // Получаем имя файла из URI
                         val fileName = FileUtil.getFileNameFromUri(context, imageUri) ?: "unknown"
@@ -136,7 +134,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         Timber.d("Сохранение сжатого изображения в галерею...")
                         val (savedUri, deleteIntentSender) = FileUtil.saveCompressedImageToGallery(
                             context,
-                            tempTestFile,
+                            tempFile,
                             compressedFileName,
                             imageUri
                         )
@@ -145,45 +143,39 @@ class ImageCompressionWorker @AssistedInject constructor(
                         savedUri?.let {
                             Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                             
+                            // Получаем размер сжатого файла для уведомления
+                            val compressedSize = tempFile.length()
+                            val sizeReduction = if (fileSize > 0) {
+                                ((fileSize - compressedSize).toFloat() / fileSize) * 100
+                            } else 0f
+                            
                             // Показываем уведомление о завершении сжатия
                             showCompletionNotification(fileName, fileSize, compressedSize, sizeReduction)
                         }
                         
                         // Удаляем временный файл после успешного сохранения
-                        if (savedUri != null && !tempTestFile.delete()) {
-                            Timber.w("Не удалось удалить временный тестовый файл: ${tempTestFile.absolutePath}")
+                        if (savedUri != null && !tempFile.delete()) {
+                            Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
                         } else {
-                            Timber.d("Временный тестовый файл удален после успешного сохранения")
+                            Timber.d("Временный файл удален после успешного сохранения")
                         }
                         
                         // Обновляем статус при успешном сжатии
                         StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                         
                         return@withContext Result.success()
-                    } else {
-                        // Если сжатие неэффективно, пропускаем файл
-                        Timber.d("Тестовое сжатие неэффективно (экономия ${String.format("%.1f", sizeReduction)}% < порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
-                        
-                        // Удаляем временный файл
-                        if (!tempTestFile.delete()) {
-                            Timber.w("Не удалось удалить временный тестовый файл: ${tempTestFile.absolutePath}")
-                        }
-                        
-                        // Обновляем статус
-                        StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                        
-                        return@withContext Result.success()
+                    } catch (e: Exception) {
+                        Timber.e(e, "Ошибка при сжатии после положительного тестового сжатия: ${e.message}")
+                        return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при сжатии"))
                     }
-                } catch (e: Exception) {
-                    // В случае ошибки удаляем временный файл
-                    if (!tempTestFile.delete()) {
-                        Timber.w("Не удалось удалить временный тестовый файл при ошибке: ${tempTestFile.absolutePath}")
-                    }
+                } else {
+                    // Если сжатие неэффективно, пропускаем файл
+                    Timber.d("Тестовое сжатие неэффективно, пропускаем файл")
                     
-                    Timber.e(e, "Ошибка при тестовом сжатии: ${e.message}")
-                    // Для больших файлов в случае ошибки тестового сжатия, пропускаем дальнейшую обработку
-                    Timber.d("Пропускаем дальнейшую обработку большого файла из-за ошибки тестового сжатия")
-                    return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при тестовом сжатии"))
+                    // Обновляем статус
+                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                    
+                    return@withContext Result.success()
                 }
             }
             
@@ -752,41 +744,54 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
     
     /**
-     * Выполняет тестовое сжатие и проверяет эффективность
+     * Выполняет тестовое сжатие и проверяет эффективность, полностью в памяти
      * @return true если сжатие эффективно (экономия >10%), false в противном случае
      */
     private suspend fun testCompression(uri: Uri, originalSize: Long): Boolean = withContext(Dispatchers.IO) {
-        var tempTestFile: File? = null
         try {
-            // Создаем временный файл для тестового сжатия
-            tempTestFile = File.createTempFile("test_compress_", ".jpg", context.cacheDir)
-            Timber.d("Создан временный файл для тестового сжатия: ${tempTestFile.absolutePath}")
+            Timber.d("Начинаем тестовое сжатие в RAM для URI: $uri")
             
-            // Сжимаем с текущим качеством
-            compressImage(uri, tempTestFile, compressionQuality)
+            // Загружаем изображение в Bitmap
+            val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input)
+            } ?: throw IOException("Не удалось открыть изображение")
             
-            // Проверяем результат сжатия
-            val compressedSize = tempTestFile.length()
+            // Создаем ByteArrayOutputStream для сжатия в память
+            val outputStream = ByteArrayOutputStream()
+            
+            // Сжимаем Bitmap в ByteArrayOutputStream
+            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, compressionQuality, outputStream)
+            
+            if (!success) {
+                Timber.w("Ошибка при сжатии Bitmap")
+                inputBitmap.recycle() // Освобождаем ресурсы Bitmap
+                return@withContext false
+            }
+            
+            // Получаем размер сжатого изображения в байтах
+            val compressedSize = outputStream.size().toLong()
+            
+            // Вычисляем процент сокращения размера
             val sizeReduction = if (originalSize > 0) {
                 ((originalSize - compressedSize).toFloat() / originalSize) * 100
             } else 0f
             
-            Timber.d("Результат тестового сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
+            Timber.d("Результат тестового сжатия в RAM: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
+            
+            // Освобождаем ресурсы
+            inputBitmap.recycle()
+            outputStream.close()
             
             // Если сжатие дало более 10% экономии
             if (sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
-                Timber.d("Тестовое сжатие эффективно (экономия ${String.format("%.1f", sizeReduction)}% > порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), будем использовать сжатый файл")
+                Timber.d("Тестовое сжатие в RAM эффективно (экономия ${String.format("%.1f", sizeReduction)}% > порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), будем сжимать")
                 return@withContext true
             } else {
-                Timber.d("Тестовое сжатие неэффективно (экономия ${String.format("%.1f", sizeReduction)}% < порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
-                // Удаляем временный файл, так как он нам не нужен
-                tempTestFile.delete()
+                Timber.d("Тестовое сжатие в RAM неэффективно (экономия ${String.format("%.1f", sizeReduction)}% < порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
                 return@withContext false
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при тестовом сжатии: ${e.message}")
-            // В случае ошибки удаляем временный файл
-            tempTestFile?.delete()
+            Timber.e(e, "Ошибка при тестовом сжатии в RAM: ${e.message}")
             return@withContext false
         }
     }

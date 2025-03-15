@@ -40,6 +40,7 @@
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
     <string name="image_already_compressed">Изображение уже сжато</string>
+    <string name="image_already_optimized">Изображение уже оптимизировано</string>
     <string name="all_images_already_compressed">Все изображения уже сжаты</string>
     <string name="file_deleted_successfully">Оригинальный файл успешно удален</string>
     <string name="batch_processing_stopped">Обработка остановлена</string>

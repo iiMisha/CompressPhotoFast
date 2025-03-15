@@ -81,12 +81,13 @@ object StatsTracker {
             val fileSize = FileUtil.getFileSize(context, uri)
             
             // Для файлов больше 1.5 МБ всегда возвращаем true независимо от EXIF маркера
+            // Это изменение гарантирует, что тестовое сжатие в RAM всегда будет выполняться для больших файлов
             if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
-                Timber.d("Изображение по URI $uri больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), требуется проверка эффективности сжатия")
+                Timber.d("Изображение по URI $uri больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), обязательно требуется тестовое сжатие в RAM")
                 return@withContext true
             }
             
-            // Для файлов меньше 1.5 МБ проверяем EXIF маркер
+            // Для файлов меньше 1.5 МБ сначала проверяем EXIF маркер
             val isCompressed = FileUtil.isCompressedByExif(context, uri)
             if (isCompressed) {
                 Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")

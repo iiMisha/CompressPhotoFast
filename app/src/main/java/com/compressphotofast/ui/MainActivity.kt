@@ -404,18 +404,22 @@ class MainActivity : AppCompatActivity() {
                              path.contains(Constants.APP_DIRECTORY))
                         
                         // Проверяем, не было ли изображение уже обработано
-                        // Запускаем проверку через EXIF асинхронно
+                        // Запускаем проверку асинхронно с учетом размера файла
                         lifecycleScope.launch {
-                            val isCompressedByExif = FileUtil.isCompressedByExif(this@MainActivity, uri)
-                            val isAlreadyCompressed = isInAppDir || isCompressedByExif
+                            // Используем StatsTracker.shouldProcessImage вместо прямой проверки EXIF
+                            val shouldProcess = StatsTracker.shouldProcessImage(this@MainActivity, uri)
+                            val fileSize = FileUtil.getFileSize(this@MainActivity, uri)
                             
-                            Timber.d("handleIntent: Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir, isCompressedByExif: $isCompressedByExif)")
+                            Timber.d("handleIntent: Нужно обработать изображение: $shouldProcess (размер файла: ${fileSize / 1024}KB)")
                             
-                            if (!isAlreadyCompressed) {
+                            if (shouldProcess) {
                                 viewModel.setSelectedImageUri(uri)
                                 // Запускаем сжатие вручную
                                 Timber.d("handleIntent: Запускаем сжатие вручную")
                                 viewModel.compressSelectedImage()
+                            } else {
+                                // Если изображение не нуждается в обработке, информируем пользователя
+                                showTopToast(getString(R.string.image_already_optimized))
                             }
                         }
                     }
@@ -442,19 +446,13 @@ class MainActivity : AppCompatActivity() {
                                 Timber.d("handleIntent: Изображение из множества: $uri")
                                 logFileDetails(uri)
                                 
-                                val path = FileUtil.getFilePathFromUri(this@MainActivity, uri)
-                                val isInAppDir = !path.isNullOrEmpty() && 
-                                    (path.contains("/${Constants.APP_DIRECTORY}/") || 
-                                     path.contains("content://media/external/images/media") && 
-                                     path.contains(Constants.APP_DIRECTORY))
+                                val fileSize = FileUtil.getFileSize(this@MainActivity, uri)
+                                // Используем StatsTracker.shouldProcessImage вместо прямой проверки EXIF
+                                val shouldProcess = StatsTracker.shouldProcessImage(this@MainActivity, uri)
                                 
-                                // Проверяем через EXIF
-                                val isCompressedByExif = FileUtil.isCompressedByExif(this@MainActivity, uri)
-                                val isAlreadyCompressed = isInAppDir || isCompressedByExif
+                                Timber.d("Нужно обработать изображение: $shouldProcess (размер файла: ${fileSize / 1024}KB)")
                                 
-                                Timber.d("Изображение уже сжато: $isAlreadyCompressed (isInAppDir: $isInAppDir, isCompressedByExif: $isCompressedByExif)")
-                                
-                                if (!isAlreadyCompressed) {
+                                if (shouldProcess) {
                                     unprocessedUris.add(uri)
                                 }
                             }
