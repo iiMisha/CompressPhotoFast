@@ -157,10 +157,6 @@ object FileUtil {
                 exifCheckCache[uriString] = isCompressed
                 exifCacheTimestamps[uriString] = System.currentTimeMillis()
                 
-                if (isCompressed) {
-                    Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
-                }
-                
                 return@withContext isCompressed
             }
             

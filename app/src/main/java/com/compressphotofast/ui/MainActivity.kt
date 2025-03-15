@@ -210,8 +210,8 @@ class MainActivity : AppCompatActivity() {
                     // Только логируем информацию о завершении сжатия, без показа toast
                     Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
                     
-                    // Toast уже показывается напрямую в ImageCompressionWorker
-                    // showCompressionResultToast(fileName, originalSize, compressedSize, reduction)
+                    // Теперь показываем Toast здесь
+                    showCompressionResultToast(fileName, originalSize, compressedSize, reduction)
                 }
             }
         }
@@ -260,7 +260,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * Показывает Toast с увеличенной длительностью путем последовательного показа нескольких Toast
      */
-    private fun showLongToast(context: Context, message: String, repetitions: Int = 2) {
+    private fun showLongToast(context: Context, message: String, repetitions: Int = 1) {
         var counter = 0
         val handler = Handler(Looper.getMainLooper())
         

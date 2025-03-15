@@ -568,50 +568,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                     flags = Intent.FLAG_RECEIVER_FOREGROUND
                 }
                 context.sendBroadcast(intent)
-                
-                // Показываем уведомление о завершении сжатия в UI потоке
-                showCompletionToast(fileName, originalSize, compressedSize, sizeReduction)
             }
             
             // Логируем для отладки
             Timber.d("Уведомление о завершении сжатия отправлено: Файл=$fileName")
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при отправке уведомления о завершении сжатия")
-        }
-    }
-    
-    /**
-     * Показывает Toast-уведомление о результате сжатия
-     */
-    private fun showCompletionToast(fileName: String, originalSize: Long, compressedSize: Long, sizeReduction: Float) {
-        // Запускаем в главном потоке
-        Handler(Looper.getMainLooper()).post {
-            // Сокращаем длинное имя файла
-            val truncatedFileName = if (fileName.length <= 25) fileName else {
-                val start = fileName.substring(0, 12)
-                val end = fileName.substring(fileName.length - 12)
-                "$start...$end"
-            }
-            
-            // Форматируем размеры
-            val originalSizeStr = formatFileSize(originalSize)
-            val compressedSizeStr = formatFileSize(compressedSize)
-            val reductionStr = String.format("%.1f", sizeReduction)
-            
-            // Показываем Toast
-            val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
-    }
-    
-    /**
-     * Форматирует размер файла в удобочитаемый вид
-     */
-    private fun formatFileSize(size: Long): String {
-        return when {
-            size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KB"
-            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
         }
     }
 
