@@ -368,14 +368,6 @@ object ExifUtil {
     }
     
     /**
-     * Очищает весь кэш EXIF
-     */
-    fun clearCache() {
-        exifCheckCache.clear()
-        exifCacheTimestamps.clear()
-    }
-    
-    /**
      * Копирует EXIF теги между двумя объектами ExifInterface
      * @param sourceExif исходный ExifInterface
      * @param destExif ExifInterface назначения

@@ -12,16 +12,11 @@ import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import timber.log.Timber
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileNotFoundException
-import java.io.FileOutputStream
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Collections
 import java.util.HashMap
@@ -32,7 +27,6 @@ import android.provider.DocumentsContract
  */
 object FileUtil {
 
-    private val saveMutex = Mutex()
     private val processedUris = mutableSetOf<String>()
     private val processedFileNames = mutableMapOf<String, Uri>()
     
@@ -70,16 +64,6 @@ object FileUtil {
      */
     fun createCompressedFileName(originalName: String): String {
         return originalName
-    }
-
-    /**
-     * Создает уникальное имя файла для ручного сжатия
-     */
-    private fun createUniqueFileName(originalName: String): String {
-        val baseName = originalName.substringBeforeLast(".")
-        val extension = originalName.substringAfterLast(".", "")
-        val timestamp = System.currentTimeMillis()
-        return "${baseName}_${timestamp}.$extension"
     }
 
     /**
@@ -131,39 +115,6 @@ object FileUtil {
         } catch (e: Exception) {
             Timber.e(e, "saveCompressedImageToGallery: ошибка при сохранении файла")
             return@withContext Pair(null, null)
-        }
-    }
-
-    /**
-     * Безопасное удаление оригинального файла с обработкой ошибок
-     */
-    private suspend fun safeDeleteOriginalFile(context: Context, uri: Uri): Any? = withContext(Dispatchers.IO) {
-        try {
-            // Получаем путь к файлу
-            val path = getFilePathFromUri(context, uri)
-            if (path.isNullOrEmpty()) {
-                Timber.d("Не удалось получить путь к файлу для удаления: $uri")
-                return@withContext null
-            }
-            
-            // Проверяем, существует ли файл в файловой системе
-            val file = File(path)
-            if (!file.exists()) {
-                Timber.d("Файл не существует по пути: $path")
-            }
-            
-            // Пробуем удалить через MediaStore
-            val result = deleteFile(context, uri)
-            
-            if (result is Boolean && result) {
-                Timber.d("Файл успешно удален через MediaStore без запроса разрешения: $uri")
-                return@withContext true
-            }
-            
-            return@withContext result
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при удалении оригинального файла: $uri")
-            return@withContext null
         }
     }
 
@@ -482,74 +433,6 @@ object FileUtil {
      */
     fun handleDeleteFileRequest(resultCode: Int): Boolean {
         return resultCode == android.app.Activity.RESULT_OK
-    }
-
-    /**
-     * Ищет существующий файл в указанной директории
-     */
-    private fun findExistingFileUri(context: Context, fileName: String, relativePath: String): Uri? {
-        try {
-            // Проверяем кэш
-            val cacheKey = "$relativePath/$fileName"
-            processedFileNames[cacheKey]?.let { cachedUri ->
-                Timber.d("Найден кэшированный URI для $cacheKey")
-                return cachedUri
-            }
-
-            val baseName = fileName.substringBeforeLast(".")
-            val extension = fileName.substringAfterLast(".", "")
-            
-            // Создаем точный шаблон для поиска файла
-            val exactPattern = "$baseName.$extension"
-            val similarPattern = "$baseName%.$extension"
-            
-            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                "${MediaStore.Images.Media.RELATIVE_PATH} = ? AND (${MediaStore.Images.Media.DISPLAY_NAME} = ? OR ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?)"
-            } else {
-                "${MediaStore.Images.Media.DISPLAY_NAME} = ? OR ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            }
-            
-            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                arrayOf(relativePath, exactPattern, similarPattern)
-            } else {
-                arrayOf(exactPattern, similarPattern)
-            }
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                arrayOf(
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATE_ADDED
-                ),
-                selection,
-                selectionArgs,
-                "${MediaStore.Images.Media.DATE_ADDED} DESC"
-            )?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
-                    val name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
-                    val size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE))
-                    val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED))
-                    
-                    // Проверяем, является ли файл сжатым (размер меньше 1MB)
-                    if (size < 1024 * 1024) {
-                        val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                        Timber.d("Найден существующий сжатый файл: $name, размер: ${size / 1024}KB, дата: $dateAdded")
-                        
-                        // Сохраняем в кэш
-                        processedFileNames[cacheKey] = uri
-                        processedUris.add(uri.toString())
-                        
-                        return uri
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при поиске существующего файла")
-        }
-        return null
     }
 
     /**
