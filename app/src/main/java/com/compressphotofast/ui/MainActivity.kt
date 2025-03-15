@@ -577,10 +577,25 @@ class MainActivity : AppCompatActivity() {
                 
                 // Показываем Toast с результатом обработки
                 if (progress.total > 1) {
-                    showLongToast(
-                        this,
-                        getString(R.string.batch_processing_completed)
-                    )
+                    // Подготовим текст сообщения учитывая пропущенные файлы
+                    val message = if (progress.skipped > 0) {
+                        getString(
+                            R.string.notification_batch_processing_completed_with_skipped,
+                            progress.successful,
+                            progress.skipped,
+                            progress.failed,
+                            progress.total
+                        )
+                    } else {
+                        getString(
+                            R.string.notification_batch_processing_completed,
+                            progress.successful,
+                            progress.failed,
+                            progress.total
+                        )
+                    }
+                    
+                    showLongToast(this, message)
                 }
                 
                 // Логируем завершение для отладки
@@ -591,8 +606,17 @@ class MainActivity : AppCompatActivity() {
         // Наблюдение за результатом сжатия (только для логирования)
         viewModel.compressionResult.observe(this) { result ->
             result?.let {
-                // Только логируем результат для отладки
-                Timber.d("Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, totalImages=${it.totalImages}, successfulImages=${it.successfulImages}")
+                // Создаем детальную строку логирования с учетом пропущенных файлов
+                val resultLog = if (it.skippedImages > 0) {
+                    "Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, " +
+                    "totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, " +
+                    "skippedImages=${it.skippedImages}, failedImages=${it.failedImages}"
+                } else {
+                    "Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, " +
+                    "totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, " +
+                    "failedImages=${it.failedImages}"
+                }
+                Timber.d(resultLog)
             }
         }
     }

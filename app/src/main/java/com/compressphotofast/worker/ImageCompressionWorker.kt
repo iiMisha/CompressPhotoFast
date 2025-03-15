@@ -99,7 +99,13 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 if (!exists) {
                     Timber.d("URI не существует, возможно он был обработан и удален другим процессом: $imageUri")
-                    return@withContext Result.success()
+                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                    return@withContext Result.success(
+                        Data.Builder()
+                            .putBoolean("success", true)
+                            .putBoolean("skipped", true)
+                            .build()
+                    )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Ошибка при проверке существования URI: $imageUri")
@@ -163,19 +169,24 @@ class ImageCompressionWorker @AssistedInject constructor(
                         // Обновляем статус при успешном сжатии
                         StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                         
-                        return@withContext Result.success()
+                        return@withContext Result.success(createSuccessOutput())
                     } catch (e: Exception) {
                         Timber.e(e, "Ошибка при сжатии после положительного тестового сжатия: ${e.message}")
                         return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при сжатии"))
                     }
                 } else {
                     // Если сжатие неэффективно, пропускаем файл
-                    Timber.d("Тестовое сжатие неэффективно, пропускаем файл")
+                    Timber.d("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
                     
                     // Обновляем статус
                     StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
                     
-                    return@withContext Result.success()
+                    return@withContext Result.success(
+                        Data.Builder()
+                            .putBoolean("success", true)
+                            .putBoolean("skipped", true)
+                            .build()
+                    )
                 }
             }
             
@@ -183,7 +194,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Проверяем, обрабатывается ли уже это изображение
             if (isImageAlreadyProcessedExceptSize(imageUri)) {
                 Timber.d("Изображение уже обработано: $imageUri")
-                return@withContext Result.success()
+                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                return@withContext Result.success(
+                    Data.Builder()
+                        .putBoolean("success", true)
+                        .putBoolean("skipped", true)
+                        .build()
+                )
             }
             
             // Создаем временный файл для стандартной обработки
@@ -242,7 +259,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Обновляем статус при успешном сжатии
                 StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                 
-                return@withContext Result.success()
+                return@withContext Result.success(createSuccessOutput())
             } catch (e: Exception) {
                 // Обновляем статус при ошибке
                 StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
@@ -658,11 +675,22 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
+     * Создание данных для результата с успехом
+     */
+    private fun createSuccessOutput(): Data {
+        return Data.Builder()
+            .putBoolean("success", true)
+            .putBoolean("skipped", false)
+            .build()
+    }
+
+    /**
      * Создание данных для результата с ошибкой
      */
     private fun createFailureOutput(errorMessage: String): Data {
         return Data.Builder()
             .putBoolean("success", false)
+            .putBoolean("skipped", false)
             .putString("error_message", errorMessage)
             .build()
     }

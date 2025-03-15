@@ -32,6 +32,9 @@
     <string name="notification_compression_error">Ошибка сжатия</string>
     <string name="notification_compression_error_details">Не удалось сжать файл: %1$s</string>
     <string name="notification_compression_details">%1$s: %2$s → %3$s (-%4$s%%)</string>
+    <string name="notification_batch_processing_completed_title">Обработка изображений завершена</string>
+    <string name="notification_batch_processing_completed">Успешно: %1$d, ошибок: %2$d из %3$d</string>
+    <string name="notification_batch_processing_completed_with_skipped">Успешно: %1$d, пропущено: %2$d, ошибок: %3$d из %4$d</string>
     
     <!-- Сообщения -->
     <string name="compression_success">Обработка завершена</string>

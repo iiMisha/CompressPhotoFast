@@ -167,7 +167,8 @@ class MainViewModel @Inject constructor(
                 total = uris.size,
                 processed = 0,
                 successful = 0,
-                failed = 0
+                failed = 0,
+                skipped = 0
             )
             
             // Создаем отдельный массив для отслеживания рабочих заданий
@@ -204,6 +205,7 @@ class MainViewModel @Inject constructor(
                                 workManager.getWorkInfoByIdLiveData(request.id).removeObserver(this)
                                 
                                 val success = value.outputData.getBoolean("success", false)
+                                val skipped = value.outputData.getBoolean("skipped", false)
                                 
                                 // Снимаем регистрацию URI после обработки
                                 uri?.let { 
@@ -216,7 +218,8 @@ class MainViewModel @Inject constructor(
                                     val newProgress = currentProgress.copy(
                                         processed = currentProgress.processed + 1,
                                         successful = if (success) currentProgress.successful + 1 else currentProgress.successful,
-                                        failed = if (!success) currentProgress.failed + 1 else currentProgress.failed
+                                        failed = if (!success && !skipped) currentProgress.failed + 1 else currentProgress.failed,
+                                        skipped = if (skipped) currentProgress.skipped + 1 else currentProgress.skipped
                                     )
                                     _multipleImagesProgress.value = newProgress
                                     
@@ -242,11 +245,12 @@ class MainViewModel @Inject constructor(
                                                 totalImages = newProgress.total,
                                                 successfulImages = newProgress.successful,
                                                 failedImages = newProgress.failed,
+                                                skippedImages = newProgress.skipped,
                                                 allSuccessful = newProgress.failed == 0
                                             )
                                         }
                                         
-                                        Timber.d("Обработка завершена: всего=${newProgress.total}, успешно=${newProgress.successful}, ошибок=${newProgress.failed}")
+                                        Timber.d("Обработка завершена: всего=${newProgress.total}, успешно=${newProgress.successful}, пропущено=${newProgress.skipped}, ошибок=${newProgress.failed}")
                                     }
                                 }
                             }
@@ -528,29 +532,43 @@ class MainViewModel @Inject constructor(
     private fun showBatchProcessingCompletedNotification(progress: MultipleImagesProgress) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        // Формируем текст результата
-        val resultText = if (progress.failed > 0) {
-            context.getString(R.string.notification_batch_processing_partial, progress.successful, progress.failed)
+        // Создаем Intent для открытия приложения
+        val intent = Intent(context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        // Создаем текст уведомления с учетом пропущенных файлов
+        val contentText = if (progress.skipped > 0) {
+            context.getString(
+                R.string.notification_batch_processing_completed_with_skipped,
+                progress.successful,
+                progress.skipped,
+                progress.failed,
+                progress.total
+            )
         } else {
-            context.getString(R.string.notification_batch_processing_success, progress.total)
+            context.getString(
+                R.string.notification_batch_processing_completed,
+                progress.successful,
+                progress.failed,
+                progress.total
+            )
         }
         
         // Создаем уведомление о завершении обработки
         val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_complete))
-            .setContentText(resultText)
+            .setContentTitle(context.getString(R.string.notification_batch_processing_completed_title))
+            .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         
-        // Показываем финальное уведомление
         notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
-        
-        // Удаляем уведомление через 3 секунды
-        Handler(Looper.getMainLooper()).postDelayed({
-            notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
-        }, 3000)
     }
 
     /**
@@ -643,6 +661,7 @@ data class CompressionResult(
     val totalImages: Int,
     val successfulImages: Int,
     val failedImages: Int,
+    val skippedImages: Int = 0,
     val allSuccessful: Boolean
 )
 
@@ -660,7 +679,8 @@ data class MultipleImagesProgress(
     val total: Int = 0,
     val processed: Int = 0,
     val successful: Int = 0,
-    val failed: Int = 0
+    val failed: Int = 0,
+    val skipped: Int = 0
 ) {
     val isComplete: Boolean get() = processed >= total
     val percentComplete: Int get() = if (total > 0) (processed * 100) / total else 0
