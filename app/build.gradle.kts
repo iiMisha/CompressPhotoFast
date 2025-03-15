@@ -17,8 +17,8 @@ android {
         applicationId = "com.compressphotofast"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.3"
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
