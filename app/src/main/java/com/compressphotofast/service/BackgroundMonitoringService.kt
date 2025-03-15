@@ -155,11 +155,16 @@ class BackgroundMonitoringService : Service() {
                 if (uriString != null) {
                     val reductionPercent = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                     val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "неизвестный"
+                    val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
+                    val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                     
                     // Удаляем URI из списка обрабатываемых
                     val wasRemoved = processingUris.remove(uriString)
                     Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${processingUris.size} URIs)")
                     Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
+                    
+                    // Показываем Toast-уведомление о результате сжатия
+                    showCompressionResultToast(fileName, originalSize, compressedSize, reductionPercent)
                     
                     // Устанавливаем таймер игнорирования изменений
                     ignoreChangesUntil[uriString] = System.currentTimeMillis() + ignoreMediaStoreChangesAfterCompression
@@ -768,5 +773,47 @@ class BackgroundMonitoringService : Service() {
      */
     private fun cleanupTempFiles() {
         TempFilesCleaner.cleanupTempFiles(applicationContext)
+    }
+    
+    /**
+     * Показывает toast с результатом сжатия
+     */
+    private fun showCompressionResultToast(fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
+        // Запускаем на главном потоке
+        Handler(Looper.getMainLooper()).post {
+            try {
+                // Сокращаем длинное имя файла
+                val truncatedFileName = if (fileName.length <= 25) fileName else {
+                    val start = fileName.substring(0, 25 / 2 - 2)
+                    val end = fileName.substring(fileName.length - 25 / 2 + 1)
+                    "$start...$end"
+                }
+                
+                // Форматируем размеры
+                val originalSizeStr = formatFileSize(originalSize)
+                val compressedSizeStr = formatFileSize(compressedSize)
+                val reductionStr = String.format("%.1f", reduction)
+                
+                // Создаем текст уведомления
+                val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+                
+                // Показываем Toast
+                val toast = android.widget.Toast.makeText(applicationContext, message, android.widget.Toast.LENGTH_LONG)
+                toast.show()
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при показе Toast")
+            }
+        }
+    }
+    
+    /**
+     * Форматирует размер файла в удобочитаемый вид
+     */
+    private fun formatFileSize(size: Long): String {
+        return when {
+            size < 1024 -> "$size B"
+            size < 1024 * 1024 -> "${size / 1024} KB"
+            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
+        }
     }
 } 
