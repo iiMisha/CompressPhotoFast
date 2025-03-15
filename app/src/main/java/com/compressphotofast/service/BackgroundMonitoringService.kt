@@ -60,6 +60,9 @@ class BackgroundMonitoringService : Service() {
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
     private val contentObserverDebounceTime = 2000L // 2000мс (2 секунды) для дедупликации событий
     
+    // Очередь отложенных задач для ContentObserver
+    private val pendingTasks = ConcurrentHashMap<String, Runnable>()
+    
     // Кэш информации о файлах, чтобы не запрашивать повторно
     private val fileInfoCache = Collections.synchronizedMap(HashMap<String, FileInfo>())
     private val fileInfoCacheExpiration = 5 * 60 * 1000L // 5 минут
@@ -292,6 +295,13 @@ class BackgroundMonitoringService : Service() {
         // Останавливаем периодическую очистку
         cleanupHandler.removeCallbacks(cleanupRunnable)
         
+        // Очищаем все отложенные задачи
+        pendingTasks.forEach { (uri, runnable) ->
+            handler.removeCallbacks(runnable)
+            Timber.d("Отменена отложенная задача для $uri при остановке сервиса")
+        }
+        pendingTasks.clear()
+        
         // Отменяем регистрацию BroadcastReceiver
         try {
             unregisterReceiver(imageProcessingReceiver)
@@ -335,13 +345,28 @@ class BackgroundMonitoringService : Service() {
                         urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
                         
                         // Логируем событие
-                        Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri")
+                        Timber.d("ContentObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
                         
-                        executorService.execute {
-                            kotlinx.coroutines.runBlocking {
-                                processNewImage(it)
+                        // Отменяем предыдущую отложенную задачу для этого URI, если она существует
+                        pendingTasks[uriString]?.let { runnable ->
+                            handler.removeCallbacks(runnable)
+                            Timber.d("ContentObserver: предыдущая задача для $uriString отменена")
+                        }
+                        
+                        // Создаем новую задачу с задержкой
+                        val delayTask = Runnable {
+                            executorService.execute {
+                                kotlinx.coroutines.runBlocking {
+                                    Timber.d("ContentObserver: начинаем обработку URI $uriString после задержки")
+                                    processNewImage(it)
+                                    pendingTasks.remove(uriString)
+                                }
                             }
                         }
+                        
+                        // Сохраняем задачу и планируем ее выполнение с задержкой
+                        pendingTasks[uriString] = delayTask
+                        handler.postDelayed(delayTask, Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000)
                     }
                 }
             }
