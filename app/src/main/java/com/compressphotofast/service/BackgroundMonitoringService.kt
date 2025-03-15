@@ -43,6 +43,7 @@ import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
+import com.compressphotofast.util.FileInfoUtil
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -63,45 +64,8 @@ class BackgroundMonitoringService : Service() {
     // Очередь отложенных задач для ContentObserver
     private val pendingTasks = ConcurrentHashMap<String, Runnable>()
     
-    // Кэш информации о файлах, чтобы не запрашивать повторно
-    private val fileInfoCache = Collections.synchronizedMap(HashMap<String, FileInfo>())
-    private val fileInfoCacheExpiration = 5 * 60 * 1000L // 5 минут
-    
-    // Хранит базовую информацию о файле
-    private data class FileInfo(
-        val id: Long,
-        val name: String,
-        val size: Long,
-        val date: Long,
-        val mime: String,
-        val path: String,
-        val timestamp: Long = System.currentTimeMillis()
-    )
-    
     companion object {
-        // Статический набор URI для синхронизации между сервисами
-        private val processingUris = Collections.synchronizedSet(HashSet<String>())
-
-        /**
-         * Проверяет, обрабатывается ли изображение в данный момент
-         */
-        fun isImageBeingProcessed(uri: String): Boolean {
-            return processingUris.contains(uri)
-        }
-
-        /**
-         * Добавляет URI в список обрабатываемых
-         */
-        fun addProcessingUri(uri: String) {
-            processingUris.add(uri)
-        }
-        
-        /**
-         * Удаляет URI из списка обрабатываемых и возвращает true, если URI был найден и удален
-         */
-        fun removeProcessingUri(uri: String): Boolean {
-            return processingUris.remove(uri)
-        }
+        // Пустой companion object, функциональность перенесена в UriProcessingTracker
     }
     
     // Таймаут для обработки изображения (мс)
@@ -466,61 +430,8 @@ class BackgroundMonitoringService : Service() {
      * Логирует подробную информацию о файле для отладки
      */
     private fun logDetailedFileInfo(uri: Uri) {
-        try {
-            val uriString = uri.toString()
-            
-            // Проверяем кэш
-            val cachedInfo = fileInfoCache[uriString]
-            if (cachedInfo != null && (System.currentTimeMillis() - cachedInfo.timestamp < fileInfoCacheExpiration)) {
-                // Используем кэшированную информацию
-                Timber.d("BackgroundMonitoringService: Информация о файле (из кэша): ID=${cachedInfo.id}, Имя=${cachedInfo.name}, Размер=${cachedInfo.size}, Дата=${cachedInfo.date}, MIME=${cachedInfo.mime}, URI=$uri")
-                Timber.d("BackgroundMonitoringService: Путь к файлу: ${cachedInfo.path}")
-                return
-            }
-            
-            // Если нет в кэше или кэш устарел, запрашиваем информацию
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.MIME_TYPE
-            )
-            
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
-                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                    val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-                    
-                    val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
-                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
-                    val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
-                    val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
-                    val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
-                    
-                    // Получаем путь к файлу
-                    val path = FileUtil.getFilePathFromUri(applicationContext, uri) ?: "неизвестно"
-                    
-                    // Кэшируем полученную информацию
-                    val fileInfo = FileInfo(id, name, size, date, mime, path)
-                    fileInfoCache[uriString] = fileInfo
-                    
-                    Timber.d("BackgroundMonitoringService: Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
-                    Timber.d("BackgroundMonitoringService: Путь к файлу: $path")
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении информации о файле: $uri")
-        }
+        // Используем централизованную логику для получения информации о файле
+        FileInfoUtil.getFileInfo(applicationContext, uri)
     }
 
     /**

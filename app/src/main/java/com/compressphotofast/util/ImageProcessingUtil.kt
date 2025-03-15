@@ -35,7 +35,7 @@ object ImageProcessingUtil {
             }
             
             // Проверяем, не обрабатывается ли уже это изображение
-            if (BackgroundMonitoringService.isImageBeingProcessed(uri.toString())) {
+            if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
                 Timber.d("URI уже обрабатывается: $uri")
                 return@withContext false
             }
@@ -94,8 +94,8 @@ object ImageProcessingUtil {
                 return@withContext false
             }
             
-            // Отмечаем URI как обрабатываемый
-            BackgroundMonitoringService.addProcessingUri(uri.toString())
+            // Регистрируем, что URI в процессе обработки
+            UriProcessingTracker.addProcessingUri(uri.toString())
             Timber.d("URI добавлен в список обрабатываемых: $uri")
             
             // Получаем качество сжатия из настроек
@@ -131,8 +131,8 @@ object ImageProcessingUtil {
             return@withContext true
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при запуске обработки изображения: $uri")
-            // Удаляем URI из списка обрабатываемых в случае ошибки
-            BackgroundMonitoringService.removeProcessingUri(uri.toString())
+            // Снимаем отметку о том, что URI обрабатывается
+            UriProcessingTracker.removeProcessingUri(uri.toString())
             return@withContext false
         }
     }
