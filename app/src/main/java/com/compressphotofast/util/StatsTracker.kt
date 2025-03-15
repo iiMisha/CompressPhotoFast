@@ -19,6 +19,7 @@ object StatsTracker {
     const val COMPRESSION_STATUS_PROCESSING = 1
     const val COMPRESSION_STATUS_COMPLETED = 2
     const val COMPRESSION_STATUS_FAILED = 3
+    const val COMPRESSION_STATUS_SKIPPED = 4
 
     // Множество для отслеживания URI в процессе обработки
     private val processingUris = mutableSetOf<String>()
@@ -40,7 +41,7 @@ object StatsTracker {
     fun updateStatus(context: Context, uri: Uri, status: Int) {
         try {
             // Если статус завершающий (COMPLETED или FAILED), убираем URI из отслеживаемых
-            if (status == COMPRESSION_STATUS_COMPLETED || status == COMPRESSION_STATUS_FAILED) {
+            if (status == COMPRESSION_STATUS_COMPLETED || status == COMPRESSION_STATUS_FAILED || status == COMPRESSION_STATUS_SKIPPED) {
                 processingUris.remove(uri.toString())
                 Timber.d("URI удален из отслеживаемых: $uri")
             }
