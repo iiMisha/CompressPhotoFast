@@ -34,13 +34,7 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
-            // Проверяем, находится ли URI уже в списке обрабатываемых
-            if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
-                Timber.d("URI уже в списке обрабатываемых: $uri")
-                return@withContext false
-            }
-            
-            // Получаем размер файла - переместили эту проверку до проверки EXIF
+            // Получаем размер файла - эта проверка теперь выполняется до проверки нахождения URI в списке обрабатываемых
             val fileSize = FileUtil.getFileSize(context, uri)
             
             // Если файл слишком мал, пропускаем его
@@ -49,10 +43,16 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
-            // НОВАЯ ПРОВЕРКА: Обработка для файлов больше 1.5 МБ имеет приоритет
+            // ПРИОРИТЕТНАЯ ПРОВЕРКА: Обработка для файлов больше 1.5 МБ имеет приоритет
             if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
                 Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), будет проведено тестовое сжатие в RAM")
                 return@withContext true
+            }
+            
+            // Проверяем, находится ли URI уже в списке обрабатываемых - перемещено после проверки размера
+            if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                Timber.d("URI уже в списке обрабатываемых: $uri")
+                return@withContext false
             }
             
             // Только после проверки размера делаем проверку на EXIF маркер
@@ -93,6 +93,87 @@ object ImageProcessingChecker {
             return@withContext true
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке необходимости обработки изображения: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверка, было ли изображение уже обработано (для использования в ImageCompressionWorker)
+     * Централизованная версия логики из ImageCompressionWorker.isImageAlreadyProcessedExceptSize
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение уже обработано, false в противном случае
+     */
+    suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем наличие URI
+            val exists = context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
+                it.count > 0
+            } ?: false
+            
+            if (!exists) {
+                Timber.d("URI не существует: $uri")
+                return@withContext true
+            }
+            
+            // Получаем размер файла для проверок
+            val fileSize = FileUtil.getFileSize(context, uri)
+            
+            // Проверяем EXIF маркер
+            val isProcessed = StatsTracker.isImageProcessed(context, uri)
+            if (isProcessed) {
+                Timber.d("Изображение уже сжато (найден EXIF маркер): $uri")
+                return@withContext true
+            }
+
+            // Проверяем путь к файлу
+            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
+            val isInAppDir = 
+                (path.contains("/${Constants.APP_DIRECTORY}/") || 
+                 path.contains("content://media/external/images/media") && 
+                 path.contains(Constants.APP_DIRECTORY))
+            
+            if (isInAppDir) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext true
+            }
+            
+            // Если файл уже достаточно мал (меньше 1MB)
+            // TODO: Заменить жестко закодированное значение на константу
+            val optimumSize = Constants.OPTIMUM_FILE_SIZE
+            if (fileSize < optimumSize) {
+                Timber.d("Файл уже достаточно мал (${fileSize/1024}KB < ${optimumSize/1024}KB), пропускаем")
+                return@withContext true
+            }
+
+            // Проверяем, не является ли этот файл результатом предыдущего сжатия
+            context.contentResolver.query(
+                uri,
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_ADDED),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    
+                    if (nameIndex != -1 && dateIndex != -1) {
+                        val fileName = cursor.getString(nameIndex)
+                        val dateAdded = cursor.getLong(dateIndex)
+                        
+                        // Если файл был создан менее 5 секунд назад и его размер уже оптимальный
+                        if (System.currentTimeMillis() / 1000 - dateAdded < 5 && fileSize < Constants.OPTIMUM_FILE_SIZE) {
+                            Timber.d("Файл был недавно создан и уже оптимального размера: $fileName")
+                            return@withContext true
+                        }
+                    }
+                }
+            }
+            
+            return@withContext false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке статуса файла")
             return@withContext false
         }
     }
