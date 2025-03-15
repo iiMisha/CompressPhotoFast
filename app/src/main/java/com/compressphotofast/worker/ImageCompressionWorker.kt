@@ -21,6 +21,7 @@ import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.CompressionTestUtil
 import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.ExifUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -556,10 +557,10 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Копируем EXIF данные
-            FileUtil.copyExifDataFromUriToFile(context, uri, tempFile)
+            ExifUtil.copyExifDataFromUriToFile(context, uri, tempFile)
             
             // Добавляем EXIF маркер сжатия с информацией об уровне компрессии
-            FileUtil.markCompressedImage(tempFile.absolutePath, quality)
+            ExifUtil.markCompressedImage(tempFile.absolutePath, quality)
             
             // Проверяем EXIF данные после копирования
             logExifDataFromFile(tempFile)
@@ -583,16 +584,9 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun logExifData(uri: Uri) = withContext(Dispatchers.IO) {
         try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val exif = ExifInterface(inputStream)
-                // Просто проверяем наличие основных тегов
-                val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
-                                 exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
-                                 exif.getAttribute(ExifInterface.TAG_MODEL) != null
-                
-                if (hasBasicTags) {
-                    Timber.d("EXIF данные найдены в исходном файле")
-                }
+            val hasBasicTags = ExifUtil.hasBasicExifTags(context, uri)
+            if (hasBasicTags) {
+                Timber.d("EXIF данные найдены в исходном файле")
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке EXIF данных из URI")
@@ -604,12 +598,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun logExifDataFromFile(file: File) {
         try {
-            val exif = ExifInterface(file.absolutePath)
-            // Просто проверяем наличие основных тегов
-            val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
-                             exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
-                             exif.getAttribute(ExifInterface.TAG_MODEL) != null
-            
+            val hasBasicTags = ExifUtil.hasBasicExifTags(file)
             if (hasBasicTags) {
                 Timber.d("EXIF данные сохранены")
             }

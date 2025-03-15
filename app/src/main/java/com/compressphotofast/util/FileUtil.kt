@@ -1177,4 +1177,41 @@ object FileUtil {
         val end = fileName.substring(fileName.length - maxLength / 2 + 1)
         return "$start...$end"
     }
+
+    /**
+     * Получает MIME тип файла по URI
+     * @param context контекст
+     * @param uri URI файла
+     * @return MIME тип или null, если не удалось определить
+     */
+    fun getMimeType(context: Context, uri: Uri): String? {
+        return try {
+            context.contentResolver.getType(uri)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении MIME типа для $uri")
+            null
+        }
+    }
+
+    /**
+     * Проверяет, является ли изображение скриншотом
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение является скриншотом, false в противном случае
+     */
+    fun isScreenshot(context: Context, uri: Uri): Boolean {
+        try {
+            // Получаем имя файла
+            val fileName = getFileNameFromUri(context, uri)?.lowercase() ?: return false
+            
+            // Проверяем, содержит ли имя файла типичные для скриншотов паттерны
+            return fileName.contains("screenshot") || 
+                   fileName.contains("screen_shot") || 
+                   fileName.contains("скриншот") || 
+                   (fileName.contains("screen") && fileName.contains("shot"))
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке скриншота для $uri")
+            return false
+        }
+    }
 } 

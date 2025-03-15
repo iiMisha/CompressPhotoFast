@@ -156,6 +156,22 @@ class SettingsManager @Inject constructor(
             .apply()
     }
     
+    /**
+     * Проверяет, нужно ли обрабатывать скриншоты
+     * @return true если нужно обрабатывать скриншоты, false в противном случае
+     */
+    fun shouldProcessScreenshots(): Boolean {
+        return sharedPreferences.getBoolean(Constants.PREF_PROCESS_SCREENSHOTS, true)
+    }
+    
+    /**
+     * Устанавливает настройку обработки скриншотов
+     * @param processScreenshots true если нужно обрабатывать скриншоты, false в противном случае
+     */
+    fun setProcessScreenshots(processScreenshots: Boolean) {
+        sharedPreferences.edit().putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, processScreenshots).apply()
+    }
+    
     companion object {
         /**
          * Создает экземпляр SettingsManager без внедрения зависимостей (для классов без Hilt)

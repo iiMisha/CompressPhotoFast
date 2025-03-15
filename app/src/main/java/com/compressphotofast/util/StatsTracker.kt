@@ -51,21 +51,34 @@ object StatsTracker {
     }
 
     /**
-     * Проверяет, является ли изображение сжатым
-     * Использует только систему EXIF маркировки
+     * Проверяет, было ли изображение обработано ранее
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение уже обработано, false в противном случае
      */
     suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем EXIF маркер - единственный надежный способ
-            val isCompressed = FileUtil.isCompressedByExif(context, uri)
+            // Проверяем EXIF маркер с помощью ExifUtil
+            val isCompressed = ExifUtil.isImageCompressed(context, uri)
+            
+            // Если найден маркер CompressPhotoFast_Compressed, возвращаем true
             if (isCompressed) {
-                Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
+                Timber.d("Изображение уже обработано (найден EXIF маркер): $uri")
                 return@withContext true
             }
             
+            // Если маркер не найден, проверяем путь к файлу
+            val path = FileUtil.getFilePathFromUri(context, uri)
+            if (path?.contains("/${Constants.APP_DIRECTORY}/") == true || 
+                (path?.contains("content://media/external/images/media") == true && path.contains(Constants.APP_DIRECTORY))) {
+                Timber.d("Файл находится в директории приложения: $path")
+                return@withContext true
+            }
+            
+            // В остальных случаях считаем, что файл не обработан
             return@withContext false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса изображения: ${e.message}")
+            Timber.e(e, "Ошибка при проверке статуса обработки файла: ${e.message}")
             return@withContext false
         }
     }
@@ -80,18 +93,19 @@ object StatsTracker {
     }
     
     /**
-     * Добавляет EXIF-маркер сжатия в изображение
+     * Отмечает изображение как обработанное (добавляет EXIF маркер)
+     * @param context контекст
+     * @param uri URI изображения
+     * @param quality Уровень качества, с которым было сжато изображение
+     * @return true если успешно, false в противном случае
      */
-    fun addProcessedImage(context: Context, uri: Uri) {
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                // Добавляем EXIF метку
-                val quality = 85 // Значение по умолчанию
-                FileUtil.markCompressedImage(context, uri, quality)
-                Timber.d("Добавлен EXIF маркер сжатия для URI: $uri")
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при добавлении маркера сжатия: ${e.message}")
-            }
+    suspend fun markProcessed(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Добавляем EXIF маркер с помощью ExifUtil
+            return@withContext ExifUtil.markCompressedImage(context, uri, quality)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при маркировке изображения как обработанного: ${e.message}")
+            return@withContext false
         }
     }
 

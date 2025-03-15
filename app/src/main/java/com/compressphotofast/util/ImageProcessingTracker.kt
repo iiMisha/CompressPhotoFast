@@ -27,35 +27,34 @@ object ImageProcessingTracker {
     private val processingStatus = Collections.synchronizedMap(HashMap<String, String>())
 
     /**
-     * Проверяет, является ли изображение сжатым
-     * Использует только систему EXIF маркировки
+     * Проверяет, обработано ли изображение по EXIF метаданным
      */
     suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем EXIF маркер - единственный надежный способ
-            val isCompressed = FileUtil.isCompressedByExif(context, uri)
+            // Используем ExifUtil вместо FileUtil
+            val isCompressed = ExifUtil.isImageCompressed(context, uri)
             if (isCompressed) {
-                Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
+                Timber.d("Изображение уже обработано (найден EXIF маркер): $uri")
                 return@withContext true
             }
             
             return@withContext false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса изображения: ${e.message}")
+            Timber.e(e, "Ошибка при проверке статуса обработки: ${e.message}")
             return@withContext false
         }
     }
     
     /**
-     * Добавляет EXIF-маркер сжатия в изображение
+     * Маркирует изображение как обработанное
      */
-    suspend fun addProcessedImage(context: Context, uri: Uri, quality: Int) = withContext(Dispatchers.IO) {
+    suspend fun markAsProcessed(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Добавляем EXIF метку
-            FileUtil.markCompressedImage(context, uri, quality)
-            Timber.d("Добавлен EXIF маркер сжатия для URI: $uri")
+            // Используем ExifUtil вместо FileUtil
+            return@withContext ExifUtil.markCompressedImage(context, uri, quality)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при добавлении маркера сжатия: ${e.message}")
+            Timber.e(e, "Ошибка при маркировке изображения: ${e.message}")
+            return@withContext false
         }
     }
 

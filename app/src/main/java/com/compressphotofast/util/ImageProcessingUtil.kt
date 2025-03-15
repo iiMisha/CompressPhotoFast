@@ -23,63 +23,8 @@ object ImageProcessingUtil {
      * Централизованная логика для всего приложения
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем, существует ли URI
-            val exists = context.contentResolver.query(uri, arrayOf(android.provider.MediaStore.Images.Media._ID), null, null, null)?.use {
-                it.count > 0
-            } ?: false
-            
-            if (!exists) {
-                Timber.d("URI не существует: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем, не обрабатывается ли уже это изображение
-            if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
-                Timber.d("URI уже обрабатывается: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем, не обрабатывается ли URI уже через MainActivity
-            if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
-                Timber.d("URI уже обрабатывается через MainActivity: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем размер файла
-            val fileSize = FileUtil.getFileSize(context, uri)
-            if (fileSize < Constants.MIN_FILE_SIZE || fileSize > Constants.MAX_FILE_SIZE) {
-                Timber.d("Файл имеет недопустимый размер ($fileSize байт): $uri")
-                return@withContext false
-            }
-            
-            // Для файлов больше 1.5 МБ всегда возвращаем true независимо от EXIF маркера
-            if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
-                Timber.d("Изображение по URI $uri больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), требуется обработка")
-                return@withContext true
-            }
-            
-            // Для файлов меньше 1.5 МБ проверяем EXIF маркер
-            val isCompressed = FileUtil.isCompressedByExif(context, uri)
-            if (isCompressed) {
-                Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
-                return@withContext false
-            }
-            
-            // Проверяем путь к файлу
-            val path = FileUtil.getFilePathFromUri(context, uri)
-            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
-                Timber.d("Файл находится в директории приложения: $path")
-                return@withContext false
-            }
-            
-            // Если все проверки прошли успешно - нужно обрабатывать
-            Timber.d("Изображение требует обработки: $uri")
-            return@withContext true
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке изображения: $uri")
-            return@withContext false
-        }
+        // Делегируем проверку классу ImageProcessingChecker
+        return@withContext ImageProcessingChecker.shouldProcessImage(context, uri)
     }
     
     /**
@@ -135,5 +80,15 @@ object ImageProcessingUtil {
             UriProcessingTracker.removeProcessingUri(uri.toString())
             return@withContext false
         }
+    }
+
+    /**
+     * Проверяет, содержатся ли в изображении EXIF-метаданные
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение содержит EXIF-метаданные, false в противном случае
+     */
+    suspend fun hasExifMetadata(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        return@withContext ExifUtil.hasBasicExifTags(context, uri)
     }
 } 

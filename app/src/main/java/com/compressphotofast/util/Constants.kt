@@ -5,9 +5,10 @@ package com.compressphotofast.util
  */
 object Constants {
     // Настройки приложения
-    const val PREF_FILE_NAME = "app_settings"
+    const val PREF_FILE_NAME = "compress_photo_prefs"
     const val PREF_AUTO_COMPRESSION = "auto_compression"
     const val PREF_COMPRESSION_QUALITY = "compression_quality"
+    const val PREF_COMPRESSION_PRESET = "compression_preset"
     const val PREF_SAVE_MODE = "save_mode"
     const val PREF_PENDING_DELETE_URIS = "pending_delete_uris"
     const val PREF_FIRST_LAUNCH = "first_launch"
@@ -15,6 +16,7 @@ object Constants {
     const val PREF_PERMISSION_SKIPPED = "permission_skipped"
     const val PREF_NOTIFICATION_PERMISSION_SKIPPED = "notification_permission_skipped"
     const val PREF_PERMISSION_REQUEST_COUNT = "permission_request_count"
+    const val PREF_PROCESS_SCREENSHOTS = "process_screenshots"
     
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1
@@ -77,4 +79,7 @@ object Constants {
     
     // Временные файлы
     const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут вместо 24 часов
+    
+    /** Минимальный размер файла для обработки (100 КБ) */
+    const val MIN_PROCESSABLE_FILE_SIZE = 100 * 1024L
 } 
