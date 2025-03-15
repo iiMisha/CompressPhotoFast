@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Темная тема с true black для AMOLED экранов -->
-    <color name="primary">#1B5E20</color>
+    <color name="primary">#0D47A1</color>
     <color name="primary_dark">#000000</color>
-    <color name="primary_light">#2E7D32</color>
-    <color name="accent">#69F0AE</color>
+    <color name="primary_light">#1976D2</color>
+    <color name="accent">#64B5F6</color>
     <color name="primary_text">#E0E0E0</color>
     <color name="secondary_text">#BDBDBD</color>
     <color name="icons">#FFFFFF</color>
