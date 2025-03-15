@@ -138,7 +138,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Продолжаем выполнение, так как ошибка может быть временной
             }
             
-            // Для файлов больше 1.5 МБ выполняем тестовое сжатие в RAM
+            // Для файлов больше 1.5 МБ всегда выполняем тестовое сжатие в RAM
             if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
                 Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие в RAM")
                 
@@ -234,19 +234,19 @@ class ImageCompressionWorker @AssistedInject constructor(
                             .build()
                     )
                 }
-            }
-            
-            // Для файлов меньше 1.5 МБ, проверяем другие условия
-            // Проверяем, обрабатывается ли уже это изображение
-            if (isImageAlreadyProcessedExceptSize(imageUri)) {
-                Timber.d("Изображение уже обработано: $imageUri")
-                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                return@withContext Result.success(
-                    Data.Builder()
-                        .putBoolean("success", true)
-                        .putBoolean("skipped", true)
-                        .build()
-                )
+            } else {
+                // Для файлов меньше 1.5 МБ, проверяем другие условия
+                // Проверяем, обрабатывается ли уже это изображение
+                if (isImageAlreadyProcessedExceptSize(imageUri)) {
+                    Timber.d("Изображение уже обработано: $imageUri")
+                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                    return@withContext Result.success(
+                        Data.Builder()
+                            .putBoolean("success", true)
+                            .putBoolean("skipped", true)
+                            .build()
+                    )
+                }
             }
             
             // Создаем временный файл для стандартной обработки
@@ -712,6 +712,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext true
             }
             
+            // Получаем размер файла для проверок
+            val fileSize = FileUtil.getFileSize(context, uri)
+            
             // Проверяем EXIF маркер
             val isProcessed = StatsTracker.isImageProcessed(context, uri)
             if (isProcessed) {
@@ -730,9 +733,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Timber.d("Файл находится в директории приложения: $path")
                 return@withContext true
             }
-            
-            // Получаем размер файла для дополнительных проверок
-            val fileSize = FileUtil.getFileSize(context, uri)
             
             // Если файл уже достаточно мал (меньше 1MB)
             if (fileSize < 1024 * 1024) {

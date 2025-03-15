@@ -40,18 +40,24 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
-            // Проверяем EXIF маркер для определения, было ли изображение уже обработано
-            if (StatsTracker.isImageProcessed(context, uri)) {
-                Timber.d("Изображение уже обработано (найден EXIF маркер): $uri")
-                return@withContext false
-            }
-            
-            // Получаем размер файла
+            // Получаем размер файла - переместили эту проверку до проверки EXIF
             val fileSize = FileUtil.getFileSize(context, uri)
             
             // Если файл слишком мал, пропускаем его
             if (fileSize < Constants.MIN_PROCESSABLE_FILE_SIZE) {
                 Timber.d("Файл слишком мал (${fileSize/1024}KB < минимального порога ${Constants.MIN_PROCESSABLE_FILE_SIZE/1024}KB): $uri")
+                return@withContext false
+            }
+            
+            // НОВАЯ ПРОВЕРКА: Обработка для файлов больше 1.5 МБ имеет приоритет
+            if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
+                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), будет проведено тестовое сжатие в RAM")
+                return@withContext true
+            }
+            
+            // Только после проверки размера делаем проверку на EXIF маркер
+            if (StatsTracker.isImageProcessed(context, uri)) {
+                Timber.d("Изображение уже обработано (найден EXIF маркер): $uri")
                 return@withContext false
             }
             
