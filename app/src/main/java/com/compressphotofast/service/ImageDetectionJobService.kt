@@ -22,6 +22,8 @@ import timber.log.Timber
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.util.ImageProcessingUtil
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -221,35 +223,8 @@ class ImageDetectionJobService : JobService() {
     /**
      * Проверяет, нужно ли обрабатывать изображение
      */
-    private suspend fun shouldProcessImage(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем, существует ли URI
-            val exists = contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
-                it.count > 0
-            } ?: false
-            
-            if (!exists) {
-                Timber.d("URI не существует: $uri")
-                return@withContext false
-            }
-            
-            // Используем новый метод StatsTracker.shouldProcessImage, который учитывает размер файла 1.5 МБ
-            if (StatsTracker.shouldProcessImage(applicationContext, uri)) {
-                return@withContext true
-            }
-            
-            // Проверяем путь к файлу
-            val path = FileUtil.getFilePathFromUri(applicationContext, uri)
-            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
-                Timber.d("Файл находится в директории приложения: $path")
-                return@withContext false
-            }
-            
-            false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке изображения: $uri")
-            false
-        }
+    private suspend fun shouldProcessImage(uri: Uri): Boolean {
+        return ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
     }
 
     /**
@@ -258,70 +233,25 @@ class ImageDetectionJobService : JobService() {
     private suspend fun processImage(uri: Uri) = withContext(Dispatchers.IO) {
         Timber.d("ImageDetectionJobService: начало обработки изображения: $uri")
         
-        // Проверяем, включено ли автоматическое сжатие
-        if (!isAutoCompressionEnabled(applicationContext)) {
-            Timber.d("ImageDetectionJobService: автоматическое сжатие отключено, пропускаем обработку")
-            return@withContext
+        // Используем централизованную логику обработки изображений
+        if (ImageProcessingUtil.processImage(applicationContext, uri)) {
+            Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
+        } else {
+            Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
         }
-
-        // Проверяем, не обрабатывается ли уже это изображение в BackgroundMonitoringService
-        val isBeingProcessedByService = BackgroundMonitoringService.isImageBeingProcessed(uri.toString())
-        if (isBeingProcessedByService) {
-            Timber.d("ImageDetectionJobService: изображение уже обрабатывается сервисом: $uri, пропускаем")
-            return@withContext
-        }
-
-        // Получаем текущее качество сжатия
-        val quality = getCompressionQuality(applicationContext)
-        Timber.d("ImageDetectionJobService: текущее качество сжатия: $quality")
-
-        // Получаем размер исходного файла для логирования
-        val originalSize = getFileSize(uri)
-        Timber.d("ImageDetectionJobService: размер исходного файла: ${originalSize / 1024} KB")
-
-        val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-            .setInputData(workDataOf(
-                Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                "compression_quality" to quality,
-                "original_size" to originalSize
-            ))
-            .addTag(Constants.WORK_TAG_COMPRESSION)
-            .build()
-
-        workManager.beginUniqueWork(
-            "compression_${uri.lastPathSegment}",
-            ExistingWorkPolicy.REPLACE,
-            compressionWorkRequest
-        ).enqueue()
-        Timber.d("ImageDetectionJobService: задача сжатия добавлена в очередь: ${compressionWorkRequest.id}")
-
-        // Отмечаем изображение как обработанное
-        StatsTracker.addProcessedImage(applicationContext, uri)
-        Timber.d("ImageDetectionJobService: изображение отмечено как обработанное: $uri")
     }
 
     /**
-     * Получение текущего уровня сжатия из SharedPreferences
+     * Получение текущего уровня сжатия из настроек
      */
     private fun getCompressionQuality(context: Context): Int {
-        val sharedPreferences = context.getSharedPreferences(
-            Constants.PREF_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-        return sharedPreferences.getInt(
-            Constants.PREF_COMPRESSION_QUALITY,
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
+        return SettingsManager.getInstance(context).getCompressionQuality()
     }
 
     /**
      * Проверка состояния автоматического сжатия
      */
     private fun isAutoCompressionEnabled(context: Context): Boolean {
-        val sharedPreferences = context.getSharedPreferences(
-            Constants.PREF_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-        return sharedPreferences.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+        return SettingsManager.getInstance(context).isAutoCompressionEnabled()
     }
 } 

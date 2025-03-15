@@ -38,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
 import android.content.pm.ServiceInfo
 import com.compressphotofast.util.TempFilesCleaner
+import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.SettingsManager
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -50,9 +52,6 @@ class BackgroundMonitoringService : Service() {
 
     private lateinit var contentObserver: ContentObserver
     private val executorService = Executors.newSingleThreadExecutor()
-    
-    // Набор URI, которые в данный момент находятся в обработке
-    private val processingUrisLocal = Collections.synchronizedSet(HashSet<String>())
     
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
@@ -90,9 +89,9 @@ class BackgroundMonitoringService : Service() {
         fun addProcessingUri(uri: String) {
             processingUris.add(uri)
         }
-
+        
         /**
-         * Удаляет URI из списка обрабатываемых
+         * Удаляет URI из списка обрабатываемых и возвращает true, если URI был найден и удален
          */
         fun removeProcessingUri(uri: String): Boolean {
             return processingUris.remove(uri)
@@ -186,7 +185,7 @@ class BackgroundMonitoringService : Service() {
                     
                     // Удаляем URI из списка обрабатываемых
                     val wasRemoved = removeProcessingUri(uriString)
-                    processingUrisLocal.remove(uriString)
+                    processingUris.remove(uriString)
                     Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${processingUris.size} URIs)")
                     Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
@@ -513,7 +512,8 @@ class BackgroundMonitoringService : Service() {
         
         try {
             // Проверяем, включено ли автоматическое сжатие
-            if (!isAutoCompressionEnabled()) {
+            val settingsManager = SettingsManager.getInstance(applicationContext)
+            if (!settingsManager.isAutoCompressionEnabled()) {
                 Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем обработку")
                 return
             }
@@ -532,73 +532,22 @@ class BackgroundMonitoringService : Service() {
                 Timber.d("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
                 return
             }
-            
-            // Проверяем, не обрабатывается ли URI уже через MainActivity
-            if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
-                Timber.d("BackgroundMonitoringService: URI $uri уже обрабатывается через MainActivity, пропускаем")
-                return
-            }
-
-            // Ждем пока файл станет доступным
-            if (!FileUtil.waitForFileAvailability(applicationContext, uri)) {
-                Timber.d("BackgroundMonitoringService: файл недоступен после ожидания: $uri")
-                return
-            }
-
-            // Проверяем размер файла
-            val fileSize = FileUtil.getFileSize(applicationContext, uri)
-            if (fileSize < Constants.MIN_FILE_SIZE || fileSize > Constants.MAX_FILE_SIZE) {
-                Timber.d("BackgroundMonitoringService: пропускаем файл из-за размера ($fileSize байт): $uri")
-                return
-            }
 
             // Логируем подробную информацию о файле
             logDetailedFileInfo(uri)
-
-            // Проверяем EXIF-данные 
-            if (!StatsTracker.shouldProcessImage(applicationContext, uri)) {
+            
+            // Используем централизованную логику проверки и обработки изображения
+            if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
+                ImageProcessingUtil.processImage(applicationContext, uri)
+                Timber.d("BackgroundMonitoringService: запрос на обработку изображения отправлен: $uri")
+            } else {
                 Timber.d("BackgroundMonitoringService: изображение не требует обработки: $uri")
-                return
             }
-
-            // Помечаем URI как обрабатываемый
-            addProcessingUri(uriString)
-            processingUrisLocal.add(uriString)
-            Timber.d("URI добавлен в список обрабатываемых: $uriString (всего ${processingUris.size} URIs)")
-            
-            // Получаем имя файла и качество сжатия
-            val fileName = FileUtil.getFileNameFromUri(applicationContext, uri)
-            val compressionQuality = applicationContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
-            
-            // Создаем уникальный тег для работы
-            val workTag = "compress_${System.currentTimeMillis()}_${fileName}"
-            
-            // Создаем и запускаем работу по сжатию
-            val compressionWork = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                .setInputData(
-                    workDataOf(
-                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                        "compression_quality" to compressionQuality
-                    )
-                )
-                .addTag(workTag)
-                .build()
-            
-            WorkManager.getInstance(applicationContext)
-                .enqueueUniqueWork(
-                    workTag,
-                    ExistingWorkPolicy.REPLACE,
-                    compressionWork
-                )
-            
-            Timber.d("BackgroundMonitoringService: запущена работа по сжатию для $uri с тегом $workTag")
             
         } catch (e: Exception) {
             Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
             val uriString = uri.toString()
             removeProcessingUri(uriString)
-            processingUrisLocal.remove(uriString)
         }
     }
     
@@ -666,53 +615,15 @@ class BackgroundMonitoringService : Service() {
     /**
      * Проверяет, нужно ли обрабатывать изображение
      */
-    private suspend fun shouldProcessImage(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем, существует ли URI
-            val exists = applicationContext.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
-                it.count > 0
-            } ?: false
-            
-            if (!exists) {
-                Timber.d("URI не существует: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем, не обрабатывается ли уже это изображение
-            if (processingUris.contains(uri.toString())) {
-                Timber.d("URI уже обрабатывается: $uri")
-                return@withContext false
-            }
-            
-            // Используем новый метод StatsTracker.shouldProcessImage, который учитывает размер файла 1.5 МБ
-            if (!StatsTracker.shouldProcessImage(applicationContext, uri)) {
-                Timber.d("Изображение не требует обработки по результатам проверки StatsTracker: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем путь к файлу
-            val path = FileUtil.getFilePathFromUri(applicationContext, uri)
-            if (!path.isNullOrEmpty() && path.contains("/${Constants.APP_DIRECTORY}/")) {
-                Timber.d("Файл находится в директории приложения: $path")
-                return@withContext false
-            }
-            
-            true
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке изображения: $uri")
-            false
-        }
+    private suspend fun shouldProcessImage(uri: Uri): Boolean {
+        return ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
     }
     
     /**
      * Проверка состояния автоматического сжатия
      */
     private fun isAutoCompressionEnabled(): Boolean {
-        val sharedPreferences = applicationContext.getSharedPreferences(
-            Constants.PREF_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-        return sharedPreferences.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+        return SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
     }
 
     /**
@@ -807,15 +718,11 @@ class BackgroundMonitoringService : Service() {
         Handler(Looper.getMainLooper()).post {
             try {
                 // Сокращаем длинное имя файла
-                val truncatedFileName = if (fileName.length <= 25) fileName else {
-                    val start = fileName.substring(0, 25 / 2 - 2)
-                    val end = fileName.substring(fileName.length - 25 / 2 + 1)
-                    "$start...$end"
-                }
+                val truncatedFileName = FileUtil.truncateFileName(fileName)
                 
                 // Форматируем размеры
-                val originalSizeStr = formatFileSize(originalSize)
-                val compressedSizeStr = formatFileSize(compressedSize)
+                val originalSizeStr = FileUtil.formatFileSize(originalSize)
+                val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
                 val reductionStr = String.format("%.1f", reduction)
                 
                 // Создаем текст уведомления
@@ -827,17 +734,6 @@ class BackgroundMonitoringService : Service() {
             } catch (e: Exception) {
                 Timber.e(e, "Ошибка при показе Toast")
             }
-        }
-    }
-    
-    /**
-     * Форматирует размер файла в удобочитаемый вид
-     */
-    private fun formatFileSize(size: Long): String {
-        return when {
-            size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KB"
-            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
         }
     }
 } 

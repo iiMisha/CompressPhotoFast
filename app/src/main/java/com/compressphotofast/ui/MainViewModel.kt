@@ -20,6 +20,8 @@ import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -50,7 +52,8 @@ import java.util.concurrent.locks.ReentrantLock
 class MainViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val sharedPreferences: SharedPreferences,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
 
     // LiveData для URI выбранного изображения
@@ -267,16 +270,14 @@ class MainViewModel @Inject constructor(
      * Проверка, включено ли автоматическое сжатие
      */
     fun isAutoCompressionEnabled(): Boolean {
-        return sharedPreferences.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+        return settingsManager.isAutoCompressionEnabled()
     }
 
     /**
      * Установка статуса автоматического сжатия
      */
     fun setAutoCompression(enabled: Boolean) {
-        sharedPreferences.edit()
-            .putBoolean(Constants.PREF_AUTO_COMPRESSION, enabled)
-            .apply()
+        settingsManager.setAutoCompression(enabled)
         
         if (enabled) {
             // Запускаем проверку пропущенных изображений при включении
@@ -297,20 +298,14 @@ class MainViewModel @Inject constructor(
      * Получение текущего уровня сжатия
      */
     fun getCompressionQuality(): Int {
-        return sharedPreferences.getInt(
-            Constants.PREF_COMPRESSION_QUALITY, 
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
+        return settingsManager.getCompressionQuality()
     }
     
     /**
      * Установка уровня сжатия
      */
     fun setCompressionQuality(quality: Int) {
-        sharedPreferences.edit()
-            .putInt(Constants.PREF_COMPRESSION_QUALITY, quality)
-            .apply()
-        
+        settingsManager.setCompressionQuality(quality)
         _compressionQuality.value = quality
     }
     
@@ -318,12 +313,8 @@ class MainViewModel @Inject constructor(
      * Получение уровня сжатия по предустановке (низкий, средний, высокий)
      */
     fun setCompressionPreset(preset: CompressionPreset) {
-        val quality = when (preset) {
-            CompressionPreset.LOW -> Constants.COMPRESSION_QUALITY_LOW
-            CompressionPreset.MEDIUM -> Constants.COMPRESSION_QUALITY_MEDIUM
-            CompressionPreset.HIGH -> Constants.COMPRESSION_QUALITY_HIGH
-        }
-        setCompressionQuality(quality)
+        settingsManager.setCompressionPreset(preset)
+        _compressionQuality.value = settingsManager.getCompressionQuality()
     }
 
     /**
@@ -437,7 +428,7 @@ class MainViewModel @Inject constructor(
      * Проверка, включен ли режим замены оригинальных файлов
      */
     fun isSaveModeReplace(): Boolean {
-        return sharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, false)
+        return settingsManager.isSaveModeReplace()
     }
     
     /**
@@ -445,9 +436,7 @@ class MainViewModel @Inject constructor(
      * @param replace true - заменять оригинальные файлы, false - сохранять в отдельной папке
      */
     fun setSaveMode(replace: Boolean) {
-        sharedPreferences.edit()
-            .putBoolean(Constants.PREF_SAVE_MODE, replace)
-            .apply()
+        settingsManager.setSaveMode(replace)
     }
 
     /**

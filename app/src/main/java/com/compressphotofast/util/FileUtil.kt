@@ -965,36 +965,28 @@ object FileUtil {
      * Проверяет, включен ли режим замены файлов
      */
     fun isSaveModeReplace(context: Context): Boolean {
-        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        return prefs.getBoolean(Constants.PREF_SAVE_MODE, false)
+        return SettingsManager.getInstance(context).isSaveModeReplace()
     }
 
     /**
      * Проверяет, запущено ли сжатие вручную
      */
     fun isManualCompression(context: Context): Boolean {
-        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        return !prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+        return !SettingsManager.getInstance(context).isAutoCompressionEnabled()
     }
 
     /**
      * Получает текущий режим сохранения из настроек
      */
     fun getSaveMode(context: Context): Int {
-        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        return if (prefs.getBoolean(Constants.PREF_SAVE_MODE, false)) {
-            Constants.SAVE_MODE_REPLACE
-        } else {
-            Constants.SAVE_MODE_SEPARATE
-        }
+        return SettingsManager.getInstance(context).getSaveMode()
     }
 
     /**
      * Получает уровень качества сжатия из настроек
      */
     fun getCompressionQuality(context: Context): Int {
-        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        return prefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
+        return SettingsManager.getInstance(context).getCompressionQuality()
     }
 
     /**
@@ -1162,5 +1154,27 @@ object FileUtil {
             ".jpg",
             context.cacheDir
         )
+    }
+    
+    /**
+     * Форматирует размер файла в удобочитаемый вид
+     */
+    fun formatFileSize(size: Long): String {
+        return when {
+            size < 1024 -> "$size B"
+            size < 1024 * 1024 -> "${size / 1024} KB"
+            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
+        }
+    }
+    
+    /**
+     * Сокращает длинное имя файла, заменяя середину на "..."
+     */
+    fun truncateFileName(fileName: String, maxLength: Int = 25): String {
+        if (fileName.length <= maxLength) return fileName
+        
+        val start = fileName.substring(0, maxLength / 2 - 2)
+        val end = fileName.substring(fileName.length - maxLength / 2 + 1)
+        return "$start...$end"
     }
 } 

@@ -139,8 +139,8 @@ class MainActivity : AppCompatActivity() {
                     val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                     
                     // Фоматируем размеры для логов
-                    val originalSizeStr = formatFileSize(originalSize)
-                    val compressedSizeStr = formatFileSize(compressedSize)
+                    val originalSizeStr = FileUtil.formatFileSize(originalSize)
+                    val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
                     val reductionStr = String.format("%.1f", reduction)
                     
                     // Только логируем информацию о завершении сжатия, без показа toast
@@ -167,8 +167,8 @@ class MainActivity : AppCompatActivity() {
                     val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                     
                     // Фоматируем размеры для логов
-                    val originalSizeStr = formatFileSize(originalSize)
-                    val compressedSizeStr = formatFileSize(compressedSize)
+                    val originalSizeStr = FileUtil.formatFileSize(originalSize)
+                    val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
                     val reductionStr = String.format("%.1f", reduction)
                     
                     // Логируем информацию о пропуске сжатия
@@ -191,39 +191,17 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showCompressionResultToast(fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
         // Сокращаем длинное имя файла
-        val truncatedFileName = truncateFileName(fileName)
+        val truncatedFileName = FileUtil.truncateFileName(fileName)
         
         // Форматируем размеры
-        val originalSizeStr = formatFileSize(originalSize)
-        val compressedSizeStr = formatFileSize(compressedSize)
+        val originalSizeStr = FileUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
         val reductionStr = String.format("%.1f", reduction)
         
         // Показываем toast с результатом сжатия
         showTopToast(
             "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
         )
-    }
-
-    /**
-     * Сокращает длинное имя файла, заменяя середину на "..."
-     */
-    private fun truncateFileName(fileName: String, maxLength: Int = 25): String {
-        if (fileName.length <= maxLength) return fileName
-        
-        val start = fileName.substring(0, maxLength / 2 - 2)
-        val end = fileName.substring(fileName.length - maxLength / 2 + 1)
-        return "$start...$end"
-    }
-
-    /**
-     * Форматирует размер файла в удобочитаемый вид
-     */
-    private fun formatFileSize(size: Long): String {
-        return when {
-            size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KB"
-            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
-        }
     }
 
     /**
@@ -274,20 +252,22 @@ class MainActivity : AppCompatActivity() {
         // Отменяем регистрацию BroadcastReceiver при остановке активности
         try {
             unregisterReceiver(deletePermissionReceiver)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
-        }
-        
-        // Отменяем регистрацию приемника уведомлений
-        try {
             unregisterReceiver(compressionCompletedReceiver)
+            unregisterReceiver(compressionSkippedReceiver)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации compressionCompletedReceiver")
+            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver в onStop")
         }
         
         super.onStop()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // Очистка ресурсов
+        // Не отменяем регистрацию BroadcastReceiver здесь, так как это уже сделано в onStop
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -333,19 +313,6 @@ class MainActivity : AppCompatActivity() {
             viewModel.stopBatchProcessing()
         }
         handleIntent(intent)
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        
-        // Отменяем регистрацию BroadcastReceiver
-        try {
-            unregisterReceiver(deletePermissionReceiver)
-            unregisterReceiver(compressionCompletedReceiver)
-            unregisterReceiver(compressionSkippedReceiver)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
-        }
     }
     
     /**
