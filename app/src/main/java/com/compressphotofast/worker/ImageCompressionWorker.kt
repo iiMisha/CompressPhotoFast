@@ -89,9 +89,23 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Получаем размер файла
             val fileSize = FileUtil.getFileSize(context, imageUri)
             
-            // Для файлов больше 1.5 МБ выполняем тестовое сжатие
+            // Проверяем, существует ли URI
+            try {
+                val checkCursor = context.contentResolver.query(imageUri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
+                val exists = checkCursor?.use { it.count > 0 } ?: false
+                
+                if (!exists) {
+                    Timber.d("URI не существует, возможно он был обработан и удален другим процессом: $imageUri")
+                    return@withContext Result.success()
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при проверке существования URI: $imageUri")
+                // Продолжаем выполнение, так как ошибка может быть временной
+            }
+            
+            // Для файлов больше 1.5 МБ выполняем тестовое сжатие независимо от EXIF маркера и других условий
             if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
-                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие")
+                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие независимо от EXIF маркера")
                 val tempTestFile = File.createTempFile("test_compress_", ".jpg", context.cacheDir)
                 
                 try {
@@ -167,31 +181,20 @@ class ImageCompressionWorker @AssistedInject constructor(
                     }
                     
                     Timber.e(e, "Ошибка при тестовом сжатии: ${e.message}")
-                    // Продолжаем выполнение стандартного алгоритма
+                    // Для больших файлов в случае ошибки тестового сжатия, пропускаем дальнейшую обработку
+                    Timber.d("Пропускаем дальнейшую обработку большого файла из-за ошибки тестового сжатия")
+                    return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при тестовом сжатии"))
                 }
             }
             
+            // Для файлов меньше 1.5 МБ, проверяем другие условия
             // Проверяем, обрабатывается ли уже это изображение
-            if (isImageAlreadyProcessed(imageUri)) {
+            if (isImageAlreadyProcessedExceptSize(imageUri)) {
                 Timber.d("Изображение уже обработано: $imageUri")
                 return@withContext Result.success()
             }
             
-            // Проверяем, существует ли URI
-            try {
-                val checkCursor = context.contentResolver.query(imageUri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
-                val exists = checkCursor?.use { it.count > 0 } ?: false
-                
-                if (!exists) {
-                    Timber.d("URI не существует, возможно он был обработан и удален другим процессом: $imageUri")
-                    return@withContext Result.success()
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при проверке существования URI: $imageUri")
-                // Продолжаем выполнение, так как ошибка может быть временной
-            }
-            
-            // Создаем временный файл
+            // Создаем временный файл для стандартной обработки
             val tempFile = FileUtil.createTempImageFile(context)
             Timber.d("Создан временный файл: ${tempFile.absolutePath}")
             
@@ -673,9 +676,10 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Проверка, было ли изображение уже обработано
+     * Проверка, было ли изображение уже обработано, без учета размера файла
+     * (не проверяет размер файла, это делается отдельно)
      */
-    private suspend fun isImageAlreadyProcessed(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun isImageAlreadyProcessedExceptSize(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем наличие URI
             val exists = context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
@@ -687,17 +691,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext true
             }
             
-            // Получаем размер файла
-            val fileSize = FileUtil.getFileSize(context, uri)
-            
-            // Для файлов более 1.5 МБ выполняем тестовое сжатие независимо от EXIF маркера
-            if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
-                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), выполним тестовое сжатие")
-                val compressionResult = testCompression(uri, fileSize)
-                return@withContext !compressionResult // Если тестовое сжатие не дало результатов, считаем файл уже обработанным
-            }
-            
-            // Проверяем EXIF маркер для файлов меньше 1.5 МБ
+            // Проверяем EXIF маркер
             val isProcessed = StatsTracker.isImageProcessed(context, uri)
             if (isProcessed) {
                 Timber.d("Изображение уже сжато (найден EXIF маркер): $uri")
@@ -715,6 +709,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Timber.d("Файл находится в директории приложения: $path")
                 return@withContext true
             }
+            
+            // Получаем размер файла для дополнительных проверок
+            val fileSize = FileUtil.getFileSize(context, uri)
             
             // Если файл уже достаточно мал (меньше 1MB)
             if (fileSize < 1024 * 1024) {

@@ -233,17 +233,9 @@ class ImageDetectionJobService : JobService() {
                 return@withContext false
             }
             
-            // Проверяем, было ли изображение уже обработано
-            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
-                Timber.d("URI уже был обработан: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем размер файла
-            val fileSize = FileUtil.getFileSize(applicationContext, uri)
-            if (!FileUtil.isFileSizeValid(fileSize)) {
-                Timber.d("Файл уже оптимального размера (${fileSize/1024}KB): $uri")
-                return@withContext false
+            // Используем новый метод StatsTracker.shouldProcessImage, который учитывает размер файла 1.5 МБ
+            if (StatsTracker.shouldProcessImage(applicationContext, uri)) {
+                return@withContext true
             }
             
             // Проверяем путь к файлу
@@ -253,7 +245,7 @@ class ImageDetectionJobService : JobService() {
                 return@withContext false
             }
             
-            true
+            false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке изображения: $uri")
             false

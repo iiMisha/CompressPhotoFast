@@ -125,8 +125,8 @@ class BackgroundMonitoringService : Service() {
                     // Запускаем корутину для проверки статуса изображения
                     GlobalScope.launch(Dispatchers.IO) {
                         // Проверяем, не было ли изображение уже обработано
-                        if (StatsTracker.isImageProcessed(context, uri)) {
-                            Timber.d("Изображение уже обработано: $uri, пропускаем")
+                        if (!StatsTracker.shouldProcessImage(context, uri)) {
+                            Timber.d("Изображение не требует обработки: $uri, пропускаем")
                             return@launch
                         }
                         
@@ -456,8 +456,8 @@ class BackgroundMonitoringService : Service() {
                             }
                             
                             // Проверяем, не было ли изображение уже обработано (по EXIF)
-                            if (StatsTracker.isImageProcessed(applicationContext, contentUri)) {
-                                Timber.d("BackgroundMonitoringService: изображение уже обработано (по EXIF): $contentUri")
+                            if (!StatsTracker.shouldProcessImage(applicationContext, contentUri)) {
+                                Timber.d("BackgroundMonitoringService: изображение не требует обработки: $contentUri")
                                 skippedCount++
                                 continue
                             }
@@ -529,8 +529,8 @@ class BackgroundMonitoringService : Service() {
             logDetailedFileInfo(uri)
 
             // Проверяем EXIF-данные 
-            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
-                Timber.d("BackgroundMonitoringService: изображение уже обработано (по EXIF): $uri")
+            if (!StatsTracker.shouldProcessImage(applicationContext, uri)) {
+                Timber.d("BackgroundMonitoringService: изображение не требует обработки: $uri")
                 return
             }
 
@@ -654,16 +654,9 @@ class BackgroundMonitoringService : Service() {
                 return@withContext false
             }
             
-            // Проверяем, было ли изображение уже обработано
-            if (StatsTracker.isImageProcessed(applicationContext, uri)) {
-                Timber.d("URI уже был обработан: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем размер файла
-            val fileSize = FileUtil.getFileSize(applicationContext, uri)
-            if (!FileUtil.isFileSizeValid(fileSize)) {
-                Timber.d("Файл уже оптимального размера (${fileSize/1024}KB): $uri")
+            // Используем новый метод StatsTracker.shouldProcessImage, который учитывает размер файла 1.5 МБ
+            if (!StatsTracker.shouldProcessImage(applicationContext, uri)) {
+                Timber.d("Изображение не требует обработки по результатам проверки StatsTracker: $uri")
                 return@withContext false
             }
             
@@ -740,11 +733,12 @@ class BackgroundMonitoringService : Service() {
                         id
                     )
 
-                    if (!StatsTracker.isImageProcessed(applicationContext, contentUri)) {
+                    if (!StatsTracker.shouldProcessImage(applicationContext, contentUri)) {
+                        skippedCount++
+                        continue
+                    } else {
                         processNewImage(contentUri)
                         processedCount++
-                    } else {
-                        skippedCount++
                     }
                 }
 

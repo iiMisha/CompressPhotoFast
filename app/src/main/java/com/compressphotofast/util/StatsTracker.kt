@@ -71,6 +71,43 @@ object StatsTracker {
     }
     
     /**
+     * Проверяет, нужно ли обрабатывать изображение с учетом размера файла
+     * Для файлов больше 1.5 МБ всегда возвращает true (нужно обрабатывать) независимо от EXIF маркера
+     * @return true если изображение нужно обрабатывать, false если оно уже обработано или не требует обработки
+     */
+    suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем размер файла
+            val fileSize = FileUtil.getFileSize(context, uri)
+            
+            // Для файлов больше 1.5 МБ всегда возвращаем true независимо от EXIF маркера
+            if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
+                Timber.d("Изображение по URI $uri больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), требуется проверка эффективности сжатия")
+                return@withContext true
+            }
+            
+            // Для файлов меньше 1.5 МБ проверяем EXIF маркер
+            val isCompressed = FileUtil.isCompressedByExif(context, uri)
+            if (isCompressed) {
+                Timber.d("Изображение по URI $uri уже сжато (обнаружен EXIF маркер)")
+                return@withContext false
+            }
+            
+            // Если EXIF маркер не найден, проверяем размер файла
+            if (fileSize < 1024 * 1024) {
+                Timber.d("Изображение по URI $uri уже оптимального размера (${fileSize / 1024}KB)")
+                return@withContext false
+            }
+            
+            // В остальных случаях нужно обрабатывать
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
      * Добавляет EXIF-маркер сжатия в изображение
      */
     fun addProcessedImage(context: Context, uri: Uri) {
