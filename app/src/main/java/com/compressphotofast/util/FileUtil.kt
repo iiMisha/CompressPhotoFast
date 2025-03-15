@@ -994,7 +994,7 @@ object FileUtil {
      */
     fun getCompressionQuality(context: Context): Int {
         val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        return prefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
+        return prefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
     }
 
     /**

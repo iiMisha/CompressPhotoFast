@@ -52,7 +52,7 @@ class BackgroundMonitoringService : Service() {
     private val executorService = Executors.newSingleThreadExecutor()
     
     // Набор URI, которые в данный момент находятся в обработке
-    private val processingUris = Collections.synchronizedSet(HashSet<String>())
+    private val processingUrisLocal = Collections.synchronizedSet(HashSet<String>())
     
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
@@ -72,6 +72,32 @@ class BackgroundMonitoringService : Service() {
         val path: String,
         val timestamp: Long = System.currentTimeMillis()
     )
+    
+    companion object {
+        // Статический набор URI для синхронизации между сервисами
+        private val processingUris = Collections.synchronizedSet(HashSet<String>())
+
+        /**
+         * Проверяет, обрабатывается ли изображение в данный момент
+         */
+        fun isImageBeingProcessed(uri: String): Boolean {
+            return processingUris.contains(uri)
+        }
+
+        /**
+         * Добавляет URI в список обрабатываемых
+         */
+        fun addProcessingUri(uri: String) {
+            processingUris.add(uri)
+        }
+
+        /**
+         * Удаляет URI из списка обрабатываемых
+         */
+        fun removeProcessingUri(uri: String): Boolean {
+            return processingUris.remove(uri)
+        }
+    }
     
     // Таймаут для обработки изображения (мс)
     private val processingTimeout = 30000L // 30 секунд
@@ -159,7 +185,8 @@ class BackgroundMonitoringService : Service() {
                     val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                     
                     // Удаляем URI из списка обрабатываемых
-                    val wasRemoved = processingUris.remove(uriString)
+                    val wasRemoved = removeProcessingUri(uriString)
+                    processingUrisLocal.remove(uriString)
                     Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${processingUris.size} URIs)")
                     Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
@@ -449,7 +476,7 @@ class BackgroundMonitoringService : Service() {
                             }
                             
                             // Проверяем, не находится ли URI уже в процессе обработки
-                            if (processingUris.contains(contentUri.toString())) {
+                            if (isImageBeingProcessed(contentUri.toString())) {
                                 Timber.d("BackgroundMonitoringService: URI $contentUri уже в процессе обработки, пропускаем")
                                 skippedCount++
                                 continue
@@ -494,7 +521,7 @@ class BackgroundMonitoringService : Service() {
             val uriString = uri.toString()
             
             // Проверяем, обрабатывается ли уже это изображение
-            if (processingUris.contains(uriString)) {
+            if (isImageBeingProcessed(uriString)) {
                 Timber.d("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
                 return
             }
@@ -535,13 +562,14 @@ class BackgroundMonitoringService : Service() {
             }
 
             // Помечаем URI как обрабатываемый
-            processingUris.add(uriString)
+            addProcessingUri(uriString)
+            processingUrisLocal.add(uriString)
             Timber.d("URI добавлен в список обрабатываемых: $uriString (всего ${processingUris.size} URIs)")
             
             // Получаем имя файла и качество сжатия
             val fileName = FileUtil.getFileNameFromUri(applicationContext, uri)
             val compressionQuality = applicationContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
+                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
             
             // Создаем уникальный тег для работы
             val workTag = "compress_${System.currentTimeMillis()}_${fileName}"
@@ -568,7 +596,9 @@ class BackgroundMonitoringService : Service() {
             
         } catch (e: Exception) {
             Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
-            processingUris.remove(uri.toString())
+            val uriString = uri.toString()
+            removeProcessingUri(uriString)
+            processingUrisLocal.remove(uriString)
         }
     }
     

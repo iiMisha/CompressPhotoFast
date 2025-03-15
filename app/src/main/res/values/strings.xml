@@ -15,10 +15,12 @@
     
     <!-- Уведомления -->
     <string name="notification_title">CompressPhotoFast</string>
+    <string name="notification_title_processing">Сжатие изображения</string>
     <string name="notification_background_service">Служба мониторинга фотографий</string>
     <string name="notification_background_service_description">Приложение автоматически сжимает новые фотографии для экономии места на устройстве</string>
     <string name="notification_action_stop">Остановить</string>
     <string name="notification_compressing">Сжатие фотографий…</string>
+    <string name="notification_processing">Обработка изображения...</string>
     <string name="notification_compression_complete">Сжатие завершено</string>
     <string name="notification_channel_id">compression_channel</string>
     <string name="notification_channel_name">Сжатие изображений</string>
@@ -39,6 +41,7 @@
     <!-- Сообщения -->
     <string name="compression_success">Обработка завершена</string>
     <string name="compression_error">Ошибка при сжатии фото</string>
+    <string name="compression_skipped">Файл %1$s пропущен: экономия мала (%2$.1f%% &lt; %3$s%%)</string>
     <string name="no_images_selected">Не выбрано ни одного изображения</string>
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>

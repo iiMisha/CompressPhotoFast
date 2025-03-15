@@ -299,7 +299,7 @@ class MainViewModel @Inject constructor(
     fun getCompressionQuality(): Int {
         return sharedPreferences.getInt(
             Constants.PREF_COMPRESSION_QUALITY, 
-            Constants.DEFAULT_COMPRESSION_QUALITY
+            Constants.COMPRESSION_QUALITY_MEDIUM
         )
     }
     
@@ -589,7 +589,7 @@ class MainViewModel @Inject constructor(
     /**
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
-    private fun showTopToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+    fun showTopToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
         Handler(Looper.getMainLooper()).post {
             synchronized(toastLock) {
                 // Проверяем, не показывали ли мы недавно это сообщение

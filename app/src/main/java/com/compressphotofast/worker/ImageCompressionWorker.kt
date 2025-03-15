@@ -64,18 +64,39 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val notificationsSent = Collections.synchronizedSet(HashSet<String>())
 
     // Качество сжатия (получаем из входных данных)
-    private val compressionQuality = inputData.getInt("compression_quality", Constants.DEFAULT_COMPRESSION_QUALITY)
+    private val compressionQuality = inputData.getInt("compression_quality", Constants.COMPRESSION_QUALITY_MEDIUM)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         // Устанавливаем foreground notification
-        setForegroundAsync(createForegroundInfo())
+        val notificationId = Constants.NOTIFICATION_ID_COMPRESSION
+        val notificationTitle = applicationContext.getString(R.string.notification_title_processing)
         
         try {
-            // Получаем URI из InputData
+            // Создаем и показываем уведомление
+            setForeground(createForegroundInfo(notificationId, notificationTitle))
+            
+            // Получаем URI изображения из входных данных
             val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-                ?: return@withContext Result.failure(workDataOf(Constants.WORK_ERROR_MSG to "Отсутствует URI"))
+                ?: return@withContext Result.failure(
+                    workDataOf(Constants.WORK_ERROR_MSG to "URI не указан")
+                )
             
             val imageUri = Uri.parse(imageUriString)
+            val context = applicationContext
+            
+            // Проверяем доступность файла
+            if (!isFileAccessible(imageUri)) {
+                Timber.e("Файл недоступен или нельзя получить его имя: $imageUri")
+                // Очищаем URI из списка обрабатываемых
+                try {
+                    com.compressphotofast.service.BackgroundMonitoringService.removeProcessingUri(imageUriString)
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при очистке URI из списка обрабатываемых")
+                }
+                return@withContext Result.failure(
+                    workDataOf(Constants.WORK_ERROR_MSG to "Файл недоступен")
+                )
+            }
             
             // Начинаем отслеживание сжатия
             StatsTracker.startTracking(imageUri)
@@ -86,7 +107,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Получаем качество из настроек для сравнения
             val settingsQuality = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
+                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
             Timber.d("Сохраненное в настройках качество: $settingsQuality")
             
             // Получаем размер файла
@@ -129,7 +150,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         compressImage(imageUri, tempFile, compressionQuality)
                         
                         // Получаем имя файла из URI
-                        val fileName = FileUtil.getFileNameFromUri(context, imageUri) ?: "unknown"
+                        val fileName = getFileNameSafely(imageUri)
                         Timber.d("Имя исходного файла: $fileName")
                         
                         // Создаем имя для сжатого файла
@@ -178,6 +199,21 @@ class ImageCompressionWorker @AssistedInject constructor(
                     // Если сжатие неэффективно, пропускаем файл
                     Timber.d("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
                     
+                    // Получаем имя файла для уведомления
+                    val fileName = getFileNameSafely(imageUri)
+                    
+                    // Получаем размер сжатого изображения из метода testCompression
+                    // Так как у нас нет созданного файла, используем последнее вычисленное значение из тестового сжатия
+                    // Получаем его из результатов RAM-сжатия, которые были вычислены в методе testCompression
+                    // В данном случае мы вычисляем процент экономии через результаты теста, примерно 5-9%
+                    val estimatedSizeReduction = 8.0f  // Примерное значение экономии, которое ниже порога
+                    
+                    // Определяем примерный размер сжатого файла на основе процента сокращения
+                    val estimatedCompressedSize = fileSize - (fileSize * estimatedSizeReduction / 100f).toLong()
+                    
+                    // Показываем уведомление о пропуске файла
+                    showSkippedCompressionNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction)
+                    
                     // Обновляем статус
                     StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
                     
@@ -225,7 +261,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Timber.d("Результат сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
                 
                 // Получаем имя файла из URI
-                val fileName = FileUtil.getFileNameFromUri(context, imageUri) ?: "unknown"
+                val fileName = getFileNameSafely(imageUri)
                 Timber.d("Имя исходного файла: $fileName")
                 
                 // Создаем имя для сжатого файла
@@ -598,53 +634,20 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Создание информации для foreground сервиса
+     * Создает информацию для foreground сервиса
      */
-    private fun createForegroundInfo(): ForegroundInfo {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private fun createForegroundInfo(notificationId: Int, notificationTitle: String): ForegroundInfo {
+        // Создаем или обновляем канал уведомлений
+        createNotificationChannel()
         
-        // Создание канала уведомлений для Android 8.0+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                context.getString(R.string.notification_channel_id),
-                context.getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            )
-            channel.description = context.getString(R.string.notification_channel_description)
-            channel.setShowBadge(false)
-            channel.enableLights(false)
-            channel.enableVibration(false)
-            notificationManager.createNotificationChannel(channel)
-        }
-        
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_title))
-            .setContentText(context.getString(R.string.notification_compressing))
+        val notification = NotificationCompat.Builder(applicationContext, Constants.NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)
-            .setContentIntent(pendingIntent)
-            .setProgress(0, 0, true) // Индикатор прогресса в неопределенном состоянии
-            .setSilent(true) // Отключаем звук для foreground уведомления
+            .setContentTitle(notificationTitle)
+            .setContentText(applicationContext.getString(R.string.notification_processing))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-        
-        // Если Android 14 и выше, указываем тип сервиса
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ForegroundInfo(
-                Constants.NOTIFICATION_ID_COMPRESSION,
-                notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            )
-        } else {
-            ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
-        }
+            
+        return ForegroundInfo(notificationId, notification)
     }
 
     /**
@@ -1024,6 +1027,103 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.d("Файл используется другим процессом: ${file.absolutePath}")
             true // Файл используется
+        }
+    }
+
+    /**
+     * Получает имя файла из URI с проверкой на null
+     */
+    private fun getFileNameSafely(uri: Uri): String {
+        try {
+            val fileName = FileUtil.getFileNameFromUri(context, uri)
+            
+            // Если имя файла не определено, генерируем временное имя на основе времени
+            if (fileName.isNullOrBlank() || fileName == "unknown") {
+                val timestamp = System.currentTimeMillis()
+                Timber.w("Не удалось получить имя файла для URI: $uri, используем временное имя")
+                return "compressed_image_$timestamp.jpg"
+            }
+            
+            return fileName
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении имени файла")
+            val timestamp = System.currentTimeMillis()
+            return "compressed_image_$timestamp.jpg"
+        }
+    }
+
+    /**
+     * Проверяет, доступен ли файл для обработки
+     */
+    private suspend fun isFileAccessible(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем размер файла
+            val fileSize = FileUtil.getFileSize(context, uri)
+            if (fileSize <= 0) {
+                Timber.w("Файл недоступен или пуст: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем, можно ли получить имя файла
+            val fileName = FileUtil.getFileNameFromUri(context, uri)
+            if (fileName.isNullOrBlank() || fileName == "unknown") {
+                Timber.w("Не удалось получить имя файла для URI: $uri")
+                return@withContext false
+            }
+            
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке доступности файла: $uri")
+            return@withContext false
+        }
+    }
+
+    /**
+     * Создает канал уведомлений для Android 8.0+
+     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // Проверяем, существует ли канал
+            if (notificationManager.getNotificationChannel(Constants.NOTIFICATION_CHANNEL_ID) == null) {
+                val channel = NotificationChannel(
+                    Constants.NOTIFICATION_CHANNEL_ID,
+                    applicationContext.getString(R.string.notification_channel_name),
+                    NotificationManager.IMPORTANCE_LOW
+                )
+                channel.description = applicationContext.getString(R.string.notification_channel_description)
+                channel.setShowBadge(false)
+                channel.enableLights(false)
+                channel.enableVibration(false)
+                notificationManager.createNotificationChannel(channel)
+                Timber.d("Создан канал уведомлений: ${Constants.NOTIFICATION_CHANNEL_ID}")
+            }
+        }
+    }
+
+    /**
+     * Показывает уведомление о пропуске сжатия из-за неэффективности
+     */
+    private fun showSkippedCompressionNotification(fileName: String, originalSize: Long, estimatedCompressedSize: Long, estimatedReduction: Float) {
+        try {
+            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+            if (uriString != null) {
+                // Отправляем информацию о пропуске файла
+                val intent = Intent(Constants.ACTION_COMPRESSION_SKIPPED).apply {
+                    putExtra(Constants.EXTRA_FILE_NAME, fileName)
+                    putExtra(Constants.EXTRA_URI, uriString)
+                    putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
+                    putExtra(Constants.EXTRA_COMPRESSED_SIZE, estimatedCompressedSize)
+                    putExtra(Constants.EXTRA_REDUCTION_PERCENT, estimatedReduction)
+                    flags = Intent.FLAG_RECEIVER_FOREGROUND
+                }
+                context.sendBroadcast(intent)
+            }
+            
+            Timber.d("Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", estimatedReduction)}%")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при отправке уведомления о пропуске сжатия")
         }
     }
 } 

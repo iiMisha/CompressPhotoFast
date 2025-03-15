@@ -264,6 +264,13 @@ class ImageDetectionJobService : JobService() {
             return@withContext
         }
 
+        // Проверяем, не обрабатывается ли уже это изображение в BackgroundMonitoringService
+        val isBeingProcessedByService = BackgroundMonitoringService.isImageBeingProcessed(uri.toString())
+        if (isBeingProcessedByService) {
+            Timber.d("ImageDetectionJobService: изображение уже обрабатывается сервисом: $uri, пропускаем")
+            return@withContext
+        }
+
         // Получаем текущее качество сжатия
         val quality = getCompressionQuality(applicationContext)
         Timber.d("ImageDetectionJobService: текущее качество сжатия: $quality")
@@ -303,7 +310,7 @@ class ImageDetectionJobService : JobService() {
         )
         return sharedPreferences.getInt(
             Constants.PREF_COMPRESSION_QUALITY,
-            Constants.DEFAULT_COMPRESSION_QUALITY
+            Constants.COMPRESSION_QUALITY_MEDIUM
         )
     }
 

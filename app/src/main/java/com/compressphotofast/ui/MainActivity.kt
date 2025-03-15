@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // BroadcastReceiver для запросов на удаление файлов
-    private val deleteRequestReceiver = object : android.content.BroadcastReceiver() {
+    private val deletePermissionReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Constants.ACTION_REQUEST_DELETE_PERMISSION) {
                 val uri = intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
@@ -218,6 +218,39 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
+     * Приемник для получения уведомлений о пропуске сжатия
+     */
+    private val compressionSkippedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
+                val uriString = intent.getStringExtra(Constants.EXTRA_URI)
+                if (uriString != null) {
+                    val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
+                    val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
+                    val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
+                    val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
+                    
+                    // Фоматируем размеры для логов
+                    val originalSizeStr = formatFileSize(originalSize)
+                    val compressedSizeStr = formatFileSize(compressedSize)
+                    val reductionStr = String.format("%.1f", reduction)
+                    
+                    // Логируем информацию о пропуске сжатия
+                    Timber.d("Получено уведомление о пропуске сжатия: $fileName, экономия слишком мала ($reductionStr%)")
+                    
+                    // Показываем Toast с информацией о пропуске
+                    showToast(getString(
+                        R.string.compression_skipped,
+                        fileName,
+                        reduction,
+                        Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD
+                    ))
+                }
+            }
+        }
+    }
+    
+    /**
      * Показывает toast с результатом сжатия, если он еще не был показан для данного URI
      */
     private fun showCompressionResultToast(fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
@@ -286,15 +319,29 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(compressionCompletedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         
         // Регистрируем receiver для запросов на удаление файлов
-        registerReceiver(deleteRequestReceiver, 
+        registerReceiver(deletePermissionReceiver, 
             IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
             Context.RECEIVER_NOT_EXPORTED)
+        
+        // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
+        registerReceiver(
+            compressionCompletedReceiver,
+            IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
+            Context.RECEIVER_NOT_EXPORTED
+        )
+        
+        // Регистрируем BroadcastReceiver для получения уведомлений о пропуске сжатия
+        registerReceiver(
+            compressionSkippedReceiver,
+            IntentFilter(Constants.ACTION_COMPRESSION_SKIPPED),
+            Context.RECEIVER_NOT_EXPORTED
+        )
     }
     
     override fun onStop() {
         // Отменяем регистрацию BroadcastReceiver при остановке активности
         try {
-            unregisterReceiver(deleteRequestReceiver)
+            unregisterReceiver(deletePermissionReceiver)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
         }
@@ -357,8 +404,16 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onDestroy() {
-        // Удалено: Теперь отмена регистрации происходит в onStop()
         super.onDestroy()
+        
+        // Отменяем регистрацию BroadcastReceiver
+        try {
+            unregisterReceiver(deletePermissionReceiver)
+            unregisterReceiver(compressionCompletedReceiver)
+            unregisterReceiver(compressionSkippedReceiver)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
+        }
     }
     
     /**
@@ -764,7 +819,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnSelectImage.setOnLongClickListener {
             val currentQ = viewModel.getCompressionQuality()
             val sharedPrefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-            val savedQ = sharedPrefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.DEFAULT_COMPRESSION_QUALITY)
+            val savedQ = sharedPrefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
             
             true
         }
@@ -1131,6 +1186,20 @@ class MainActivity : AppCompatActivity() {
             viewModel.selectedImageUri.value?.let { uri ->
                 startBackgroundProcessing(uri)
             }
+        }
+    }
+
+    /**
+     * Показывает toast с простым сообщением
+     */
+    private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
+        try {
+            // Используем метод viewModel для показа Toast, чтобы избежать дублирования кода
+            viewModel.showTopToast(message, duration)
+        } catch (e: Exception) {
+            // Резервный вариант, если метод viewModel недоступен
+            Toast.makeText(this, message, duration).show()
+            Timber.e(e, "Ошибка при показе Toast через ViewModel")
         }
     }
 

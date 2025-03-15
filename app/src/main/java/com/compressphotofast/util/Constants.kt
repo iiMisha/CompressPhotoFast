@@ -16,9 +16,6 @@ object Constants {
     const val PREF_NOTIFICATION_PERMISSION_SKIPPED = "notification_permission_skipped"
     const val PREF_PERMISSION_REQUEST_COUNT = "permission_request_count"
     
-    // Значения по умолчанию
-    const val DEFAULT_COMPRESSION_QUALITY = 80
-    
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1
     const val SAVE_MODE_SEPARATE = 2
@@ -65,6 +62,7 @@ object Constants {
     const val ACTION_PROCESS_IMAGE = "com.compressphotofast.PROCESS_IMAGE"
     const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.REQUEST_DELETE_PERMISSION"
     const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.COMPRESSION_COMPLETED"
+    const val ACTION_COMPRESSION_SKIPPED = "com.compressphotofast.COMPRESSION_SKIPPED"
     const val ACTION_STOP_SERVICE = "com.compressphotofast.STOP_SERVICE"
     
     // Intent extras
