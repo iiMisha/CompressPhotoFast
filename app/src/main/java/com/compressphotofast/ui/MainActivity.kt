@@ -107,85 +107,21 @@ class MainActivity : AppCompatActivity() {
     private val lastNotificationTime = ConcurrentHashMap<String, Long>()
     
     // Минимальный интервал между показом Toast для одного URI (мс)
-    private val MIN_TOAST_INTERVAL = 3000L
+    private val MIN_TOAST_INTERVAL = 2000L
 
-    // Карта для отслеживания времени последнего показа конкретного сообщения
-    private val lastMessageTime = ConcurrentHashMap<String, Long>()
-
-    // Флаг, указывающий что Toast в процессе отображения
-    private var isToastShowing = false
-
-    // Блокировка для синхронизации доступа к обработке Toast
-    private val toastLock = Object()
+    // Для отслеживания обработки изображений
+    private var processingImages = false
+    
+    // Для кэширования временных файлов
+    private val tempFiles = mutableMapOf<Uri, File>()
 
     /**
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showTopToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-        synchronized(toastLock) {
-            // Проверяем, не показывали ли мы недавно это сообщение
-            val lastTime = lastMessageTime[message] ?: 0L
-            val currentTime = System.currentTimeMillis()
-            val timePassed = currentTime - lastTime
-            
-            if (timePassed <= MIN_TOAST_INTERVAL) {
-                Timber.d("Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
-                return
-            }
-            
-            // Если Toast уже отображается, пропускаем
-            if (isToastShowing) {
-                Timber.d("Пропуск Toast - другое сообщение уже отображается")
-                return
-            }
-            
-            try {
-                // Обновляем время последнего показа этого сообщения
-                lastMessageTime[message] = currentTime
-                
-                // Устанавливаем флаг
-                isToastShowing = true
-                
-                // Используем обычный Toast без вызова setGravity
-                val toast = Toast.makeText(this, message, duration)
-                
-                // Получаем View из Toast для установки дополнительных параметров
-                val group = toast.view as ViewGroup?
-                group?.let {
-                    for (i in 0 until it.childCount) {
-                        val messageView = it.getChildAt(i)
-                        if (messageView is TextView) {
-                            messageView.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
-                        }
-                    }
-                }
-                
-                // Добавляем callback для сброса флага
-                toast.addCallback(object : Toast.Callback() {
-                    override fun onToastHidden() {
-                        super.onToastHidden()
-                        isToastShowing = false
-                    }
-                })
-                
-                toast.show()
-                
-                // Запускаем очистку через двойной интервал
-                Handler(Looper.getMainLooper()).postDelayed({
-                    lastMessageTime.remove(message)
-                }, MIN_TOAST_INTERVAL * 2)
-            } catch (e: Exception) {
-                // Если что-то пошло не так, показываем обычный Toast
-                isToastShowing = true
-                val toast = Toast.makeText(this, message, duration)
-                toast.addCallback(object : Toast.Callback() {
-                    override fun onToastHidden() {
-                        super.onToastHidden()
-                        isToastShowing = false
-                    }
-                })
-                toast.show()
-            }
+        // Делегируем вызов в ViewModel
+        runOnUiThread {
+            viewModel.showTopToast(message, duration)
         }
     }
 
@@ -314,21 +250,17 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         
-        // Регистрируем BroadcastReceiver только когда активность стартует
-        val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
-        registerReceiver(compressionCompletedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        
-        // Регистрируем receiver для запросов на удаление файлов
-        registerReceiver(deletePermissionReceiver, 
-            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
-            Context.RECEIVER_NOT_EXPORTED)
-        
         // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
         registerReceiver(
             compressionCompletedReceiver,
             IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
             Context.RECEIVER_NOT_EXPORTED
         )
+        
+        // Регистрируем receiver для запросов на удаление файлов
+        registerReceiver(deletePermissionReceiver, 
+            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
+            Context.RECEIVER_NOT_EXPORTED)
         
         // Регистрируем BroadcastReceiver для получения уведомлений о пропуске сжатия
         registerReceiver(
