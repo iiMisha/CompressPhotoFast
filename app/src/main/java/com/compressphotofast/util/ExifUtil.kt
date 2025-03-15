@@ -19,7 +19,6 @@ object ExifUtil {
     // Константы для EXIF маркировки
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
-    private const val EXIF_COMPRESSION_LEVEL = "CompressPhotoFast_Quality"
     
     // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
     private val exifCheckCache = Collections.synchronizedMap(HashMap<String, Boolean>())

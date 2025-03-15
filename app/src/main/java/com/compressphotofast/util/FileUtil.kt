@@ -27,14 +27,6 @@ import android.provider.DocumentsContract
  */
 object FileUtil {
 
-    private val processedUris = mutableSetOf<String>()
-    private val processedFileNames = mutableMapOf<String, Uri>()
-    
-    /* 
-     * ПРИМЕЧАНИЕ: Все методы работы с EXIF были перенесены в класс ExifUtil.
-     * Пожалуйста, используйте методы из ExifUtil вместо методов в этом классе.
-     */
-
     /**
      * Получение имени файла из URI
      */
