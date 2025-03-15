@@ -334,12 +334,37 @@ object ExifUtil {
     }
     
     /**
+     * Верифицирует, что указанный в EXIF уровень компрессии соответствует ожидаемому значению
+     * @param context контекст
+     * @param uri URI изображения
+     * @param expectedQuality ожидаемый уровень качества (0-100)
+     * @return true если уровень компрессии соответствует, false в противном случае
+     */
+    suspend fun verifyExifCompressionLevel(context: Context, uri: Uri, expectedQuality: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val actualQuality = getCompressionQualityFromExif(context, uri)
+            
+            if (actualQuality == expectedQuality) {
+                Timber.d("Верификация EXIF: уровень компрессии соответствует ожидаемому: $actualQuality")
+                return@withContext true
+            } else {
+                Timber.e("Верификация EXIF: уровень компрессии ($actualQuality) не соответствует ожидаемому ($expectedQuality)")
+                return@withContext false
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при верификации уровня компрессии в EXIF: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
      * Очищает кэш для указанного URI
      * @param uriString строковое представление URI
      */
     fun clearCacheForUri(uriString: String) {
         exifCheckCache.remove(uriString)
         exifCacheTimestamps.remove(uriString)
+        Timber.d("Кэш EXIF очищен для URI: $uriString")
     }
     
     /**
