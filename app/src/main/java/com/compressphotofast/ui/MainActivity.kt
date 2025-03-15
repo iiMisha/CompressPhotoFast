@@ -278,6 +278,37 @@ class MainActivity : AppCompatActivity() {
         handler.post(runnable)
     }
 
+    override fun onStart() {
+        super.onStart()
+        
+        // Регистрируем BroadcastReceiver только когда активность стартует
+        val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
+        registerReceiver(compressionCompletedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        
+        // Регистрируем receiver для запросов на удаление файлов
+        registerReceiver(deleteRequestReceiver, 
+            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
+            Context.RECEIVER_NOT_EXPORTED)
+    }
+    
+    override fun onStop() {
+        // Отменяем регистрацию BroadcastReceiver при остановке активности
+        try {
+            unregisterReceiver(deleteRequestReceiver)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
+        }
+        
+        // Отменяем регистрацию приемника уведомлений
+        try {
+            unregisterReceiver(compressionCompletedReceiver)
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при отмене регистрации compressionCompletedReceiver")
+        }
+        
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -305,17 +336,8 @@ class MainActivity : AppCompatActivity() {
         // Настраиваем наблюдателей ViewModel
         observeViewModel()
         
-        // Регистрируем приемник для уведомлений о завершении сжатия только для обновления статуса
-        val filter = IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED)
-        registerReceiver(compressionCompletedReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        
         // Обрабатываем входящий Intent (если есть)
         handleIntent(intent)
-        
-        // Регистрируем BroadcastReceiver для запросов на удаление файлов
-        registerReceiver(deleteRequestReceiver, 
-            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
-            Context.RECEIVER_NOT_EXPORTED)
         
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
@@ -335,19 +357,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     override fun onDestroy() {
-        // Отменяем регистрацию BroadcastReceiver
-        try {
-            unregisterReceiver(deleteRequestReceiver)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
-        }
-        
-        // Отменяем регистрацию приемника уведомлений
-        try {
-            unregisterReceiver(compressionCompletedReceiver)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации compressionCompletedReceiver")
-        }
+        // Удалено: Теперь отмена регистрации происходит в onStop()
         super.onDestroy()
     }
     
