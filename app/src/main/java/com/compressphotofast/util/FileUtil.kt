@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Collections
 import java.util.HashMap
+import android.provider.DocumentsContract
 
 /**
  * Утилитарный класс для работы с файлами
@@ -748,6 +749,24 @@ object FileUtil {
      */
     fun getFilePathFromUri(context: Context, uri: Uri): String? {
         try {
+            // Специальная обработка для URI из MediaProvider Documents
+            if (uri.authority == "com.android.providers.media.documents") {
+                Timber.d("getFilePathFromUri: обнаружен URI MediaProvider Documents: $uri")
+                
+                // Извлекаем ID документа
+                val docId = DocumentsContract.getDocumentId(uri)
+                if (docId.startsWith("image:")) {
+                    // Извлекаем ID изображения
+                    val id = docId.split(":")[1]
+                    // Создаем новый URI для обращения к MediaStore
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toLong())
+                    Timber.d("getFilePathFromUri: преобразованный URI: $contentUri")
+                    
+                    // Рекурсивно вызываем тот же метод для обработки преобразованного URI
+                    return getFilePathFromUri(context, contentUri)
+                }
+            }
+            
             // На Android 10 (API 29) и выше MediaStore.Images.Media.DATA считается устаревшим
             // и может возвращать null, поэтому используем другой подход
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -828,6 +847,24 @@ object FileUtil {
      */
     fun getFileNameFromUri(context: Context, uri: Uri): String? {
         try {
+            // Специальная обработка для URI из MediaProvider Documents
+            if (uri.authority == "com.android.providers.media.documents") {
+                Timber.d("getFileNameFromUri: обнаружен URI MediaProvider Documents: $uri")
+                
+                // Извлекаем ID документа
+                val docId = DocumentsContract.getDocumentId(uri)
+                if (docId.startsWith("image:")) {
+                    // Извлекаем ID изображения
+                    val id = docId.split(":")[1]
+                    // Создаем новый URI для обращения к MediaStore
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toLong())
+                    Timber.d("getFileNameFromUri: преобразованный URI: $contentUri")
+                    
+                    // Рекурсивно вызываем тот же метод для обработки преобразованного URI
+                    return getFileNameFromUri(context, contentUri)
+                }
+            }
+            
             // Сначала пробуем получить через простой метод
             var fileName = getFileName(context.contentResolver, uri)
             
@@ -972,6 +1009,24 @@ object FileUtil {
      */
     fun getDirectoryFromUri(context: Context, uri: Uri): String {
         try {
+            // Специальная обработка для URI из MediaProvider Documents
+            if (uri.authority == "com.android.providers.media.documents") {
+                Timber.d("getDirectoryFromUri: обнаружен URI MediaProvider Documents: $uri")
+                
+                // Извлекаем ID документа
+                val docId = DocumentsContract.getDocumentId(uri)
+                if (docId.startsWith("image:")) {
+                    // Извлекаем ID изображения
+                    val id = docId.split(":")[1]
+                    // Создаем новый URI для обращения к MediaStore
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toLong())
+                    Timber.d("getDirectoryFromUri: преобразованный URI: $contentUri")
+                    
+                    // Рекурсивно вызываем тот же метод для обработки преобразованного URI
+                    return getDirectoryFromUri(context, contentUri)
+                }
+            }
+            
             // Пытаемся получить RELATIVE_PATH для Android 10+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
