@@ -184,7 +184,11 @@ class BackgroundMonitoringService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
                 NotificationUtil.createBackgroundServiceNotification(applicationContext), 
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+                NotificationUtil.createBackgroundServiceNotification(applicationContext),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
         } else {
             startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
                 NotificationUtil.createBackgroundServiceNotification(applicationContext))
@@ -238,8 +242,14 @@ class BackgroundMonitoringService : Service() {
         }
         
         // Создание уведомления для foreground сервиса
-        startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-            NotificationUtil.createBackgroundServiceNotification(applicationContext))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+                NotificationUtil.createBackgroundServiceNotification(applicationContext),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+        } else {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+                NotificationUtil.createBackgroundServiceNotification(applicationContext))
+        }
         Timber.d("BackgroundMonitoringService: запущен как foreground сервис")
         
         // Выполняем первоначальное сканирование при запуске сервиса
