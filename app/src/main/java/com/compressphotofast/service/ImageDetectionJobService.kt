@@ -36,7 +36,7 @@ class ImageDetectionJobService : JobService() {
     companion object {
         private const val JOB_ID = 1000
         private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
-        private const val OVERRIDE_DEADLINE_MILLIS = 1000L // Максимальная задержка
+        private const val OVERRIDE_DEADLINE_MILLIS = 15000L // Максимальная задержка
 
         /**
          * Настройка и планирование задания для отслеживания новых изображений
