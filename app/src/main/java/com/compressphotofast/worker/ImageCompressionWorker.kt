@@ -519,36 +519,22 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Сжатие изображения (база)
      */
     private suspend fun compressImage(uri: Uri, tempFile: File, quality: Int) = withContext(Dispatchers.IO) {
-        var inputFile: File? = null
-        
         try {
-            // Создаем временный файл из URI с уникальным именем
-            val inputFileName = "input_${System.currentTimeMillis()}_${uri.lastPathSegment}"
-            inputFile = File(context.cacheDir, inputFileName)
-            
-            Timber.d("compressImage: создан временный файл: ${inputFile.absolutePath}")
-            
-            // Копируем данные из URI во временный файл
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                inputFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            } ?: throw IOException("Не удалось открыть входной поток")
-            
-            if (!inputFile.exists() || inputFile.length() <= 0) {
-                throw IOException("Временный входной файл не создан или пуст")
-            }
-            
-            Timber.d("compressImage: размер входного файла: ${inputFile.length()} байт")
-            
-            // Дополнительное логирование перед сжатием для отладки
             Timber.d("compressImage: начало сжатия с параметром качества: $quality")
             
-            // Сжимаем изображение
-            Compressor.compress(context, inputFile) {
-                quality(quality)
-                format(android.graphics.Bitmap.CompressFormat.JPEG)
-            }.copyTo(tempFile, overwrite = true)
+            // Напрямую работаем с URI для декодирования изображения
+            val bitmap = context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input)
+            } ?: throw IOException("Не удалось декодировать изображение из URI")
+            
+            // Сохраняем bitmap в временный файл с указанным качеством
+            tempFile.outputStream().use { output ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+                output.flush()
+            }
+            
+            // Освобождаем память от битмапа
+            bitmap.recycle()
             
             Timber.d("compressImage: размер сжатого файла: ${tempFile.length()} байт")
             
@@ -574,9 +560,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "compressImage: ошибка при сжатии изображения")
             throw e
-        } finally {
-            // Удаляем временный входной файл
-            inputFile?.delete()
         }
     }
 
@@ -899,6 +882,77 @@ class ImageCompressionWorker @AssistedInject constructor(
             Timber.d("Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", estimatedReduction)}%")
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при отправке уведомления о пропуске сжатия")
+        }
+    }
+
+    /**
+     * Сжатие изображения с указанием целевого размера файла
+     */
+    private suspend fun compressImageToTargetSize(uri: Uri, targetFile: File, targetSizeKb: Int) = withContext(Dispatchers.IO) {
+        try {
+            Timber.d("compressImageToTargetSize: начало сжатия с целевым размером: $targetSizeKb КБ")
+            
+            // Декодируем битмап напрямую из URI
+            val bitmap = context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input)
+            } ?: throw IOException("Не удалось декодировать изображение из URI")
+            
+            // Начинаем с качества 100 и снижаем до достижения целевого размера
+            var currentQuality = 100
+            var tempFileSize: Long
+            
+            do {
+                targetFile.outputStream().use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, currentQuality, output)
+                    output.flush()
+                }
+                
+                tempFileSize = targetFile.length()
+                val targetSizeBytes = targetSizeKb * 1024L
+                
+                Timber.d("compressImageToTargetSize: текущий размер: $tempFileSize байт, целевой размер: $targetSizeBytes байт, качество: $currentQuality")
+                
+                if (tempFileSize > targetSizeBytes && currentQuality > 10) {
+                    // Снижаем качество по нелинейной шкале для более эффективного приближения к целевому размеру
+                    currentQuality = when {
+                        tempFileSize > targetSizeBytes * 3 -> currentQuality - 20
+                        tempFileSize > targetSizeBytes * 2 -> currentQuality - 15
+                        tempFileSize > targetSizeBytes * 1.5 -> currentQuality - 10
+                        else -> currentQuality - 5
+                    }
+                    
+                    // Ограничиваем минимальное качество
+                    currentQuality = currentQuality.coerceAtLeast(10)
+                }
+            } while (tempFileSize > targetSizeKb * 1024L && currentQuality > 10)
+            
+            // Освобождаем память от битмапа
+            bitmap.recycle()
+            
+            // Проверяем, что сжатый файл существует и не пуст
+            if (!targetFile.exists() || targetFile.length() <= 0) {
+                throw IOException("Сжатый файл не создан или пуст")
+            }
+            
+            // Копируем EXIF данные
+            ExifUtil.copyExifDataFromUriToFile(context, uri, targetFile)
+            
+            // Добавляем EXIF маркер сжатия с информацией об уровне компрессии
+            ExifUtil.markCompressedImage(targetFile.absolutePath, currentQuality)
+            
+            // Проверяем EXIF данные после копирования
+            logExifDataFromFile(targetFile)
+            
+            // Верифицируем уровень компрессии
+            verifyCompressionLevel(targetFile, currentQuality)
+            
+            Timber.d("compressImageToTargetSize: сжатие завершено с качеством: $currentQuality")
+            
+            return@withContext currentQuality
+            
+        } catch (e: Exception) {
+            Timber.e(e, "compressImageToTargetSize: ошибка при сжатии изображения")
+            throw e
         }
     }
 } 
