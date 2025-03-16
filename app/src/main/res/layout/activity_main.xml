@@ -64,6 +64,26 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
         
+        <!-- Предупреждение о необходимости разрешить фоновый режим -->
+        <TextView
+            android:id="@+id/tvBackgroundModeWarning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/background_mode_warning"
+            android:textSize="14sp"
+            android:textColor="@color/warning_text"
+            android:layout_marginTop="4dp"
+            android:minHeight="150dp"
+            android:padding="8dp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:linksClickable="true"
+            app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionDescription"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+        
         <!-- Переключатель режима сохранения -->
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchSaveMode"
@@ -71,7 +91,7 @@
             android:layout_height="wrap_content"
             android:text="@string/save_mode_toggle"
             android:layout_marginTop="@dimen/spacing_normal"
-            app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionDescription"
+            app:layout_constraintTop_toBottomOf="@id/tvBackgroundModeWarning"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             style="@style/Widget.CompressPhotoFast.Switch" />

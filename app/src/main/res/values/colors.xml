@@ -14,4 +14,5 @@
     <color name="surface">#FFFFFF</color>
     <color name="error">#F44336</color>
     <color name="success">#4CAF50</color>
+    <color name="warning_text">#FF6D00</color>
 </resources> 

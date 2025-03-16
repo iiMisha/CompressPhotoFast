@@ -1,14 +1,20 @@
 package com.compressphotofast.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.MediaStore
+import android.provider.Settings
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,7 +36,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import android.content.Context
 import java.io.File
 import java.io.FileOutputStream
 import android.graphics.Bitmap
@@ -41,7 +46,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
-import android.provider.Settings
 import android.content.SharedPreferences
 import java.util.concurrent.ConcurrentHashMap
 import android.os.Handler
@@ -52,6 +56,7 @@ import android.widget.TextView
 import kotlinx.coroutines.async
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.PermissionsManager
+import android.text.Html
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -485,6 +490,43 @@ class MainActivity : AppCompatActivity() {
             viewModel.setAutoCompression(isChecked)
             if (isChecked) {
                 setupBackgroundService()
+                // Показываем предупреждение о необходимости разрешения фонового режима
+                binding.tvBackgroundModeWarning.visibility = View.VISIBLE
+            } else {
+                binding.tvBackgroundModeWarning.visibility = View.GONE
+            }
+        }
+        
+        // Обновляем видимость предупреждения при запуске
+        binding.tvBackgroundModeWarning.visibility = if (viewModel.isAutoCompressionEnabled()) View.VISIBLE else View.GONE
+        
+        // Настраиваем HTML-форматирование для предупреждения
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            binding.tvBackgroundModeWarning.text = Html.fromHtml(getString(R.string.background_mode_warning), Html.FROM_HTML_MODE_COMPACT)
+        } else {
+            @Suppress("DEPRECATION")
+            binding.tvBackgroundModeWarning.text = Html.fromHtml(getString(R.string.background_mode_warning))
+        }
+        
+        // Добавляем обработчик нажатия на предупреждение
+        binding.tvBackgroundModeWarning.setOnClickListener {
+            try {
+                // Пробуем открыть настройки батареи для приложения напрямую
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                val uri = Uri.fromParts("package", packageName, null)
+                intent.data = uri
+                startActivity(intent)
+                showTopToast(getString(R.string.notification_toast_battery_settings))
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при открытии настроек приложения")
+                try {
+                    // Если прямой метод не сработал, открываем общие настройки приложения
+                    val intent = Intent(Settings.ACTION_APPLICATION_SETTINGS)
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при открытии общих настроек приложений")
+                    showTopToast("Пожалуйста, откройте настройки вручную")
+                }
             }
         }
         
