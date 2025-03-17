@@ -90,6 +90,6 @@
             android:name=".service.BackgroundMonitoringService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync|camera" />
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest> 

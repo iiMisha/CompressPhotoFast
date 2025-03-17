@@ -50,6 +50,7 @@ import android.widget.Toast
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import java.io.ByteArrayOutputStream
+import android.content.pm.ServiceInfo
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -668,7 +669,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Создает информацию для foreground сервиса
      */
     private fun createForegroundInfo(notificationId: Int, notificationTitle: String): ForegroundInfo {
-        // Создаем или обновляем канал уведомлений с использованием NotificationUtil
+        // Создаем или обновляем канал уведомлений
         NotificationUtil.createNotificationChannel(applicationContext)
         
         val notification = NotificationCompat.Builder(applicationContext, Constants.NOTIFICATION_CHANNEL_ID)
@@ -677,8 +678,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             .setContentText(applicationContext.getString(R.string.notification_processing))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-            
-        return ForegroundInfo(notificationId, notification)
+        
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(notificationId, notification)
+        }
     }
 
     /**

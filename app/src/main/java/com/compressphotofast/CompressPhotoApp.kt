@@ -32,6 +32,12 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         
         // Создание канала уведомлений (для Android 8.0+)
         createNotificationChannel()
+
+        // Инициализация WorkManager с конфигурацией
+        WorkManager.initialize(
+            applicationContext,
+            workManagerConfiguration
+        )
     }
 
     /**
@@ -83,5 +89,6 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(android.util.Log.INFO)
+            .setDefaultProcessName("com.compressphotofast")
             .build()
 } 
