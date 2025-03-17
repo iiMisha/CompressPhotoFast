@@ -390,10 +390,10 @@ class MainActivity : AppCompatActivity() {
                                     // Не показываем уведомление о запуске сжатия для Share
                                     // Сохраняем только логирование
                                     Timber.d("Сжатие запущено для: $uri")
-                                } else {
+                            } else {
                                     // Если изображение уже оптимизировано
                                     if (result.third == "Изображение уже оптимизировано") {
-                                        showTopToast(getString(R.string.image_already_optimized))
+                                showTopToast(getString(R.string.image_already_optimized))
                                     } else {
                                         // Другие случаи неудачи обработки
                                         showTopToast(result.third)

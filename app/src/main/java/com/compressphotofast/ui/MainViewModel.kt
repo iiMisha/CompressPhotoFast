@@ -199,11 +199,11 @@ class MainViewModel @Inject constructor(
                 } else {
                     // Создаем рабочее задание для неоптимизированного изображения
                     val workRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                        .setInputData(workDataOf(
-                            Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                            "compression_quality" to getCompressionQuality()
-                        ))
-                        .build()
+                    .setInputData(workDataOf(
+                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                        "compression_quality" to getCompressionQuality()
+                    ))
+                    .build()
                     workRequests.add(workRequest)
                 }
             }
