@@ -79,4 +79,8 @@
     
     <string name="notification_completion_channel_name">Результаты сжатия</string>
     <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
+    
+    <!-- Статусные сообщения -->
+    <string name="compression_started">Сжатие изображения запущено</string>
+    <string name="batch_compression_started">Запущено сжатие %1$d изображений</string>
 </resources> 

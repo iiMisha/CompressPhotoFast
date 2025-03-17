@@ -14,12 +14,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.StatsTracker
@@ -175,25 +177,79 @@ class MainViewModel @Inject constructor(
             )
             
             // Создаем отдельный массив для отслеживания рабочих заданий
-            val workRequests = uris.map { uri ->
-                OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                    .setInputData(workDataOf(
-                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                        "compression_quality" to getCompressionQuality()
-                    ))
-                    .build()
+            val workRequests = mutableListOf<WorkRequest>()
+            val alreadyOptimizedUris = mutableListOf<Uri>()
+            
+            // Предварительно проверяем, какие изображения уже оптимизированы
+            for (uri in uris) {
+                val isAlreadyOptimized = withContext(Dispatchers.IO) {
+                    ImageProcessingChecker.isAlreadyProcessed(context, uri)
+                }
+                
+                if (isAlreadyOptimized) {
+                    // Отмечаем, что изображение уже оптимизировано
+                    alreadyOptimizedUris.add(uri)
+                    
+                    // Отправляем уведомление о том, что изображение уже оптимизировано
+                    val alreadyOptimizedIntent = Intent(Constants.ACTION_IMAGE_ALREADY_OPTIMIZED)
+                    context.sendBroadcast(alreadyOptimizedIntent)
+                    
+                    // Логируем информацию
+                    Timber.d("Изображение уже оптимизировано: $uri")
+                } else {
+                    // Создаем рабочее задание для неоптимизированного изображения
+                    val workRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                        .setInputData(workDataOf(
+                            Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                            "compression_quality" to getCompressionQuality()
+                        ))
+                        .build()
+                    workRequests.add(workRequest)
+                }
+            }
+            
+            // Обновляем состояние для уже оптимизированных изображений
+            if (alreadyOptimizedUris.isNotEmpty()) {
+                val currentProgress = _multipleImagesProgress.value ?: MultipleImagesProgress()
+                val newProgress = currentProgress.copy(
+                    processed = currentProgress.processed + alreadyOptimizedUris.size,
+                    skipped = currentProgress.skipped + alreadyOptimizedUris.size
+                )
+                _multipleImagesProgress.value = newProgress
+            }
+            
+            // Если все изображения уже оптимизированы, завершаем здесь
+            if (workRequests.isEmpty()) {
+                val finalProgress = _multipleImagesProgress.value?.copy() ?: MultipleImagesProgress()
+                _multipleImagesProgress.value = finalProgress.copy(processed = finalProgress.total)
+                _isLoading.value = false
+                
+                // Показываем результат
+                _compressionResult.value = CompressionResult(
+                    success = true,
+                    errorMessage = null,
+                    totalImages = uris.size,
+                    successfulImages = 0,
+                    failedImages = 0,
+                    skippedImages = uris.size,
+                    allSuccessful = true
+                )
+                
+                Timber.d("Завершена обработка всех изображений (${uris.size}/${uris.size})")
+                Timber.d("Реальный результат: success=true, allSuccessful=true, totalImages=${uris.size}, successfulImages=0, skippedImages=${uris.size}, failedImages=0")
+                return@launch
+            }
+            
+            // Показываем уведомление о начале обработки нескольких изображений
+            if (workRequests.size > 1) {
+                showBatchProcessingStartedNotification(workRequests.size)
             }
             
             // Создаем карту для отслеживания связей между заданиями и URI
-            val requestToUriMap = workRequests.zip(uris).toMap()
+            val requestToUriMap = workRequests.zip(uris.filter { uri -> !alreadyOptimizedUris.contains(uri) }).toMap()
             
-            // Показываем уведомление о начале обработки нескольких изображений
-            if (uris.size > 1) {
-                showBatchProcessingStartedNotification(uris.size)
-            }
-            
-            // Отправляем все запросы в WorkManager
-            workRequests.forEach { request ->
+            // Отправляем запросы в WorkManager
+            for (request in workRequests) {
                 workManager.enqueue(request)
                 
                 // Получаем URI, связанный с этим запросом
@@ -211,8 +267,8 @@ class MainViewModel @Inject constructor(
                                 val skipped = value.outputData.getBoolean("skipped", false)
                                 
                                 // Снимаем регистрацию URI после обработки
-                                uri?.let { 
-                                    Timber.d("compressMultipleImages: снимаем регистрацию URI после обработки: $it")
+                                uri?.let { processedUri -> 
+                                    Timber.d("compressMultipleImages: снимаем регистрацию URI после обработки: $processedUri")
                                 }
                                 
                                 // Обновляем прогресс в зависимости от результата

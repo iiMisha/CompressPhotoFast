@@ -23,9 +23,10 @@ object ImageProcessingChecker {
      * Проверяет, требуется ли обработка изображения
      * @param context контекст
      * @param uri URI изображения
+     * @param forceProcess Принудительная обработка, игнорируя режим ручной обработки
      * @return true если изображение требует обработки, false в противном случае
      */
-    suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем, существует ли URI
             try {
@@ -112,7 +113,8 @@ object ImageProcessingChecker {
             }
             
             // Если выбрана ручная обработка, проверяем что изображение не должно обрабатываться автоматически
-            if (FileUtil.isManualCompression(context)) {
+            // Но пропускаем эту проверку, если установлен флаг принудительной обработки
+            if (!forceProcess && FileUtil.isManualCompression(context)) {
                 Timber.d("Активирован режим ручной обработки, автоматическая обработка пропускается: $uri")
                 return@withContext false
             }

@@ -374,16 +374,17 @@ class BackgroundMonitoringService : Service() {
             // Логируем подробную информацию о файле
             logDetailedFileInfo(uri)
             
-            // Используем централизованную логику проверки и обработки изображения
-            if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
-                // Регистрируем URI как обрабатываемый перед началом обработки
-                UriProcessingTracker.addProcessingUri(uriString)
-                
-                // Запускаем обработку изображения
-                ImageProcessingUtil.processImage(applicationContext, uri)
-                Timber.d("BackgroundMonitoringService: запрос на обработку изображения отправлен: $uri")
+            // Используем централизованный метод для обработки изображения
+            val result = ImageProcessingUtil.handleImage(applicationContext, uri)
+            
+            if (result.first) { // Успешно выполнился метод
+                if (result.second) { // Изображение было добавлено в очередь
+                    Timber.d("BackgroundMonitoringService: запрос на обработку изображения отправлен: $uri")
+                } else {
+                    Timber.d("BackgroundMonitoringService: изображение не требует обработки: $uri - ${result.third}")
+                }
             } else {
-                Timber.d("BackgroundMonitoringService: изображение не требует обработки: $uri")
+                Timber.e("BackgroundMonitoringService: ошибка при обработке изображения: $uri - ${result.third}")
             }
             
         } catch (e: Exception) {

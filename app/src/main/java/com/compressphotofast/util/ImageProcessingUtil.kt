@@ -19,24 +19,33 @@ import timber.log.Timber
 object ImageProcessingUtil {
 
     /**
-     * Проверяет, нужно ли обрабатывать изображение
-     * Централизованная логика для всего приложения
+     * Централизованный метод для обработки любого изображения в приложении
+     * Используется и для share, и для галереи, и для других источников
+     * 
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @param forceProcess Принудительная обработка, даже если автосжатие отключено
+     * @return Triple<Boolean, Boolean, String>: 
+     *         - first: успешно ли запущена обработка
+     *         - second: было ли изображение добавлено в очередь
+     *         - third: сообщение о результате
      */
-    suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        // Делегируем проверку классу ImageProcessingChecker
-        return@withContext ImageProcessingChecker.shouldProcessImage(context, uri)
-    }
-    
-    /**
-     * Запускает обработку изображения с использованием WorkManager
-     */
-    suspend fun processImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
         try {
-            // Проверяем, включено ли автоматическое сжатие
+            // Сначала проверяем, требуется ли обработка
+            val shouldProcess = shouldProcessImage(context, uri, forceProcess)
+            if (!shouldProcess) {
+                return@withContext Triple(true, false, "Изображение уже оптимизировано")
+            }
+            
+            // Проверяем, нужно ли принудительно обрабатывать
             val settingsManager = SettingsManager.getInstance(context)
-            if (!settingsManager.isAutoCompressionEnabled()) {
-                Timber.d("Автоматическое сжатие отключено, пропускаем обработку: $uri")
-                return@withContext false
+            val isAutoEnabled = settingsManager.isAutoCompressionEnabled()
+            
+            // Если автосжатие отключено и нет флага принудительной обработки, 
+            // возвращаем сообщение о том, что нужна ручная обработка
+            if (!isAutoEnabled && !forceProcess) {
+                return@withContext Triple(true, false, "Требуется ручное сжатие")
             }
             
             // Получаем качество сжатия из настроек
@@ -48,6 +57,10 @@ object ImageProcessingUtil {
             
             // Получаем размер исходного файла для логирования
             val originalSize = FileUtil.getFileSize(context, uri)
+            
+            // Добавляем URI в список обрабатываемых
+            UriProcessingTracker.addProcessingUri(uri.toString())
+            Timber.d("URI добавлен в список обрабатываемых: $uri (всего ${UriProcessingTracker.getProcessingCount()})")
             
             // Создаем и запускаем работу по сжатию
             val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
@@ -69,7 +82,31 @@ object ImageProcessingUtil {
                 )
             
             Timber.d("Запущена работа по сжатию для $uri с тегом $workTag")
-            return@withContext true
+            return@withContext Triple(true, true, "Сжатие запущено")
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при обработке изображения: $uri")
+            return@withContext Triple(false, false, "Ошибка: ${e.message}")
+        }
+    }
+
+    /**
+     * Проверяет, нужно ли обрабатывать изображение
+     * Централизованная логика для всего приложения
+     */
+    suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        // Делегируем проверку классу ImageProcessingChecker
+        return@withContext ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
+    }
+    
+    /**
+     * Запускает обработку изображения с использованием WorkManager
+     * @deprecated Используйте handleImage вместо этого метода
+     */
+    suspend fun processImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Используем новый централизованный метод
+            val result = handleImage(context, uri)
+            return@withContext result.second // Возвращаем, было ли изображение добавлено в очередь
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при запуске обработки изображения: $uri")
             return@withContext false

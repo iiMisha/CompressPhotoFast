@@ -57,6 +57,8 @@ import kotlinx.coroutines.async
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.PermissionsManager
 import android.text.Html
+import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.SettingsManager
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -230,6 +232,17 @@ class MainActivity : AppCompatActivity() {
         handler.post(runnable)
     }
 
+    // Приемник для получения информации о пропущенных (уже оптимизированных) изображениях
+    private val compressionSkippedFromGalleryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Constants.ACTION_IMAGE_ALREADY_OPTIMIZED) {
+                // Показываем уведомление для пользователя
+                showTopToast(getString(R.string.image_already_optimized))
+                Timber.d("Получено уведомление о ранее оптимизированном изображении")
+            }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         
@@ -251,6 +264,13 @@ class MainActivity : AppCompatActivity() {
             IntentFilter(Constants.ACTION_COMPRESSION_SKIPPED),
             Context.RECEIVER_NOT_EXPORTED
         )
+        
+        // Регистрируем BroadcastReceiver для получения уведомлений о ранее оптимизированных изображениях
+        registerReceiver(
+            compressionSkippedFromGalleryReceiver,
+            IntentFilter(Constants.ACTION_IMAGE_ALREADY_OPTIMIZED),
+            Context.RECEIVER_NOT_EXPORTED
+        )
     }
     
     override fun onStop() {
@@ -259,6 +279,7 @@ class MainActivity : AppCompatActivity() {
             unregisterReceiver(deletePermissionReceiver)
             unregisterReceiver(compressionCompletedReceiver)
             unregisterReceiver(compressionSkippedReceiver)
+            unregisterReceiver(compressionSkippedFromGalleryReceiver)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver в onStop")
         }
@@ -322,9 +343,6 @@ class MainActivity : AppCompatActivity() {
     
     /**
      * Обработка входящих интентов для получения изображений от других приложений
-     * 
-     * Важно: При включенном автоматическом сжатии, мы позволяем BackgroundMonitoringService обрабатывать изображения
-     * вместо того, чтобы запускать принудительное сжатие из MainActivity, чтобы избежать дублирования обработки.
      */
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
@@ -357,28 +375,33 @@ class MainActivity : AppCompatActivity() {
                         val path = FileUtil.getFilePathFromUri(this, uri)
                         Timber.d("handleIntent: Путь к файлу: $path")
                         
-                        val isInAppDir = !path.isNullOrEmpty() && 
-                            (path.contains("/${Constants.APP_DIRECTORY}/") || 
-                             path.contains("content://media/external/images/media") && 
-                             path.contains(Constants.APP_DIRECTORY))
-                        
-                        // Проверяем, не было ли изображение уже обработано
-                        // Запускаем проверку асинхронно с учетом размера файла
+                        // Обрабатываем изображение с использованием централизованного метода
                         lifecycleScope.launch {
-                            // Используем StatsTracker.shouldProcessImage вместо прямой проверки EXIF
-                            val shouldProcess = StatsTracker.shouldProcessImage(this@MainActivity, uri)
-                            val fileSize = FileUtil.getFileSize(this@MainActivity, uri)
+                            // Отображаем изображение в UI
+                            viewModel.setSelectedImageUri(uri)
                             
-                            Timber.d("handleIntent: Нужно обработать изображение: $shouldProcess (размер файла: ${fileSize / 1024}KB)")
+                            // Используем централизованный метод для обработки изображения
+                            // Принудительно обрабатываем изображения, полученные через Share, даже если автосжатие отключено
+                            val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true)
                             
-                            if (shouldProcess) {
-                                viewModel.setSelectedImageUri(uri)
-                                // Запускаем сжатие вручную
-                                Timber.d("handleIntent: Запускаем сжатие вручную")
-                                viewModel.compressSelectedImage()
+                            // Обрабатываем результат
+                            if (result.first) { // Успешно выполнился метод
+                                if (result.second) { // Изображение было добавлено в очередь
+                                    // Не показываем уведомление о запуске сжатия для Share
+                                    // Сохраняем только логирование
+                                    Timber.d("Сжатие запущено для: $uri")
+                                } else {
+                                    // Если изображение уже оптимизировано
+                                    if (result.third == "Изображение уже оптимизировано") {
+                                        showTopToast(getString(R.string.image_already_optimized))
+                                    } else {
+                                        // Другие случаи неудачи обработки
+                                        showTopToast(result.third)
+                                    }
+                                }
                             } else {
-                                // Если изображение не нуждается в обработке, информируем пользователя
-                                showTopToast(getString(R.string.image_already_optimized))
+                                // Показываем ошибку
+                                showTopToast("Ошибка: ${result.third}")
                             }
                         }
                     }
@@ -396,33 +419,46 @@ class MainActivity : AppCompatActivity() {
                     uris?.let { uriList ->
                         Timber.d("handleIntent: Получено ${uriList.size} изображений через Intent.ACTION_SEND_MULTIPLE")
                         
-                        // Собираем список необработанных изображений
+                        // Собираем и обрабатываем необработанные изображения
                         lifecycleScope.launch {
-                            val unprocessedUris = ArrayList<Uri>()
+                            // Получаем настройки автосжатия
+                            val settingsManager = SettingsManager.getInstance(this@MainActivity)
+                            val isAutoCompressionEnabled = settingsManager.isAutoCompressionEnabled()
                             
-                            // Логируем информацию о каждом файле и проверяем его статус
+                            // Логируем информацию о каждом файле
                             for (uri in uriList) {
                                 Timber.d("handleIntent: Изображение из множества: $uri")
                                 logFileDetails(uri)
+                            }
+                            
+                            // Если есть хотя бы одно изображение, показываем первое в UI
+                            if (uriList.isNotEmpty()) {
+                                viewModel.setSelectedImageUri(uriList[0])
+                            }
+                            
+                            // Обрабатываем несколько изображений принудительно, независимо от настройки автосжатия
+                            var processedCount = 0
+                            
+                            for (uri in uriList) {
+                                Timber.d("handleIntent: Обработка URI: $uri")
                                 
-                                val fileSize = FileUtil.getFileSize(this@MainActivity, uri)
-                                // Используем StatsTracker.shouldProcessImage вместо прямой проверки EXIF
-                                val shouldProcess = StatsTracker.shouldProcessImage(this@MainActivity, uri)
+                                // Принудительно обрабатываем изображения, полученные через Share
+                                val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true)
                                 
-                                Timber.d("Нужно обработать изображение: $shouldProcess (размер файла: ${fileSize / 1024}KB)")
-                                
-                                if (shouldProcess) {
-                                    unprocessedUris.add(uri)
+                                // Считаем обработанные изображения
+                                if (result.first && result.second) {
+                                    processedCount++
+                                } else {
+                                    // Ошибки или уже обработанные изображения
+                                    Timber.d("handleIntent: URI $uri пропущен: ${result.third}")
                                 }
                             }
                             
-                            if (unprocessedUris.isNotEmpty()) {
-                                // Показываем первое изображение в UI
-                                viewModel.setSelectedImageUri(unprocessedUris[0])
-                                
-                                // Запускаем сжатие вручную
-                                Timber.d("handleIntent: Запускаем сжатие ${unprocessedUris.size} файлов вручную")
-                                viewModel.compressMultipleImages(unprocessedUris)
+                            // Показываем уведомление о запуске сжатия
+                            if (processedCount > 0) {
+                                // Не показываем уведомление о запуске сжатия для Share
+                                // Сохраняем только логирование
+                                Timber.d("Запущено сжатие для $processedCount изображений")
                             } else {
                                 // Если все изображения уже обработаны, показываем сообщение
                                 showTopToast(getString(R.string.all_images_already_compressed))
