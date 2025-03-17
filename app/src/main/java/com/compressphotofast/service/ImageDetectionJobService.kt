@@ -154,16 +154,22 @@ class ImageDetectionJobService : JobService() {
                     
                     if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
                         withContext(Dispatchers.IO) {
-                            // Регистрируем URI как обрабатываемый
-                            UriProcessingTracker.addProcessingUri(uri.toString())
-                            
-                            // Обрабатываем изображение
-                            if (ImageProcessingUtil.processImage(applicationContext, uri)) {
-                                Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
-                                processedCount++
+                            // Проверяем еще раз перед добавлением в список обрабатываемых
+                            if (!UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                                // Регистрируем URI как обрабатываемый
+                                UriProcessingTracker.addProcessingUri(uri.toString())
+                                
+                                // Обрабатываем изображение
+                                if (ImageProcessingUtil.processImage(applicationContext, uri)) {
+                                    Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
+                                    processedCount++
+                                } else {
+                                    Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
+                                    UriProcessingTracker.removeProcessingUri(uri.toString())
+                                    skippedCount++
+                                }
                             } else {
-                                Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                                UriProcessingTracker.removeProcessingUri(uri.toString())
+                                Timber.d("ImageDetectionJobService: URI уже добавлен в список обрабатываемых: $uri")
                                 skippedCount++
                             }
                         }

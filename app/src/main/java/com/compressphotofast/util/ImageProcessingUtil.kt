@@ -58,10 +58,6 @@ object ImageProcessingUtil {
             // Получаем размер исходного файла для логирования
             val originalSize = FileUtil.getFileSize(context, uri)
             
-            // Добавляем URI в список обрабатываемых
-            UriProcessingTracker.addProcessingUri(uri.toString())
-            Timber.d("URI добавлен в список обрабатываемых: $uri (всего ${UriProcessingTracker.getProcessingCount()})")
-            
             // Создаем и запускаем работу по сжатию
             val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
                 .setInputData(
