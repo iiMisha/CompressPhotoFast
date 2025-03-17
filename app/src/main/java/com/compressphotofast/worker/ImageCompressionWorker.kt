@@ -188,8 +188,48 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val tempFile = FileUtil.createTempImageFile(context)
                 
                 try {
-                    // Сжимаем изображение
-                    compressImage(imageUri, tempFile, compressionQuality)
+                    // Напрямую работаем с URI для декодирования изображения
+                    val bitmap = context.contentResolver.openInputStream(imageUri)?.use { input ->
+                        BitmapFactory.decodeStream(input)
+                    } ?: throw IOException("Не удалось декодировать изображение из URI")
+                    
+                    // Проверяем наличие GPS тегов в исходном изображении
+                    try {
+                        context.contentResolver.openInputStream(imageUri)?.use { input ->
+                            val sourceExif = ExifInterface(input)
+                            checkAndLogGpsTags(sourceExif, "исходном изображении")
+                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Ошибка при проверке GPS тегов исходного изображения: ${e.message}")
+                    }
+                    
+                    // Сохраняем bitmap в временный файл с указанным качеством
+                    tempFile.outputStream().use { output ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, compressionQuality, output)
+                        output.flush()
+                    }
+                    
+                    // Освобождаем память от битмапа
+                    bitmap.recycle()
+                    
+                    Timber.d("compressImage: размер сжатого файла: ${tempFile.length()} байт")
+                    
+                    // Проверяем, что сжатый файл существует и не пуст
+                    if (!tempFile.exists() || tempFile.length() <= 0) {
+                        throw IOException("Сжатый файл не создан или пуст")
+                    }
+                    
+                    // Копируем EXIF данные
+                    ExifUtil.copyExifDataFromUriToFile(context, imageUri, tempFile)
+                    
+                    // Добавляем EXIF маркер сжатия с информацией об уровне компрессии
+                    ExifUtil.markCompressedImage(tempFile.absolutePath, compressionQuality)
+                    
+                    // Проверяем EXIF данные после копирования
+                    logExifDataFromFile(tempFile)
+                    
+                    // Верифицируем, что указанный уровень компрессии соответствует фактическому
+                    verifyCompressionLevel(tempFile, compressionQuality)
                     
                     // Получаем имя файла из URI
                     val fileName = getFileNameSafely(imageUri)
@@ -473,6 +513,16 @@ class ImageCompressionWorker @AssistedInject constructor(
                 BitmapFactory.decodeStream(input)
             } ?: throw IOException("Не удалось декодировать изображение из URI")
             
+            // Проверяем наличие GPS тегов в исходном изображении
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    val sourceExif = ExifInterface(input)
+                    checkAndLogGpsTags(sourceExif, "исходном изображении")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при проверке GPS тегов исходного изображения: ${e.message}")
+            }
+            
             // Сохраняем bitmap в временный файл с указанным качеством
             tempFile.outputStream().use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
@@ -524,7 +574,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
     
     /**
-     * Проверяет EXIF данные из файла
+     * Логирует наличие EXIF данных в файле
      */
     private fun logExifDataFromFile(file: File) {
         try {
@@ -532,8 +582,55 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (hasBasicTags) {
                 Timber.d("EXIF данные сохранены")
             }
+            
+            // Проверяем GPS данные
+            try {
+                val exif = ExifInterface(file.absolutePath)
+                checkAndLogGpsTags(exif, "файле после обработки")
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при чтении GPS данных из файла")
+            }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке EXIF данных из файла")
+        }
+    }
+
+    /**
+     * Проверяет и логирует все возможные GPS теги
+     */
+    private fun checkAndLogGpsTags(exif: ExifInterface, source: String) {
+        val latLong = exif.latLong
+        
+        // Логируем все GPS теги для отладки
+        val allGpsTags = arrayOf(
+            ExifInterface.TAG_GPS_LATITUDE,
+            ExifInterface.TAG_GPS_LATITUDE_REF,
+            ExifInterface.TAG_GPS_LONGITUDE,
+            ExifInterface.TAG_GPS_LONGITUDE_REF,
+            ExifInterface.TAG_GPS_ALTITUDE,
+            ExifInterface.TAG_GPS_ALTITUDE_REF,
+            ExifInterface.TAG_GPS_DATESTAMP,
+            ExifInterface.TAG_GPS_TIMESTAMP,
+            ExifInterface.TAG_GPS_PROCESSING_METHOD,
+            ExifInterface.TAG_GPS_VERSION_ID
+        )
+        
+        var hasAnyGpsTag = false
+        Timber.d("Проверка GPS тегов в $source:")
+        for (tag in allGpsTags) {
+            val value = exif.getAttribute(tag)
+            if (value != null) {
+                Timber.d("GPS тег $tag: $value")
+                hasAnyGpsTag = true
+            }
+        }
+        
+        if (latLong != null) {
+            Timber.d("GPS данные в $source: широта=${latLong[0]}, долгота=${latLong[1]}")
+        } else if (hasAnyGpsTag) {
+            Timber.d("GPS теги присутствуют в $source, но координаты не читаются через latLong")
+        } else {
+            Timber.d("GPS данные в $source отсутствуют")
         }
     }
 

@@ -205,11 +205,38 @@ object ExifUtil {
                 val sourceExif = ExifInterface(inputStream)
                 val destinationExif = ExifInterface(destinationFile.absolutePath)
 
+                // Логируем GPS данные до копирования
+                val sourceLatLong = sourceExif.latLong
+                if (sourceLatLong != null) {
+                    Timber.d("GPS данные в исходном файле: широта=${sourceLatLong[0]}, долгота=${sourceLatLong[1]}")
+                } else {
+                    // Проверяем наличие отдельных GPS тегов
+                    val gpsLatitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                    val gpsLatitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                    val gpsLongitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                    val gpsLongitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                    
+                    if (gpsLatitude != null || gpsLatitudeRef != null || gpsLongitude != null || gpsLongitudeRef != null) {
+                        Timber.d("GPS теги в исходном файле: LAT=$gpsLatitude, LAT_REF=$gpsLatitudeRef, LONG=$gpsLongitude, LONG_REF=$gpsLongitudeRef")
+                    } else {
+                        Timber.d("GPS данные в исходном файле отсутствуют")
+                    }
+                }
+                
                 // Копируем все EXIF теги, используя общий метод
                 copyExifTags(sourceExif, destinationExif)
-
+                
                 // Сохраняем изменения
                 destinationExif.saveAttributes()
+                
+                // Проверяем, что GPS данные были скопированы
+                val destLatLong = destinationExif.latLong
+                if (destLatLong != null) {
+                    Timber.d("GPS данные в сжатом файле после копирования: широта=${destLatLong[0]}, долгота=${destLatLong[1]}")
+                } else {
+                    Timber.d("GPS данные в сжатом файле отсутствуют после копирования")
+                }
+                
                 Timber.d("EXIF данные успешно скопированы из URI в файл")
             }
         } catch (e: Exception) {
@@ -266,11 +293,38 @@ object ExifUtil {
                     val sourceExif = ExifInterface(sourceInputPfd.fileDescriptor)
                     val destExif = ExifInterface(destOutputPfd.fileDescriptor)
                     
+                    // Логируем GPS данные до копирования
+                    val sourceLatLong = sourceExif.latLong
+                    if (sourceLatLong != null) {
+                        Timber.d("GPS данные в исходном файле: широта=${sourceLatLong[0]}, долгота=${sourceLatLong[1]}")
+                    } else {
+                        // Проверяем наличие отдельных GPS тегов
+                        val gpsLatitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                        val gpsLatitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                        val gpsLongitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                        val gpsLongitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                        
+                        if (gpsLatitude != null || gpsLatitudeRef != null || gpsLongitude != null || gpsLongitudeRef != null) {
+                            Timber.d("GPS теги в исходном файле: LAT=$gpsLatitude, LAT_REF=$gpsLatitudeRef, LONG=$gpsLongitude, LONG_REF=$gpsLongitudeRef")
+                        } else {
+                            Timber.d("GPS данные в исходном файле отсутствуют")
+                        }
+                    }
+                    
                     // Копируем все EXIF теги, используя общий метод
                     copyExifTags(sourceExif, destExif)
                     
                     // Сохраняем изменения
                     destExif.saveAttributes()
+                    
+                    // Проверяем, что GPS данные были скопированы
+                    val destLatLong = destExif.latLong
+                    if (destLatLong != null) {
+                        Timber.d("GPS данные в сжатом файле после копирования: широта=${destLatLong[0]}, долгота=${destLatLong[1]}")
+                    } else {
+                        Timber.d("GPS данные в сжатом файле отсутствуют после копирования")
+                    }
+                    
                     Timber.d("EXIF данные успешно скопированы между URI")
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
@@ -297,7 +351,7 @@ object ExifUtil {
     }
     
     /**
-     * Проверяет наличие базовых EXIF тегов в изображении
+     * Проверяет наличие базовых EXIF тегов в изображении по URI
      * @param context контекст
      * @param uri URI изображения
      * @return true если найдены базовые EXIF теги, false в противном случае
@@ -311,6 +365,31 @@ object ExifUtil {
                                  exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
                                  exif.getAttribute(ExifInterface.TAG_MODEL) != null
                 
+                // Проверяем наличие GPS тегов более комплексно
+                val gpsLatitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                val gpsLatitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                val gpsLongitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                val gpsLongitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                
+                val hasGpsTags = gpsLatitude != null || gpsLatitudeRef != null || 
+                               gpsLongitude != null || gpsLongitudeRef != null || 
+                               exif.latLong != null
+                
+                if (hasGpsTags) {
+                    Timber.d("URI $uri содержит GPS теги:")
+                    if (gpsLatitude != null) Timber.d("TAG_GPS_LATITUDE: $gpsLatitude")
+                    if (gpsLatitudeRef != null) Timber.d("TAG_GPS_LATITUDE_REF: $gpsLatitudeRef")
+                    if (gpsLongitude != null) Timber.d("TAG_GPS_LONGITUDE: $gpsLongitude")
+                    if (gpsLongitudeRef != null) Timber.d("TAG_GPS_LONGITUDE_REF: $gpsLongitudeRef")
+                    
+                    val latLong = exif.latLong
+                    if (latLong != null) {
+                        Timber.d("Координаты через latLong: широта=${latLong[0]}, долгота=${latLong[1]}")
+                    } else {
+                        Timber.d("GPS теги присутствуют, но координаты не читаются через latLong")
+                    }
+                }
+                
                 return@withContext hasBasicTags
             }
             return@withContext false
@@ -322,7 +401,7 @@ object ExifUtil {
     
     /**
      * Проверяет наличие базовых EXIF тегов в файле
-     * @param file файл изображения
+     * @param file файл для проверки
      * @return true если найдены базовые EXIF теги, false в противном случае
      */
     fun hasBasicExifTags(file: File): Boolean {
@@ -332,6 +411,31 @@ object ExifUtil {
             val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
                              exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
                              exif.getAttribute(ExifInterface.TAG_MODEL) != null
+            
+            // Проверяем наличие GPS тегов более комплексно
+            val gpsLatitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+            val gpsLatitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+            val gpsLongitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+            val gpsLongitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+            
+            val hasGpsTags = gpsLatitude != null || gpsLatitudeRef != null || 
+                           gpsLongitude != null || gpsLongitudeRef != null || 
+                           exif.latLong != null
+            
+            if (hasGpsTags) {
+                Timber.d("Файл содержит GPS теги:")
+                if (gpsLatitude != null) Timber.d("TAG_GPS_LATITUDE: $gpsLatitude")
+                if (gpsLatitudeRef != null) Timber.d("TAG_GPS_LATITUDE_REF: $gpsLatitudeRef")
+                if (gpsLongitude != null) Timber.d("TAG_GPS_LONGITUDE: $gpsLongitude")
+                if (gpsLongitudeRef != null) Timber.d("TAG_GPS_LONGITUDE_REF: $gpsLongitudeRef")
+                
+                val latLong = exif.latLong
+                if (latLong != null) {
+                    Timber.d("Координаты через latLong: широта=${latLong[0]}, долгота=${latLong[1]}")
+                } else {
+                    Timber.d("GPS теги присутствуют, но координаты не читаются через latLong")
+                }
+            }
             
             return hasBasicTags
         } catch (e: Exception) {
@@ -416,21 +520,6 @@ object ExifUtil {
             ExifInterface.TAG_FLASH,
             ExifInterface.TAG_FLASH_ENERGY,
             
-            // GPS данные
-            ExifInterface.TAG_GPS_ALTITUDE,
-            ExifInterface.TAG_GPS_ALTITUDE_REF,
-            ExifInterface.TAG_GPS_DATESTAMP,
-            ExifInterface.TAG_GPS_LATITUDE,
-            ExifInterface.TAG_GPS_LATITUDE_REF,
-            ExifInterface.TAG_GPS_LONGITUDE,
-            ExifInterface.TAG_GPS_LONGITUDE_REF,
-            ExifInterface.TAG_GPS_PROCESSING_METHOD,
-            ExifInterface.TAG_GPS_TIMESTAMP,
-            ExifInterface.TAG_GPS_SPEED,
-            ExifInterface.TAG_GPS_SPEED_REF,
-            ExifInterface.TAG_GPS_IMG_DIRECTION,
-            ExifInterface.TAG_GPS_IMG_DIRECTION_REF,
-            
             // Информация об изображении
             ExifInterface.TAG_IMAGE_LENGTH,
             ExifInterface.TAG_IMAGE_WIDTH,
@@ -476,6 +565,9 @@ object ExifUtil {
             ExifInterface.TAG_COPYRIGHT
         )
         
+        // Копируем GPS данные специальным образом
+        copyGpsData(sourceExif, destExif)
+        
         // Фильтруем теги, доступные в текущей версии Android
         val availableTags = allPossibleTags.filter { tag ->
             try {
@@ -499,6 +591,73 @@ object ExifUtil {
                 // Если возникла ошибка при копировании конкретного тега, просто пропускаем его
                 Timber.d("Не удалось скопировать тег EXIF: $tag - ${e.message}")
             }
+        }
+    }
+    
+    /**
+     * Специальная функция для копирования GPS данных между объектами ExifInterface.
+     * GPS-данные требуют особой обработки из-за их формата.
+     */
+    private fun copyGpsData(sourceExif: ExifInterface, destExif: ExifInterface) {
+        try {
+            // Сначала пробуем получить координаты через latLong
+            val latLong = sourceExif.latLong
+            if (latLong != null) {
+                Timber.d("Копирование GPS координат через setLatLong: широта=${latLong[0]}, долгота=${latLong[1]}")
+                destExif.setLatLong(latLong[0], latLong[1])
+                
+                // Копируем дополнительные GPS теги
+                val altitude = sourceExif.getAltitude(0.0)
+                if (!altitude.isNaN()) {
+                    destExif.setAltitude(altitude)
+                }
+            } else {
+                // Если latLong не работает, пробуем скопировать теги напрямую
+                val gpsLatitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                val gpsLatitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                val gpsLongitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                val gpsLongitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
+                
+                // Проверяем, что значения не нулевые и не "0/1,0/1,0/1"
+                if (gpsLatitude != null && gpsLatitudeRef != null && 
+                    gpsLongitude != null && gpsLongitudeRef != null &&
+                    !gpsLatitude.matches(Regex("0/1,0/1,0/1")) &&
+                    !gpsLongitude.matches(Regex("0/1,0/1,0/1"))) {
+                    
+                    destExif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, gpsLatitude)
+                    destExif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, gpsLatitudeRef)
+                    destExif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, gpsLongitude)
+                    destExif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, gpsLongitudeRef)
+                    
+                    Timber.d("GPS теги скопированы напрямую: LAT=$gpsLatitude $gpsLatitudeRef, LONG=$gpsLongitude $gpsLongitudeRef")
+                }
+            }
+            
+            // Копируем остальные GPS теги, если они не нулевые и не дефолтные
+            val additionalGpsTags = arrayOf(
+                ExifInterface.TAG_GPS_ALTITUDE,
+                ExifInterface.TAG_GPS_ALTITUDE_REF,
+                ExifInterface.TAG_GPS_DATESTAMP,
+                ExifInterface.TAG_GPS_TIMESTAMP,
+                ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                ExifInterface.TAG_GPS_VERSION_ID
+            )
+            
+            for (tag in additionalGpsTags) {
+                val value = sourceExif.getAttribute(tag)
+                if (value != null && !value.matches(Regex("0/1|0|\\?+|^\\s*$"))) {
+                    destExif.setAttribute(tag, value)
+                    Timber.d("Скопирован дополнительный GPS тег $tag: $value")
+                }
+            }
+            
+            // Проверяем результат копирования
+            val destLatLong = destExif.latLong
+            if (destLatLong != null) {
+                Timber.d("GPS координаты успешно скопированы: широта=${destLatLong[0]}, долгота=${destLatLong[1]}")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при копировании GPS данных: ${e.message}")
         }
     }
     
