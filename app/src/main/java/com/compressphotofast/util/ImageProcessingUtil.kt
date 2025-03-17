@@ -39,10 +39,6 @@ object ImageProcessingUtil {
                 return@withContext false
             }
             
-            // Регистрируем, что URI в процессе обработки
-            UriProcessingTracker.addProcessingUri(uri.toString())
-            Timber.d("URI добавлен в список обрабатываемых: $uri")
-            
             // Получаем качество сжатия из настроек
             val quality = settingsManager.getCompressionQuality()
             
@@ -76,8 +72,6 @@ object ImageProcessingUtil {
             return@withContext true
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при запуске обработки изображения: $uri")
-            // Снимаем отметку о том, что URI обрабатывается
-            UriProcessingTracker.removeProcessingUri(uri.toString())
             return@withContext false
         }
     }

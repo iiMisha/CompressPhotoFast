@@ -42,11 +42,11 @@ object ExifUtil {
             val currentComment = exif.getAttribute(EXIF_USER_COMMENT)
             Timber.d("Текущий EXIF маркер для $filePath: $currentComment")
             
-            // Получаем текущую дату и время в ISO формате
-            val dateTime = java.time.LocalDateTime.now().toString()
+            // Получаем текущее время в миллисекундах
+            val dateTimeMs = System.currentTimeMillis()
             
-            // Добавляем маркер сжатия, уровень компрессии и дату сжатия
-            val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTime"
+            // Добавляем маркер сжатия, уровень компрессии и дату сжатия в миллисекундах
+            val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTimeMs"
             exif.setAttribute(EXIF_USER_COMMENT, markerWithQualityAndDate)
             
             // Сохраняем изменения
@@ -55,7 +55,7 @@ object ExifUtil {
             // Проверяем, что маркер был установлен
             val newExif = ExifInterface(filePath)
             val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
-            Timber.d("EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality и датой: $dateTime. Записанное значение: $newUserComment")
+            Timber.d("EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality и датой: $dateTimeMs. Записанное значение: $newUserComment")
             
             return@withContext true
         } catch (e: Exception) {
@@ -83,14 +83,14 @@ object ExifUtil {
             }
             Timber.d("Текущий EXIF маркер для $uri: $oldUserComment")
             
-            // Получаем текущую дату и время в ISO формате
-            val dateTime = java.time.LocalDateTime.now().toString()
+            // Получаем текущее время в миллисекундах
+            val dateTimeMs = System.currentTimeMillis()
             
             pfd.use { fileDescriptor ->
                 val exif = ExifInterface(fileDescriptor.fileDescriptor)
                 
-                // Добавляем маркер сжатия, уровень компрессии и дату сжатия в один тег UserComment
-                val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTime"
+                // Добавляем маркер сжатия, уровень компрессии и дату сжатия в миллисекундах
+                val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTimeMs"
                 exif.setAttribute(EXIF_USER_COMMENT, markerWithQualityAndDate)
                 
                 // Сохраняем EXIF данные
@@ -101,7 +101,7 @@ object ExifUtil {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val newExif = ExifInterface(inputStream)
                 val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
-                Timber.d("EXIF маркер сжатия установлен в URI: $uri с качеством: $quality и датой: $dateTime. Записанное значение: $newUserComment")
+                Timber.d("EXIF маркер сжатия установлен в URI: $uri с качеством: $quality и датой: $dateTimeMs. Записанное значение: $newUserComment")
             }
             
             // Очищаем кэш для данного URI
@@ -506,9 +506,9 @@ object ExifUtil {
      * Получает дату сжатия из EXIF данных изображения
      * @param context контекст
      * @param uri URI изображения
-     * @return дата сжатия или null, если она не найдена
+     * @return дата сжатия в миллисекундах или null, если она не найдена
      */
-    suspend fun getCompressionDateFromExif(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+    suspend fun getCompressionDateFromExif(context: Context, uri: Uri): Long? = withContext(Dispatchers.IO) {
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val exif = ExifInterface(inputStream)
@@ -520,9 +520,16 @@ object ExifUtil {
                 if (userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
                     val parts = userComment.split(":")
                     if (parts.size >= 3) {
-                        // Возвращаем части маркера, начиная с третьей (индекс 2) до конца, объединенные обратно через ":"
-                        // это нужно потому что ISO дата может содержать символ ":" внутри себя
-                        return@withContext parts.subList(2, parts.size).joinToString(":")
+                        // Извлекаем timestamp в миллисекундах
+                        try {
+                            val timestamp = parts[2].toLong()
+                            Timber.d("Найден EXIF маркер с timestamp: $timestamp")
+                            return@withContext timestamp
+                        } catch (e: NumberFormatException) {
+                            // Если не удалось преобразовать в Long, возможно это старый формат
+                            Timber.e(e, "Ошибка при преобразовании даты сжатия в Long: ${parts[2]}")
+                            return@withContext null
+                        }
                     }
                 }
                 return@withContext null

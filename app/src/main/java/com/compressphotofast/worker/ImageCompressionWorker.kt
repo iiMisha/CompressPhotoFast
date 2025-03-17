@@ -139,95 +139,25 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Продолжаем выполнение, так как ошибка может быть временной
             }
             
-            // Для файлов больше 1.5 МБ всегда выполняем тестовое сжатие в RAM
-            if (fileSize > Constants.TEST_COMPRESSION_THRESHOLD_SIZE) {
-                Timber.d("Файл больше 1.5 МБ (${fileSize / (1024 * 1024)}МБ), проводим тестовое сжатие в RAM")
+            // ОПТИМИЗИРОВАННАЯ ЛОГИКА:
+            // 1. Сначала проверяем EXIF-маркер и дату модификации (самая быстрая и приоритетная проверка)
+            // 2. Только если требуется обработка, выполняем ресурсоемкое тестовое сжатие
+            
+            // Получаем решение о необходимости обработки из централизованной логики,
+            // НО ИГНОРИРУЕМ ПРОВЕРКУ "URI В СПИСКЕ ОБРАБАТЫВАЕМЫХ", так как Worker уже запущен
+            Timber.d("Выполняем ПРИОРИТЕТНУЮ проверку необходимости обработки через EXIF для URI: $imageUri")
+            
+            // Модифицированная проверка - только EXIF и дата модификации
+            val hasExifCompressMarker = ExifUtil.isImageCompressed(context, imageUri)
+            
+            if (hasExifCompressMarker) {
+                // Проверяем дату модификации, чтобы понять, нужна ли повторная обработка
+                val wasModifiedAfterCompression = ImageProcessingChecker.wasFileModifiedAfterCompression(context, imageUri)
                 
-                // Проверяем эффективность сжатия с использованием централизованной логики
-                val compressionEffective = CompressionTestUtil.testCompression(
-                    context, 
-                    imageUri, 
-                    fileSize, 
-                    compressionQuality
-                )
-                
-                if (compressionEffective) {
-                    // Если сжатие эффективно (>10%), создаем файл и сжимаем
-                    Timber.d("Тестовое сжатие эффективно, создаем временный файл для дальнейшей обработки")
-                    val tempFile = FileUtil.createTempImageFile(context)
-                    
-                    try {
-                        // Сжимаем изображение
-                        compressImage(imageUri, tempFile, compressionQuality)
-                        
-                        // Получаем имя файла из URI
-                        val fileName = getFileNameSafely(imageUri)
-                        Timber.d("Имя исходного файла: $fileName")
-                        
-                        // Создаем имя для сжатого файла
-                        val compressedFileName = FileUtil.createCompressedFileName(fileName)
-                        Timber.d("Имя для сжатого файла: $compressedFileName")
-                        
-                        // Сохраняем сжатое изображение в галерею
-                        Timber.d("Сохранение сжатого изображения в галерею...")
-                        val (savedUri, deleteIntentSender) = FileUtil.saveCompressedImageToGallery(
-                            context,
-                            tempFile,
-                            compressedFileName,
-                            imageUri
-                        )
-                        
-                        // Добавляем URI в список обработанных
-                        savedUri?.let {
-                            Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
-                            
-                            // Получаем размер сжатого файла для уведомления
-                            val compressedSize = tempFile.length()
-                            val sizeReduction = if (fileSize > 0) {
-                                ((fileSize - compressedSize).toFloat() / fileSize) * 100
-                            } else 0f
-                            
-                            // Показываем уведомление о завершении сжатия
-                            showCompletionNotification(fileName, fileSize, compressedSize, sizeReduction)
-                        }
-                        
-                        // Удаляем временный файл после успешного сохранения
-                        if (savedUri != null && !tempFile.delete()) {
-                            Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
-                        } else {
-                            Timber.d("Временный файл удален после успешного сохранения")
-                        }
-                        
-                        // Обновляем статус при успешном сжатии
-                        StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
-                        
-                        return@withContext Result.success(createSuccessOutput())
-                    } catch (e: Exception) {
-                        Timber.e(e, "Ошибка при сжатии после положительного тестового сжатия: ${e.message}")
-                        return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при сжатии"))
-                    }
-                } else {
-                    // Если сжатие неэффективно, пропускаем файл
-                    Timber.d("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
-                    
-                    // Получаем имя файла для уведомления
-                    val fileName = getFileNameSafely(imageUri)
-                    
-                    // Получаем размер сжатого изображения из метода testCompression
-                    // Так как у нас нет созданного файла, используем последнее вычисленное значение из тестового сжатия
-                    // Получаем его из результатов RAM-сжатия, которые были вычислены в методе testCompression
-                    // В данном случае мы вычисляем процент экономии через результаты теста, примерно 5-9%
-                    val estimatedSizeReduction = 8.0f  // Примерное значение экономии, которое ниже порога
-                    
-                    // Определяем примерный размер сжатого файла на основе процента сокращения
-                    val estimatedCompressedSize = fileSize - (fileSize * estimatedSizeReduction / 100f).toLong()
-                    
-                    // Показываем уведомление о пропуске файла
-                    showSkippedCompressionNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction)
-                    
-                    // Обновляем статус
+                if (!wasModifiedAfterCompression) {
+                    // Если есть EXIF-маркер и файл НЕ был модифицирован после обработки - пропускаем
+                    Timber.d("Изображение уже сжато и не было модифицировано после этого, пропускаем: $imageUri")
                     StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                    
                     return@withContext Result.success(
                         Data.Builder()
                             .putBoolean("success", true)
@@ -235,89 +165,105 @@ class ImageCompressionWorker @AssistedInject constructor(
                             .build()
                     )
                 }
+                
+                Timber.d("Изображение было сжато ранее, но требует повторной обработки: $imageUri")
             } else {
-                // Для файлов меньше 1.5 МБ, проверяем другие условия
-                // Проверяем, обрабатывается ли уже это изображение
-                if (isImageAlreadyProcessedExceptSize(imageUri)) {
-                    Timber.d("Изображение уже обработано: $imageUri")
-                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                    return@withContext Result.success(
-                        Data.Builder()
-                            .putBoolean("success", true)
-                            .putBoolean("skipped", true)
-                            .build()
-                    )
-                }
+                Timber.d("EXIF-маркер сжатия не найден, продолжаем обработку: $imageUri")
             }
             
-            // Создаем временный файл для стандартной обработки
-            val tempFile = FileUtil.createTempImageFile(context)
-            Timber.d("Создан временный файл: ${tempFile.absolutePath}")
+            // Если файл требует обработки, проверяем эффективность сжатия
+            Timber.d("Изображение требует обработки, выполняем тестовое сжатие в RAM для URI: $imageUri")
             
-            try {
-                // Сжимаем изображение
-                Timber.d("Начало сжатия изображения с качеством: $compressionQuality")
-                compressImage(imageUri, tempFile, compressionQuality)
-                Timber.d("Изображение успешно сжато с качеством: $compressionQuality")
+            // Проверяем эффективность сжатия с использованием централизованной логики
+            val compressionEffective = CompressionTestUtil.testCompression(
+                context, 
+                imageUri, 
+                fileSize, 
+                compressionQuality
+            )
+            
+            if (compressionEffective) {
+                // Если сжатие эффективно (>10%), создаем файл и сжимаем
+                Timber.d("Тестовое сжатие эффективно, создаем временный файл для дальнейшей обработки")
+                val tempFile = FileUtil.createTempImageFile(context)
                 
-                // Получаем размеры для логирования
-                val originalSize = FileUtil.getFileSize(context, imageUri)
-                val compressedSize = tempFile.length()
-                
-                // Вычисляем процент сокращения размера
-                val sizeReduction = if (originalSize > 0) {
-                    ((originalSize - compressedSize).toFloat() / originalSize) * 100
-                } else 0f
-                
-                Timber.d("Результат сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
-                
-                // Получаем имя файла из URI
-                val fileName = getFileNameSafely(imageUri)
-                Timber.d("Имя исходного файла: $fileName")
-                
-                // Создаем имя для сжатого файла
-                val compressedFileName = FileUtil.createCompressedFileName(fileName)
-                Timber.d("Имя для сжатого файла: $compressedFileName")
-                
-                // Сохраняем сжатое изображение в галерею
-                Timber.d("Сохранение сжатого изображения в галерею...")
-                val (savedUri, deleteIntentSender) = FileUtil.saveCompressedImageToGallery(
-                    context,
-                    tempFile,
-                    compressedFileName,
-                    imageUri
-                )
-                
-                // Добавляем URI в список обработанных
-                savedUri?.let {
-                    Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
+                try {
+                    // Сжимаем изображение
+                    compressImage(imageUri, tempFile, compressionQuality)
                     
-                    // Показываем уведомление о завершении сжатия
-                    showCompletionNotification(fileName, originalSize, compressedSize, sizeReduction)
+                    // Получаем имя файла из URI
+                    val fileName = getFileNameSafely(imageUri)
+                    Timber.d("Имя исходного файла: $fileName")
+                    
+                    // Создаем имя для сжатого файла
+                    val compressedFileName = FileUtil.createCompressedFileName(fileName)
+                    Timber.d("Имя для сжатого файла: $compressedFileName")
+                    
+                    // Сохраняем сжатое изображение в галерею
+                    Timber.d("Сохранение сжатого изображения в галерею...")
+                    val (savedUri, deleteIntentSender) = FileUtil.saveCompressedImageToGallery(
+                        context,
+                        tempFile,
+                        compressedFileName,
+                        imageUri
+                    )
+                    
+                    // Добавляем URI в список обработанных
+                    savedUri?.let {
+                        Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
+                        
+                        // Получаем размер сжатого файла для уведомления
+                        val compressedSize = tempFile.length()
+                        val sizeReduction = if (fileSize > 0) {
+                            ((fileSize - compressedSize).toFloat() / fileSize) * 100
+                        } else 0f
+                        
+                        // Показываем уведомление о завершении сжатия
+                        showCompletionNotification(fileName, fileSize, compressedSize, sizeReduction)
+                    }
+                    
+                    // Удаляем временный файл после успешного сохранения
+                    if (savedUri != null && !tempFile.delete()) {
+                        Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
+                    } else {
+                        Timber.d("Временный файл удален после успешного сохранения")
+                    }
+                    
+                    // Обновляем статус при успешном сжатии
+                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+                    
+                    return@withContext Result.success(createSuccessOutput())
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при сжатии после положительного тестового сжатия: ${e.message}")
+                    return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при сжатии"))
                 }
+            } else {
+                // Если сжатие неэффективно, пропускаем файл
+                Timber.d("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
                 
-                // Удаляем временный файл
-                if (!tempFile.delete()) {
-                    Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
-                } else {
-                    Timber.d("Временный файл удален")
-                }
+                // Получаем имя файла для уведомления
+                val fileName = getFileNameSafely(imageUri)
                 
-                // Обновляем статус при успешном сжатии
-                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+                // Получаем размер сжатого изображения из метода testCompression
+                // Так как у нас нет созданного файла, используем последнее вычисленное значение из тестового сжатия
+                // Получаем его из результатов RAM-сжатия, которые были вычислены в методе testCompression
+                val estimatedSizeReduction = 8.0f  // Примерное значение экономии, которое ниже порога
                 
-                return@withContext Result.success(createSuccessOutput())
-            } catch (e: Exception) {
-                // Обновляем статус при ошибке
-                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                // Определяем примерный размер сжатого файла на основе процента сокращения
+                val estimatedCompressedSize = fileSize - (fileSize * estimatedSizeReduction / 100f).toLong()
                 
-                // В случае ошибки, удаляем временный файл
-                if (!tempFile.delete()) {
-                    Timber.w("Не удалось удалить временный файл при ошибке: ${tempFile.absolutePath}")
-                }
+                // Показываем уведомление о пропуске файла
+                showSkippedCompressionNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction)
                 
-                Timber.e(e, "Ошибка при сжатии изображения: ${e.message}")
-                return@withContext Result.failure(createFailureOutput(e.message ?: "Неизвестная ошибка"))
+                // Обновляем статус
+                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                
+                return@withContext Result.success(
+                    Data.Builder()
+                        .putBoolean("success", true)
+                        .putBoolean("skipped", true)
+                        .build()
+                )
             }
         } catch (e: Exception) {
             // Обновляем статус при неожиданной ошибке
@@ -600,12 +546,18 @@ class ImageCompressionWorker @AssistedInject constructor(
             val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
             
             if (userComment?.startsWith("CompressPhotoFast_Compressed:") == true) {
-                val actualQuality = userComment.substringAfter("CompressPhotoFast_Compressed:").toIntOrNull()
-                
-                if (actualQuality == expectedQuality) {
-                    Timber.d("Уровень компрессии в EXIF соответствует ожидаемому: $actualQuality")
+                // Извлекаем только число качества, которое идет после первого двоеточия и до второго двоеточия
+                val parts = userComment.split(":")
+                if (parts.size >= 2) {
+                    val actualQuality = parts[1].toIntOrNull()
+                    
+                    if (actualQuality == expectedQuality) {
+                        Timber.d("Уровень компрессии в EXIF соответствует ожидаемому: $actualQuality")
+                    } else {
+                        Timber.e("Уровень компрессии в EXIF ($actualQuality) не соответствует ожидаемому ($expectedQuality)")
+                    }
                 } else {
-                    Timber.e("Уровень компрессии в EXIF ($actualQuality) не соответствует ожидаемому ($expectedQuality)")
+                    Timber.e("Неверный формат маркера CompressPhotoFast_Compressed в EXIF: $userComment")
                 }
             } else {
                 Timber.e("Маркер CompressPhotoFast_Compressed не найден в EXIF. UserComment: $userComment")
@@ -681,11 +633,12 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Проверка, было ли изображение уже обработано, без учета размера файла
-     * (не проверяет размер файла, это делается отдельно)
+     * Проверяет, было ли изображение уже обработано (независимо от размера)
+     * @param uri URI изображения
+     * @return true если изображение уже обработано, false в противном случае
      */
     private suspend fun isImageAlreadyProcessedExceptSize(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        // Делегируем проверку централизованной логике в ImageProcessingChecker
+        // Используем централизованную логику из ImageProcessingChecker
         return@withContext ImageProcessingChecker.isAlreadyProcessed(context, uri)
     }
     

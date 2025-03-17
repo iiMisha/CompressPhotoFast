@@ -25,7 +25,6 @@ object Constants {
     // Ограничения размера файлов
     const val MIN_FILE_SIZE = 50 * 1024L // 50 KB
     const val MAX_FILE_SIZE = 100 * 1024 * 1024L // 100 MB
-    const val TEST_COMPRESSION_THRESHOLD_SIZE = 1.5 * 1024 * 1024L // 1.5 MB
     const val TEST_COMPRESSION_EFFICIENCY_THRESHOLD = 10f // 10% минимальная экономия для применения сжатия
     const val OPTIMUM_FILE_SIZE = 0.1 * 1024 * 1024L // 0.1 MB - файлы меньше этого размера считаются уже оптимизированными
     

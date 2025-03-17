@@ -89,6 +89,7 @@ object StatsTracker {
      * @return true если изображение нужно обрабатывать, false если оно уже обработано или не требует обработки
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean {
+        Timber.d("StatsTracker.shouldProcessImage: делегируем проверку в ImageProcessingUtil для URI: $uri")
         return ImageProcessingUtil.shouldProcessImage(context, uri)
     }
     
