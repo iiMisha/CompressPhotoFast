@@ -3,6 +3,8 @@ package com.compressphotofast.util
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import android.provider.DocumentsContract
+import android.provider.DocumentsContract.Document
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -13,6 +15,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Date
+import androidx.documentfile.provider.DocumentFile
 
 /**
  * Класс для централизованной проверки необходимости обработки изображений
@@ -42,23 +45,8 @@ object ImageProcessingChecker {
             }
             
             // ПРИОРИТЕТНАЯ ПРОВЕРКА: наличие EXIF-маркера сжатия и даты модификации
-            // Эта проверка выполняется перед всеми другими логическими проверками для уменьшения нагрузки
-            Timber.d("Выполняется приоритетная проверка EXIF-маркера сжатия: $uri")
-            val hasCompressMarker = ExifUtil.isImageCompressed(context, uri)
-            if (hasCompressMarker) {
-                Timber.d("EXIF-маркер сжатия найден, проверяем дату модификации: $uri")
-                // Проверяем, был ли файл модифицирован после сжатия
-                val wasModifiedAfterCompression = wasFileModifiedAfterCompression(context, uri)
-                
-                if (wasModifiedAfterCompression) {
-                    Timber.d("Файл был модифицирован после сжатия, требуется повторная обработка: $uri")
-                    return@withContext true
-                } else {
-                    Timber.d("Файл был сжат ранее и не модифицирован после этого, пропускаем: $uri")
-                    return@withContext false
-                }
-            } else {
-                Timber.d("EXIF-маркер сжатия не найден, файл требует обработки: $uri")
+            if (isImageCompressedAndNotModified(context, uri)) {
+                return@withContext false
             }
             
             // Все последующие проверки выполняются только если не найден EXIF-маркер сжатия
@@ -69,6 +57,69 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
+            // Проверяем базовые условия (директория приложения, временный файл, и т.д.)
+            if (!shouldBeProcessed(context, uri)) {
+                return@withContext false
+            }
+            
+            // Если выбрана ручная обработка, проверяем что изображение не должно обрабатываться автоматически
+            // Но пропускаем эту проверку, если установлен флаг принудительной обработки
+            if (!forceProcess && FileUtil.isManualCompression(context)) {
+                Timber.d("Активирован режим ручной обработки, автоматическая обработка пропускается: $uri")
+                return@withContext false
+            }
+            
+            // Все проверки пройдены, изображение требует обработки
+            Timber.d("Изображение требует обработки: $uri")
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверяет наличие EXIF-маркера сжатия и было ли изображение модифицировано после сжатия
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение сжато и не модифицировано после сжатия, false в противном случае
+     */
+    private suspend fun isImageCompressedAndNotModified(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            Timber.d("Выполняется приоритетная проверка EXIF-маркера сжатия: $uri")
+            
+            // Проверяем наличие EXIF-маркера сжатия
+            val hasCompressMarker = ExifUtil.isImageCompressed(context, uri)
+            if (!hasCompressMarker) {
+                Timber.d("EXIF-маркер сжатия не найден, файл требует обработки: $uri")
+                return@withContext false
+            }
+            
+            Timber.d("EXIF-маркер сжатия найден, проверяем дату модификации: $uri")
+            // Проверяем, был ли файл модифицирован после сжатия
+            val wasModifiedAfterCompression = wasFileModifiedAfterCompression(context, uri)
+            
+            if (wasModifiedAfterCompression) {
+                Timber.d("Файл был модифицирован после сжатия, требуется повторная обработка: $uri")
+                return@withContext false
+            } else {
+                Timber.d("Файл был сжат ранее и не модифицирован после этого, пропускаем: $uri")
+                return@withContext true
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке EXIF-маркера сжатия: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверяет основные условия для обработки изображения
+     * @param context контекст
+     * @param uri URI изображения
+     * @return true если изображение должно быть обработано, false в противном случае
+     */
+    private suspend fun shouldBeProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
             // Проверяем, не находится ли файл в директории приложения
             val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
             if (isInAppDirectory(path)) {
@@ -97,18 +148,9 @@ object ImageProcessingChecker {
                 }
             }
             
-            // Если выбрана ручная обработка, проверяем что изображение не должно обрабатываться автоматически
-            // Но пропускаем эту проверку, если установлен флаг принудительной обработки
-            if (!forceProcess && FileUtil.isManualCompression(context)) {
-                Timber.d("Активирован режим ручной обработки, автоматическая обработка пропускается: $uri")
-                return@withContext false
-            }
-            
-            // Все проверки пройдены, изображение требует обработки
-            Timber.d("Изображение требует обработки: $uri")
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: ${e.message}")
+            Timber.e(e, "Ошибка при проверке базовых условий обработки: ${e.message}")
             return@withContext false
         }
     }
@@ -171,6 +213,43 @@ object ImageProcessingChecker {
      */
     private suspend fun getFileModificationDate(context: Context, uri: Uri): Long? = withContext(Dispatchers.IO) {
         try {
+            // Специальная обработка для URI документов из галереи
+            if (uri.toString().startsWith("content://com.android.providers.media.documents/")) {
+                Timber.d("Обнаружен URI документа медиа-провайдера, используем специальную обработку")
+                
+                // Получаем ID документа
+                val docId = DocumentsContract.getDocumentId(uri)
+                val split = docId.split(":")
+                if (split.size >= 2) {
+                    val type = split[0]
+                    val id = split[1]
+                    
+                    // Для изображений
+                    if (type == "image") {
+                        val contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                        val selection = MediaStore.Images.Media._ID + "=?"
+                        val selectionArgs = arrayOf(id)
+                        
+                        context.contentResolver.query(
+                            contentUri,
+                            arrayOf(MediaStore.Images.Media.DATE_MODIFIED),
+                            selection,
+                            selectionArgs,
+                            null
+                        )?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val dateModifiedColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+                                // DATE_MODIFIED хранится в секундах, умножаем на 1000 для миллисекунд
+                                val dateModified = cursor.getLong(dateModifiedColumnIndex) * 1000
+                                Timber.d("Дата модификации файла из MediaStore: ${Date(dateModified)} (${dateModified}ms)")
+                                return@withContext dateModified
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Стандартный подход для всех остальных URI
             val projection = arrayOf(MediaStore.Images.Media.DATE_MODIFIED)
             context.contentResolver.query(
                 uri,
@@ -187,6 +266,22 @@ object ImageProcessingChecker {
                     return@withContext dateModified
                 }
             }
+            
+            // Если не удалось получить дату, пробуем использовать DocumentFile
+            try {
+                val documentFile = DocumentFile.fromSingleUri(context, uri)
+                if (documentFile != null && documentFile.exists()) {
+                    val lastModified = documentFile.lastModified()
+                    if (lastModified > 0) {
+                        Timber.d("Дата модификации получена через DocumentFile: ${Date(lastModified)} (${lastModified}ms)")
+                        return@withContext lastModified
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при получении даты через DocumentFile: ${e.message}")
+            }
+            
+            Timber.d("Не удалось получить дату модификации для URI: $uri")
             return@withContext null
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении даты модификации файла: ${e.message}")
@@ -231,7 +326,7 @@ object ImageProcessingChecker {
                 return@withContext true
             }
             
-            // Если файл уже достаточно мал (меньше 1MB)
+            // Если файл уже достаточно мал (меньше оптимального размера)
             val optimumSize = Constants.OPTIMUM_FILE_SIZE
             if (fileSize < optimumSize) {
                 Timber.d("Файл уже достаточно мал (${fileSize/1024}KB < ${optimumSize/1024}KB), пропускаем")
