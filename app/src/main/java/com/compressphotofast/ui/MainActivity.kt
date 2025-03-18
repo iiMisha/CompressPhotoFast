@@ -123,39 +123,56 @@ class MainActivity : AppCompatActivity() {
     private val tempFiles = mutableMapOf<Uri, File>()
 
     /**
+     * Базовый класс для обработки уведомлений о сжатии
+     */
+    private abstract inner class BaseCompressionReceiver : BroadcastReceiver() {
+        protected fun getFileInfo(intent: Intent?): Triple<String, Long, Long>? {
+            if (intent == null) return null
+            
+            val uriString = intent.getStringExtra(Constants.EXTRA_URI) ?: return null
+            val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
+            val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
+            val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
+            
+            return Triple(fileName, originalSize, compressedSize)
+        }
+        
+        protected fun formatFileSizes(originalSize: Long, compressedSize: Long): Pair<String, String> {
+            val originalSizeStr = FileUtil.formatFileSize(originalSize)
+            val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+            return Pair(originalSizeStr, compressedSizeStr)
+        }
+    }
+
+    /**
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
-    private fun showTopToast(message: String, duration: Int = Toast.LENGTH_LONG) {
+    private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
         // Делегируем вызов в ViewModel
         runOnUiThread {
-            viewModel.showTopToast(message, duration)
+            viewModel.showToast(message, duration)
         }
     }
 
     /**
      * Приемник для получения уведомлений о завершении сжатия
      */
-    private val compressionCompletedReceiver = object : BroadcastReceiver() {
+    private val compressionCompletedReceiver = object : BaseCompressionReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
-                val uriString = intent.getStringExtra(Constants.EXTRA_URI)
-                if (uriString != null) {
-                    val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
-                    val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
-                    val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
-                    val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
-                    
-                    // Фоматируем размеры для логов
-                    val originalSizeStr = FileUtil.formatFileSize(originalSize)
-                    val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
-                    val reductionStr = String.format("%.1f", reduction)
-                    
-                    // Только логируем информацию о завершении сжатия, без показа toast
-                    Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
-                    
-                    // Теперь показываем Toast здесь
-                    showCompressionResultToast(fileName, originalSize, compressedSize, reduction)
-                }
+                val fileInfo = getFileInfo(intent) ?: return
+                val (fileName, originalSize, compressedSize) = fileInfo
+                val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
+                
+                // Форматируем размеры
+                val (originalSizeStr, compressedSizeStr) = formatFileSizes(originalSize, compressedSize)
+                val reductionStr = String.format("%.1f", reduction)
+                
+                // Только логируем информацию о завершении сжатия, без показа toast
+                Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
+                
+                // Теперь показываем Toast здесь
+                showCompressionResultToast(fileName, originalSize, compressedSize, reduction)
             }
         }
     }
@@ -163,32 +180,27 @@ class MainActivity : AppCompatActivity() {
     /**
      * Приемник для получения уведомлений о пропуске сжатия
      */
-    private val compressionSkippedReceiver = object : BroadcastReceiver() {
+    private val compressionSkippedReceiver = object : BaseCompressionReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
-                val uriString = intent.getStringExtra(Constants.EXTRA_URI)
-                if (uriString != null) {
-                    val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
-                    val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
-                    val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
-                    val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
-                    
-                    // Фоматируем размеры для логов
-                    val originalSizeStr = FileUtil.formatFileSize(originalSize)
-                    val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
-                    val reductionStr = String.format("%.1f", reduction)
-                    
-                    // Логируем информацию о пропуске сжатия
-                    Timber.d("Получено уведомление о пропуске сжатия: $fileName, экономия слишком мала ($reductionStr%)")
-                    
-                    // Показываем Toast с информацией о пропуске
-                    showToast(getString(
-                        R.string.compression_skipped,
-                        fileName,
-                        reduction,
-                        Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD
-                    ))
-                }
+                val fileInfo = getFileInfo(intent) ?: return
+                val (fileName, originalSize, compressedSize) = fileInfo
+                val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
+                
+                // Форматируем размеры
+                val (originalSizeStr, compressedSizeStr) = formatFileSizes(originalSize, compressedSize)
+                val reductionStr = String.format("%.1f", reduction)
+                
+                // Логируем информацию о пропуске сжатия
+                Timber.d("Получено уведомление о пропуске сжатия: $fileName, экономия слишком мала ($reductionStr%)")
+                
+                // Показываем Toast с информацией о пропуске
+                showToast(getString(
+                    R.string.compression_skipped,
+                    fileName,
+                    reduction,
+                    Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD
+                ))
             }
         }
     }
@@ -206,7 +218,7 @@ class MainActivity : AppCompatActivity() {
         val reductionStr = String.format("%.1f", reduction)
         
         // Показываем toast с результатом сжатия
-        showTopToast(
+        showToast(
             "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
         )
     }
@@ -233,11 +245,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Приемник для получения информации о пропущенных (уже оптимизированных) изображениях
-    private val compressionSkippedFromGalleryReceiver = object : BroadcastReceiver() {
+    private val compressionSkippedFromGalleryReceiver = object : BaseCompressionReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_IMAGE_ALREADY_OPTIMIZED) {
                 // Показываем уведомление для пользователя
-                showTopToast(getString(R.string.image_already_optimized))
+                showToast(getString(R.string.image_already_optimized))
                 Timber.d("Получено уведомление о ранее оптимизированном изображении")
             }
         }
@@ -342,6 +354,46 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
+     * Извлекает URI из Intent в зависимости от его типа
+     */
+    private fun extractUrisFromIntent(intent: Intent): List<Uri> {
+        val uris = mutableListOf<Uri>()
+        
+        when (intent.action) {
+            Intent.ACTION_SEND_MULTIPLE -> {
+                if (intent.type?.startsWith("image/") == true) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uriList ->
+                            uris.addAll(uriList)
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uriList ->
+                            uris.addAll(uriList)
+                        }
+                    }
+                }
+            }
+            Intent.ACTION_SEND -> {
+                if (intent.type?.startsWith("image/") == true) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
+                            uris.add(uri)
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
+                            uris.add(uri)
+                        }
+                    }
+                }
+            }
+        }
+        
+        return uris
+    }
+
+    /**
      * Обработка входящих интентов для получения изображений от других приложений
      */
     private fun handleIntent(intent: Intent?) {
@@ -355,121 +407,61 @@ class MainActivity : AppCompatActivity() {
             Timber.d("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
         }
         
-        when (intent.action) {
-            Intent.ACTION_SEND -> {
-                if (intent.type?.startsWith("image/") == true) {
-                    val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
-                    }
-                    
-                    if (uri != null) {
-                        // Логируем подробную информацию об URI
-                        Timber.d("handleIntent: Получен URI изображения: $uri")
-                        Timber.d("handleIntent: URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
-                        logFileDetails(uri)
-                        
-                        // Получаем путь файла
-                        val path = FileUtil.getFilePathFromUri(this, uri)
-                        Timber.d("handleIntent: Путь к файлу: $path")
-                        
-                        // Обрабатываем изображение с использованием централизованного метода
-                        lifecycleScope.launch {
-                            // Отображаем изображение в UI
-                            viewModel.setSelectedImageUri(uri)
-                            
-                            // Используем централизованный метод для обработки изображения
-                            // Принудительно обрабатываем изображения, полученные через Share, даже если автосжатие отключено
-                            val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true)
-                            
-                            // Обрабатываем результат
-                            if (result.first) { // Успешно выполнился метод
-                                if (result.second) { // Изображение было добавлено в очередь
-                                    // Не показываем уведомление о запуске сжатия для Share
-                                    // Сохраняем только логирование
-                                    Timber.d("Сжатие запущено для: $uri")
-                            } else {
-                                    // Если изображение уже оптимизировано
-                                    if (result.third == "Изображение уже оптимизировано") {
-                                showTopToast(getString(R.string.image_already_optimized))
-                                    } else {
-                                        // Другие случаи неудачи обработки
-                                        showTopToast(result.third)
-                                    }
-                                }
-                            } else {
-                                // Показываем ошибку
-                                showTopToast("Ошибка: ${result.third}")
-                            }
-                        }
-                    }
+        val uris = extractUrisFromIntent(intent)
+        if (uris.isEmpty()) return
+        
+        // Обрабатываем изображения
+        lifecycleScope.launch {
+            // Если есть хотя бы одно изображение, показываем первое в UI
+            viewModel.setSelectedImageUri(uris[0])
+            
+            // Обрабатываем несколько изображений принудительно, независимо от настройки автосжатия
+            var processedCount = 0
+            
+            for (uri in uris) {
+                Timber.d("handleIntent: Обработка URI: $uri")
+                logFileDetails(uri)
+                
+                // Принудительно обрабатываем изображения, полученные через Share
+                val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true)
+                
+                // Считаем обработанные изображения
+                if (result.first && result.second) {
+                    processedCount++
+                } else {
+                    // Ошибки или уже обработанные изображения
+                    Timber.d("handleIntent: URI $uri пропущен: ${result.third}")
                 }
             }
-            Intent.ACTION_SEND_MULTIPLE -> {
-                if (intent.type?.startsWith("image/") == true) {
-                    val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
-                    }
-                    
-                    uris?.let { uriList ->
-                        Timber.d("handleIntent: Получено ${uriList.size} изображений через Intent.ACTION_SEND_MULTIPLE")
-                        
-                        // Собираем и обрабатываем необработанные изображения
-                        lifecycleScope.launch {
-                            // Получаем настройки автосжатия
-                            val settingsManager = SettingsManager.getInstance(this@MainActivity)
-                            val isAutoCompressionEnabled = settingsManager.isAutoCompressionEnabled()
-                            
-                            // Логируем информацию о каждом файле
-                            for (uri in uriList) {
-                                Timber.d("handleIntent: Изображение из множества: $uri")
-                                logFileDetails(uri)
-                            }
-                            
-                            // Если есть хотя бы одно изображение, показываем первое в UI
-                            if (uriList.isNotEmpty()) {
-                                viewModel.setSelectedImageUri(uriList[0])
-                            }
-                            
-                            // Обрабатываем несколько изображений принудительно, независимо от настройки автосжатия
-                            var processedCount = 0
-                            
-                            for (uri in uriList) {
-                                Timber.d("handleIntent: Обработка URI: $uri")
-                                
-                                // Принудительно обрабатываем изображения, полученные через Share
-                                val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true)
-                                
-                                // Считаем обработанные изображения
-                                if (result.first && result.second) {
-                                    processedCount++
-                                } else {
-                                    // Ошибки или уже обработанные изображения
-                                    Timber.d("handleIntent: URI $uri пропущен: ${result.third}")
-                                }
-                            }
-                            
-                            // Показываем уведомление о запуске сжатия
-                            if (processedCount > 0) {
-                                // Не показываем уведомление о запуске сжатия для Share
-                                // Сохраняем только логирование
-                                Timber.d("Запущено сжатие для $processedCount изображений")
-                            } else {
-                                // Если все изображения уже обработаны, показываем сообщение
-                                showTopToast(getString(R.string.all_images_already_compressed))
-                            }
-                        }
-                    }
-                }
+            
+            // Показываем уведомление о запуске сжатия
+            if (processedCount > 0) {
+                // Не показываем уведомление о запуске сжатия для Share
+                // Сохраняем только логирование
+                Timber.d("Запущено сжатие для $processedCount изображений")
+            } else {
+                // Если все изображения уже обработаны, показываем сообщение
+                showToast(getString(R.string.all_images_already_compressed))
             }
         }
     }
-    
+
+    /**
+     * Получение списка URI из интента
+     */
+    private fun getMultipleUrisFromIntent(intent: Intent): List<Uri> {
+        val uris = extractUrisFromIntent(intent).toMutableList()
+        
+        // Если выбрано изображение вручную, и в списке еще нет URI, добавляем его
+        viewModel.selectedImageUri.value?.let { selectedUri ->
+            if (uris.isEmpty()) {
+                uris.add(selectedUri)
+            }
+        }
+        
+        return uris
+    }
+
     /**
      * Логирует подробную информацию о файле
      */
@@ -552,7 +544,7 @@ class MainActivity : AppCompatActivity() {
                 val uri = Uri.fromParts("package", packageName, null)
                 intent.data = uri
                 startActivity(intent)
-                showTopToast(getString(R.string.notification_toast_battery_settings))
+                showToast(getString(R.string.notification_toast_battery_settings))
             } catch (e: Exception) {
                 Timber.e(e, "Ошибка при открытии настроек приложения")
                 try {
@@ -561,7 +553,7 @@ class MainActivity : AppCompatActivity() {
                     startActivity(intent)
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при открытии общих настроек приложений")
-                    showTopToast("Пожалуйста, откройте настройки вручную")
+                    showToast("Пожалуйста, откройте настройки вручную")
                 }
             }
         }
@@ -717,7 +709,7 @@ class MainActivity : AppCompatActivity() {
             onSkip = {
                 initializeBackgroundServices()
                 // Показываем toast о том, что уведомления не будут отображаться
-                showTopToast("Уведомления о завершении сжатия не будут отображаться")
+                showToast("Уведомления о завершении сжатия не будут отображаться")
             }
         )
     }
@@ -732,7 +724,7 @@ class MainActivity : AppCompatActivity() {
             onSkip = {
                 initializeBackgroundServices()
                 // Показываем toast о том, что функциональность может быть ограничена
-                showTopToast("Функциональность приложения может быть ограничена без необходимых разрешений")
+                showToast("Функциональность приложения может быть ограничена без необходимых разрешений")
             }
         )
     }
@@ -813,249 +805,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Получение списка URI из интента
-     */
-    private fun getMultipleUrisFromIntent(intent: Intent): List<Uri> {
-        val uris = mutableListOf<Uri>()
-        
-        when (intent.action) {
-            Intent.ACTION_SEND_MULTIPLE -> {
-                if (intent.type?.startsWith("image/") == true) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uriList ->
-                            uris.addAll(uriList)
-                        }
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uriList ->
-                            uris.addAll(uriList)
-                        }
-                    }
-                }
-            }
-            Intent.ACTION_SEND -> {
-                if (intent.type?.startsWith("image/") == true) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
-                            uris.add(uri)
-                        }
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uri ->
-                            uris.add(uri)
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Если выбрано изображение вручную, и в списке еще нет URI, добавляем его
-        viewModel.selectedImageUri.value?.let { selectedUri ->
-            if (uris.isEmpty()) {
-                uris.add(selectedUri)
-            }
-        }
-        
-        return uris
-    }
-
-    /**
-     * Инициализация фоновых сервисов после получения всех разрешений
-     */
-    private fun initializeBackgroundServices() {
-        val isEnabled = viewModel.isAutoCompressionEnabled()
-        Timber.d("initializeBackgroundServices: состояние автоматического сжатия: ${if (isEnabled) "включено" else "выключено"}")
-        
-        // Проверяем, был ли уже запрос на разрешение удаления файлов
-        val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        val isFirstLaunch = prefs.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
-        val deletePermissionRequested = prefs.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false)
-        
-        // Проверяем, есть ли уже разрешение на управление файлами
-        val hasStoragePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            false
-        }
-        
-        // Запрашиваем разрешение на удаление только если:
-        // 1. Это первый запуск
-        // 2. Разрешение еще не запрашивалось
-        // 3. Разрешение не получено
-        // 4. Включен режим замены файлов
-        // 5. Версия Android >= Q (10)
-        if (isFirstLaunch && !deletePermissionRequested && 
-            !hasStoragePermission &&
-            viewModel.isSaveModeReplace() && 
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            
-            // Устанавливаем флаг первого запуска в false
-            prefs.edit().putBoolean(Constants.PREF_FIRST_LAUNCH, false).apply()
-            
-            // Показываем диалог с объяснением
-            showDeletePermissionDialog()
-        } else {
-            // Запускаем фоновые сервисы
-            if (isEnabled) {
-                Timber.d("initializeBackgroundServices: запуск фоновых сервисов")
-                setupBackgroundService()
-                
-                // Проверяем пропущенные изображения при запуске
-                Timber.d("initializeBackgroundServices: запуск проверки пропущенных изображений")
-                lifecycleScope.launch {
-                    viewModel.processUncompressedImages()
-                }
-            } else {
-                Timber.d("initializeBackgroundServices: автоматическое сжатие отключено, сервисы не запускаются")
-            }
-        }
-    }
-    
-    /**
-     * Показывает диалог с объяснением необходимости разрешения на удаление
-     */
-    private fun showDeletePermissionDialog() {
-        // Проверяем, есть ли уже разрешение MANAGE_EXTERNAL_STORAGE для Android 11+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-            Timber.d("Разрешение на управление файлами уже получено, пропускаем запрос")
-            prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-            initializeBackgroundServices()
-            return
-        }
-        
-        AlertDialog.Builder(this)
-            .setTitle(R.string.dialog_delete_permission_title)
-            .setMessage(R.string.dialog_delete_permission_message)
-            .setPositiveButton(R.string.dialog_ok) { _, _ -> 
-                lifecycleScope.launch {
-                    requestDeletePermission()
-                }
-            }
-            .setNegativeButton(R.string.dialog_skip) { _, _ ->
-                // Устанавливаем флаг, что разрешение было запрошено (хотя пользователь пропустил)
-                prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-                    
-                // Продолжаем инициализацию
-                initializeBackgroundServices()
-            }
-            .setCancelable(false)
-            .create()
-            .show()
-    }
-    
-    /**
-     * Создает тестовый файл и запрашивает разрешение на его удаление
-     */
-    private suspend fun requestDeletePermission() = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем, есть ли уже разрешение MANAGE_EXTERNAL_STORAGE
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-                Timber.d("Разрешение на управление файлами уже получено, пропускаем запрос")
-                withContext(Dispatchers.Main) {
-                    prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-                    initializeBackgroundServices()
-                }
-                return@withContext
-            }
-            
-            Timber.d("Создание тестового файла для запроса разрешения на удаление")
-            
-            // Создаем тестовое изображение
-            val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-            bitmap.eraseColor(Color.RED)
-            
-            // Получаем URI для сохранения в MediaStore
-            val testFileName = "test_delete_permission.jpg"
-            
-            // Параметры для MediaStore
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, testFileName)
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                }
-            }
-            
-            // Сохраняем файл
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            
-            if (uri != null) {
-                contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-                }
-                
-                // Завершаем создание файла в MediaStore
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    contentValues.clear()
-                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                    contentResolver.update(uri, contentValues, null, null)
-                }
-                
-                // Теперь запрашиваем разрешение на удаление этого файла
-                withContext(Dispatchers.Main) {
-                    val intentSender = FileUtil.deleteFile(this@MainActivity, uri)
-                    if (intentSender is IntentSender) {
-                        // Запускаем Intent для получения разрешения на удаление
-                        startIntentSenderForResult(
-                            intentSender,
-                            Constants.REQUEST_CODE_DELETE_PERMISSION,
-                            null,
-                            0,
-                            0,
-                            0,
-                            null
-                        )
-                    } else {
-                        // Если удаление прошло без запроса разрешения (старые версии Android),
-                        // просто продолжаем
-                        Timber.d("Файл удален без запроса разрешения")
-                        prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-                        initializeBackgroundServices()
-                    }
-                }
-            } else {
-                // Не удалось создать файл, пропускаем запрос разрешения
-                Timber.e("Не удалось создать тестовый файл")
-                withContext(Dispatchers.Main) {
-                    prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-                    initializeBackgroundServices()
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при запросе разрешения на удаление")
-            withContext(Dispatchers.Main) {
-                prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-                initializeBackgroundServices()
-            }
-        }
-    }
-    
-    /**
-     * Запрос на удаление файла с получением разрешения
-     */
-    private fun requestFileDelete(uri: Uri) {
-        try {
-            val intentSender = FileUtil.deleteFile(this, uri)
-            if (intentSender is IntentSender) {
-                // Запускаем Intent для получения разрешения на удаление
-                startIntentSenderForResult(
-                    intentSender,
-                    Constants.REQUEST_CODE_DELETE_FILE,
-                    null,
-                    0,
-                    0,
-                    0,
-                    null
-                )
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при запросе удаления файла: $uri")
-        }
-    }
-    
-    /**
      * Проверка наличия отложенных запросов на удаление файлов
      */
     private fun checkPendingDeleteRequests() {
@@ -1088,6 +837,29 @@ class MainActivity : AppCompatActivity() {
     }
     
     /**
+     * Запрос на удаление файла с получением разрешения
+     */
+    private fun requestFileDelete(uri: Uri) {
+        try {
+            val intentSender = FileUtil.deleteFile(this, uri)
+            if (intentSender is IntentSender) {
+                // Запускаем Intent для получения разрешения на удаление
+                startIntentSenderForResult(
+                    intentSender,
+                    Constants.REQUEST_CODE_DELETE_FILE,
+                    null,
+                    0,
+                    0,
+                    0,
+                    null
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при запросе удаления файла: $uri")
+        }
+    }
+    
+    /**
      * Обработка результата запроса на удаление файла
      */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -1103,7 +875,7 @@ class MainActivity : AppCompatActivity() {
             Constants.REQUEST_CODE_DELETE_FILE -> {
                 if (FileUtil.handleDeleteFileRequest(resultCode)) {
                     Timber.d("Файл успешно удален")
-                    showTopToast(getString(R.string.file_deleted_successfully))
+                    showToast(getString(R.string.file_deleted_successfully))
                 } else {
                     Timber.d("Пользователь отклонил запрос на удаление файла")
                 }
@@ -1167,16 +939,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Показывает toast с простым сообщением
+     * Инициализирует фоновые сервисы и продолжает запуск приложения
      */
-    private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
+    private fun initializeBackgroundServices() {
         try {
-            // Используем метод viewModel для показа Toast, чтобы избежать дублирования кода
-            viewModel.showTopToast(message, duration)
+            // Запускаем фоновый сервис, если включено автоматическое сжатие
+            if (viewModel.isAutoCompressionEnabled()) {
+                setupBackgroundService()
+            }
+            
+            // Логируем успешную инициализацию
+            Timber.d("Фоновые сервисы инициализированы успешно")
         } catch (e: Exception) {
-            // Резервный вариант, если метод viewModel недоступен
-            Toast.makeText(this, message, duration).show()
-            Timber.e(e, "Ошибка при показе Toast через ViewModel")
+            Timber.e(e, "Ошибка при инициализации фоновых сервисов")
         }
     }
 

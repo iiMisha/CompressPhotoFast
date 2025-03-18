@@ -628,13 +628,13 @@ class MainViewModel @Inject constructor(
         notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
         
         // Показываем уведомление об остановке
-        showTopToast(context.getString(R.string.batch_processing_stopped))
+        showToast(context.getString(R.string.batch_processing_stopped))
     }
 
     /**
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
-    fun showTopToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+    fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
         Handler(Looper.getMainLooper()).post {
             synchronized(toastLock) {
                 // Проверяем, не показывали ли мы недавно это сообщение
