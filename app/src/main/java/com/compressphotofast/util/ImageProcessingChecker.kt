@@ -28,17 +28,7 @@ object ImageProcessingChecker {
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем, существует ли URI
-            try {
-                val checkCursor = context.contentResolver.query(uri, null, null, null, null)
-                val exists = checkCursor?.use { it.count > 0 } ?: false
-                
-                if (!exists) {
-                    Timber.d("URI не существует: $uri")
-                    return@withContext false
-                }
-            } catch (e: Exception) {
-                Timber.d("Не удалось проверить существование URI: $uri, ${e.message}")
+            if (!isUriExists(context, uri)) {
                 return@withContext false
             }
             
@@ -81,12 +71,7 @@ object ImageProcessingChecker {
             
             // Проверяем, не находится ли файл в директории приложения
             val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
-            val isInAppDir = 
-                (path.contains("/${Constants.APP_DIRECTORY}/") || 
-                 path.contains("content://media/external/images/media") && 
-                 path.contains(Constants.APP_DIRECTORY))
-            
-            if (isInAppDir) {
+            if (isInAppDirectory(path)) {
                 Timber.d("Файл находится в директории приложения: $path")
                 return@withContext false
             }
@@ -218,13 +203,7 @@ object ImageProcessingChecker {
      */
     suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем наличие URI
-            val exists = context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media._ID), null, null, null)?.use {
-                it.count > 0
-            } ?: false
-            
-            if (!exists) {
-                Timber.d("URI не существует: $uri")
+            if (!isUriExists(context, uri)) {
                 return@withContext true
             }
             
@@ -247,12 +226,7 @@ object ImageProcessingChecker {
 
             // Проверяем путь к файлу
             val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
-            val isInAppDir = 
-                (path.contains("/${Constants.APP_DIRECTORY}/") || 
-                 path.contains("content://media/external/images/media") && 
-                 path.contains(Constants.APP_DIRECTORY))
-            
-            if (isInAppDir) {
+            if (isInAppDirectory(path)) {
                 Timber.d("Файл находится в директории приложения: $path")
                 return@withContext true
             }
@@ -313,5 +287,24 @@ object ImageProcessingChecker {
                (mimeType.contains("jpeg") || 
                 mimeType.contains("jpg") || 
                 mimeType.contains("png"))
+    }
+
+    private suspend fun isUriExists(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val exists = context.contentResolver.query(uri, null, null, null, null)?.use { it.count > 0 } ?: false
+            if (!exists) {
+                Timber.d("URI не существует: $uri")
+            }
+            return@withContext exists
+        } catch (e: Exception) {
+            Timber.d("Не удалось проверить существование URI: $uri, ${e.message}")
+            return@withContext false
+        }
+    }
+
+    private fun isInAppDirectory(path: String): Boolean {
+        return path.contains("/${Constants.APP_DIRECTORY}/") || 
+               (path.contains("content://media/external/images/media") && 
+                path.contains(Constants.APP_DIRECTORY))
     }
 } 
