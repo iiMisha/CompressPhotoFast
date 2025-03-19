@@ -85,24 +85,17 @@ object StatsTracker {
     
     /**
      * Проверяет, нужно ли обрабатывать изображение с учетом размера файла
-     * Делегирует вызов в ImageProcessingUtil для предотвращения дублирования логики
-     * @return true если изображение нужно обрабатывать, false если оно уже обработано или не требует обработки
+     * Делегирует вызов в ImageProcessingChecker для предотвращения дублирования логики
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean {
-        Timber.d("StatsTracker.shouldProcessImage: делегируем проверку в ImageProcessingUtil для URI: $uri")
-        return ImageProcessingUtil.shouldProcessImage(context, uri)
+        return ImageProcessingChecker.shouldProcessImage(context, uri)
     }
     
     /**
      * Отмечает изображение как обработанное (добавляет EXIF маркер)
-     * @param context контекст
-     * @param uri URI изображения
-     * @param quality Уровень качества, с которым было сжато изображение
-     * @return true если успешно, false в противном случае
      */
     suspend fun markProcessed(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Добавляем EXIF маркер с помощью ExifUtil
             return@withContext ExifUtil.markCompressedImage(context, uri, quality)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при маркировке изображения как обработанного: ${e.message}")

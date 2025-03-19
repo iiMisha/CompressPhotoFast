@@ -149,10 +149,7 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-        // Делегируем вызов в ViewModel
-        runOnUiThread {
-            viewModel.showToast(message, duration)
-        }
+        NotificationUtil.showToast(this, message, duration)
     }
 
     /**

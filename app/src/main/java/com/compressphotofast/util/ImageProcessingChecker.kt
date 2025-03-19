@@ -18,16 +18,13 @@ import java.util.Date
 import androidx.documentfile.provider.DocumentFile
 
 /**
- * Класс для централизованной проверки необходимости обработки изображений
+ * Централизованный класс для проверки необходимости обработки изображений
  */
 object ImageProcessingChecker {
 
     /**
-     * Проверяет, требуется ли обработка изображения
-     * @param context контекст
-     * @param uri URI изображения
-     * @param forceProcess Принудительная обработка, игнорируя режим ручной обработки
-     * @return true если изображение требует обработки, false в противном случае
+     * Проверяет, нужно ли обрабатывать изображение
+     * Централизованная версия логики для всего приложения
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -35,45 +32,29 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
-            // Получаем размер файла
-            val fileSize = FileUtil.getFileSize(context, uri)
+            // Проверяем, включено ли автоматическое сжатие
+            val settingsManager = SettingsManager.getInstance(context)
+            val isAutoEnabled = settingsManager.isAutoCompressionEnabled()
             
-            // Если файл слишком мал, пропускаем его
-            if (fileSize < Constants.MIN_PROCESSABLE_FILE_SIZE) {
-                Timber.d("Файл слишком мал (${fileSize/1024}KB < минимального порога ${Constants.MIN_PROCESSABLE_FILE_SIZE/1024}KB): $uri")
+            // Если автосжатие отключено и нет флага принудительной обработки, 
+            // возвращаем false
+            if (!isAutoEnabled && !forceProcess) {
                 return@withContext false
             }
             
-            // ПРИОРИТЕТНАЯ ПРОВЕРКА: наличие EXIF-маркера сжатия и даты модификации
-            if (isImageCompressedAndNotModified(context, uri)) {
+            // Проверяем, не является ли изображение скриншотом
+            if (FileUtil.isScreenshot(context, uri)) {
                 return@withContext false
             }
             
-            // Все последующие проверки выполняются только если не найден EXIF-маркер сжатия
-            
-            // Проверяем, находится ли URI уже в списке обрабатываемых
-            if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
-                Timber.d("URI уже в списке обрабатываемых: $uri")
+            // Проверяем, было ли изображение уже обработано
+            if (isAlreadyProcessed(context, uri)) {
                 return@withContext false
             }
             
-            // Проверяем базовые условия (директория приложения, временный файл, и т.д.)
-            if (!shouldBeProcessed(context, uri)) {
-                return@withContext false
-            }
-            
-            // Если выбрана ручная обработка, проверяем что изображение не должно обрабатываться автоматически
-            // Но пропускаем эту проверку, если установлен флаг принудительной обработки
-            if (!forceProcess && FileUtil.isManualCompression(context)) {
-                Timber.d("Активирован режим ручной обработки, автоматическая обработка пропускается: $uri")
-                return@withContext false
-            }
-            
-            // Все проверки пройдены, изображение требует обработки
-            Timber.d("Изображение требует обработки: $uri")
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: ${e.message}")
+            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: $uri")
             return@withContext false
         }
     }

@@ -112,6 +112,7 @@ object NotificationUtil {
     
     /**
      * Показывает Toast с дедупликацией сообщений
+     * Централизованный метод для всего приложения
      */
     fun showToast(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
         Handler(Looper.getMainLooper()).post {
@@ -164,10 +165,8 @@ object NotificationUtil {
                         lastMessageTime.remove(message)
                     }, MIN_TOAST_INTERVAL * 2)
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при показе Toast")
-                    // Пытаемся показать обычный Toast при ошибке
+                    Timber.e(e, "Ошибка при показе Toast: ${e.message}")
                     isToastShowing = false
-                    Toast.makeText(context, message, duration).show()
                 }
             }
         }

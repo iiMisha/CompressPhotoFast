@@ -624,7 +624,6 @@ class MainViewModel @Inject constructor(
      * Показывает Toast с дедупликацией
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
-        // Делегируем вызов централизованному методу
         NotificationUtil.showToast(context, message, duration)
     }
 }

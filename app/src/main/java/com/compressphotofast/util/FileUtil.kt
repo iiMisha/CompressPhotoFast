@@ -661,16 +661,10 @@ object FileUtil {
 
     /**
      * Проверяет, является ли изображение скриншотом
-     * @param context контекст
-     * @param uri URI изображения
-     * @return true если изображение является скриншотом, false в противном случае
      */
     fun isScreenshot(context: Context, uri: Uri): Boolean {
         try {
-            // Получаем имя файла
             val fileName = getFileNameFromUri(context, uri)?.lowercase() ?: return false
-            
-            // Проверяем, содержит ли имя файла типичные для скриншотов паттерны
             return fileName.contains("screenshot") || 
                    fileName.contains("screen_shot") || 
                    fileName.contains("скриншот") || 
