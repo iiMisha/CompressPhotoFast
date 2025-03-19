@@ -119,12 +119,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (!exists) {
                     Timber.d("URI не существует, возможно он был обработан и удален другим процессом: $imageUri")
                     StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                    return@withContext Result.success(
-                        Data.Builder()
-                            .putBoolean("success", true)
-                            .putBoolean("skipped", true)
-                            .build()
-                    )
+                    return@withContext Result.success(createSuccessOutput(skipped = true))
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Ошибка при проверке существования URI: $imageUri")
@@ -150,12 +145,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     // Если есть EXIF-маркер и файл НЕ был модифицирован после обработки - пропускаем
                     Timber.d("Изображение уже сжато и не было модифицировано после этого, пропускаем: $imageUri")
                     StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                    return@withContext Result.success(
-                        Data.Builder()
-                            .putBoolean("success", true)
-                            .putBoolean("skipped", true)
-                            .build()
-                    )
+                    return@withContext Result.success(createSuccessOutput(skipped = true))
                 }
                 
                 Timber.d("Изображение было сжато ранее, но требует повторной обработки: $imageUri")
@@ -211,7 +201,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         } else 0f
                         
                         // Показываем уведомление о завершении сжатия
-                        showCompletionNotification(fileName, fileSize, compressedSize, sizeReduction)
+                        sendCompressionStatusNotification(fileName, fileSize, compressedSize, sizeReduction, false)
                     }
                     
                     // Удаляем временный файл после успешного сохранения
@@ -245,17 +235,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val estimatedCompressedSize = fileSize - (fileSize * estimatedSizeReduction / 100f).toLong()
                 
                 // Показываем уведомление о пропуске файла
-                showSkippedCompressionNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction)
+                sendCompressionStatusNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction, true)
                 
                 // Обновляем статус
                 StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
                 
-                return@withContext Result.success(
-                    Data.Builder()
-                        .putBoolean("success", true)
-                        .putBoolean("skipped", true)
-                        .build()
-                )
+                return@withContext Result.success(createSuccessOutput(skipped = true))
             }
         } catch (e: Exception) {
             // Обновляем статус при неожиданной ошибке
@@ -586,17 +571,28 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Показывает уведомление о завершении сжатия с информацией о результате
+     * Показывает уведомление о завершении или пропуске сжатия с информацией о результате
      */
-    private fun showCompletionNotification(fileName: String, originalSize: Long, compressedSize: Long, sizeReduction: Float) {
-        // Вызываем функцию добавления в недавно обработанные, чтобы MediaStore Observer не обрабатывал этот файл заново
+    private fun sendCompressionStatusNotification(
+        fileName: String, 
+        originalSize: Long, 
+        compressedSize: Long, 
+        sizeReduction: Float,
+        skipped: Boolean
+    ) {
         try {
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString != null) {
-                // Отправляем только информацию о завершении для обновления статуса в BackgroundMonitoringService
-                val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED).apply {
+                // Определяем тип уведомления: о завершении или о пропуске
+                val action = if (skipped) 
+                    Constants.ACTION_COMPRESSION_SKIPPED 
+                else 
+                    Constants.ACTION_COMPRESSION_COMPLETED
+                    
+                // Отправляем информацию через broadcast
+                val intent = Intent(action).apply {
                     putExtra(Constants.EXTRA_FILE_NAME, fileName)
-                    putExtra(Constants.EXTRA_URI, uriString) 
+                    putExtra(Constants.EXTRA_URI, uriString)
                     putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
                     putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
                     putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
@@ -605,20 +601,25 @@ class ImageCompressionWorker @AssistedInject constructor(
                 context.sendBroadcast(intent)
             }
             
-            // Логируем для отладки
-            Timber.d("Уведомление о завершении сжатия отправлено: Файл=$fileName")
+            // Логируем информацию о результате
+            val message = if (skipped) {
+                "Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", sizeReduction)}%"
+            } else {
+                "Уведомление о завершении сжатия отправлено: Файл=$fileName"
+            }
+            Timber.d(message)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отправке уведомления о завершении сжатия")
+            Timber.e(e, "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия")
         }
     }
 
     /**
      * Создание данных для результата с успехом
      */
-    private fun createSuccessOutput(): Data {
+    private fun createSuccessOutput(skipped: Boolean = false): Data {
         return Data.Builder()
             .putBoolean("success", true)
-            .putBoolean("skipped", false)
+            .putBoolean("skipped", skipped)
             .build()
     }
 
@@ -642,7 +643,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         // Используем централизованную логику из ImageProcessingChecker
         return@withContext ImageProcessingChecker.isAlreadyProcessed(context, uri)
     }
-    
+
     /**
      * Обработка результатов сжатия (сохранение в галерею и обработка IntentSender для удаления)
      */
@@ -674,11 +675,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                 
                 // Показываем уведомление о завершении сжатия
-                showCompletionNotification(
+                sendCompressionStatusNotification(
                     fileName = originalFileName,
                     originalSize = stats.originalSize,
                     compressedSize = stats.compressedSize,
-                    sizeReduction = sizeReduction
+                    sizeReduction = sizeReduction,
+                    skipped = false
                 )
                 
                 // Возвращаем успех
@@ -789,31 +791,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке доступности файла: $uri")
             return@withContext false
-        }
-    }
-
-    /**
-     * Показывает уведомление о пропуске сжатия из-за неэффективности
-     */
-    private fun showSkippedCompressionNotification(fileName: String, originalSize: Long, estimatedCompressedSize: Long, estimatedReduction: Float) {
-        try {
-            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-            if (uriString != null) {
-                // Отправляем информацию о пропуске файла
-                val intent = Intent(Constants.ACTION_COMPRESSION_SKIPPED).apply {
-                    putExtra(Constants.EXTRA_FILE_NAME, fileName)
-                    putExtra(Constants.EXTRA_URI, uriString)
-                    putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
-                    putExtra(Constants.EXTRA_COMPRESSED_SIZE, estimatedCompressedSize)
-                    putExtra(Constants.EXTRA_REDUCTION_PERCENT, estimatedReduction)
-                    flags = Intent.FLAG_RECEIVER_FOREGROUND
-                }
-                context.sendBroadcast(intent)
-            }
-            
-            Timber.d("Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", estimatedReduction)}%")
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отправке уведомления о пропуске сжатия")
         }
     }
 } 
