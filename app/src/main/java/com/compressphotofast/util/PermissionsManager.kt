@@ -259,7 +259,7 @@ class PermissionsManager(
      * Показывает диалог с объяснением необходимости полного доступа к файловой системе
      */
     override fun showStoragePermissionDialog(onSkip: () -> Unit) {
-        AlertDialog.Builder(activity)
+        AlertDialog.Builder(activity, R.style.Theme_CompressPhotoFast_AlertDialog)
             .setTitle(R.string.dialog_storage_permission_title)
             .setMessage(R.string.dialog_storage_permission_message)
             .setPositiveButton(R.string.dialog_ok) { _, _ ->
@@ -286,30 +286,23 @@ class PermissionsManager(
      * Показать диалог с объяснением необходимости разрешений
      */
     override fun showPermissionExplanationDialog(
-        permissionType: IPermissionsManager.PermissionType, 
-        onRetry: () -> Unit, 
+        permissionType: IPermissionsManager.PermissionType,
+        onRetry: () -> Unit,
         onSkip: () -> Unit
     ) {
-        // Инициализируем значения по умолчанию
-        var titleResId = R.string.dialog_permission_title
-        var messageResId = R.string.dialog_permission_message
-        
-        when (permissionType) {
-            IPermissionsManager.PermissionType.STORAGE -> {
-                titleResId = R.string.dialog_storage_permission_title
-                messageResId = R.string.dialog_storage_permission_message
-            }
-            IPermissionsManager.PermissionType.NOTIFICATIONS -> {
-                titleResId = R.string.dialog_notification_permission_title
-                messageResId = R.string.dialog_notification_permission_message
-            }
-            IPermissionsManager.PermissionType.ALL -> {
-                titleResId = R.string.dialog_permission_title
-                messageResId = R.string.dialog_permission_message
-            }
+        val titleResId = when (permissionType) {
+            IPermissionsManager.PermissionType.STORAGE -> R.string.dialog_storage_permission_title
+            IPermissionsManager.PermissionType.NOTIFICATIONS -> R.string.dialog_notification_permission_title
+            IPermissionsManager.PermissionType.ALL -> R.string.dialog_permissions_title
         }
         
-        AlertDialog.Builder(activity)
+        val messageResId = when (permissionType) {
+            IPermissionsManager.PermissionType.STORAGE -> R.string.dialog_storage_permission_explanation
+            IPermissionsManager.PermissionType.NOTIFICATIONS -> R.string.dialog_notification_permission_explanation
+            IPermissionsManager.PermissionType.ALL -> R.string.dialog_permissions_explanation
+        }
+        
+        AlertDialog.Builder(activity, R.style.Theme_CompressPhotoFast_AlertDialog)
             .setTitle(titleResId)
             .setMessage(messageResId)
             .setPositiveButton(R.string.dialog_ok) { _, _ -> onRetry() }
@@ -321,6 +314,7 @@ class PermissionsManager(
                         prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
                     IPermissionsManager.PermissionType.NOTIFICATIONS -> 
                         prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
+                    else -> { /* Ничего не делаем */ }
                 }
                 
                 // Вызываем колбэк

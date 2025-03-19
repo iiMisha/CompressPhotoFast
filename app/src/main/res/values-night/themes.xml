@@ -36,4 +36,21 @@
         <item name="android:textSize">16sp</item>
         <item name="android:textColor">@color/primary_text</item>
     </style>
+    
+    <!-- Стиль для диалогов в темной теме -->
+    <style name="Theme.CompressPhotoFast.AlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="colorAccent">@color/dialog_positive_button</item>
+        <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
+        <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
+        <item name="android:background">@color/surface</item>
+    </style>
+    
+    <style name="PositiveButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/dialog_positive_button</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <style name="NegativeButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/dialog_negative_button</item>
+    </style>
 </resources> 

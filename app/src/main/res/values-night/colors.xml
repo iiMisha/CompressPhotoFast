@@ -15,4 +15,6 @@
     <color name="surface">#121212</color>  <!-- Слегка темнее для контраста элементов -->
     <color name="error">#CF6679</color>
     <color name="success">#4CAF50</color>
+    <color name="dialog_positive_button">#64B5F6</color>
+    <color name="dialog_negative_button">#FF7043</color>
 </resources> 
