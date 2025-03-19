@@ -118,8 +118,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 if (!exists) {
                     Timber.d("URI не существует, возможно он был обработан и удален другим процессом: $imageUri")
-                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                    return@withContext Result.success(createSuccessOutput(skipped = true))
+                    return@withContext updateStatusAndReturn(
+                        imageUri, 
+                        StatsTracker.COMPRESSION_STATUS_SKIPPED, 
+                        skipped = true
+                    )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Ошибка при проверке существования URI: $imageUri")
@@ -144,8 +147,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (!wasModifiedAfterCompression) {
                     // Если есть EXIF-маркер и файл НЕ был модифицирован после обработки - пропускаем
                     Timber.d("Изображение уже сжато и не было модифицировано после этого, пропускаем: $imageUri")
-                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                    return@withContext Result.success(createSuccessOutput(skipped = true))
+                    return@withContext updateStatusAndReturn(
+                        imageUri, 
+                        StatsTracker.COMPRESSION_STATUS_SKIPPED, 
+                        skipped = true
+                    )
                 }
                 
                 Timber.d("Изображение было сжато ранее, но требует повторной обработки: $imageUri")
@@ -212,12 +218,17 @@ class ImageCompressionWorker @AssistedInject constructor(
                     }
                     
                     // Обновляем статус при успешном сжатии
-                    StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
-                    
-                    return@withContext Result.success(createSuccessOutput())
+                    return@withContext updateStatusAndReturn(
+                        imageUri, 
+                        StatsTracker.COMPRESSION_STATUS_COMPLETED
+                    )
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при сжатии после положительного тестового сжатия: ${e.message}")
-                    return@withContext Result.failure(createFailureOutput(e.message ?: "Ошибка при сжатии"))
+                    return@withContext updateStatusAndReturn(
+                        imageUri, 
+                        StatsTracker.COMPRESSION_STATUS_FAILED, 
+                        errorMessage = e.message ?: "Ошибка при сжатии"
+                    )
                 }
             } else {
                 // Если сжатие неэффективно, пропускаем файл
@@ -238,18 +249,26 @@ class ImageCompressionWorker @AssistedInject constructor(
                 sendCompressionStatusNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction, true)
                 
                 // Обновляем статус
-                StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
-                
-                return@withContext Result.success(createSuccessOutput(skipped = true))
+                return@withContext updateStatusAndReturn(
+                    imageUri, 
+                    StatsTracker.COMPRESSION_STATUS_SKIPPED, 
+                    skipped = true
+                )
             }
         } catch (e: Exception) {
             // Обновляем статус при неожиданной ошибке
             val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (imageUriString != null) {
                 val uri = Uri.parse(imageUriString)
-                StatsTracker.updateStatus(context, uri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                Timber.e(e, "Неожиданная ошибка в worker: ${e.message}")
+                return@withContext updateStatusAndReturn(
+                    uri,
+                    StatsTracker.COMPRESSION_STATUS_FAILED,
+                    errorMessage = e.message ?: "Неожиданная ошибка"
+                )
             }
             
+            // Если не удалось получить URI, возвращаем стандартную ошибку
             Timber.e(e, "Неожиданная ошибка в worker: ${e.message}")
             return@withContext Result.failure(createFailureOutput(e.message ?: "Неожиданная ошибка"))
         }
@@ -280,19 +299,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                 null
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
-                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                    val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-                    val dataIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                    
-                    val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
-                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
-                    val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
-                    val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
-                    val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
-                    val data = if (dataIndex != -1) cursor.getString(dataIndex) else "unknown"
+                    val id = getCursorLong(cursor, MediaStore.Images.Media._ID)
+                    val name = getCursorString(cursor, MediaStore.Images.Media.DISPLAY_NAME)
+                    val size = getCursorLong(cursor, MediaStore.Images.Media.SIZE)
+                    val date = getCursorLong(cursor, MediaStore.Images.Media.DATE_ADDED)
+                    val mime = getCursorString(cursor, MediaStore.Images.Media.MIME_TYPE)
+                    val data = getCursorString(cursor, MediaStore.Images.Media.DATA)
                     
                     Timber.d("Файл: ID=$id, Имя='$name', Размер=${size/1024}KB, Дата=$date, MIME=$mime, Путь='$data'")
                 } else {
@@ -328,15 +340,10 @@ class ImageCompressionWorker @AssistedInject constructor(
         var info = "Нет данных"
         cursor?.use {
             if (it.moveToFirst()) {
-                val nameIndex = it.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                val dateIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                val sizeIndex = it.getColumnIndex(MediaStore.Images.Media.SIZE)
-                val dataIndex = it.getColumnIndex(MediaStore.Images.Media.DATA)
-                
-                val name = if (nameIndex != -1) it.getString(nameIndex) else "неизвестно"
-                val date = if (dateIndex != -1) it.getLong(dateIndex) else 0
-                val size = if (sizeIndex != -1) it.getLong(sizeIndex) else 0
-                val data = if (dataIndex != -1) it.getString(dataIndex) else "неизвестно"
+                val name = getCursorString(it, MediaStore.Images.Media.DISPLAY_NAME, "неизвестно")
+                val date = getCursorLong(it, MediaStore.Images.Media.DATE_ADDED, 0)
+                val size = getCursorLong(it, MediaStore.Images.Media.SIZE, 0)
+                val data = getCursorString(it, MediaStore.Images.Media.DATA, "неизвестно")
                 
                 info = "Имя: $name, Дата: $date, Размер: $size, Путь: $data"
             }
@@ -359,8 +366,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 null
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val isPendingIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
-                    return@withContext cursor.getInt(isPendingIndex) == 1
+                    return@withContext getCursorLong(cursor, MediaStore.MediaColumns.IS_PENDING, 0) == 1L
                 }
             }
             false
@@ -791,6 +797,40 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке доступности файла: $uri")
             return@withContext false
+        }
+    }
+
+    /**
+     * Безопасно получает строковое значение из курсора по имени колонки
+     */
+    private fun getCursorString(cursor: android.database.Cursor, columnName: String, defaultValue: String = "unknown"): String {
+        val index = cursor.getColumnIndex(columnName)
+        return if (index != -1) cursor.getString(index) else defaultValue
+    }
+    
+    /**
+     * Безопасно получает числовое значение из курсора по имени колонки
+     */
+    private fun getCursorLong(cursor: android.database.Cursor, columnName: String, defaultValue: Long = -1): Long {
+        val index = cursor.getColumnIndex(columnName)
+        return if (index != -1) cursor.getLong(index) else defaultValue
+    }
+
+    /**
+     * Обновляет статус и возвращает результат с указанным статусом
+     */
+    private suspend fun updateStatusAndReturn(
+        uri: Uri, 
+        status: Int, 
+        skipped: Boolean = false, 
+        errorMessage: String? = null
+    ): Result {
+        StatsTracker.updateStatus(context, uri, status)
+        
+        return if (errorMessage != null) {
+            Result.failure(createFailureOutput(errorMessage))
+        } else {
+            Result.success(createSuccessOutput(skipped))
         }
     }
 } 
