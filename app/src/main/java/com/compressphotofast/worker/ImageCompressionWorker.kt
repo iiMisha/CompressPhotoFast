@@ -180,48 +180,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val tempFile = FileUtil.createTempImageFile(context)
                 
                 try {
-                    // Напрямую работаем с URI для декодирования изображения
-                    val bitmap = context.contentResolver.openInputStream(imageUri)?.use { input ->
-                        BitmapFactory.decodeStream(input)
-                    } ?: throw IOException("Не удалось декодировать изображение из URI")
-                    
-                    // Проверяем наличие GPS тегов в исходном изображении
-                    try {
-                        context.contentResolver.openInputStream(imageUri)?.use { input ->
-                            val sourceExif = ExifInterface(input)
-                            checkAndLogGpsTags(sourceExif, "исходном изображении")
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Ошибка при проверке GPS тегов исходного изображения: ${e.message}")
-                    }
-                    
-                    // Сохраняем bitmap в временный файл с указанным качеством
-                    tempFile.outputStream().use { output ->
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, compressionQuality, output)
-                        output.flush()
-                    }
-                    
-                    // Освобождаем память от битмапа
-                    bitmap.recycle()
-                    
-                    Timber.d("compressImage: размер сжатого файла: ${tempFile.length()} байт")
-                    
-                    // Проверяем, что сжатый файл существует и не пуст
-                    if (!tempFile.exists() || tempFile.length() <= 0) {
-                        throw IOException("Сжатый файл не создан или пуст")
-                    }
-                    
-                    // Копируем EXIF данные
-                    ExifUtil.copyExifDataFromUriToFile(context, imageUri, tempFile)
-                    
-                    // Добавляем EXIF маркер сжатия с информацией об уровне компрессии
-                    ExifUtil.markCompressedImage(tempFile.absolutePath, compressionQuality)
-                    
-                    // Проверяем EXIF данные после копирования
-                    logExifDataFromFile(tempFile)
-                    
-                    // Верифицируем, что указанный уровень компрессии соответствует фактическому
-                    verifyCompressionLevel(tempFile, compressionQuality)
+                    // Используем метод compressImage для сжатия изображения
+                    compressImage(imageUri, tempFile, compressionQuality)
                     
                     // Получаем имя файла из URI
                     val fileName = getFileNameSafely(imageUri)
@@ -431,7 +391,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private suspend fun createTempFileFromUri(uri: Uri): File? = withContext(Dispatchers.IO) {
         try {
             // Проверяем размер файла перед копированием
-            val fileSize = getFileSize(uri)
+            val fileSize = FileUtil.getFileSize(context, uri)
             if (fileSize <= 0) {
                 Timber.d("Файл пуст или недоступен: $uri")
                 return@withContext null
@@ -454,31 +414,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: IOException) {
             Timber.e(e, "Ошибка при создании временного файла")
             null
-        }
-    }
-
-    /**
-     * Получение размера файла
-     */
-    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    return@withContext cursor.getLong(sizeIndex)
-                }
-            }
-            -1
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении размера файла")
-            -1
         }
     }
 
@@ -517,7 +452,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             ExifUtil.markCompressedImage(tempFile.absolutePath, quality)
             
             // Проверяем EXIF данные после копирования
-            logExifDataFromFile(tempFile)
+            logExifData(tempFile)
             
             // Верифицируем, что указанный уровень компрессии соответствует фактическому
             verifyCompressionLevel(tempFile, quality)
@@ -531,38 +466,33 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Проверяет EXIF данные из URI изображения
+     * Логирует наличие EXIF данных в файле или URI
      */
-    private suspend fun logExifData(uri: Uri) = withContext(Dispatchers.IO) {
+    private suspend fun logExifData(source: Any) = withContext(Dispatchers.IO) {
         try {
-            val hasBasicTags = ExifUtil.hasBasicExifTags(context, uri)
-            if (hasBasicTags) {
-                Timber.d("EXIF данные найдены в исходном файле")
+            val hasBasicTags = when (source) {
+                is Uri -> ExifUtil.hasBasicExifTags(context, source)
+                is File -> ExifUtil.hasBasicExifTags(source)
+                else -> throw IllegalArgumentException("Неподдерживаемый тип источника: ${source.javaClass}")
             }
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке EXIF данных из URI")
-        }
-    }
-    
-    /**
-     * Логирует наличие EXIF данных в файле
-     */
-    private fun logExifDataFromFile(file: File) {
-        try {
-            val hasBasicTags = ExifUtil.hasBasicExifTags(file)
+            
             if (hasBasicTags) {
-                Timber.d("EXIF данные сохранены")
+                Timber.d("EXIF данные найдены в ${if (source is Uri) "URI" else "файле"}")
             }
             
             // Проверяем GPS данные
             try {
-                val exif = ExifInterface(file.absolutePath)
-                checkAndLogGpsTags(exif, "файле после обработки")
+                val exif = when (source) {
+                    is Uri -> ExifInterface(context.contentResolver.openInputStream(source)!!)
+                    is File -> ExifInterface(source.absolutePath)
+                    else -> throw IllegalArgumentException("Неподдерживаемый тип источника: ${source.javaClass}")
+                }
+                checkAndLogGpsTags(exif, if (source is Uri) "URI" else "файле после обработки")
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при чтении GPS данных из файла")
+                Timber.e(e, "Ошибка при чтении GPS данных из ${if (source is Uri) "URI" else "файла"}")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке EXIF данных из файла")
+            Timber.e(e, "Ошибка при проверке EXIF данных из ${if (source is Uri) "URI" else "файла"}")
         }
     }
 
