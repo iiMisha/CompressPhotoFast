@@ -27,6 +27,12 @@ object NotificationUtil {
     // Минимальный интервал между показом Toast (мс)
     private const val MIN_TOAST_INTERVAL = 3000L
     
+    // Блокировка для синхронизации показа Toast
+    private val toastLock = Any()
+    
+    // Флаг, указывающий что Toast в процессе отображения
+    private var isToastShowing = false
+    
     /**
      * Создание уведомления для фонового сервиса
      */
@@ -109,30 +115,60 @@ object NotificationUtil {
      */
     fun showToast(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
         Handler(Looper.getMainLooper()).post {
-            try {
-                // Проверяем, не показывали ли мы недавно это сообщение
-                val lastTime = lastMessageTime[message] ?: 0L
-                val currentTime = System.currentTimeMillis()
-                
-                if (currentTime - lastTime <= MIN_TOAST_INTERVAL) {
-                    Timber.d("Пропуск Toast - сообщение '$message' уже было показано недавно")
-                    return@post
+            synchronized(toastLock) {
+                try {
+                    // Проверяем, не показывали ли мы недавно это сообщение
+                    val lastTime = lastMessageTime[message] ?: 0L
+                    val currentTime = System.currentTimeMillis()
+                    val timePassed = currentTime - lastTime
+                    
+                    if (timePassed <= MIN_TOAST_INTERVAL) {
+                        Timber.d("Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
+                        return@synchronized
+                    }
+                    
+                    // Если Toast уже отображается, пропускаем
+                    if (isToastShowing) {
+                        Timber.d("Пропуск Toast - другое сообщение уже отображается")
+                        return@synchronized
+                    }
+                    
+                    // Обновляем время последнего показа
+                    lastMessageTime[message] = currentTime
+                    
+                    // Устанавливаем флаг
+                    isToastShowing = true
+                    
+                    // Показываем Toast
+                    val toast = Toast.makeText(context, message, duration)
+                    
+                    // Добавляем callback для сброса флага
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        toast.addCallback(object : Toast.Callback() {
+                            override fun onToastHidden() {
+                                super.onToastHidden()
+                                isToastShowing = false
+                            }
+                        })
+                    } else {
+                        // Для API < 30 сбрасываем флаг через примерное время отображения
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            isToastShowing = false
+                        }, if (duration == Toast.LENGTH_LONG) 3500 else 2000)
+                    }
+                    
+                    toast.show()
+                    
+                    // Очищаем старые записи через двойное время интервала
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        lastMessageTime.remove(message)
+                    }, MIN_TOAST_INTERVAL * 2)
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при показе Toast")
+                    // Пытаемся показать обычный Toast при ошибке
+                    isToastShowing = false
+                    Toast.makeText(context, message, duration).show()
                 }
-                
-                // Обновляем время последнего показа
-                lastMessageTime[message] = currentTime
-                
-                // Показываем Toast
-                Toast.makeText(context, message, duration).show()
-                
-                // Очищаем старые записи через двойное время интервала
-                Handler(Looper.getMainLooper()).postDelayed({
-                    lastMessageTime.remove(message)
-                }, MIN_TOAST_INTERVAL * 2)
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при показе Toast")
-                // Пытаемся показать обычный Toast при ошибке
-                Toast.makeText(context, message, duration).show()
             }
         }
     }

@@ -23,6 +23,7 @@ import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
@@ -80,18 +81,6 @@ class MainViewModel @Inject constructor(
     
     // Job для отслеживания текущей обработки
     private var processingJob: kotlinx.coroutines.Job? = null
-    
-    // Карта для отслеживания времени последнего показа конкретного сообщения
-    private val lastMessageTime = ConcurrentHashMap<String, Long>()
-    
-    // Минимальный интервал между показом Toast (мс)
-    private val MIN_TOAST_INTERVAL = 3000L
-
-    // Флаг, указывающий что Toast в процессе отображения
-    private var isToastShowing = false
-
-    // Блокировка для синхронизации доступа к обработке Toast
-    private val toastLock = ReentrantLock()
     
     init {
         // Загрузить сохраненный уровень сжатия
@@ -632,68 +621,11 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Показывает Toast в верхней части экрана с проверкой дублирования
+     * Показывает Toast с дедупликацией
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
-        Handler(Looper.getMainLooper()).post {
-            synchronized(toastLock) {
-                // Проверяем, не показывали ли мы недавно это сообщение
-                val lastTime = lastMessageTime[message] ?: 0L
-                val currentTime = System.currentTimeMillis()
-                val timePassed = currentTime - lastTime
-                
-                if (timePassed <= MIN_TOAST_INTERVAL) {
-                    Timber.d("Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
-                    return@synchronized
-                }
-                
-                // Если Toast уже отображается, пропускаем
-                if (isToastShowing) {
-                    Timber.d("Пропуск Toast - другое сообщение уже отображается")
-                    return@synchronized
-                }
-                
-                try {
-                    // Обновляем время последнего показа этого сообщения
-                    lastMessageTime[message] = currentTime
-                    
-                    // Устанавливаем флаг
-                    isToastShowing = true
-                    
-                    // Используем обычный Toast без setGravity, так как для текстовых тостов он не работает
-                    val toast = Toast.makeText(context, message, duration)
-                    
-                    // Получаем View из Toast для установки дополнительных параметров
-                    val group = toast.view as ViewGroup?
-                    
-                    // Добавляем callback для сброса флага
-                    toast.addCallback(object : Toast.Callback() {
-                        override fun onToastHidden() {
-                            super.onToastHidden()
-                            isToastShowing = false
-                        }
-                    })
-                    
-                    toast.show()
-                    
-                    // Запускаем очистку через двойной интервал
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        lastMessageTime.remove(message)
-                    }, MIN_TOAST_INTERVAL * 2)
-                } catch (e: Exception) {
-                    // Если что-то пошло не так, показываем обычный Toast
-                    isToastShowing = true
-                    val toast = Toast.makeText(context, message, duration)
-                    toast.addCallback(object : Toast.Callback() {
-                        override fun onToastHidden() {
-                            super.onToastHidden()
-                            isToastShowing = false
-                        }
-                    })
-                    toast.show()
-                }
-            }
-        }
+        // Делегируем вызов централизованному методу
+        NotificationUtil.showToast(context, message, duration)
     }
 }
 

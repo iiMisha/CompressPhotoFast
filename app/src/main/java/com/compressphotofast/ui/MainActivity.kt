@@ -59,6 +59,7 @@ import com.compressphotofast.util.PermissionsManager
 import android.text.Html
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.util.NotificationUtil
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -168,11 +169,12 @@ class MainActivity : AppCompatActivity() {
                 val (originalSizeStr, compressedSizeStr) = formatFileSizes(originalSize, compressedSize)
                 val reductionStr = String.format("%.1f", reduction)
                 
-                // Только логируем информацию о завершении сжатия, без показа toast
+                // Логируем информацию о завершении сжатия
                 Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
                 
-                // Теперь показываем Toast здесь
-                showCompressionResultToast(fileName, originalSize, compressedSize, reduction)
+                // Показываем Toast с результатами сжатия
+                val truncatedFileName = FileUtil.truncateFileName(fileName)
+                showToast("$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
             }
         }
     }
@@ -185,63 +187,17 @@ class MainActivity : AppCompatActivity() {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
                 val fileInfo = getFileInfo(intent) ?: return
                 val (fileName, originalSize, compressedSize) = fileInfo
-                val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
                 
                 // Форматируем размеры
                 val (originalSizeStr, compressedSizeStr) = formatFileSizes(originalSize, compressedSize)
-                val reductionStr = String.format("%.1f", reduction)
                 
-                // Логируем информацию о пропуске сжатия
-                Timber.d("Получено уведомление о пропуске сжатия: $fileName, экономия слишком мала ($reductionStr%)")
-                
-                // Показываем Toast с информацией о пропуске
+                // Показываем toast
                 showToast(getString(
-                    R.string.compression_skipped,
-                    fileName,
-                    reduction,
-                    Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD
+                    R.string.compression_skipped_size_limit,
+                    originalSizeStr
                 ))
             }
         }
-    }
-    
-    /**
-     * Показывает toast с результатом сжатия, если он еще не был показан для данного URI
-     */
-    private fun showCompressionResultToast(fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
-        // Сокращаем длинное имя файла
-        val truncatedFileName = FileUtil.truncateFileName(fileName)
-        
-        // Форматируем размеры
-        val originalSizeStr = FileUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
-        val reductionStr = String.format("%.1f", reduction)
-        
-        // Показываем toast с результатом сжатия
-        showToast(
-            "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
-        )
-    }
-
-    /**
-     * Показывает Toast с увеличенной длительностью путем последовательного показа нескольких Toast
-     */
-    private fun showLongToast(context: Context, message: String, repetitions: Int = 1) {
-        var counter = 0
-        val handler = Handler(Looper.getMainLooper())
-        
-        val runnable = object : Runnable {
-            override fun run() {
-                if (counter < repetitions) {
-                    val toast = Toast.makeText(context, message, Toast.LENGTH_LONG)
-                    toast.show()
-                    counter++
-                    handler.postDelayed(this, 3500)
-                }
-            }
-        }
-        
-        handler.post(runnable)
     }
 
     // Приемник для получения информации о пропущенных (уже оптимизированных) изображениях
@@ -619,7 +575,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                     
-                    showLongToast(this, message)
+                    showToast(message)
                 }
                 
                 // Логируем завершение для отладки
