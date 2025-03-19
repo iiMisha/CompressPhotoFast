@@ -60,6 +60,7 @@ import android.text.Html
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.NotificationUtil
+import androidx.activity.result.IntentSenderRequest
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -102,26 +103,28 @@ class MainActivity : AppCompatActivity() {
     private val deletePermissionReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Constants.ACTION_REQUEST_DELETE_PERMISSION) {
-                val uri = intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
+                }
                 uri?.let {
-                    Timber.d("Получен запрос на удаление файла через broadcast: $uri")
+                    Timber.d("Получен запрос на удаление файла через broadcast: $it")
                     requestFileDelete(it)
                 }
             }
         }
     }
-
-    // Карта для отслеживания времени последнего уведомления для URI
-    private val lastNotificationTime = ConcurrentHashMap<String, Long>()
     
-    // Минимальный интервал между показом Toast для одного URI (мс)
-    private val MIN_TOAST_INTERVAL = 2000L
-
-    // Для отслеживания обработки изображений
-    private var processingImages = false
-    
-    // Для кэширования временных файлов
-    private val tempFiles = mutableMapOf<Uri, File>()
+    // Регистрируем launcher в начале класса
+    private val intentSenderLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // Обработка результата
+        }
+    }
 
     /**
      * Базовый класс для обработки уведомлений о сжатии
@@ -130,7 +133,6 @@ class MainActivity : AppCompatActivity() {
         protected fun getFileInfo(intent: Intent?): Triple<String, Long, Long>? {
             if (intent == null) return null
             
-            val uriString = intent.getStringExtra(Constants.EXTRA_URI) ?: return null
             val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
             val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
             val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
@@ -183,10 +185,10 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
                 val fileInfo = getFileInfo(intent) ?: return
-                val (fileName, originalSize, compressedSize) = fileInfo
+                val (_, originalSize, _) = fileInfo
                 
-                // Форматируем размеры
-                val (originalSizeStr, compressedSizeStr) = formatFileSizes(originalSize, compressedSize)
+                // Получаем форматированный размер оригинального файла
+                val originalSizeStr = FileUtil.formatFileSize(originalSize)
                 
                 // Показываем toast
                 showToast(getString(
@@ -715,10 +717,8 @@ class MainActivity : AppCompatActivity() {
      * Настройка переключателей уровня сжатия
      */
     private fun setupCompressionQualityRadioButtons() {
-        val currentQuality = viewModel.getCompressionQuality()
-        
         // Выбираем соответствующую радиокнопку
-        when (currentQuality) {
+        when (viewModel.getCompressionQuality()) {
             Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
             Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
             else -> binding.rbQualityMedium.isChecked = true
@@ -739,10 +739,6 @@ class MainActivity : AppCompatActivity() {
         
         // Добавим проверку для сжатия изображений
         binding.btnSelectImage.setOnLongClickListener {
-            val currentQ = viewModel.getCompressionQuality()
-            val sharedPrefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-            val savedQ = sharedPrefs.getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
-            
             true
         }
         
@@ -796,15 +792,9 @@ class MainActivity : AppCompatActivity() {
         try {
             val intentSender = FileUtil.deleteFile(this, uri)
             if (intentSender is IntentSender) {
-                // Запускаем Intent для получения разрешения на удаление
-                startIntentSenderForResult(
-                    intentSender,
-                    Constants.REQUEST_CODE_DELETE_FILE,
-                    null,
-                    0,
-                    0,
-                    0,
-                    null
+                // И используем его вместо startIntentSenderForResult
+                intentSenderLauncher.launch(
+                    IntentSenderRequest.Builder(intentSender).build()
                 )
             }
         } catch (e: Exception) {
@@ -880,7 +870,7 @@ class MainActivity : AppCompatActivity() {
         // Проверяем, включено ли автоматическое сжатие
         if (!viewModel.isAutoCompressionEnabled()) {
             // Если автоматическое сжатие выключено, запускаем сжатие вручную
-            viewModel.selectedImageUri.value?.let { uri ->
+            viewModel.selectedImageUri.value?.let { _ ->
                 viewModel.compressSelectedImage()
             }
         } else {
