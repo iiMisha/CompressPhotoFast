@@ -66,9 +66,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         val compressedSize: Long
     )
 
-    // Множество для отслеживания отправленных уведомлений
-    private val notificationsSent = Collections.synchronizedSet(HashSet<String>())
-
     // Качество сжатия (получаем из входных данных)
     private val compressionQuality = inputData.getInt("compression_quality", Constants.COMPRESSION_QUALITY_MEDIUM)
 
@@ -110,11 +107,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Логируем переданное качество сжатия для отладки
             Timber.d("Используется качество сжатия: $compressionQuality (исходный параметр)")
-            
-            // Получаем качество из настроек для сравнения
-            val settingsQuality = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-                .getInt(Constants.PREF_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
-            Timber.d("Сохраненное в настройках качество: $settingsQuality")
             
             // Получаем размер файла
             val fileSize = FileUtil.getFileSize(context, imageUri)
@@ -241,12 +233,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                     
                     // Сохраняем сжатое изображение в галерею
                     Timber.d("Сохранение сжатого изображения в галерею...")
-                    val (savedUri, deleteIntentSender) = FileUtil.saveCompressedImageToGallery(
+                    val savedUri = FileUtil.saveCompressedImageToGallery(
                         context,
                         tempFile,
                         compressedFileName,
                         imageUri
-                    )
+                    ).first
                     
                     // Добавляем URI в список обработанных
                     savedUri?.let {
@@ -599,8 +591,6 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Проверяет и логирует все возможные GPS теги
      */
     private fun checkAndLogGpsTags(exif: ExifInterface, source: String) {
-        val latLong = exif.latLong
-        
         // Логируем все GPS теги для отладки
         val allGpsTags = arrayOf(
             ExifInterface.TAG_GPS_LATITUDE,
@@ -625,8 +615,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
         }
         
-        if (latLong != null) {
-            Timber.d("GPS данные в $source: широта=${latLong[0]}, долгота=${latLong[1]}")
+        if (exif.latLong != null) {
+            val latLong = exif.latLong  // Получаем значение только для использования
+            Timber.d("GPS данные в $source: широта=${latLong!![0]}, долгота=${latLong[1]}")
         } else if (hasAnyGpsTag) {
             Timber.d("GPS теги присутствуют в $source, но координаты не читаются через latLong")
         } else {
@@ -784,12 +775,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             val compressedFileName = FileUtil.createCompressedFileName(originalFileName)
             
             // Сохраняем сжатое изображение в галерею
-            val (savedUri, deleteIntentSender) = FileUtil.saveCompressedImageToGallery(
+            val savedUri = FileUtil.saveCompressedImageToGallery(
                 context,
                 compressedFile,
                 compressedFileName,
                 originalUri
-            )
+            ).first
             
             // Добавляем URI в список обработанных
             savedUri?.let {
