@@ -426,7 +426,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Создание временного файла из URI
+     * Создание временного файла
      */
     private suspend fun createTempFileFromUri(uri: Uri): File? = withContext(Dispatchers.IO) {
         try {
@@ -437,7 +437,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext null
             }
 
-            val tempFile = File.createTempFile("temp_image", ".jpg", context.cacheDir)
+            val tempFile = File.createTempFile("temp_image_", ".jpg", context.cacheDir)
             context.contentResolver.openInputStream(uri)?.use { input ->
                 tempFile.outputStream().use { output ->
                     input.copyTo(output)
@@ -483,17 +483,6 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Создание временного файла
-     */
-    private fun createTempImageFile(): File {
-        return File.createTempFile(
-            "temp_image_",
-            ".jpg",
-            context.cacheDir
-        )
-    }
-
-    /**
      * Сжатие изображения (база)
      */
     private suspend fun compressImage(uri: Uri, tempFile: File, quality: Int) = withContext(Dispatchers.IO) {
@@ -504,16 +493,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             val bitmap = context.contentResolver.openInputStream(uri)?.use { input ->
                 BitmapFactory.decodeStream(input)
             } ?: throw IOException("Не удалось декодировать изображение из URI")
-            
-            // Проверяем наличие GPS тегов в исходном изображении
-            try {
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    val sourceExif = ExifInterface(input)
-                    checkAndLogGpsTags(sourceExif, "исходном изображении")
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при проверке GPS тегов исходного изображения: ${e.message}")
-            }
             
             // Сохраняем bitmap в временный файл с указанным качеством
             tempFile.outputStream().use { output ->
@@ -734,28 +713,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         return@withContext ImageProcessingChecker.isAlreadyProcessed(context, uri)
     }
     
-    /**
-     * Сохранение сжатого изображения в галерею
-     * 
-     * @return Pair<Uri?, Any?> - Первый элемент - URI сжатого изображения, второй - IntentSender для запроса разрешения на удаление
-     */
-    private suspend fun saveCompressedImageToGallery(compressedFile: File, fileName: String, originalUri: Uri): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
-        try {
-            // Используем оригинальное имя файла без изменений
-            val finalFileName = fileName
-            
-            FileUtil.saveCompressedImageToGallery(
-                context,
-                compressedFile,
-                finalFileName,
-                originalUri
-            )
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения")
-            Pair(null, null)
-        }
-    }
-
     /**
      * Обработка результатов сжатия (сохранение в галерею и обработка IntentSender для удаления)
      */
