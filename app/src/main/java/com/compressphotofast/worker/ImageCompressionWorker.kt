@@ -15,7 +15,6 @@ import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
-import com.compressphotofast.util.NotificationHelper
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.TempFilesCleaner
