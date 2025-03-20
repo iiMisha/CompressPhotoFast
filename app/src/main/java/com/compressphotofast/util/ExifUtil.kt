@@ -861,27 +861,15 @@ object ExifUtil {
 
         Timber.d("Копирование EXIF данных из $sourceUri в $destinationUri")
         
+        var sourceInputStream: java.io.InputStream? = null
+        var destFd: android.os.ParcelFileDescriptor? = null
+        
         try {
-            // Создаем временные файлы для работы с EXIF
-            val tempSourceFile = File.createTempFile("exif_source", ".jpg", context.cacheDir)
-            val tempDestFile = File.createTempFile("exif_dest", ".jpg", context.cacheDir)
-            
-            // Копируем содержимое URI в временные файлы
-            context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                FileOutputStream(tempSourceFile).use { output ->
-                    input.copyTo(output)
-                }
-            } ?: throw IOException("Не удалось открыть входной поток для исходного URI")
-            
-            context.contentResolver.openInputStream(destinationUri)?.use { input ->
-                FileOutputStream(tempDestFile).use { output ->
-                    input.copyTo(output)
-                }
-            } ?: throw IOException("Не удалось открыть входной поток для целевого URI")
-            
-            // Работаем с EXIF данными через временные файлы
-            val sourceExif = ExifInterface(tempSourceFile.absolutePath)
-            val destExif = ExifInterface(tempDestFile.absolutePath)
+            // Открываем исходный URI для чтения EXIF
+            sourceInputStream = context.contentResolver.openInputStream(sourceUri)
+                ?: throw IOException("Не удалось открыть входной поток для исходного URI")
+                
+            val sourceExif = ExifInterface(sourceInputStream)
             
             // Логируем важные данные об исходном изображении
             Timber.d("--- Исходные EXIF данные ---")
@@ -894,6 +882,13 @@ object ExifUtil {
             val hasGpsSource = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null &&
                           sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) != null
             Timber.d("Исходный URI содержит GPS данные: $hasGpsSource")
+            
+            // Открываем URI назначения для записи EXIF
+            val pfd = context.contentResolver.openFileDescriptor(destinationUri, "rw")
+                ?: throw IOException("Не удалось получить дескриптор файла для URI назначения")
+                
+            destFd = pfd
+            val destExif = ExifInterface(pfd.fileDescriptor)
             
             // Копируем все важные EXIF теги
             var tagsCopied = 0
@@ -908,22 +903,19 @@ object ExifUtil {
             
             Timber.d("Всего скопировано тегов: $tagsCopied из ${TAG_LIST.size}")
             
-            // Сохраняем изменения в временный файл
+            // Сохраняем изменения в EXIF
             destExif.saveAttributes()
             
-            // Записываем временный файл обратно в URI назначения
-            context.contentResolver.openOutputStream(destinationUri, "wt")?.use { output ->
-                FileInputStream(tempDestFile).use { input ->
-                    input.copyTo(output)
-                }
-            } ?: throw IOException("Не удалось открыть выходной поток для целевого URI")
-            
-            // Удаляем временные файлы
-            tempSourceFile.delete()
-            tempDestFile.delete()
-            
-            // Проверяем успешность копирования, читая URI назначения заново
+            // Проверяем успешность копирования
             var success = false
+            
+            // Закрываем предыдущие ресурсы перед повторным открытием
+            sourceInputStream.close()
+            sourceInputStream = null
+            pfd.close()
+            destFd = null
+            
+            // Открываем обновленный URI для проверки
             context.contentResolver.openInputStream(destinationUri)?.use { input ->
                 val verifiedExif = ExifInterface(input)
                 
@@ -934,7 +926,11 @@ object ExifUtil {
                 Timber.d("Диафрагма (F): ${verifiedExif.getAttribute(ExifInterface.TAG_F_NUMBER)}")
                 Timber.d("Экспозиция (EV): ${verifiedExif.getAttribute(ExifInterface.TAG_EXPOSURE_BIAS_VALUE)}")
                 
-                success = verifyExifCopy(sourceExif, verifiedExif)
+                // Получаем исходный ExifInterface снова для проверки
+                context.contentResolver.openInputStream(sourceUri)?.use { srcInput ->
+                    val srcExifForVerify = ExifInterface(srcInput)
+                    success = verifyExifCopy(srcExifForVerify, verifiedExif)
+                }
                 
                 // Логируем GPS данные после копирования
                 val hasGpsDest = verifiedExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null &&
@@ -947,6 +943,14 @@ object ExifUtil {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
             return false
+        } finally {
+            // Закрываем все ресурсы
+            try { sourceInputStream?.close() } catch (e: Exception) { 
+                Timber.e(e, "Ошибка при закрытии входного потока") 
+            }
+            try { destFd?.close() } catch (e: Exception) { 
+                Timber.e(e, "Ошибка при закрытии дескриптора файла") 
+            }
         }
     }
 
@@ -961,34 +965,24 @@ object ExifUtil {
     fun markCompressedImageUri(context: Context, uri: Uri, quality: Int): Boolean {
         Timber.d("Добавление маркера сжатия в URI: $uri")
         
+        var pfd: android.os.ParcelFileDescriptor? = null
+        
         try {
-            // Создаем временный файл для работы с EXIF
-            val tempFile = File.createTempFile("exif_temp", ".jpg", context.cacheDir)
+            // Открываем URI для записи EXIF
+            val fileDescriptor = context.contentResolver.openFileDescriptor(uri, "rw")
+                ?: throw IOException("Не удалось получить дескриптор файла для URI")
+                
+            pfd = fileDescriptor
             
-            // Копируем содержимое URI во временный файл
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output)
-                }
-            } ?: throw IOException("Не удалось открыть входной поток для URI")
-            
-            // Работаем с EXIF через временный файл
-            val exif = ExifInterface(tempFile.absolutePath)
-            
-            // Добавляем маркер сжатия
+            // Добавляем маркер сжатия через ExifInterface
+            val exif = ExifInterface(fileDescriptor.fileDescriptor)
             val marker = "$EXIF_COMPRESSION_MARKER:$quality"
             exif.setAttribute(ExifInterface.TAG_USER_COMMENT, marker)
             exif.saveAttributes()
             
-            // Записываем обновленный файл обратно в URI
-            context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
-                FileInputStream(tempFile).use { input ->
-                    input.copyTo(output)
-                }
-            } ?: throw IOException("Не удалось открыть выходной поток для URI")
-            
-            // Удаляем временный файл
-            tempFile.delete()
+            // Закрываем дескриптор файла перед проверкой
+            fileDescriptor.close()
+            pfd = null
             
             // Проверяем, успешно ли добавлен маркер
             var success = false
@@ -1004,6 +998,11 @@ object ExifUtil {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при добавлении маркера сжатия в URI: ${e.message}")
             return false
+        } finally {
+            // Закрываем дескриптор, если он всё еще открыт
+            try { pfd?.close() } catch (e: Exception) { 
+                Timber.e(e, "Ошибка при закрытии дескриптора файла") 
+            }
         }
     }
     
