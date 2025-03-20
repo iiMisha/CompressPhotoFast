@@ -123,7 +123,6 @@ object ExifUtil {
             try {
                 // Получаем текущее значение UserComment
                 val currentComment = exif.getAttribute(EXIF_USER_COMMENT)
-                Timber.d("Текущий EXIF маркер для $filePath: $currentComment")
                 
                 // Получаем текущее время в миллисекундах
                 val dateTimeMs = System.currentTimeMillis()
@@ -141,13 +140,10 @@ object ExifUtil {
                     val newExif = ExifInterface(filePath)
                     val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
                     if (newUserComment?.contains(EXIF_COMPRESSION_MARKER) == true) {
-                        Timber.d("EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality и датой: $dateTimeMs. Записанное значение: $newUserComment")
                         verificationSuccess = true
-                    } else {
-                        Timber.w("Не удалось верифицировать маркер сжатия в файле: $filePath. Текущее значение: $newUserComment")
                     }
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при верификации маркера сжатия: ${e.message}")
+                    Timber.e(e, "Ошибка при верификации маркера сжатия в файле: $filePath")
                 }
                 
                 return@withContext verificationSuccess
@@ -716,8 +712,6 @@ object ExifUtil {
         // Фильтруем теги, доступные в текущей версии Android
         val availableTags = allPossibleTags.filter { tag ->
             try {
-                // Безопасная проверка - пробуем получить значение тега, 
-                // даже если оно null, это показывает, что тег поддерживается
                 sourceExif.getAttribute(tag)
                 true
             } catch (e: Exception) {
@@ -734,7 +728,6 @@ object ExifUtil {
                 }
             } catch (e: Exception) {
                 // Если возникла ошибка при копировании конкретного тега, просто пропускаем его
-                Timber.d("Не удалось скопировать тег EXIF: $tag - ${e.message}")
             }
         }
     }
@@ -748,7 +741,6 @@ object ExifUtil {
             // Сначала пробуем получить координаты через latLong
             val latLong = sourceExif.latLong
             if (latLong != null) {
-                Timber.d("Копирование GPS координат через setLatLong: широта=${latLong[0]}, долгота=${latLong[1]}")
                 destExif.setLatLong(latLong[0], latLong[1])
                 
                 // Копируем дополнительные GPS теги
@@ -773,8 +765,6 @@ object ExifUtil {
                     destExif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, gpsLatitudeRef)
                     destExif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, gpsLongitude)
                     destExif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, gpsLongitudeRef)
-                    
-                    Timber.d("GPS теги скопированы напрямую: LAT=$gpsLatitude $gpsLatitudeRef, LONG=$gpsLongitude $gpsLongitudeRef")
                 }
             }
             
@@ -792,7 +782,6 @@ object ExifUtil {
                 val value = sourceExif.getAttribute(tag)
                 if (value != null && !value.matches(Regex("0/1|0|\\?+|^\\s*$"))) {
                     destExif.setAttribute(tag, value)
-                    Timber.d("Скопирован дополнительный GPS тег $tag: $value")
                 }
             }
             
@@ -896,7 +885,6 @@ object ExifUtil {
                 val value = sourceExif.getAttribute(tag)
                 if (value != null) {
                     destExif.setAttribute(tag, value)
-                    Timber.d("Копирование тега $tag = $value")
                     tagsCopied++
                 }
             }
@@ -919,23 +907,11 @@ object ExifUtil {
             context.contentResolver.openInputStream(destinationUri)?.use { input ->
                 val verifiedExif = ExifInterface(input)
                 
-                // Логируем результаты после копирования
-                Timber.d("--- Результаты копирования EXIF ---")
-                Timber.d("Модель камеры: ${verifiedExif.getAttribute(ExifInterface.TAG_MODEL)}")
-                Timber.d("Производитель: ${verifiedExif.getAttribute(ExifInterface.TAG_MAKE)}")
-                Timber.d("Диафрагма (F): ${verifiedExif.getAttribute(ExifInterface.TAG_F_NUMBER)}")
-                Timber.d("Экспозиция (EV): ${verifiedExif.getAttribute(ExifInterface.TAG_EXPOSURE_BIAS_VALUE)}")
-                
                 // Получаем исходный ExifInterface снова для проверки
                 context.contentResolver.openInputStream(sourceUri)?.use { srcInput ->
                     val srcExifForVerify = ExifInterface(srcInput)
                     success = verifyExifCopy(srcExifForVerify, verifiedExif)
                 }
-                
-                // Логируем GPS данные после копирования
-                val hasGpsDest = verifiedExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null &&
-                             verifiedExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) != null
-                Timber.d("Целевой URI содержит GPS данные после копирования: $hasGpsDest")
             }
             
             return success
@@ -1033,11 +1009,7 @@ object ExifUtil {
             val sourceValue = sourceExif.getAttribute(tag)
             val destValue = destExif.getAttribute(tag)
             if (sourceValue != null && sourceValue == destValue) {
-                Timber.d("Критический тег $tag успешно скопирован: $sourceValue")
                 criticalTagCopied = true
-                // Не прерываем цикл, чтобы проверить все критические теги для диагностики
-            } else if (sourceValue != null) {
-                Timber.w("Критический тег $tag НЕ скопирован! Исходный: $sourceValue, Результат: $destValue")
             }
         }
         
@@ -1054,8 +1026,6 @@ object ExifUtil {
                 }
             }
         }
-        
-        Timber.d("Скопировано $tagsCopied из $totalTags тегов (${(tagsCopied * 100.0 / totalTags).toInt()}%)")
         
         // Считаем копирование успешным, если:
         // 1) Скопирован хотя бы один критический тег, ИЛИ
