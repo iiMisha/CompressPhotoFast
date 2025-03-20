@@ -133,6 +133,50 @@ object CompressionTestUtil {
     }
     
     /**
+     * Возвращает ByteArrayOutputStream с результатом тестового сжатия
+     * Это позволяет использовать результат RAM-сжатия напрямую без повторного сжатия
+     * 
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @param quality Качество сжатия (0-100)
+     * @return ByteArrayOutputStream с сжатым изображением или null при ошибке
+     */
+    suspend fun getCompressedImageStream(
+        context: Context,
+        uri: Uri,
+        quality: Int
+    ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
+        try {
+            Timber.d("Получение сжатого изображения в RAM для URI: $uri")
+            
+            // Загружаем изображение в Bitmap
+            val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input)
+            } ?: throw IOException("Не удалось открыть изображение")
+            
+            // Создаем ByteArrayOutputStream для сжатия в память
+            val outputStream = ByteArrayOutputStream()
+            
+            // Сжимаем Bitmap в ByteArrayOutputStream
+            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            
+            if (!success) {
+                Timber.w("Ошибка при сжатии Bitmap в потоке")
+                inputBitmap.recycle() // Освобождаем ресурсы Bitmap
+                return@withContext null
+            }
+            
+            // Освобождаем ресурсы Bitmap, но сохраняем поток
+            inputBitmap.recycle()
+            
+            return@withContext outputStream
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении сжатого потока: ${e.message}")
+            return@withContext null
+        }
+    }
+    
+    /**
      * Класс для хранения статистики сжатия
      */
     data class CompressionStats(

@@ -2,65 +2,55 @@ package com.compressphotofast.ui
 
 import android.Manifest
 import android.app.Activity
-import android.content.ComponentName
+import android.app.ActivityManager
+import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.IntentSender
-import android.content.ServiceConnection
-import android.content.pm.PackageManager
-import android.database.Cursor
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
+import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
+import android.text.Html
 import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.work.WorkInfo
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
+import com.compressphotofast.ui.CompressionResult
+import com.compressphotofast.ui.MultipleImagesProgress
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
-import com.compressphotofast.util.StatsTracker
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
-import timber.log.Timber
-import java.io.File
-import java.io.FileOutputStream
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.content.ContentValues
-import android.os.Environment
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import android.content.BroadcastReceiver
-import android.content.IntentFilter
-import android.content.SharedPreferences
-import java.util.concurrent.ConcurrentHashMap
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
-import android.view.ViewGroup
-import android.widget.TextView
-import kotlinx.coroutines.async
-import com.compressphotofast.util.IPermissionsManager
-import com.compressphotofast.util.PermissionsManager
-import android.text.Html
 import com.compressphotofast.util.ImageProcessingUtil
-import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
-import androidx.activity.result.IntentSenderRequest
+import com.compressphotofast.util.PermissionsManager
+import com.compressphotofast.worker.ImageCompressionWorker
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -69,21 +59,6 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var prefs: SharedPreferences
     private lateinit var permissionsManager: IPermissionsManager
-    
-    // Запуск выбора изображения
-    private val selectImageLauncher = registerForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri>? ->
-        uris?.let {
-            if (it.isNotEmpty()) {
-                Timber.d("Выбрано ${it.size} изображений")
-                // Показываем первое изображение в UI
-                viewModel.setSelectedImageUri(it[0])
-                // Запускаем сжатие всех выбранных изображений
-                viewModel.compressMultipleImages(it)
-            }
-        }
-    }
     
     // Запуск запроса разрешений
     private val requestPermissionLauncher = registerForActivityResult(
@@ -405,16 +380,7 @@ class MainActivity : AppCompatActivity() {
      * Получение списка URI из интента
      */
     private fun getMultipleUrisFromIntent(intent: Intent): List<Uri> {
-        val uris = extractUrisFromIntent(intent).toMutableList()
-        
-        // Если выбрано изображение вручную, и в списке еще нет URI, добавляем его
-        viewModel.selectedImageUri.value?.let { selectedUri ->
-            if (uris.isEmpty()) {
-                uris.add(selectedUri)
-            }
-        }
-        
-        return uris
+        return extractUrisFromIntent(intent)
     }
 
     /**
@@ -462,11 +428,6 @@ class MainActivity : AppCompatActivity() {
      * Настройка пользовательского интерфейса
      */
     private fun setupUI() {
-        // Кнопка выбора изображения
-        binding.btnSelectImage.setOnClickListener {
-            selectImageLauncher.launch("image/*")
-        }
-        
         // Переключатель автоматического сжатия
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
         binding.switchAutoCompression.setOnCheckedChangeListener { _, isChecked ->
@@ -538,7 +499,6 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.clearAnimation()
                 binding.progressBar.visibility = View.GONE
             }
-            binding.btnSelectImage.isEnabled = !isLoading
         }
         
         // Наблюдение за прогрессом обработки нескольких изображений
@@ -548,11 +508,9 @@ class MainActivity : AppCompatActivity() {
                 // Запускаем анимацию
                 val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
                 binding.progressBar.startAnimation(rotateAnim)
-                binding.btnSelectImage.isEnabled = false
             } else if (progress.isComplete) {
                 binding.progressBar.clearAnimation()
                 binding.progressBar.visibility = View.GONE
-                binding.btnSelectImage.isEnabled = true
                 
                 // Показываем Toast с результатом обработки
                 if (progress.total > 1) {
@@ -735,11 +693,6 @@ class MainActivity : AppCompatActivity() {
         
         binding.rbQualityHigh.setOnClickListener {
             viewModel.setCompressionPreset(CompressionPreset.HIGH)
-        }
-        
-        // Добавим проверку для сжатия изображений
-        binding.btnSelectImage.setOnLongClickListener {
-            true
         }
         
         // Наблюдаем за изменениями качества сжатия

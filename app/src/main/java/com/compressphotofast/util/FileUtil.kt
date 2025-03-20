@@ -21,6 +21,8 @@ import kotlinx.coroutines.withContext
 import java.util.Collections
 import java.util.HashMap
 import android.provider.DocumentsContract
+import java.io.IOException
+import java.io.ByteArrayOutputStream
 
 /**
  * Утилитарный класс для работы с файлами
@@ -672,6 +674,141 @@ object FileUtil {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке скриншота для $uri")
             return false
+        }
+    }
+
+    /**
+     * Переименование исходного файла 
+     * Используется перед созданием нового сжатого файла для гарантии сохранности оригинала
+     * 
+     * @param context Контекст приложения
+     * @param uri URI исходного файла
+     * @return URI переименованного файла или null при ошибке
+     */
+    suspend fun renameOriginalFile(
+        context: Context,
+        uri: Uri
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // Получаем информацию о файле
+            val fileName = getFileNameFromUri(context, uri) ?: return@withContext null
+            val fileExt = fileName.substringAfterLast(".", "")
+            val fileBaseName = fileName.substringBeforeLast(".")
+            
+            // Создаем новое имя для оригинального файла, добавляя _original
+            val backupFileName = "${fileBaseName}_original.${fileExt}"
+            
+            // Получаем директорию файла
+            val directory = getDirectoryFromUri(context, uri) ?: return@withContext null
+            
+            // Обновляем запись в MediaStore
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, backupFileName)
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            
+            // Обновляем файл через MediaStore
+            context.contentResolver.update(uri, contentValues, null, null)
+            
+            // Завершаем IS_PENDING состояние, если необходимо
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                context.contentResolver.update(uri, contentValues, null, null)
+            }
+            
+            Timber.d("Файл переименован: $fileName -> $backupFileName")
+            return@withContext uri
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при переименовании файла: ${e.message}")
+            return@withContext null
+        }
+    }
+    
+    /**
+     * Сохранение сжатого изображения напрямую из ByteArrayOutputStream
+     * 
+     * @param context Контекст приложения
+     * @param outputStream ByteArrayOutputStream с сжатым изображением
+     * @param fileName Имя файла для сохранения
+     * @param directory Директория для сохранения
+     * @param originalUri URI оригинального файла для получения EXIF данных
+     * @param quality Качество сжатия (0-100)
+     * @return URI сохраненного файла или null при ошибке
+     */
+    suspend fun saveCompressedImageFromStream(
+        context: Context,
+        outputStream: ByteArrayOutputStream,
+        fileName: String,
+        directory: String,
+        originalUri: Uri,
+        quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, directory)
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            
+            // Создаем новую запись
+            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                ?: throw IOException("Не удалось создать запись MediaStore")
+            
+            // Оптимизированная версия: сначала копируем во временный файл, обрабатываем EXIF и только потом записываем в MediaStore
+            val tempFile = File.createTempFile("temp_compressed_", ".jpg", context.cacheDir)
+            try {
+                // Сохраняем сжатое изображение во временный файл
+                tempFile.outputStream().use { fileOutput ->
+                    outputStream.writeTo(fileOutput)
+                }
+                
+                // Копируем EXIF данные из оригинала во временный файл
+                ExifUtil.copyExifDataFromUriToFile(context, originalUri, tempFile)
+                
+                // Добавляем маркер сжатия в EXIF
+                ExifUtil.markCompressedImage(tempFile.absolutePath, quality)
+                
+                // Записываем готовый файл с EXIF в MediaStore
+                context.contentResolver.openOutputStream(uri)?.use { outputFileStream ->
+                    tempFile.inputStream().use { input ->
+                        input.copyTo(outputFileStream)
+                    }
+                } ?: throw IOException("Не удалось открыть OutputStream для MediaStore")
+                
+                // Удаляем временный файл
+                if (!tempFile.delete()) {
+                    Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при обработке EXIF данных: ${e.message}")
+                
+                // Если произошла ошибка при обработке EXIF, записываем изображение без EXIF
+                context.contentResolver.openOutputStream(uri)?.use { outputFileStream ->
+                    outputStream.writeTo(outputFileStream)
+                    outputFileStream.flush()
+                } ?: throw IOException("Не удалось открыть OutputStream")
+            }
+            
+            // Завершаем IS_PENDING состояние
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                context.contentResolver.update(uri, contentValues, null, null)
+            }
+            
+            Timber.d("Файл сохранен напрямую из потока: $uri")
+            return@withContext uri
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при сохранении из потока: ${e.message}")
+            return@withContext null
         }
     }
 } 

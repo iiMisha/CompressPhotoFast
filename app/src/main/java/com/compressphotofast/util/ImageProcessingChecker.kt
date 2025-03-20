@@ -32,6 +32,13 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
+            // Проверяем, не является ли файл переименованным оригиналом
+            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: ""
+            if (fileName.contains("_original.")) {
+                Timber.d("Файл является переименованным оригиналом, пропускаем: $uri")
+                return@withContext false
+            }
+            
             // Проверяем, включено ли автоматическое сжатие
             val settingsManager = SettingsManager.getInstance(context)
             val isAutoEnabled = settingsManager.isAutoCompressionEnabled()

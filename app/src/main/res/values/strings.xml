@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">CompressPhotoFast</string>
+    <string name="app_name">Сжатие фото</string>
     
     <!-- Основной экран -->
-    <string name="select_image_button">Выбрать изображения</string>
+    <string name="auto_compression_title">Автоматическая обработка</string>
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
     <string name="background_mode_warning"><![CDATA[<font size="16">⚠️</font> При проблемах работы автоматического сжатия на некоторых устройствах: <br><br>
@@ -52,7 +52,7 @@
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
     <string name="image_already_compressed">Изображение уже сжато</string>
-    <string name="image_already_optimized">Изображение уже оптимизировано</string>
+    <string name="image_already_optimized">Изображения уже сжаты</string>
     <string name="all_images_already_compressed">Все изображения уже сжаты</string>
     <string name="file_deleted_successfully">Оригинальный файл успешно удален</string>
     <string name="batch_processing_stopped">Обработка остановлена</string>

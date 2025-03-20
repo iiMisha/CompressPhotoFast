@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import timber.log.Timber
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.io.File
 
 /**
  * Класс для централизованной работы с ContentObserver для отслеживания изменений в MediaStore
@@ -33,6 +34,14 @@ class MediaStoreObserver(
             uri?.let {
                 // Проверяем, что это новое изображение с базовой фильтрацией
                 if (it.toString().contains("media") && it.toString().contains("image")) {
+                    // Проверяем, не является ли файл переименованным оригиналом (с суффиксом _original)
+                    val fileName = FileUtil.getFileNameFromUri(context, it) ?: ""
+                    if (fileName.contains("_original.")) {
+                        // Это переименованный оригинал, пропускаем его
+                        Timber.d("MediaStoreObserver: пропускаем обработку переименованного оригинала: $fileName")
+                        return
+                    }
+                    
                     // Предотвращаем дублирование событий для одного URI за короткий период времени
                     val uriString = it.toString()
                     val currentTime = System.currentTimeMillis()

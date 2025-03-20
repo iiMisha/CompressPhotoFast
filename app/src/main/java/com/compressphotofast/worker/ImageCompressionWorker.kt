@@ -50,6 +50,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import java.io.ByteArrayOutputStream
 import android.content.pm.ServiceInfo
+import android.content.IntentSender
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -171,51 +172,133 @@ class ImageCompressionWorker @AssistedInject constructor(
             )
             
             if (compressionEffective) {
-                // Если сжатие эффективно (>10%), создаем файл и сжимаем
-                Timber.d("Тестовое сжатие эффективно, создаем временный файл для дальнейшей обработки")
-                val tempFile = FileUtil.createTempImageFile(context)
+                // Если сжатие эффективно (>10%), начинаем процесс сжатия
+                Timber.d("Тестовое сжатие эффективно, начинаем процесс сжатия с новой стратегией")
                 
                 try {
-                    // Используем метод compressImage для сжатия изображения
-                    compressImage(imageUri, tempFile, compressionQuality)
-                    
                     // Получаем имя файла из URI
                     val fileName = getFileNameSafely(imageUri)
+                    if (fileName.isNullOrEmpty()) {
+                        Timber.e("Не удалось получить имя файла из URI: $imageUri")
+                        return@withContext updateStatusAndReturn(
+                            imageUri, 
+                            StatsTracker.COMPRESSION_STATUS_FAILED, 
+                            errorMessage = "Не удалось получить имя файла"
+                        )
+                    }
                     Timber.d("Имя исходного файла: $fileName")
                     
-                    // Создаем имя для сжатого файла
-                    val compressedFileName = FileUtil.createCompressedFileName(fileName)
-                    Timber.d("Имя для сжатого файла: $compressedFileName")
-                    
-                    // Сохраняем сжатое изображение в галерею
-                    Timber.d("Сохранение сжатого изображения в галерею...")
-                    val savedUri = FileUtil.saveCompressedImageToGallery(
-                        context,
-                        tempFile,
-                        compressedFileName,
-                        imageUri
-                    ).first
-                    
-                    // Добавляем URI в список обработанных
-                    savedUri?.let {
-                        Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
-                        
-                        // Получаем размер сжатого файла для уведомления
-                        val compressedSize = tempFile.length()
-                        val sizeReduction = if (fileSize > 0) {
-                            ((fileSize - compressedSize).toFloat() / fileSize) * 100
-                        } else 0f
-                        
-                        // Показываем уведомление о завершении сжатия
-                        sendCompressionStatusNotification(fileName, fileSize, compressedSize, sizeReduction, false)
-                    }
-                    
-                    // Удаляем временный файл после успешного сохранения
-                    if (savedUri != null && !tempFile.delete()) {
-                        Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
+                    // Получаем директорию для сохранения сжатого файла
+                    val directory = if (FileUtil.isSaveModeReplace(context)) {
+                        // Если включен режим замены, сохраняем в той же директории
+                        FileUtil.getDirectoryFromUri(context, imageUri) ?: Constants.APP_DIRECTORY
                     } else {
-                        Timber.d("Временный файл удален после успешного сохранения")
+                        // Иначе сохраняем в директории приложения
+                        Constants.APP_DIRECTORY
                     }
+                    Timber.d("Директория для сохранения: $directory")
+                    
+                    // Проверяем, является ли URI документом из MediaDocumentsProvider
+                    val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
+                    Timber.d("Проверка типа URI: isMediaDocumentsUri=$isMediaDocumentsUri")
+                    
+                    // Получаем поток с сжатым изображением напрямую из RAM-сжатия
+                    val compressedStream = CompressionTestUtil.getCompressedImageStream(
+                        context,
+                        imageUri,
+                        compressionQuality
+                    )
+                    
+                    if (compressedStream == null) {
+                        Timber.e("Не удалось получить поток с сжатым изображением")
+                        return@withContext updateStatusAndReturn(
+                            imageUri,
+                            StatsTracker.COMPRESSION_STATUS_FAILED,
+                            errorMessage = "Ошибка при сжатии изображения"
+                        )
+                    }
+                    
+                    // Для MediaDocumentsProvider URI не пытаемся переименовывать оригинальный файл
+                    var backupUri: Uri? = null
+                    if (!isMediaDocumentsUri) {
+                        // Переименовываем оригинальный файл только для обычных URI
+                        backupUri = FileUtil.renameOriginalFile(context, imageUri)
+                        if (backupUri == null) {
+                            Timber.e("Не удалось переименовать оригинальный файл, останавливаем процесс сжатия")
+                            // Закрываем поток сжатого изображения
+                            compressedStream.close()
+                            return@withContext updateStatusAndReturn(
+                                imageUri,
+                                StatsTracker.COMPRESSION_STATUS_FAILED,
+                                errorMessage = "Не удалось переименовать оригинальный файл"
+                            )
+                        }
+                        Timber.d("Оригинальный файл успешно переименован")
+                    } else {
+                        Timber.d("URI относится к MediaDocumentsProvider, пропускаем переименование оригинала")
+                        // Используем исходный URI в качестве backupUri для копирования EXIF
+                        backupUri = imageUri
+                    }
+                    
+                    // Сохраняем сжатое изображение с именем оригинала
+                    val savedUri = FileUtil.saveCompressedImageFromStream(
+                        context,
+                        compressedStream,
+                        fileName,
+                        directory,
+                        backupUri ?: imageUri,
+                        compressionQuality
+                    )
+                    
+                    // Закрываем поток после использования
+                    compressedStream.close()
+                    
+                    if (savedUri == null) {
+                        Timber.e("Не удалось сохранить сжатый файл")
+                        return@withContext updateStatusAndReturn(
+                            imageUri,
+                            StatsTracker.COMPRESSION_STATUS_FAILED,
+                            errorMessage = "Ошибка при сохранении сжатого изображения"
+                        )
+                    }
+                    
+                    Timber.d("Сжатый файл успешно сохранен: $savedUri")
+                    
+                    // Удаляем переименованный оригинальный файл только если это не MediaDocumentsProvider URI
+                    // и если включен режим замены
+                    if (!isMediaDocumentsUri && FileUtil.isSaveModeReplace(context)) {
+                        try {
+                            // Удаляем переименованный оригинальный файл
+                            backupUri?.let { uri ->
+                                val deleteResult = FileUtil.deleteFile(context, uri)
+                                
+                                if (deleteResult is Boolean && deleteResult) {
+                                    Timber.d("Переименованный оригинальный файл успешно удален: $uri")
+                                } else if (deleteResult is IntentSender) {
+                                    Timber.d("Для удаления переименованного оригинального файла требуется разрешение пользователя")
+                                    // Отправляем запрос на удаление с разрешением пользователя
+                                    addPendingDeleteRequest(uri, deleteResult)
+                                } else {
+                                    Timber.e("Не удалось удалить переименованный оригинальный файл: $uri")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Ошибка при удалении переименованного оригинального файла: $backupUri")
+                        }
+                    } else if (isMediaDocumentsUri) {
+                        Timber.d("URI относится к MediaDocumentsProvider, пропускаем удаление оригинала")
+                    } else {
+                        Timber.d("Режим замены выключен, оригинальный файл сохранен как ${backupUri}")
+                    }
+                    
+                    // Получаем размер сжатого файла для уведомления
+                    val compressedSize = FileUtil.getFileSize(context, savedUri)
+                    val sizeReduction = if (fileSize > 0 && compressedSize > 0) {
+                        ((fileSize - compressedSize).toFloat() / fileSize) * 100
+                    } else 0f
+                    
+                    // Показываем уведомление о завершении сжатия
+                    sendCompressionStatusNotification(fileName, fileSize, compressedSize, sizeReduction, false)
                     
                     // Обновляем статус при успешном сжатии
                     return@withContext updateStatusAndReturn(
@@ -223,7 +306,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         StatsTracker.COMPRESSION_STATUS_COMPLETED
                     )
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при сжатии после положительного тестового сжатия: ${e.message}")
+                    Timber.e(e, "Ошибка при сжатии с новой стратегией: ${e.message}")
                     return@withContext updateStatusAndReturn(
                         imageUri, 
                         StatsTracker.COMPRESSION_STATUS_FAILED, 
@@ -237,13 +320,26 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Получаем имя файла для уведомления
                 val fileName = getFileNameSafely(imageUri)
                 
-                // Получаем размер сжатого изображения из метода testCompression
-                // Так как у нас нет созданного файла, используем последнее вычисленное значение из тестового сжатия
-                // Получаем его из результатов RAM-сжатия, которые были вычислены в методе testCompression
-                val estimatedSizeReduction = 8.0f  // Примерное значение экономии, которое ниже порога
+                // Получаем более точную статистику о результатах тестового сжатия
+                val stats = CompressionTestUtil.getTestCompressionStats(
+                    context,
+                    imageUri,
+                    fileSize,
+                    compressionQuality
+                )
                 
-                // Определяем примерный размер сжатого файла на основе процента сокращения
-                val estimatedCompressedSize = fileSize - (fileSize * estimatedSizeReduction / 100f).toLong()
+                // Определяем размер сжатого файла и процент сокращения
+                val estimatedCompressedSize = stats?.compressedSize ?: (fileSize - (fileSize * 0.08f).toLong())
+                val estimatedSizeReduction = stats?.reductionPercent ?: 8.0f
+                
+                // Проверяем использование памяти и форсируем GC при необходимости
+                val usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+                Timber.d("Использование памяти после тестового сжатия: ${usedMemory / 1024 / 1024}MB")
+                
+                if (usedMemory > 100 * 1024 * 1024) { // Если используется больше 100MB
+                    Timber.d("Запрашиваем сборку мусора для освобождения памяти")
+                    System.gc()
+                }
                 
                 // Показываем уведомление о пропуске файла
                 sendCompressionStatusNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction, true)
@@ -719,7 +815,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     /**
      * Добавляет запрос на удаление файла в список ожидающих
      */
-    private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: Any) {
+    private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: IntentSender) {
         Timber.d("Требуется разрешение пользователя для удаления оригинального файла: $uri")
         
         // Сохраняем URI в SharedPreferences для последующей обработки
@@ -736,7 +832,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         val intent = Intent(Constants.ACTION_REQUEST_DELETE_PERMISSION).apply {
             putExtra(Constants.EXTRA_URI, uri)
             // Добавляем IntentSender как Parcelable
-            putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent as android.os.Parcelable)
+            putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent)
         }
         context.sendBroadcast(intent)
     }
