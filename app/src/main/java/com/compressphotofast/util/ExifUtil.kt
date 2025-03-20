@@ -9,10 +9,10 @@ import timber.log.Timber
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.util.Collections
-import java.util.HashMap
 import java.io.FileOutputStream
 import java.io.FileInputStream
+import java.util.Collections
+import java.util.HashMap
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -23,24 +23,64 @@ object ExifUtil {
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
     
-    // Список важных EXIF тегов для копирования
+    /** 
+     * Список важных EXIF тегов для копирования
+     * Обязательно включает теги для метаданных камеры, даты/времени, GPS, экспозиции, и др.
+     */
     private val TAG_LIST = arrayOf(
+        // Теги даты и времени
         ExifInterface.TAG_DATETIME,
         ExifInterface.TAG_DATETIME_ORIGINAL,
+        ExifInterface.TAG_DATETIME_DIGITIZED,
+        
+        // Теги камеры и устройства
         ExifInterface.TAG_MAKE,
         ExifInterface.TAG_MODEL,
+        ExifInterface.TAG_SOFTWARE,
         ExifInterface.TAG_ORIENTATION,
+        
+        // Теги вспышки и режимов съемки
         ExifInterface.TAG_FLASH,
+        ExifInterface.TAG_SCENE_TYPE,
+        ExifInterface.TAG_SCENE_CAPTURE_TYPE,
+        
+        // GPS теги
         ExifInterface.TAG_GPS_LATITUDE,
         ExifInterface.TAG_GPS_LATITUDE_REF,
         ExifInterface.TAG_GPS_LONGITUDE,
         ExifInterface.TAG_GPS_LONGITUDE_REF,
         ExifInterface.TAG_GPS_ALTITUDE,
         ExifInterface.TAG_GPS_ALTITUDE_REF,
+        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+        ExifInterface.TAG_GPS_DATESTAMP,
+        ExifInterface.TAG_GPS_TIMESTAMP,
+        
+        // Теги экспозиции и параметров съемки
         ExifInterface.TAG_EXPOSURE_TIME,
+        ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+        ExifInterface.TAG_EXPOSURE_PROGRAM,
+        ExifInterface.TAG_EXPOSURE_MODE,
+        ExifInterface.TAG_EXPOSURE_INDEX,
+        
+        // Теги диафрагмы и фокусировки
         ExifInterface.TAG_APERTURE_VALUE,
-        ExifInterface.TAG_ISO_SPEED_RATINGS,
-        ExifInterface.TAG_WHITE_BALANCE
+        ExifInterface.TAG_F_NUMBER,        // Добавлен тег F
+        ExifInterface.TAG_FOCAL_LENGTH,
+        ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
+        ExifInterface.TAG_DIGITAL_ZOOM_RATIO,
+        
+        // Теги ISO и баланса белого
+        ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
+        ExifInterface.TAG_WHITE_BALANCE,
+        ExifInterface.TAG_LIGHT_SOURCE,
+        
+        // Прочие теги
+        ExifInterface.TAG_SUBJECT_DISTANCE,
+        ExifInterface.TAG_METERING_MODE,
+        ExifInterface.TAG_CONTRAST,
+        ExifInterface.TAG_SATURATION,
+        ExifInterface.TAG_SHARPNESS,
+        ExifInterface.TAG_SUBJECT_DISTANCE_RANGE
     )
     
     // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
@@ -843,19 +883,30 @@ object ExifUtil {
             val sourceExif = ExifInterface(tempSourceFile.absolutePath)
             val destExif = ExifInterface(tempDestFile.absolutePath)
             
+            // Логируем важные данные об исходном изображении
+            Timber.d("--- Исходные EXIF данные ---")
+            Timber.d("Модель камеры: ${sourceExif.getAttribute(ExifInterface.TAG_MODEL)}")
+            Timber.d("Производитель: ${sourceExif.getAttribute(ExifInterface.TAG_MAKE)}")
+            Timber.d("Диафрагма (F): ${sourceExif.getAttribute(ExifInterface.TAG_F_NUMBER)}")
+            Timber.d("Экспозиция (EV): ${sourceExif.getAttribute(ExifInterface.TAG_EXPOSURE_BIAS_VALUE)}")
+            
             // Логируем GPS данные исходного изображения
             val hasGpsSource = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null &&
                           sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) != null
             Timber.d("Исходный URI содержит GPS данные: $hasGpsSource")
             
             // Копируем все важные EXIF теги
+            var tagsCopied = 0
             for (tag in TAG_LIST) {
                 val value = sourceExif.getAttribute(tag)
                 if (value != null) {
                     destExif.setAttribute(tag, value)
-                    Timber.v("Копирование тега $tag = $value")
+                    Timber.d("Копирование тега $tag = $value")
+                    tagsCopied++
                 }
             }
+            
+            Timber.d("Всего скопировано тегов: $tagsCopied из ${TAG_LIST.size}")
             
             // Сохраняем изменения в временный файл
             destExif.saveAttributes()
@@ -875,6 +926,14 @@ object ExifUtil {
             var success = false
             context.contentResolver.openInputStream(destinationUri)?.use { input ->
                 val verifiedExif = ExifInterface(input)
+                
+                // Логируем результаты после копирования
+                Timber.d("--- Результаты копирования EXIF ---")
+                Timber.d("Модель камеры: ${verifiedExif.getAttribute(ExifInterface.TAG_MODEL)}")
+                Timber.d("Производитель: ${verifiedExif.getAttribute(ExifInterface.TAG_MAKE)}")
+                Timber.d("Диафрагма (F): ${verifiedExif.getAttribute(ExifInterface.TAG_F_NUMBER)}")
+                Timber.d("Экспозиция (EV): ${verifiedExif.getAttribute(ExifInterface.TAG_EXPOSURE_BIAS_VALUE)}")
+                
                 success = verifyExifCopy(sourceExif, verifiedExif)
                 
                 // Логируем GPS данные после копирования
@@ -949,53 +1008,60 @@ object ExifUtil {
     }
     
     /**
-     * Проверяет успешность копирования EXIF данных
-     * @param sourceExif исходный ExifInterface
-     * @param destExif целевой ExifInterface
-     * @return true если хотя бы один важный тег был успешно скопирован
+     * Проверяет успешность копирования EXIF данных между двумя объектами ExifInterface
+     *
+     * @param sourceExif Исходный ExifInterface (откуда копировались данные)
+     * @param destExif ExifInterface назначения (куда копировались данные)
+     * @return true если копирование было успешным, false в противном случае
      */
     private fun verifyExifCopy(sourceExif: ExifInterface, destExif: ExifInterface): Boolean {
-        // Список критичных тегов для проверки
+        // Критические теги, наличие хотя бы одного из которых считается успешным копированием
         val criticalTags = arrayOf(
             ExifInterface.TAG_DATETIME,
             ExifInterface.TAG_MODEL,
             ExifInterface.TAG_MAKE,
             ExifInterface.TAG_GPS_LATITUDE,
-            ExifInterface.TAG_GPS_LONGITUDE
+            ExifInterface.TAG_GPS_LONGITUDE,
+            ExifInterface.TAG_EXPOSURE_TIME,
+            ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+            ExifInterface.TAG_F_NUMBER,
+            ExifInterface.TAG_FOCAL_LENGTH,
+            ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY
         )
         
-        // Проверяем копирование хотя бы одного критичного тега
-        var anyCriticalTagCopied = false
+        var criticalTagCopied = false
         for (tag in criticalTags) {
             val sourceValue = sourceExif.getAttribute(tag)
             val destValue = destExif.getAttribute(tag)
-            
-            if (sourceValue != null && destValue != null && sourceValue == destValue) {
-                Timber.d("Успешно скопирован тег $tag: $sourceValue")
-                anyCriticalTagCopied = true
-                break
+            if (sourceValue != null && sourceValue == destValue) {
+                Timber.d("Критический тег $tag успешно скопирован: $sourceValue")
+                criticalTagCopied = true
+                // Не прерываем цикл, чтобы проверить все критические теги для диагностики
+            } else if (sourceValue != null) {
+                Timber.w("Критический тег $tag НЕ скопирован! Исходный: $sourceValue, Результат: $destValue")
             }
         }
         
-        // Также проверяем общее количество скопированных тегов
+        // Подсчитываем количество успешно скопированных тегов из общего списка
         var tagsCopied = 0
         var totalTags = 0
-        
         for (tag in TAG_LIST) {
             val sourceValue = sourceExif.getAttribute(tag)
+            val destValue = destExif.getAttribute(tag)
             if (sourceValue != null) {
                 totalTags++
-                val destValue = destExif.getAttribute(tag)
-                if (destValue != null && sourceValue == destValue) {
+                if (sourceValue == destValue) {
                     tagsCopied++
                 }
             }
         }
         
-        Timber.d("Скопировано $tagsCopied из $totalTags тегов EXIF")
+        Timber.d("Скопировано $tagsCopied из $totalTags тегов (${(tagsCopied * 100.0 / totalTags).toInt()}%)")
         
-        // Возвращаем успех, если хотя бы один критичный тег или больше половины всех тегов скопировано
-        return anyCriticalTagCopied || (totalTags > 0 && tagsCopied > totalTags / 2)
+        // Считаем копирование успешным, если:
+        // 1) Скопирован хотя бы один критический тег, ИЛИ
+        // 2) Скопировано более половины всех тегов
+        return criticalTagCopied || (totalTags > 0 && tagsCopied >= totalTags / 2)
     }
 
     /**
