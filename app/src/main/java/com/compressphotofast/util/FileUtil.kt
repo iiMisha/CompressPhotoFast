@@ -762,39 +762,26 @@ object FileUtil {
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Не удалось создать запись MediaStore")
             
-            // Оптимизированная версия: сначала копируем во временный файл, обрабатываем EXIF и только потом записываем в MediaStore
-            val tempFile = File.createTempFile("temp_compressed_", ".jpg", context.cacheDir)
             try {
-                // Сохраняем сжатое изображение во временный файл
-                tempFile.outputStream().use { fileOutput ->
-                    outputStream.writeTo(fileOutput)
-                }
-                
-                // Копируем EXIF данные из оригинала во временный файл
-                ExifUtil.copyExifDataFromUriToFile(context, originalUri, tempFile)
-                
-                // Добавляем маркер сжатия в EXIF
-                ExifUtil.markCompressedImage(tempFile.absolutePath, quality)
-                
-                // Записываем готовый файл с EXIF в MediaStore
-                context.contentResolver.openOutputStream(uri)?.use { outputFileStream ->
-                    tempFile.inputStream().use { input ->
-                        input.copyTo(outputFileStream)
-                    }
-                } ?: throw IOException("Не удалось открыть OutputStream для MediaStore")
-                
-                // Удаляем временный файл
-                if (!tempFile.delete()) {
-                    Timber.w("Не удалось удалить временный файл: ${tempFile.absolutePath}")
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при обработке EXIF данных: ${e.message}")
-                
-                // Если произошла ошибка при обработке EXIF, записываем изображение без EXIF
+                // Сначала записываем сжатое изображение
                 context.contentResolver.openOutputStream(uri)?.use { outputFileStream ->
                     outputStream.writeTo(outputFileStream)
                     outputFileStream.flush()
                 } ?: throw IOException("Не удалось открыть OutputStream")
+
+                // Копируем EXIF данные из оригинала в новый файл
+                val path = getFilePathFromUri(context, uri)
+                if (path != null) {
+                    // Копируем EXIF данные из оригинала
+                    ExifUtil.copyExifDataFromUriToFile(context, originalUri, File(path))
+                    
+                    // Добавляем маркер сжатия в EXIF
+                    ExifUtil.markCompressedImage(path, quality)
+                }
+                
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при обработке EXIF данных: ${e.message}")
+                // Если произошла ошибка при обработке EXIF, изображение уже сохранено без EXIF
             }
             
             // Завершаем IS_PENDING состояние
@@ -804,10 +791,10 @@ object FileUtil {
                 context.contentResolver.update(uri, contentValues, null, null)
             }
             
-            Timber.d("Файл сохранен напрямую из потока: $uri")
             return@withContext uri
+            
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении из потока: ${e.message}")
+            Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
             return@withContext null
         }
     }

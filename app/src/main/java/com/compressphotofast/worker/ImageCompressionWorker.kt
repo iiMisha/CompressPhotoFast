@@ -290,15 +290,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                     } else {
                         Timber.d("Режим замены выключен, оригинальный файл сохранен как ${backupUri}")
                     }
-                    
-                    // Получаем размер сжатого файла для уведомления
+                        
+                        // Получаем размер сжатого файла для уведомления
                     val compressedSize = FileUtil.getFileSize(context, savedUri)
                     val sizeReduction = if (fileSize > 0 && compressedSize > 0) {
-                        ((fileSize - compressedSize).toFloat() / fileSize) * 100
-                    } else 0f
-                    
-                    // Показываем уведомление о завершении сжатия
-                    sendCompressionStatusNotification(fileName, fileSize, compressedSize, sizeReduction, false)
+                            ((fileSize - compressedSize).toFloat() / fileSize) * 100
+                        } else 0f
+                        
+                        // Показываем уведомление о завершении сжатия
+                        sendCompressionStatusNotification(fileName, fileSize, compressedSize, sizeReduction, false)
                     
                     // Обновляем статус при успешном сжатии
                     return@withContext updateStatusAndReturn(
