@@ -8,8 +8,11 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.IOException
 import java.util.Collections
 import java.util.HashMap
+import java.io.FileOutputStream
+import java.io.FileInputStream
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -19,6 +22,26 @@ object ExifUtil {
     // Константы для EXIF маркировки
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
+    
+    // Список важных EXIF тегов для копирования
+    private val TAG_LIST = arrayOf(
+        ExifInterface.TAG_DATETIME,
+        ExifInterface.TAG_DATETIME_ORIGINAL,
+        ExifInterface.TAG_MAKE,
+        ExifInterface.TAG_MODEL,
+        ExifInterface.TAG_ORIENTATION,
+        ExifInterface.TAG_FLASH,
+        ExifInterface.TAG_GPS_LATITUDE,
+        ExifInterface.TAG_GPS_LATITUDE_REF,
+        ExifInterface.TAG_GPS_LONGITUDE,
+        ExifInterface.TAG_GPS_LONGITUDE_REF,
+        ExifInterface.TAG_GPS_ALTITUDE,
+        ExifInterface.TAG_GPS_ALTITUDE_REF,
+        ExifInterface.TAG_EXPOSURE_TIME,
+        ExifInterface.TAG_APERTURE_VALUE,
+        ExifInterface.TAG_ISO_SPEED_RATINGS,
+        ExifInterface.TAG_WHITE_BALANCE
+    )
     
     // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
     private val exifCheckCache = Collections.synchronizedMap(HashMap<String, Boolean>())
@@ -35,29 +58,63 @@ object ExifUtil {
      */
     suspend fun markCompressedImage(filePath: String, quality: Int): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Проверяем существование файла
+            val file = File(filePath)
+            if (!file.exists()) {
+                Timber.e("Файл не существует при попытке установить маркер сжатия: $filePath")
+                return@withContext false
+            }
+            
+            // Проверяем, доступен ли файл для чтения и записи
+            if (!file.canRead() || !file.canWrite()) {
+                Timber.e("Файл недоступен для чтения/записи при установке маркера сжатия: $filePath")
+                return@withContext false
+            }
+            
             // Читаем текущие EXIF данные
-            val exif = ExifInterface(filePath)
+            val exif: ExifInterface
+            try {
+                exif = ExifInterface(filePath)
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при открытии файла для EXIF: $filePath")
+                return@withContext false
+            }
             
-            // Получаем текущее значение UserComment
-            val currentComment = exif.getAttribute(EXIF_USER_COMMENT)
-            Timber.d("Текущий EXIF маркер для $filePath: $currentComment")
-            
-            // Получаем текущее время в миллисекундах
-            val dateTimeMs = System.currentTimeMillis()
-            
-            // Добавляем маркер сжатия, уровень компрессии и дату сжатия в миллисекундах
-            val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTimeMs"
-            exif.setAttribute(EXIF_USER_COMMENT, markerWithQualityAndDate)
-            
-            // Сохраняем изменения
-            exif.saveAttributes()
-            
-            // Проверяем, что маркер был установлен
-            val newExif = ExifInterface(filePath)
-            val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
-            Timber.d("EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality и датой: $dateTimeMs. Записанное значение: $newUserComment")
-            
-            return@withContext true
+            try {
+                // Получаем текущее значение UserComment
+                val currentComment = exif.getAttribute(EXIF_USER_COMMENT)
+                Timber.d("Текущий EXIF маркер для $filePath: $currentComment")
+                
+                // Получаем текущее время в миллисекундах
+                val dateTimeMs = System.currentTimeMillis()
+                
+                // Добавляем маркер сжатия, уровень компрессии и дату сжатия в миллисекундах
+                val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTimeMs"
+                exif.setAttribute(EXIF_USER_COMMENT, markerWithQualityAndDate)
+                
+                // Сохраняем изменения
+                exif.saveAttributes()
+                
+                // Проверяем, что маркер был установлен
+                var verificationSuccess = false
+                try {
+                    val newExif = ExifInterface(filePath)
+                    val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
+                    if (newUserComment?.contains(EXIF_COMPRESSION_MARKER) == true) {
+                        Timber.d("EXIF маркер сжатия установлен в файл: $filePath с качеством: $quality и датой: $dateTimeMs. Записанное значение: $newUserComment")
+                        verificationSuccess = true
+                    } else {
+                        Timber.w("Не удалось верифицировать маркер сжатия в файле: $filePath. Текущее значение: $newUserComment")
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при верификации маркера сжатия: ${e.message}")
+                }
+                
+                return@withContext verificationSuccess
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при установке EXIF маркера сжатия: ${e.message}")
+                return@withContext false
+            }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия в файл: ${e.message}")
             return@withContext false
@@ -198,49 +255,97 @@ object ExifUtil {
      * @param context контекст
      * @param sourceUri URI исходного изображения
      * @param destinationFile файл назначения
+     * @return true если копирование успешно, false в противном случае
      */
-    suspend fun copyExifDataFromUriToFile(context: Context, sourceUri: Uri, destinationFile: File) = withContext(Dispatchers.IO) {
+    suspend fun copyExifDataFromUriToFile(context: Context, sourceUri: Uri, destinationFile: File): Boolean = withContext(Dispatchers.IO) {
         try {
-            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                val sourceExif = ExifInterface(inputStream)
-                val destinationExif = ExifInterface(destinationFile.absolutePath)
-
-                // Логируем GPS данные до копирования
-                val sourceLatLong = sourceExif.latLong
-                if (sourceLatLong != null) {
-                    Timber.d("GPS данные в исходном файле: широта=${sourceLatLong[0]}, долгота=${sourceLatLong[1]}")
-                } else {
-                    // Проверяем наличие отдельных GPS тегов
-                    val gpsLatitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                    val gpsLatitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                    val gpsLongitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                    val gpsLongitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
-                    
-                    if (gpsLatitude != null || gpsLatitudeRef != null || gpsLongitude != null || gpsLongitudeRef != null) {
-                        Timber.d("GPS теги в исходном файле: LAT=$gpsLatitude, LAT_REF=$gpsLatitudeRef, LONG=$gpsLongitude, LONG_REF=$gpsLongitudeRef")
-                    } else {
-                        Timber.d("GPS данные в исходном файле отсутствуют")
-                    }
+            // Проверяем, существует ли файл назначения
+            if (!destinationFile.exists()) {
+                Timber.w("Файл назначения не существует: ${destinationFile.absolutePath}")
+                return@withContext false
+            }
+            
+            // Получаем EXIF данные из исходника
+            val sourceExif = try {
+                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                    ExifInterface(inputStream)
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Не удалось открыть источник для чтения EXIF: $sourceUri")
+                return@withContext false
+            }
+            
+            if (sourceExif == null) {
+                Timber.e("Не удалось получить EXIF данные из источника: $sourceUri")
+                return@withContext false
+            }
+            
+            // Пытаемся открыть файл назначения
+            val destinationExif = try {
+                ExifInterface(destinationFile.absolutePath)
+            } catch (e: Exception) {
+                Timber.e(e, "Не удалось открыть файл назначения для записи EXIF: ${destinationFile.absolutePath}")
+                return@withContext false
+            }
+            
+            // Логируем GPS данные до копирования
+            val sourceLatLong = sourceExif.latLong
+            if (sourceLatLong != null) {
+                Timber.d("GPS данные в исходном файле: широта=${sourceLatLong[0]}, долгота=${sourceLatLong[1]}")
+            } else {
+                // Проверяем наличие отдельных GPS тегов
+                val gpsLatitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
+                val gpsLatitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
+                val gpsLongitude = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
+                val gpsLongitudeRef = sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
                 
-                // Копируем все EXIF теги, используя общий метод
+                if (gpsLatitude != null || gpsLatitudeRef != null || gpsLongitude != null || gpsLongitudeRef != null) {
+                    Timber.d("GPS теги в исходном файле: LAT=$gpsLatitude, LAT_REF=$gpsLatitudeRef, LONG=$gpsLongitude, LONG_REF=$gpsLongitudeRef")
+                } else {
+                    Timber.d("GPS данные в исходном файле отсутствуют")
+                }
+            }
+            
+            // Копируем все EXIF теги, используя общий метод
+            try {
                 copyExifTags(sourceExif, destinationExif)
                 
                 // Сохраняем изменения
                 destinationExif.saveAttributes()
-                
-                // Проверяем, что GPS данные были скопированы
-                val destLatLong = destinationExif.latLong
-                if (destLatLong != null) {
-                    Timber.d("GPS данные в сжатом файле после копирования: широта=${destLatLong[0]}, долгота=${destLatLong[1]}")
-                } else {
-                    Timber.d("GPS данные в сжатом файле отсутствуют после копирования")
-                }
-                
-                Timber.d("EXIF данные успешно скопированы из URI в файл")
+            } catch (e: Exception) {
+                Timber.e(e, "Ошибка при копировании или сохранении EXIF данных: ${e.message}")
+                return@withContext false
             }
+            
+            // Проверяем, что GPS данные были скопированы
+            val destLatLong = destinationExif.latLong
+            if (destLatLong != null) {
+                Timber.d("GPS данные в сжатом файле после копирования: широта=${destLatLong[0]}, долгота=${destLatLong[1]}")
+            } else {
+                Timber.d("GPS данные в сжатом файле отсутствуют после копирования")
+            }
+            
+            // Проверяем, что основные теги были скопированы
+            val sourceMake = sourceExif.getAttribute(ExifInterface.TAG_MAKE)
+            val destMake = destinationExif.getAttribute(ExifInterface.TAG_MAKE)
+            val sourceDateTime = sourceExif.getAttribute(ExifInterface.TAG_DATETIME)
+            val destDateTime = destinationExif.getAttribute(ExifInterface.TAG_DATETIME)
+            
+            // Если хотя бы один важный тег был скопирован, считаем операцию успешной
+            val copySuccessful = (destLatLong != null && sourceLatLong != null) || 
+                               (sourceMake == destMake && sourceMake != null) ||
+                               (sourceDateTime == destDateTime && sourceDateTime != null)
+            
+            if (copySuccessful) {
+                Timber.d("EXIF данные успешно скопированы из URI в файл")
+            } else {
+                Timber.w("Не удалось подтвердить копирование EXIF данных")
+            }
+            
+            return@withContext copySuccessful
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при копировании EXIF данных: ${e.message}")
+            return@withContext false
         }
     }
     
@@ -697,6 +802,250 @@ object ExifUtil {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении даты сжатия из EXIF: ${e.message}")
             return@withContext null
+        }
+    }
+    
+    /**
+     * Копирование EXIF данных между двумя URI
+     *
+     * @param context Контекст приложения
+     * @param sourceUri Исходный URI (откуда копировать EXIF)
+     * @param destinationUri URI назначения (куда копировать EXIF)
+     * @return true если копирование успешно, false в противном случае
+     */
+    fun copyExifDataBetweenUris(context: Context, sourceUri: Uri, destinationUri: Uri): Boolean {
+        if (sourceUri == destinationUri) {
+            Timber.w("URI источника и назначения одинаковы, копирование не требуется")
+            return false
+        }
+
+        Timber.d("Копирование EXIF данных из $sourceUri в $destinationUri")
+        
+        try {
+            // Создаем временные файлы для работы с EXIF
+            val tempSourceFile = File.createTempFile("exif_source", ".jpg", context.cacheDir)
+            val tempDestFile = File.createTempFile("exif_dest", ".jpg", context.cacheDir)
+            
+            // Копируем содержимое URI в временные файлы
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                FileOutputStream(tempSourceFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Не удалось открыть входной поток для исходного URI")
+            
+            context.contentResolver.openInputStream(destinationUri)?.use { input ->
+                FileOutputStream(tempDestFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Не удалось открыть входной поток для целевого URI")
+            
+            // Работаем с EXIF данными через временные файлы
+            val sourceExif = ExifInterface(tempSourceFile.absolutePath)
+            val destExif = ExifInterface(tempDestFile.absolutePath)
+            
+            // Логируем GPS данные исходного изображения
+            val hasGpsSource = sourceExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null &&
+                          sourceExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) != null
+            Timber.d("Исходный URI содержит GPS данные: $hasGpsSource")
+            
+            // Копируем все важные EXIF теги
+            for (tag in TAG_LIST) {
+                val value = sourceExif.getAttribute(tag)
+                if (value != null) {
+                    destExif.setAttribute(tag, value)
+                    Timber.v("Копирование тега $tag = $value")
+                }
+            }
+            
+            // Сохраняем изменения в временный файл
+            destExif.saveAttributes()
+            
+            // Записываем временный файл обратно в URI назначения
+            context.contentResolver.openOutputStream(destinationUri, "wt")?.use { output ->
+                FileInputStream(tempDestFile).use { input ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Не удалось открыть выходной поток для целевого URI")
+            
+            // Удаляем временные файлы
+            tempSourceFile.delete()
+            tempDestFile.delete()
+            
+            // Проверяем успешность копирования, читая URI назначения заново
+            var success = false
+            context.contentResolver.openInputStream(destinationUri)?.use { input ->
+                val verifiedExif = ExifInterface(input)
+                success = verifyExifCopy(sourceExif, verifiedExif)
+                
+                // Логируем GPS данные после копирования
+                val hasGpsDest = verifiedExif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null &&
+                             verifiedExif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) != null
+                Timber.d("Целевой URI содержит GPS данные после копирования: $hasGpsDest")
+            }
+            
+            return success
+            
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
+            return false
+        }
+    }
+
+    /**
+     * Добавление маркера сжатия в EXIF данные по URI
+     *
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @param quality Качество сжатия
+     * @return true если маркер добавлен успешно, false в противном случае
+     */
+    fun markCompressedImageUri(context: Context, uri: Uri, quality: Int): Boolean {
+        Timber.d("Добавление маркера сжатия в URI: $uri")
+        
+        try {
+            // Создаем временный файл для работы с EXIF
+            val tempFile = File.createTempFile("exif_temp", ".jpg", context.cacheDir)
+            
+            // Копируем содержимое URI во временный файл
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Не удалось открыть входной поток для URI")
+            
+            // Работаем с EXIF через временный файл
+            val exif = ExifInterface(tempFile.absolutePath)
+            
+            // Добавляем маркер сжатия
+            val marker = "$EXIF_COMPRESSION_MARKER:$quality"
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, marker)
+            exif.saveAttributes()
+            
+            // Записываем обновленный файл обратно в URI
+            context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                FileInputStream(tempFile).use { input ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Не удалось открыть выходной поток для URI")
+            
+            // Удаляем временный файл
+            tempFile.delete()
+            
+            // Проверяем, успешно ли добавлен маркер
+            var success = false
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val verifiedExif = ExifInterface(input)
+                val userComment = verifiedExif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+                success = userComment == marker
+                Timber.d("Проверка маркера сжатия: ${if (success) "успешно" else "неудачно"}, UserComment: $userComment")
+            }
+            
+            return success
+            
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при добавлении маркера сжатия в URI: ${e.message}")
+            return false
+        }
+    }
+    
+    /**
+     * Проверяет успешность копирования EXIF данных
+     * @param sourceExif исходный ExifInterface
+     * @param destExif целевой ExifInterface
+     * @return true если хотя бы один важный тег был успешно скопирован
+     */
+    private fun verifyExifCopy(sourceExif: ExifInterface, destExif: ExifInterface): Boolean {
+        // Список критичных тегов для проверки
+        val criticalTags = arrayOf(
+            ExifInterface.TAG_DATETIME,
+            ExifInterface.TAG_MODEL,
+            ExifInterface.TAG_MAKE,
+            ExifInterface.TAG_GPS_LATITUDE,
+            ExifInterface.TAG_GPS_LONGITUDE
+        )
+        
+        // Проверяем копирование хотя бы одного критичного тега
+        var anyCriticalTagCopied = false
+        for (tag in criticalTags) {
+            val sourceValue = sourceExif.getAttribute(tag)
+            val destValue = destExif.getAttribute(tag)
+            
+            if (sourceValue != null && destValue != null && sourceValue == destValue) {
+                Timber.d("Успешно скопирован тег $tag: $sourceValue")
+                anyCriticalTagCopied = true
+                break
+            }
+        }
+        
+        // Также проверяем общее количество скопированных тегов
+        var tagsCopied = 0
+        var totalTags = 0
+        
+        for (tag in TAG_LIST) {
+            val sourceValue = sourceExif.getAttribute(tag)
+            if (sourceValue != null) {
+                totalTags++
+                val destValue = destExif.getAttribute(tag)
+                if (destValue != null && sourceValue == destValue) {
+                    tagsCopied++
+                }
+            }
+        }
+        
+        Timber.d("Скопировано $tagsCopied из $totalTags тегов EXIF")
+        
+        // Возвращаем успех, если хотя бы один критичный тег или больше половины всех тегов скопировано
+        return anyCriticalTagCopied || (totalTags > 0 && tagsCopied > totalTags / 2)
+    }
+
+    /**
+     * Проверяет, было ли изображение уже сжато нашим приложением
+     *
+     * @param context Контекст приложения
+     * @param uri URI изображения для проверки
+     * @return Пара (Boolean, Int), где Boolean - было ли изображение сжато, 
+     *         Int - качество сжатия или null если не сжато
+     */
+    fun checkIsCompressed(context: Context, uri: Uri): Pair<Boolean, Int?> {
+        Timber.d("Проверка, было ли изображение сжато: $uri")
+        
+        try {
+            var isCompressed = false
+            var quality: Int? = null
+            
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                try {
+                    val exif = ExifInterface(inputStream)
+                    val comment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+                    
+                    if (comment != null && comment.startsWith(EXIF_COMPRESSION_MARKER)) {
+                        // Извлекаем качество сжатия из маркера
+                        val parts = comment.split(":")
+                        if (parts.size >= 2) {
+                            val qualityStr = parts[1].trim()
+                            quality = try {
+                                qualityStr.toInt()
+                            } catch (e: NumberFormatException) {
+                                Timber.w("Не удалось извлечь качество из маркера сжатия: $comment")
+                                null
+                            }
+                        }
+                        
+                        isCompressed = true
+                        Timber.d("Обнаружен маркер сжатия, качество: $quality")
+                    } else {
+                        Timber.d("Маркер сжатия не найден. UserComment: $comment")
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при чтении EXIF данных из URI: ${e.message}")
+                }
+            } ?: Timber.w("Не удалось открыть входной поток для URI: $uri")
+            
+            return Pair(isCompressed, quality)
+            
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке сжатия изображения: ${e.message}")
+            return Pair(false, null)
         }
     }
 } 

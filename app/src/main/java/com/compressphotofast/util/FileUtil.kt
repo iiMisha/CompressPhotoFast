@@ -23,6 +23,7 @@ import java.util.HashMap
 import android.provider.DocumentsContract
 import java.io.IOException
 import java.io.ByteArrayOutputStream
+import android.provider.OpenableColumns
 
 /**
  * Утилитарный класс для работы с файлами
@@ -535,20 +536,71 @@ object FileUtil {
     }
 
     /**
-     * Проверяет, является ли файл временным (pending)
+     * Получает размер файла по URI
+     * @param context контекст
+     * @param uri URI файла
+     * @return размер файла в байтах или 0 если не удалось определить
      */
-    suspend fun isFilePending(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    fun getFileSize(context: Context, uri: Uri): Long {
         try {
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
+            // Сначала пытаемся получить размер через META-данные
+            val fileSize = context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (sizeIndex != -1) {
+                        cursor.getLong(sizeIndex)
+                    } else {
+                        -1L
+                    }
+                } else {
+                    -1L
+                }
+            } ?: -1L
+            
+            // Если размер получен через META-данные, возвращаем его
+            if (fileSize != -1L) {
+                return fileSize
+            }
+            
+            // Если не удалось получить через META-данные, пытаемся через InputStream
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                return inputStream.available().toLong()
+            }
+            
+            // Если обе попытки не удались, возвращаем 0
+            return 0L
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении размера файла по URI: $uri")
+            return 0L
+        }
+    }
+    
+    /**
+     * Проверяет, находится ли файл в состоянии IS_PENDING
+     * @param context контекст
+     * @param uri URI файла
+     * @return true если файл в состоянии IS_PENDING, false в противном случае
+     */
+    fun isFilePending(context: Context, uri: Uri): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return false
+        }
+        
+        try {
+            val projection = arrayOf(MediaStore.Images.Media.IS_PENDING)
             context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    return@withContext cursor.getInt(0) == 1
+                    val pendingIndex = cursor.getColumnIndex(MediaStore.Images.Media.IS_PENDING)
+                    if (pendingIndex != -1) {
+                        return cursor.getInt(pendingIndex) == 1
+                    }
                 }
             }
-            true // В случае ошибки считаем файл временным
+            // Если не удалось определить, предполагаем, что не в состоянии IS_PENDING
+            return false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке состояния файла: $uri")
-            true
+            Timber.e(e, "Ошибка при проверке состояния IS_PENDING у URI: $uri")
+            return false
         }
     }
 
@@ -579,31 +631,6 @@ object FileUtil {
         
         Timber.d("Файл не стал доступен после ${maxWaitTimeMs}мс ожидания")
         return@withContext false
-    }
-
-    /**
-     * Получает размер файла из MediaStore
-     */
-    suspend fun getFileSize(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    return@withContext cursor.getLong(sizeIndex)
-                }
-            }
-            -1L
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении размера файла")
-            -1L
-        }
     }
 
     /**
@@ -762,33 +789,102 @@ object FileUtil {
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Не удалось создать запись MediaStore")
             
+            Timber.d("Создан URI для сжатого изображения: $uri")
+            
             try {
                 // Сначала записываем сжатое изображение
                 context.contentResolver.openOutputStream(uri)?.use { outputFileStream ->
                     outputStream.writeTo(outputFileStream)
                     outputFileStream.flush()
                 } ?: throw IOException("Не удалось открыть OutputStream")
-
-                // Копируем EXIF данные из оригинала в новый файл
-                val path = getFilePathFromUri(context, uri)
-                if (path != null) {
-                    // Копируем EXIF данные из оригинала
-                    ExifUtil.copyExifDataFromUriToFile(context, originalUri, File(path))
-                    
-                    // Добавляем маркер сжатия в EXIF
-                    ExifUtil.markCompressedImage(path, quality)
+                
+                Timber.d("Данные изображения записаны в URI: $uri")
+                
+                // Сразу завершаем IS_PENDING состояние до обработки EXIF, чтобы файл стал доступен
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    context.contentResolver.update(uri, contentValues, null, null)
+                    Timber.d("IS_PENDING статус сброшен для URI: $uri")
+                }
+                
+                // Ждем, чтобы файл стал доступен в системе
+                // Используем более длительное ожидание и проверяем, что файл действительно доступен
+                val maxWaitTime = 2000L // Увеличиваем до 2 секунд
+                val fileAvailable = waitForUriAvailability(context, uri, maxWaitTime)
+                
+                if (!fileAvailable) {
+                    Timber.w("URI не стал доступен после ожидания: $uri")
+                }
+                
+                // Копируем EXIF данные напрямую между URI
+                var exifCopied = false
+                try {
+                    // Дополнительная задержка перед работой с EXIF
+                    delay(300)
+                    exifCopied = ExifUtil.copyExifDataBetweenUris(context, originalUri, uri)
+                    Timber.d("Копирование EXIF данных между URI: ${if (exifCopied) "успешно" else "неудачно"}")
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
+                }
+                
+                // Добавляем маркер сжатия напрямую через URI
+                var markerAdded = false
+                try {
+                    markerAdded = ExifUtil.markCompressedImageUri(context, uri, quality)
+                    Timber.d("Добавление маркера сжатия в URI: ${if (markerAdded) "успешно" else "неудачно"}")
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при добавлении маркера сжатия в URI: ${e.message}")
+                }
+                
+                // Проверяем успешность операций с EXIF
+                if (exifCopied && markerAdded) {
+                    Timber.d("EXIF данные и маркер сжатия успешно применены к URI: $uri")
+                } else {
+                    // Если первая попытка не удалась, делаем еще одну попытку после дополнительного ожидания
+                    if (!exifCopied || !markerAdded) {
+                        Timber.d("Первая попытка работы с EXIF была неудачной, выполняю повторную попытку после паузы")
+                        delay(500) // Ждем еще полсекунды
+                        
+                        if (!exifCopied) {
+                            try {
+                                exifCopied = ExifUtil.copyExifDataBetweenUris(context, originalUri, uri)
+                                Timber.d("Повторное копирование EXIF данных: ${if (exifCopied) "успешно" else "неудачно"}")
+                            } catch (e: Exception) {
+                                Timber.e(e, "Ошибка при повторном копировании EXIF данных: ${e.message}")
+                            }
+                        }
+                        
+                        if (!markerAdded) {
+                            try {
+                                markerAdded = ExifUtil.markCompressedImageUri(context, uri, quality)
+                                Timber.d("Повторное добавление маркера сжатия: ${if (markerAdded) "успешно" else "неудачно"}")
+                            } catch (e: Exception) {
+                                Timber.e(e, "Ошибка при повторном добавлении маркера сжатия: ${e.message}")
+                            }
+                        }
+                    }
+                }
+                
+                // Верификация через чтение EXIF
+                try {
+                    delay(100) // Небольшая задержка перед проверкой
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val exif = ExifInterface(inputStream)
+                        val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+                        if (userComment?.contains("CompressPhotoFast_Compressed:$quality") == true) {
+                            Timber.d("Финальная верификация успешна: маркер сжатия присутствует в URI")
+                        } else {
+                            Timber.w("Финальная верификация не удалась: маркер сжатия отсутствует в URI. UserComment: $userComment")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при финальной верификации: ${e.message}")
                 }
                 
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при обработке EXIF данных: ${e.message}")
-                // Если произошла ошибка при обработке EXIF, изображение уже сохранено без EXIF
-            }
-            
-            // Завершаем IS_PENDING состояние
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                contentValues.clear()
-                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                context.contentResolver.update(uri, contentValues, null, null)
+                Timber.e(e, "Ошибка при записи данных или обработке EXIF: ${e.message}")
+                // Если произошла ошибка, изображение может быть сохранено частично, но без EXIF
             }
             
             return@withContext uri
@@ -797,5 +893,56 @@ object FileUtil {
             Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
             return@withContext null
         }
+    }
+    
+    /**
+     * Проверяет доступность URI для операций с файлом, ожидая в течение указанного времени
+     * 
+     * @param context Контекст приложения
+     * @param uri URI для проверки
+     * @param maxWaitTimeMs Максимальное время ожидания в миллисекундах
+     * @return true если URI стал доступен, false если время ожидания истекло
+     */
+    private suspend fun waitForUriAvailability(
+        context: Context, 
+        uri: Uri, 
+        maxWaitTimeMs: Long = 1000
+    ): Boolean = withContext(Dispatchers.IO) {
+        Timber.d("Ожидание доступности URI: $uri, максимальное время: $maxWaitTimeMs мс")
+        
+        val startTime = System.currentTimeMillis()
+        var isAvailable = false
+        
+        while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                if (inputStream != null) {
+                    val available = inputStream.available()
+                    inputStream.close()
+                    
+                    // Если доступны данные, считаем URI доступным
+                    if (available > 0) {
+                        Timber.d("URI стал доступен через ${System.currentTimeMillis() - startTime} мс, размер: $available байт")
+                        isAvailable = true
+                        break
+                    } else {
+                        Timber.d("URI открыт, но данные недоступны, повторная попытка...")
+                    }
+                } else {
+                    Timber.d("Не удалось открыть поток для URI, повторная попытка...")
+                }
+            } catch (e: Exception) {
+                Timber.d("Ошибка при проверке доступности URI: ${e.message}")
+            }
+            
+            // Делаем паузу перед следующей попыткой
+            delay(100)
+        }
+        
+        if (!isAvailable) {
+            Timber.w("Время ожидания истекло, URI не стал доступен за $maxWaitTimeMs мс")
+        }
+        
+        return@withContext isAvailable
     }
 } 
