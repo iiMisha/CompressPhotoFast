@@ -12,6 +12,7 @@ import java.io.IOException
 import java.io.FileOutputStream
 import java.io.FileInputStream
 import java.util.Collections
+import java.util.Date
 import java.util.HashMap
 
 /**
@@ -139,8 +140,14 @@ object ExifUtil {
                 try {
                     val newExif = ExifInterface(filePath)
                     val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
-                    if (newUserComment?.contains(EXIF_COMPRESSION_MARKER) == true) {
+                    if (newUserComment?.contains(EXIF_COMPRESSION_MARKER) == true &&
+                        newUserComment.contains(":$quality:") &&
+                        newUserComment.contains(":$dateTimeMs")) {
                         verificationSuccess = true
+                        Timber.d("Верификация маркера сжатия успешна для файла: $filePath")
+                    } else {
+                        Timber.e("Ошибка верификации маркера сжатия для файла: $filePath. " +
+                                "Ожидаемый маркер: $markerWithQualityAndDate, Фактический: $newUserComment")
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Ошибка при верификации маркера сжатия в файле: $filePath")
@@ -191,16 +198,26 @@ object ExifUtil {
             }
             
             // Проверяем, что маркер был установлен правильно
+            var verificationSuccess = false
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 val newExif = ExifInterface(inputStream)
                 val newUserComment = newExif.getAttribute(EXIF_USER_COMMENT)
                 Timber.d("EXIF маркер сжатия установлен в URI: $uri с качеством: $quality и датой: $dateTimeMs. Записанное значение: $newUserComment")
+                
+                if (newUserComment?.contains(EXIF_COMPRESSION_MARKER) == true && 
+                    newUserComment.contains(":$quality:") && 
+                    newUserComment.contains(":$dateTimeMs")) {
+                    verificationSuccess = true
+                    Timber.d("Верификация маркера сжатия успешна. Маркер сжатия и дата корректно сохранены.")
+                } else {
+                    Timber.e("Ошибка верификации маркера сжатия. Ожидаемый маркер: ${EXIF_COMPRESSION_MARKER}:$quality:$dateTimeMs, Фактический: $newUserComment")
+                }
             }
             
             // Очищаем кэш для данного URI
             clearCacheForUri(uri.toString())
             
-            return@withContext true
+            return@withContext verificationSuccess
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при добавлении EXIF маркера сжатия в URI: ${e.message}")
             return@withContext false
@@ -226,6 +243,8 @@ object ExifUtil {
                 val isCompressed = cachedResult ?: false
                 if (isCompressed) {
                     Timber.d("Изображение по URI $uri уже сжато (из кэша)")
+                } else {
+                    Timber.d("Изображение по URI $uri не сжато (из кэша)")
                 }
                 return@withContext isCompressed
             }
@@ -236,7 +255,34 @@ object ExifUtil {
                 
                 // Проверяем маркер сжатия в UserComment
                 val userComment = exif.getAttribute(EXIF_USER_COMMENT)
-                val isCompressed = userComment?.startsWith(EXIF_COMPRESSION_MARKER) == true
+                
+                if (userComment == null) {
+                    Timber.d("EXIF-маркер сжатия не найден (UserComment отсутствует), продолжаем обработку: $uri")
+                    exifCheckCache[uriString] = false
+                    exifCacheTimestamps[uriString] = System.currentTimeMillis()
+                    return@withContext false
+                }
+                
+                val isCompressed = userComment.startsWith(EXIF_COMPRESSION_MARKER)
+                
+                if (isCompressed) {
+                    // Проверяем формат маркера для диагностики
+                    val parts = userComment.split(":")
+                    if (parts.size >= 3) {
+                        val quality = parts[1].toIntOrNull()
+                        val dateTimeMs = parts[2].toLongOrNull()
+                        
+                        if (quality != null && dateTimeMs != null) {
+                            Timber.d("EXIF-маркер сжатия найден: качество=$quality, дата=${Date(dateTimeMs)}, URI: $uri")
+                        } else {
+                            Timber.w("EXIF-маркер сжатия найден, но имеет некорректный формат: $userComment, URI: $uri")
+                        }
+                    } else {
+                        Timber.w("EXIF-маркер сжатия найден, но имеет неполный формат (нет даты): $userComment, URI: $uri")
+                    }
+                } else {
+                    Timber.d("EXIF-маркер сжатия не найден, продолжаем обработку: $uri (UserComment=$userComment)")
+                }
                 
                 // Кэшируем результат
                 exifCheckCache[uriString] = isCompressed
@@ -246,6 +292,7 @@ object ExifUtil {
             }
             
             // Если не удалось открыть поток, сохраняем отрицательный результат в кэше
+            Timber.w("Не удалось открыть InputStream для проверки EXIF-маркера сжатия: $uri")
             exifCheckCache[uriString] = false
             exifCacheTimestamps[uriString] = System.currentTimeMillis()
             
@@ -275,8 +322,19 @@ object ExifUtil {
                     // Извлекаем уровень качества (второй элемент после разделения по ":")
                     val parts = userComment.split(":")
                     if (parts.size >= 2) {
-                        return@withContext parts[1].trim().toIntOrNull()
+                        val qualityStr = parts[1].trim()
+                        val quality = qualityStr.toIntOrNull()
+                        if (quality != null) {
+                            Timber.d("Извлечено качество сжатия из EXIF: $quality, маркер: $userComment")
+                            return@withContext quality
+                        } else {
+                            Timber.e("Не удалось преобразовать строку качества в число: $qualityStr из $userComment")
+                        }
+                    } else {
+                        Timber.e("Неверный формат маркера сжатия: $userComment")
                     }
+                } else {
+                    Timber.d("Маркер сжатия не найден в EXIF: $userComment")
                 }
             }
             return@withContext null
@@ -807,7 +865,12 @@ object ExifUtil {
                 val exif = ExifInterface(inputStream)
                 
                 // Получаем значение UserComment
-                val userComment = exif.getAttribute(EXIF_USER_COMMENT) ?: return@withContext null
+                val userComment = exif.getAttribute(EXIF_USER_COMMENT)
+                
+                if (userComment == null) {
+                    Timber.d("UserComment отсутствует в EXIF для URI: $uri")
+                    return@withContext null
+                }
                 
                 // Проверяем, содержит ли оно маркер сжатия
                 if (userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
@@ -816,20 +879,25 @@ object ExifUtil {
                         // Извлекаем timestamp в миллисекундах
                         try {
                             val timestamp = parts[2].toLong()
-                            Timber.d("Найден EXIF маркер с timestamp: $timestamp")
+                            Timber.d("Найден EXIF маркер с timestamp: $timestamp для URI: $uri")
                             return@withContext timestamp
                         } catch (e: NumberFormatException) {
                             // Если не удалось преобразовать в Long, возможно это старый формат
-                            Timber.e(e, "Ошибка при преобразовании даты сжатия в Long: ${parts[2]}")
-                            return@withContext null
+                            Timber.e(e, "Ошибка при преобразовании даты сжатия в Long: ${parts[2]} для URI: $uri")
                         }
+                    } else {
+                        Timber.e("Маркер сжатия не содержит timestamp (ожидается 3 части): $userComment для URI: $uri")
                     }
+                } else {
+                    Timber.d("Маркер сжатия не найден или имеет неправильный формат: $userComment для URI: $uri")
                 }
+                
                 return@withContext null
             }
+            Timber.e("Не удалось открыть inputStream для URI: $uri")
             return@withContext null
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении даты сжатия из EXIF: ${e.message}")
+            Timber.e(e, "Ошибка при получении даты сжатия из EXIF для URI: $uri - ${e.message}")
             return@withContext null
         }
     }
@@ -950,10 +1018,13 @@ object ExifUtil {
                 
             pfd = fileDescriptor
             
+            // Получаем текущее время в миллисекундах
+            val dateTimeMs = System.currentTimeMillis()
+            
             // Добавляем маркер сжатия через ExifInterface
             val exif = ExifInterface(fileDescriptor.fileDescriptor)
-            val marker = "$EXIF_COMPRESSION_MARKER:$quality"
-            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, marker)
+            val markerWithQualityAndDate = "${EXIF_COMPRESSION_MARKER}:$quality:$dateTimeMs"
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, markerWithQualityAndDate)
             exif.saveAttributes()
             
             // Закрываем дескриптор файла перед проверкой
@@ -965,7 +1036,9 @@ object ExifUtil {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 val verifiedExif = ExifInterface(input)
                 val userComment = verifiedExif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                success = userComment == marker
+                success = userComment?.contains(EXIF_COMPRESSION_MARKER) == true &&
+                          userComment.contains(":$quality:") &&
+                          userComment.contains(":$dateTimeMs")
                 Timber.d("Проверка маркера сжатия: ${if (success) "успешно" else "неудачно"}, UserComment: $userComment")
             }
             

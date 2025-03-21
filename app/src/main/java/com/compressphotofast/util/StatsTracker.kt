@@ -61,9 +61,14 @@ object StatsTracker {
             // Проверяем EXIF маркер с помощью ExifUtil
             val isCompressed = ExifUtil.isImageCompressed(context, uri)
             
-            // Если найден маркер CompressPhotoFast_Compressed, возвращаем true
+            // Если найден маркер CompressPhotoFast_Compressed, проверяем наличие даты сжатия
             if (isCompressed) {
-                Timber.d("Изображение уже обработано (найден EXIF маркер): $uri")
+                val compressionDate = ExifUtil.getCompressionDateFromExif(context, uri)
+                if (compressionDate != null) {
+                    Timber.d("Изображение обработано (найден EXIF маркер с датой): $uri")
+                } else {
+                    Timber.d("Изображение обработано (найден EXIF маркер без даты): $uri")
+                }
                 return@withContext true
             }
             
@@ -76,6 +81,7 @@ object StatsTracker {
             }
             
             // В остальных случаях считаем, что файл не обработан
+            Timber.d("Файл не был обработан ранее: $uri")
             return@withContext false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса обработки файла: ${e.message}")

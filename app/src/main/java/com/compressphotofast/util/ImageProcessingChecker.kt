@@ -162,8 +162,16 @@ object ImageProcessingChecker {
             // Получаем дату сжатия из EXIF (теперь это timestamp в миллисекундах)
             val compressionTimeMs = ExifUtil.getCompressionDateFromExif(context, uri)
             if (compressionTimeMs == null) {
-                Timber.d("Дата сжатия не найдена в EXIF, возвращаем true (требуется проверка): $uri")
-                return@withContext true // Если дата сжатия не найдена, но есть маркер, требуется проверка
+                // Проверяем, есть ли маркер сжатия вообще
+                val isCompressed = ExifUtil.isImageCompressed(context, uri)
+                if (isCompressed) {
+                    Timber.w("Файл имеет маркер сжатия, но дата сжатия не найдена в EXIF. " +
+                             "Возможно старый формат маркера. Рекомендуется повторное сжатие. URI: $uri")
+                    return@withContext true // Если дата сжатия не найдена, а маркер есть, требуется проверка
+                } else {
+                    Timber.d("Дата сжатия и маркер не найдены в EXIF, файл не был сжат: $uri")
+                    return@withContext true // Файл не был сжат, требуется обработка
+                }
             }
             
             // Добавляем небольшой запас (10 секунд) чтобы компенсировать разницу в точности timestamps
@@ -181,9 +189,9 @@ object ImageProcessingChecker {
                     "Разница: ${(lastModified - compressionTimeMs) / 1000} сек.")
             
             if (wasModified) {
-                Timber.d("Файл был модифицирован после сжатия")
+                Timber.d("Файл был модифицирован после сжатия: $uri")
             } else {
-                Timber.d("Файл НЕ был модифицирован после сжатия")
+                Timber.d("Файл НЕ был модифицирован после сжатия: $uri")
             }
             
             return@withContext wasModified
@@ -287,40 +295,48 @@ object ImageProcessingChecker {
     suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
             if (!isUriExists(context, uri)) {
+                Timber.d("URI не существует, считаем файл обработанным: $uri")
                 return@withContext true
             }
             
             // Получаем размер файла для проверок
             val fileSize = FileUtil.getFileSize(context, uri)
             
+            // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
+            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
+            if (isInAppDirectory(path)) {
+                Timber.d("Файл находится в директории приложения, считаем его обработанным: $path")
+                return@withContext true
+            }
+            
             // Проверяем EXIF маркер
-            val isProcessed = StatsTracker.isImageProcessed(context, uri)
-            if (isProcessed) {
-                // НОВАЯ ПРОВЕРКА: Если файл был сжат ранее, проверяем, не был ли он модифицирован после сжатия
+            val hasCompressMarker = ExifUtil.isImageCompressed(context, uri)
+            
+            if (hasCompressMarker) {
+                Timber.d("Найден EXIF маркер сжатия, проверяем модификацию после сжатия: $uri")
+                
+                // Если файл был сжат ранее, проверяем, не был ли он модифицирован после сжатия
                 val wasModifiedAfterCompression = wasFileModifiedAfterCompression(context, uri)
                 if (wasModifiedAfterCompression) {
-                    Timber.d("Изображение было сжато ранее, но модифицировано после этого: $uri")
+                    Timber.d("Изображение было сжато ранее, но модифицировано после этого, требуется повторная обработка: $uri")
                     return@withContext false // Файл нужно обработать повторно
                 }
                 
                 Timber.d("Изображение уже сжато (найден EXIF маркер) и не модифицировано после этого: $uri")
                 return@withContext true
+            } else {
+                Timber.d("EXIF маркер сжатия не найден: $uri")
             }
 
-            // Проверяем путь к файлу
-            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
-            if (isInAppDirectory(path)) {
-                Timber.d("Файл находится в директории приложения: $path")
-                return@withContext true
-            }
-            
             // Если файл уже достаточно мал (меньше оптимального размера)
             val optimumSize = Constants.OPTIMUM_FILE_SIZE
             if (fileSize < optimumSize) {
-                Timber.d("Файл уже достаточно мал (${fileSize/1024}KB < ${optimumSize/1024}KB), пропускаем")
+                Timber.d("Файл уже достаточно мал (${fileSize/1024}KB < ${optimumSize/1024}KB), пропускаем: $uri")
                 return@withContext true
             }
             
+            // В остальных случаях считаем, что файл требует обработки
+            Timber.d("Файл требует обработки: $uri")
             return@withContext false
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса обработки файла: ${e.message}")
