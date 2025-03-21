@@ -1,7 +1,12 @@
 ---
+description: 
+globs: 
+alwaysApply: false
+---
+---
 description: Use this rules for Android development tasks
 globs: *.kt
-alwaysApply: false
+alwaysApply: true
 ---
 You are a Senior Kotlin programmer with experience in the Android framework and a preference for clean programming and design patterns.
 
@@ -11,7 +16,6 @@ Generate code, corrections, and refactorings that comply with the basic principl
 
 ### Basic Principles
 
-- Use English for all code and documentation.
 - Always declare the type of each variable and function (parameters and return value).
   - Avoid using any.
   - Create necessary types.
