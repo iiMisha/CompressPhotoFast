@@ -17,7 +17,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+// Заменяем прямой импорт Timber на LogUtil
+// import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -86,17 +88,18 @@ class SequentialImageProcessor(private val context: Context) {
             withContext(Dispatchers.IO) {
                 for ((index, uri) in uris.withIndex()) {
                     if (isCancelled) {
-                        Timber.d("Обработка отменена пользователем")
+                        LogUtil.processInfo("Обработка отменена пользователем")
                         break
                     }
                     
                     try {
-                        Timber.d("Начало обработки изображения $index/${uris.size}: $uri")
+                        LogUtil.processInfo("Начало обработки изображения ${index+1}/${uris.size}")
+                        LogUtil.uriInfo(uri, "Начало обработки")
                         
                         // 1. Проверяем, нужно ли обрабатывать изображение
                         val isAlreadyProcessed = ImageProcessingChecker.isAlreadyProcessed(context, uri)
                         if (isAlreadyProcessed) {
-                            Timber.d("Изображение уже обработано: $uri")
+                            LogUtil.skipImage(uri, "Уже обработано ранее")
                             updateProgress(skipped = true)
                             continue
                         }
@@ -104,11 +107,11 @@ class SequentialImageProcessor(private val context: Context) {
                         // 2. Получаем имя файла
                         val fileName = FileUtil.getFileNameFromUri(context, uri)
                         if (fileName.isNullOrEmpty()) {
-                            Timber.e("Не удалось получить имя файла из URI: $uri")
+                            LogUtil.error(uri, "Получение имени файла", "Не удалось получить имя файла")
                             updateProgress(success = false)
                             continue
                         }
-                        Timber.d("Имя исходного файла: $fileName")
+                        LogUtil.uriInfo(uri, "Имя файла: $fileName")
                         
                         // 3. Получаем путь для сохранения
                         val directory = if (FileUtil.isSaveModeReplace(context)) {
@@ -118,7 +121,7 @@ class SequentialImageProcessor(private val context: Context) {
                             // Иначе сохраняем в директории приложения
                             Constants.APP_DIRECTORY
                         }
-                        Timber.d("Директория для сохранения: $directory")
+                        LogUtil.uriInfo(uri, "Директория для сохранения: $directory")
                         
                         // 4. Проверяем тип URI и определяем стратегию обработки
                         val isMediaDocumentsUri = uri.authority == "com.android.providers.media.documents"
@@ -127,7 +130,7 @@ class SequentialImageProcessor(private val context: Context) {
                         val compressedStream = compressImage(uri, compressionQuality)
                         
                         if (compressedStream == null) {
-                            Timber.e("Не удалось получить поток с сжатым изображением: $uri")
+                            LogUtil.error(uri, "Сжатие", "Не удалось получить поток с сжатым изображением")
                             updateProgress(success = false)
                             continue
                         }
@@ -138,14 +141,14 @@ class SequentialImageProcessor(private val context: Context) {
                             // Переименовываем оригинальный файл
                             backupUri = FileUtil.renameOriginalFile(context, uri)
                             if (backupUri == null) {
-                                Timber.e("Не удалось переименовать оригинальный файл: $uri")
+                                LogUtil.error(uri, "Переименование", "Не удалось переименовать оригинальный файл")
                                 compressedStream.close()
                                 updateProgress(success = false)
                                 continue
                             }
-                            Timber.d("Оригинальный файл успешно переименован: $uri")
+                            LogUtil.fileOperation(uri, "Переименование", "Оригинал → ${backupUri}")
                         } else {
-                            Timber.d("URI относится к MediaDocumentsProvider, пропускаем переименование оригинала")
+                            LogUtil.uriInfo(uri, "URI относится к MediaDocumentsProvider, пропускаем переименование")
                             // Используем исходный URI в качестве backupUri
                             backupUri = uri
                         }
@@ -164,12 +167,12 @@ class SequentialImageProcessor(private val context: Context) {
                         compressedStream.close()
                         
                         if (savedUri == null) {
-                            Timber.e("Не удалось сохранить сжатый файл: $uri")
+                            LogUtil.error(uri, "Сохранение", "Не удалось сохранить сжатый файл")
                             updateProgress(success = false)
                             continue
                         }
                         
-                        Timber.d("Сжатый файл успешно сохранен: $savedUri")
+                        LogUtil.fileOperation(uri, "Сохранение", "Сжатый файл сохранен: $savedUri")
                         
                         // 8. Удаляем переименованный оригинальный файл (если не MediaDocuments URI)
                         if (!isMediaDocumentsUri && FileUtil.isSaveModeReplace(context)) {
@@ -178,16 +181,16 @@ class SequentialImageProcessor(private val context: Context) {
                                     val deleteResult = FileUtil.deleteFile(context, renamedUri)
                                     
                                     if (deleteResult is Boolean && deleteResult) {
-                                        Timber.d("Переименованный оригинальный файл успешно удален: $renamedUri")
+                                        LogUtil.fileOperation(renamedUri, "Удаление", "Переименованный оригинал успешно удален")
                                     } else if (deleteResult is IntentSender) {
-                                        Timber.d("Для удаления требуется разрешение пользователя: $renamedUri")
+                                        LogUtil.fileOperation(renamedUri, "Удаление", "Требуется разрешение пользователя")
                                         // Здесь можно добавить обработку запроса на удаление
                                     } else {
-                                        Timber.e("Не удалось удалить переименованный оригинальный файл: $renamedUri")
+                                        LogUtil.error(renamedUri, "Удаление", "Не удалось удалить переименованный оригинал")
                                     }
                                 }
                             } catch (e: Exception) {
-                                Timber.e(e, "Ошибка при удалении переименованного оригинала: $backupUri")
+                                LogUtil.error(backupUri, "Удаление", e)
                             }
                         }
                         
@@ -195,7 +198,7 @@ class SequentialImageProcessor(private val context: Context) {
                         updateProgress(success = true)
                         
                     } catch (e: Exception) {
-                        Timber.e(e, "Ошибка при обработке изображения: $uri")
+                        LogUtil.error(uri, "Обработка", e)
                         updateProgress(success = false)
                     }
                     
@@ -224,7 +227,7 @@ class SequentialImageProcessor(private val context: Context) {
                 allSuccessful = _progress.value.failed == 0
             )
             
-            Timber.d("Обработка завершена: всего=${_progress.value.total}, успешно=${_progress.value.successful}, пропущено=${_progress.value.skipped}, ошибок=${_progress.value.failed}")
+            LogUtil.processInfo("Обработка завершена: всего=${_progress.value.total}, успешно=${_progress.value.successful}, пропущено=${_progress.value.skipped}, ошибок=${_progress.value.failed}")
         }
     }
     
@@ -266,7 +269,7 @@ class SequentialImageProcessor(private val context: Context) {
                 ByteArrayInputStream(it.toByteArray())
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сжатии изображения: $uri")
+            LogUtil.error(uri, "Сжатие", e)
             return@withContext null
         }
     }

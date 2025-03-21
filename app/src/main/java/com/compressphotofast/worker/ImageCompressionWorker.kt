@@ -2,10 +2,21 @@ package com.compressphotofast.worker
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.IntentSender
+import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.exifinterface.media.ExifInterface
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -13,6 +24,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.compressphotofast.R
+import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.StatsTracker
@@ -22,6 +34,7 @@ import com.compressphotofast.util.CompressionTestUtil
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.ImageProcessingChecker
+import com.compressphotofast.util.LogUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -31,27 +44,15 @@ import id.zelory.compressor.constraint.resolution
 import id.zelory.compressor.constraint.size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
-import java.util.Locale
-import android.provider.MediaStore
-import androidx.exifinterface.media.ExifInterface
-import android.content.Intent
-import android.app.PendingIntent
-import com.compressphotofast.ui.MainActivity
 import java.util.Collections
 import java.util.HashSet
-import java.io.FileOutputStream
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import java.io.ByteArrayOutputStream
-import android.content.pm.ServiceInfo
-import android.content.IntentSender
-import java.io.ByteArrayInputStream
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -74,7 +75,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
         if (uriString.isNullOrEmpty()) {
-            Timber.e("URI не установлен для компрессии")
+            LogUtil.processInfo("URI не установлен для компрессии")
             return@withContext Result.failure()
         }
 
@@ -82,13 +83,13 @@ class ImageCompressionWorker @AssistedInject constructor(
         
         // Проверка существования файла с использованием централизованного метода
         if (!FileUtil.isUriExistsSuspend(applicationContext, uri)) {
-            Timber.e("Файл не существует: $uriString")
+            LogUtil.error(uri, "Проверка файла", "Файл не существует")
             return@withContext Result.failure()
         }
         
         // Проверка на временный файл с использованием централизованного метода
         if (FileUtil.isFilePendingSuspend(applicationContext, uri)) {
-            Timber.d("Файл находится в процессе записи, пропускаем: $uriString")
+            LogUtil.skipImage(uri, "Файл находится в процессе записи")
             return@withContext Result.failure()
         }
         
@@ -114,7 +115,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
             // Логируем переданное качество сжатия для отладки
-            Timber.d("Используется качество сжатия: $compressionQuality (исходный параметр)")
+            LogUtil.processInfo("Используется качество сжатия: $compressionQuality")
             
             // Получаем размер файла
             val fileSize = FileUtil.getFileSize(context, imageUri)
@@ -125,7 +126,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val exists = checkCursor?.use { it.count > 0 } ?: false
                 
                 if (!exists) {
-                    Timber.d("URI не существует, возможно он был обработан и удален другим процессом: $imageUri")
+                    LogUtil.uriInfo(imageUri, "URI не существует, возможно обработан другим процессом")
                     return@withContext updateStatusAndReturn(
                         imageUri, 
                         StatsTracker.COMPRESSION_STATUS_SKIPPED, 
@@ -133,7 +134,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     )
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при проверке существования URI: $imageUri")
+                LogUtil.error(imageUri, "Проверка существования", e)
                 // Продолжаем выполнение, так как ошибка может быть временной
             }
             
@@ -142,7 +143,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             val isAlreadyProcessed = ImageProcessingChecker.isAlreadyProcessed(context, imageUri)
             
             if (isAlreadyProcessed) {
-                Timber.d("Изображение уже обработано (централизованная проверка): $imageUri")
+                LogUtil.skipImage(imageUri, "Изображение уже обработано")
                 return@withContext updateStatusAndReturn(
                     imageUri, 
                     StatsTracker.COMPRESSION_STATUS_SKIPPED, 
@@ -151,7 +152,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Если файл требует обработки, проверяем эффективность сжатия
-            Timber.d("Изображение требует обработки, выполняем тестовое сжатие в RAM для URI: $imageUri")
+            LogUtil.processInfo("Выполняем тестовое сжатие в RAM")
+            LogUtil.uriInfo(imageUri, "Изображение требует обработки")
             
             // Проверяем эффективность сжатия с использованием централизованной логики
             val compressionEffective = CompressionTestUtil.testCompression(
@@ -163,20 +165,20 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             if (compressionEffective) {
                 // Если сжатие эффективно (>10%), начинаем процесс сжатия
-                Timber.d("Тестовое сжатие эффективно, начинаем процесс сжатия с новой стратегией")
+                LogUtil.processInfo("Тестовое сжатие эффективно, начинаем полное сжатие")
                 
                 try {
                     // Получаем имя файла из URI
                     val fileName = getFileNameSafely(imageUri)
                     if (fileName.isNullOrEmpty()) {
-                        Timber.e("Не удалось получить имя файла из URI: $imageUri")
+                        LogUtil.error(imageUri, "Получение имени файла", "Не удалось получить имя файла")
                         return@withContext updateStatusAndReturn(
                             imageUri, 
                             StatsTracker.COMPRESSION_STATUS_FAILED, 
                             errorMessage = "Не удалось получить имя файла"
                         )
                     }
-                    Timber.d("Имя исходного файла: $fileName")
+                    LogUtil.uriInfo(imageUri, "Имя файла: $fileName")
                     
                     // Получаем директорию для сохранения сжатого файла
                     val directory = if (FileUtil.isSaveModeReplace(context)) {
@@ -186,11 +188,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                         // Иначе сохраняем в директории приложения
                         Constants.APP_DIRECTORY
                     }
-                    Timber.d("Директория для сохранения: $directory")
+                    LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
                     
                     // Проверяем, является ли URI документом из MediaDocumentsProvider
                     val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
-                    Timber.d("Проверка типа URI: isMediaDocumentsUri=$isMediaDocumentsUri")
+                    LogUtil.uriInfo(imageUri, "Тип URI: ${if (isMediaDocumentsUri) "MediaDocumentsProvider" else "стандартный"}")
                     
                     // Получаем поток с сжатым изображением напрямую из RAM-сжатия
                     val compressedStream = CompressionTestUtil.getCompressedImageStream(
@@ -200,7 +202,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     )
                     
                     if (compressedStream == null) {
-                        Timber.e("Не удалось получить поток с сжатым изображением")
+                        LogUtil.error(imageUri, "Сжатие", "Не удалось получить поток с сжатым изображением")
                         return@withContext updateStatusAndReturn(
                             imageUri,
                             StatsTracker.COMPRESSION_STATUS_FAILED,
@@ -214,7 +216,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         // Переименовываем оригинальный файл только для обычных URI
                         backupUri = FileUtil.renameOriginalFile(context, imageUri)
                         if (backupUri == null) {
-                            Timber.e("Не удалось переименовать оригинальный файл, останавливаем процесс сжатия")
+                            LogUtil.error(imageUri, "Переименование", "Не удалось переименовать оригинальный файл")
                             // Закрываем поток сжатого изображения
                             compressedStream.close()
                             return@withContext updateStatusAndReturn(
@@ -223,9 +225,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                                 errorMessage = "Не удалось переименовать оригинальный файл"
                             )
                         }
-                        Timber.d("Оригинальный файл успешно переименован")
+                        LogUtil.fileOperation(imageUri, "Переименование", "Оригинал успешно переименован")
                     } else {
-                        Timber.d("URI относится к MediaDocumentsProvider, пропускаем переименование оригинала")
+                        LogUtil.uriInfo(imageUri, "MediaDocumentsProvider URI, пропускаем переименование")
                         // Используем исходный URI в качестве backupUri для копирования EXIF
                         backupUri = imageUri
                     }
@@ -244,15 +246,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                     compressedStream.close()
                     
                     if (savedUri == null) {
-                        Timber.e("Не удалось сохранить сжатый файл")
-                        return@withContext updateStatusAndReturn(
-                            imageUri,
-                            StatsTracker.COMPRESSION_STATUS_FAILED,
-                            errorMessage = "Ошибка при сохранении сжатого изображения"
-                        )
+                        LogUtil.error(Uri.EMPTY, "Сохранение", "Ошибка при сохранении сжатого изображения")
+                        return@withContext Result.failure(createFailureOutput("Ошибка при сохранении сжатого изображения"))
                     }
                     
-                    Timber.d("Сжатый файл успешно сохранен: $savedUri")
+                    LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
                     
                     // Удаляем переименованный оригинальный файл только если это не MediaDocumentsProvider URI
                     // и если включен режим замены
@@ -263,22 +261,26 @@ class ImageCompressionWorker @AssistedInject constructor(
                                 val deleteResult = FileUtil.deleteFile(context, uri)
                                 
                                 if (deleteResult is Boolean && deleteResult) {
-                                    Timber.d("Переименованный оригинальный файл успешно удален: $uri")
+                                    LogUtil.fileOperation(uri, "Удаление", "Переименованный оригинальный файл успешно удален")
                                 } else if (deleteResult is IntentSender) {
-                                    Timber.d("Для удаления переименованного оригинального файла требуется разрешение пользователя")
+                                    LogUtil.fileOperation(uri, "Удаление", "Для удаления переименованного оригинального файла требуется разрешение пользователя")
                                     // Отправляем запрос на удаление с разрешением пользователя
                                     addPendingDeleteRequest(uri, deleteResult)
                                 } else {
-                                    Timber.e("Не удалось удалить переименованный оригинальный файл: $uri")
+                                    LogUtil.error(uri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
                                 }
                             }
                         } catch (e: Exception) {
-                            Timber.e(e, "Ошибка при удалении переименованного оригинального файла: $backupUri")
+                            LogUtil.error(backupUri, "Удаление", "Ошибка при удалении переименованного оригинального файла", e)
                         }
                     } else if (isMediaDocumentsUri) {
-                        Timber.d("URI относится к MediaDocumentsProvider, пропускаем удаление оригинала")
+                        LogUtil.uriInfo(imageUri, "MediaDocumentsProvider URI, пропускаем удаление оригинала")
                     } else {
-                        Timber.d("Режим замены выключен, оригинальный файл сохранен как ${backupUri}")
+                        if (backupUri != null) {
+                            LogUtil.fileOperation(backupUri, "Режим замены", "Режим замены выключен, оригинальный файл сохранен как $backupUri")
+                        } else {
+                            LogUtil.processInfo("Режим замены выключен, оригинальный файл не был переименован")
+                        }
                     }
                         
                         // Получаем размер сжатого файла для уведомления
@@ -296,7 +298,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         StatsTracker.COMPRESSION_STATUS_COMPLETED
                     )
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при сжатии с новой стратегией: ${e.message}")
+                    LogUtil.error(imageUri, "Сжатие", "Ошибка при сжатии с новой стратегией", e)
                     return@withContext updateStatusAndReturn(
                         imageUri, 
                         StatsTracker.COMPRESSION_STATUS_FAILED, 
@@ -305,7 +307,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 }
             } else {
                 // Если сжатие неэффективно, пропускаем файл
-                Timber.d("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
+                LogUtil.processInfo("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
                 
                 // Получаем имя файла для уведомления
                 val fileName = getFileNameSafely(imageUri)
@@ -324,10 +326,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Проверяем использование памяти и форсируем GC при необходимости
                 val usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-                Timber.d("Использование памяти после тестового сжатия: ${usedMemory / 1024 / 1024}MB")
+                LogUtil.processInfo("Использование памяти после тестового сжатия: ${usedMemory / 1024 / 1024}MB")
                 
                 if (usedMemory > 100 * 1024 * 1024) { // Если используется больше 100MB
-                    Timber.d("Запрашиваем сборку мусора для освобождения памяти")
+                    LogUtil.processInfo("Запрашиваем сборку мусора для освобождения памяти")
                     System.gc()
                 }
                 
@@ -346,7 +348,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (imageUriString != null) {
                 val uri = Uri.parse(imageUriString)
-                Timber.e(e, "Неожиданная ошибка в worker: ${e.message}")
+                LogUtil.error(uri, "Неожиданная ошибка в worker", e)
                 return@withContext updateStatusAndReturn(
                     uri,
                     StatsTracker.COMPRESSION_STATUS_FAILED,
@@ -355,7 +357,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Если не удалось получить URI, возвращаем стандартную ошибку
-            Timber.e(e, "Неожиданная ошибка в worker: ${e.message}")
+            LogUtil.error(Uri.EMPTY, "Неожиданная ошибка в worker", e)
             return@withContext Result.failure(createFailureOutput(e.message ?: "Неожиданная ошибка"))
         }
     }
@@ -366,7 +368,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private fun logFileDetails(uri: Uri) {
         try {
             // Логируем основную информацию об URI
-            Timber.d("URI: ${uri.scheme}://${uri.authority}${uri.path}")
+            LogUtil.processInfo("URI: ${uri.scheme}://${uri.authority}${uri.path}")
             
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
@@ -392,17 +394,17 @@ class ImageCompressionWorker @AssistedInject constructor(
                     val mime = getCursorString(cursor, MediaStore.Images.Media.MIME_TYPE)
                     val data = getCursorString(cursor, MediaStore.Images.Media.DATA)
                     
-                    Timber.d("Файл: ID=$id, Имя='$name', Размер=${size/1024}KB, Дата=$date, MIME=$mime, Путь='$data'")
+                    LogUtil.processInfo("Файл: ID=$id, Имя='$name', Размер=${size/1024}KB, Дата=$date, MIME=$mime, Путь='$data'")
                 } else {
-                    Timber.d("Нет метаданных для URI '$uri'")
+                    LogUtil.processInfo("Нет метаданных для URI '$uri'")
                 }
-            } ?: Timber.d("Не удалось получить курсор для URI '$uri'")
+            } ?: LogUtil.processInfo("Не удалось получить курсор для URI '$uri'")
             
             // Дополнительно пробуем получить путь через FileUtil
             val path = FileUtil.getFilePathFromUri(context, uri)
-            Timber.d("Путь к файлу через FileUtil: $path")
+            LogUtil.processInfo("Путь к файлу через FileUtil: $path")
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении информации о файле: $uri")
+            LogUtil.error(uri, "Ошибка при получении информации о файле", e)
         }
     }
 
@@ -503,9 +505,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             } else {
                 "Уведомление о завершении сжатия отправлено: Файл=$fileName"
             }
-            Timber.d(message)
+            LogUtil.processInfo(message)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия")
+            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия", e)
         }
     }
 
@@ -568,7 +570,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Добавляем URI в список обработанных
             savedUri?.let {
-                Timber.d("Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
+                LogUtil.fileOperation(it, "Сохранение", "Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
                 
                 // Показываем уведомление о завершении сжатия
                 sendCompressionStatusNotification(
@@ -585,7 +587,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             return@withContext false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
+            LogUtil.error(Uri.EMPTY, "Сохранение", "Ошибка при сохранении сжатого изображения", e)
             return@withContext false
         }
     }
@@ -594,14 +596,14 @@ class ImageCompressionWorker @AssistedInject constructor(
         try {
             // Проверяем, есть ли URI в списке обработанных
             if (StatsTracker.isImageProcessed(context, uri)) {
-                Timber.d("URI найден в списке обработанных: $uri")
+                LogUtil.processInfo("URI найден в списке обработанных: $uri")
                 return@withContext uri
             }
             
             // Если файл не найден в списке обработанных, возвращаем null
             null
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при поиске сжатой версии изображения")
+            LogUtil.error(Uri.EMPTY, "Поиск сжатой версии изображения", e)
             null
         }
     }
@@ -610,7 +612,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Добавляет запрос на удаление файла в список ожидающих
      */
     private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: IntentSender) {
-        Timber.d("Требуется разрешение пользователя для удаления оригинального файла: $uri")
+        LogUtil.processInfo("Требуется разрешение пользователя для удаления оригинального файла: $uri")
         
         // Сохраняем URI в SharedPreferences для последующей обработки
         val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
@@ -641,13 +643,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Если имя файла не определено, генерируем временное имя на основе времени
             if (fileName.isNullOrBlank() || fileName == "unknown") {
                 val timestamp = System.currentTimeMillis()
-                Timber.w("Не удалось получить имя файла для URI: $uri, используем временное имя")
+                LogUtil.processInfo("Не удалось получить имя файла для URI: $uri, используем временное имя")
                 return "compressed_image_$timestamp.jpg"
             }
             
             return fileName
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении имени файла")
+            LogUtil.error(Uri.EMPTY, "Получение имени файла", e)
             val timestamp = System.currentTimeMillis()
             return "compressed_image_$timestamp.jpg"
         }
@@ -661,20 +663,20 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Проверяем размер файла
             val fileSize = FileUtil.getFileSize(context, uri)
             if (fileSize <= 0) {
-                Timber.w("Файл недоступен или пуст: $uri")
+                LogUtil.processInfo("Файл недоступен или пуст: $uri")
                 return@withContext false
             }
             
             // Проверяем, можно ли получить имя файла
             val fileName = FileUtil.getFileNameFromUri(context, uri)
             if (fileName.isNullOrBlank() || fileName == "unknown") {
-                Timber.w("Не удалось получить имя файла для URI: $uri")
+                LogUtil.processInfo("Не удалось получить имя файла для URI: $uri")
                 return@withContext false
             }
             
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке доступности файла: $uri")
+            LogUtil.error(uri, "Проверка доступности файла", e)
             return@withContext false
         }
     }

@@ -6,7 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 
@@ -30,7 +30,7 @@ object CompressionTestUtil {
         quality: Int
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Начинаем тестовое сжатие в RAM для URI: $uri")
+            LogUtil.uriInfo(uri, "Начало тестового сжатия в RAM")
             
             // Загружаем изображение в Bitmap
             val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -44,7 +44,7 @@ object CompressionTestUtil {
             val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
             
             if (!success) {
-                Timber.w("Ошибка при сжатии Bitmap")
+                LogUtil.error(uri, "Тестовое сжатие", "Ошибка при сжатии Bitmap")
                 inputBitmap.recycle() // Освобождаем ресурсы Bitmap
                 return@withContext false
             }
@@ -57,7 +57,7 @@ object CompressionTestUtil {
                 ((originalSize - compressedSize).toFloat() / originalSize) * 100
             } else 0f
             
-            Timber.d("Результат тестового сжатия в RAM: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
+            LogUtil.compression(uri, originalSize, compressedSize, sizeReduction.toInt())
             
             // Освобождаем ресурсы
             inputBitmap.recycle()
@@ -65,14 +65,14 @@ object CompressionTestUtil {
             
             // Если сжатие дало более 10% экономии
             if (sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
-                Timber.d("Тестовое сжатие в RAM эффективно (экономия ${String.format("%.1f", sizeReduction)}% > порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), будем сжимать")
+                LogUtil.processInfo("Тестовое сжатие для ${getFileId(uri)} эффективно (экономия ${sizeReduction.toInt()}% > ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), выполняем полное сжатие")
                 return@withContext true
             } else {
-                Timber.d("Тестовое сжатие в RAM неэффективно (экономия ${String.format("%.1f", sizeReduction)}% < порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
+                LogUtil.skipImage(uri, "Тестовое сжатие неэффективно (экономия ${sizeReduction.toInt()}% < ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%)")
                 return@withContext false
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при тестовом сжатии в RAM: ${e.message}")
+            LogUtil.error(uri, "Тестовое сжатие", e)
             return@withContext false
         }
     }
@@ -92,7 +92,7 @@ object CompressionTestUtil {
         quality: Int
     ): CompressionStats? = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Получение статистики тестового сжатия для URI: $uri")
+            LogUtil.uriInfo(uri, "Получение статистики тестового сжатия")
             
             // Загружаем изображение в Bitmap
             val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -106,7 +106,7 @@ object CompressionTestUtil {
             val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
             
             if (!success) {
-                Timber.w("Ошибка при сжатии Bitmap")
+                LogUtil.error(uri, "Сжатие Bitmap", "Ошибка при получении статистики")
                 inputBitmap.recycle() // Освобождаем ресурсы Bitmap
                 return@withContext null
             }
@@ -119,7 +119,7 @@ object CompressionTestUtil {
                 ((originalSize - compressedSize).toFloat() / originalSize) * 100
             } else 0f
             
-            Timber.d("Статистика тестового сжатия: оригинал=${originalSize/1024}KB, сжатый=${compressedSize/1024}KB, сокращение=${String.format("%.1f", sizeReduction)}%")
+            LogUtil.compression(uri, originalSize, compressedSize, sizeReduction.toInt())
             
             // Освобождаем ресурсы
             inputBitmap.recycle()
@@ -127,7 +127,7 @@ object CompressionTestUtil {
             
             return@withContext CompressionStats(originalSize, compressedSize, sizeReduction)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении статистики тестового сжатия: ${e.message}")
+            LogUtil.error(uri, "Статистика сжатия", e)
             return@withContext null
         }
     }
@@ -147,7 +147,7 @@ object CompressionTestUtil {
         quality: Int
     ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Получение сжатого изображения в RAM для URI: $uri")
+            LogUtil.uriInfo(uri, "Получение сжатого изображения")
             
             // Загружаем изображение в Bitmap
             val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
@@ -161,7 +161,7 @@ object CompressionTestUtil {
             val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
             
             if (!success) {
-                Timber.w("Ошибка при сжатии Bitmap в потоке")
+                LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в потоке")
                 inputBitmap.recycle() // Освобождаем ресурсы Bitmap
                 return@withContext null
             }
@@ -171,7 +171,7 @@ object CompressionTestUtil {
             
             return@withContext outputStream
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении сжатого потока: ${e.message}")
+            LogUtil.error(uri, "Получение сжатого потока", e)
             return@withContext null
         }
     }
@@ -184,4 +184,11 @@ object CompressionTestUtil {
         val compressedSize: Long,
         val reductionPercent: Float
     )
+
+    /**
+     * Получает короткий идентификатор для URI, используемый в логах
+     */
+    private fun getFileId(uri: Uri): String {
+        return uri.lastPathSegment?.takeLast(4) ?: uri.toString().takeLast(4)
+    }
 } 
