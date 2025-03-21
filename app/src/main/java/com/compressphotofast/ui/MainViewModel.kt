@@ -47,6 +47,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import com.compressphotofast.util.SequentialImageProcessor
 
 /**
  * Модель представления для главного экрана
@@ -81,6 +82,9 @@ class MainViewModel @Inject constructor(
     
     // Job для отслеживания текущей обработки
     private var processingJob: kotlinx.coroutines.Job? = null
+    
+    // Объект для последовательной обработки изображений
+    private val sequentialImageProcessor = SequentialImageProcessor(context)
     
     init {
         // Загрузить сохраненный уровень сжатия
@@ -151,164 +155,37 @@ class MainViewModel @Inject constructor(
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
         
-        processingJob = viewModelScope.launch(Dispatchers.Main) {
-            _isLoading.value = true
-            // Сбрасываем предыдущий результат
-            _compressionResult.value = null
-            
-            // Инициализируем прогресс
-            _multipleImagesProgress.value = MultipleImagesProgress(
-                total = uris.size,
-                processed = 0,
-                successful = 0,
-                failed = 0,
-                skipped = 0
-            )
-            
-            // Создаем отдельный массив для отслеживания рабочих заданий
-            val workRequests = mutableListOf<WorkRequest>()
-            val alreadyOptimizedUris = mutableListOf<Uri>()
-            
-            // Предварительно проверяем, какие изображения уже оптимизированы
-            for (uri in uris) {
-                val isAlreadyOptimized = withContext(Dispatchers.IO) {
-                    ImageProcessingChecker.isAlreadyProcessed(context, uri)
-                }
-                
-                if (isAlreadyOptimized) {
-                    // Отмечаем, что изображение уже оптимизировано
-                    alreadyOptimizedUris.add(uri)
-                    
-                    // Отправляем уведомление о том, что изображение уже оптимизировано
-                    val alreadyOptimizedIntent = Intent(Constants.ACTION_IMAGE_ALREADY_OPTIMIZED)
-                    context.sendBroadcast(alreadyOptimizedIntent)
-                    
-                    // Логируем информацию
-                    Timber.d("Изображение уже оптимизировано: $uri")
-                } else {
-                    // Создаем рабочее задание для неоптимизированного изображения
-                    val workRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                    .setInputData(workDataOf(
-                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                        "compression_quality" to getCompressionQuality()
-                    ))
-                    .build()
-                    workRequests.add(workRequest)
-                }
+        // Начинаем отслеживать прогресс обработки изображений
+        viewModelScope.launch {
+            // Отслеживаем состояние загрузки
+            sequentialImageProcessor.isLoading.collect { isLoading ->
+                _isLoading.value = isLoading
             }
-            
-            // Обновляем состояние для уже оптимизированных изображений
-            if (alreadyOptimizedUris.isNotEmpty()) {
-                val currentProgress = _multipleImagesProgress.value ?: MultipleImagesProgress()
-                val newProgress = currentProgress.copy(
-                    processed = currentProgress.processed + alreadyOptimizedUris.size,
-                    skipped = currentProgress.skipped + alreadyOptimizedUris.size
-                )
-                _multipleImagesProgress.value = newProgress
-            }
-            
-            // Если все изображения уже оптимизированы, завершаем здесь
-            if (workRequests.isEmpty()) {
-                val finalProgress = _multipleImagesProgress.value?.copy() ?: MultipleImagesProgress()
-                _multipleImagesProgress.value = finalProgress.copy(processed = finalProgress.total)
-                _isLoading.value = false
-                
-                // Показываем результат
-                _compressionResult.value = CompressionResult(
-                    success = true,
-                    errorMessage = null,
-                    totalImages = uris.size,
-                    successfulImages = 0,
-                    failedImages = 0,
-                    skippedImages = uris.size,
-                    allSuccessful = true
-                )
-                
-                Timber.d("Завершена обработка всех изображений (${uris.size}/${uris.size})")
-                Timber.d("Реальный результат: success=true, allSuccessful=true, totalImages=${uris.size}, successfulImages=0, skippedImages=${uris.size}, failedImages=0")
-                return@launch
-            }
-            
-            // Показываем уведомление о начале обработки нескольких изображений
-            if (workRequests.size > 1) {
-                showBatchProcessingStartedNotification(workRequests.size)
-            }
-            
-            // Создаем карту для отслеживания связей между заданиями и URI
-            val requestToUriMap = workRequests.zip(uris.filter { uri -> !alreadyOptimizedUris.contains(uri) }).toMap()
-            
-            // Отправляем запросы в WorkManager
-            for (request in workRequests) {
-                workManager.enqueue(request)
-                
-                // Получаем URI, связанный с этим запросом
-                val uri = requestToUriMap[request]
-                
-                // Устанавливаем наблюдателя за каждым заданием
-                workManager.getWorkInfoByIdLiveData(request.id)
-                    .observeForever(object : androidx.lifecycle.Observer<androidx.work.WorkInfo> {
-                        override fun onChanged(value: androidx.work.WorkInfo) {
-                            if (value.state.isFinished) {
-                                // Удаляем наблюдателя, так как задание завершено
-                                workManager.getWorkInfoByIdLiveData(request.id).removeObserver(this)
-                                
-                                val success = value.outputData.getBoolean("success", false)
-                                val skipped = value.outputData.getBoolean("skipped", false)
-                                
-                                // Снимаем регистрацию URI после обработки
-                                uri?.let { processedUri -> 
-                                    Timber.d("compressMultipleImages: снимаем регистрацию URI после обработки: $processedUri")
-                                }
-                                
-                                // Обновляем прогресс в зависимости от результата
-                                viewModelScope.launch(Dispatchers.Main) {
-                                    val currentProgress = _multipleImagesProgress.value ?: MultipleImagesProgress()
-                                    val newProgress = currentProgress.copy(
-                                        processed = currentProgress.processed + 1,
-                                        successful = if (success) currentProgress.successful + 1 else currentProgress.successful,
-                                        failed = if (!success && !skipped) currentProgress.failed + 1 else currentProgress.failed,
-                                        skipped = if (skipped) currentProgress.skipped + 1 else currentProgress.skipped
-                                    )
-                                    _multipleImagesProgress.value = newProgress
-                                    
-                                    // Обновляем уведомление о прогрессе
-                                    if (uris.size > 1) {
-                                        updateBatchProcessingNotification(newProgress)
-                                    }
-                                    
-                                    // Показываем результат только когда все изображения обработаны
-                                    if (newProgress.processed >= newProgress.total) {
-                                        _isLoading.value = false
-                                        
-                                        // Показываем уведомление о завершении обработки
-                                        if (uris.size > 1) {
-                                            showBatchProcessingCompletedNotification(newProgress)
-                                        }
-                                        
-                                        // Показываем результат только если это не было частью автоматической обработки
-                                        if (newProgress.total <= 10) {
-                                            _compressionResult.value = CompressionResult(
-                                                success = newProgress.failed == 0,
-                                                errorMessage = if (newProgress.failed > 0) "Не удалось обработать ${newProgress.failed} изображений" else null,
-                                                totalImages = newProgress.total,
-                                                successfulImages = newProgress.successful,
-                                                failedImages = newProgress.failed,
-                                                skippedImages = newProgress.skipped,
-                                                allSuccessful = newProgress.failed == 0
-                                            )
-                                        }
-                                        
-                                        Timber.d("Обработка завершена: всего=${newProgress.total}, успешно=${newProgress.successful}, пропущено=${newProgress.skipped}, ошибок=${newProgress.failed}")
-                                    }
-                                }
-                            }
-                        }
-                    })
-            }
-            
-            // Логируем общее количество запущенных задач
-            Timber.d("Запущена обработка ${uris.size} изображений")
         }
+        
+        viewModelScope.launch {
+            // Отслеживаем прогресс обработки
+            sequentialImageProcessor.progress.collect { progress ->
+                _multipleImagesProgress.value = progress
+            }
+        }
+        
+        viewModelScope.launch {
+            // Отслеживаем результат обработки
+            sequentialImageProcessor.result.collect { result ->
+                _compressionResult.value = result
+            }
+        }
+        
+        // Запускаем обработку изображений последовательно
+        sequentialImageProcessor.processImages(
+            uris = uris,
+            compressionQuality = getCompressionQuality(),
+            showResultNotification = true
+        )
+        
+        // Логируем начало обработки
+        Timber.d("Запущена последовательная обработка ${uris.size} изображений")
     }
 
     /**
@@ -485,131 +362,10 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Показывает уведомление о начале обработки нескольких изображений
-     */
-    private fun showBatchProcessingStartedNotification(count: Int) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Убеждаемся что каналы уведомлений созданы
-        NotificationUtil.createDefaultNotificationChannel(context)
-        
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Создаем уведомление о начале обработки
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_title))
-            .setContentText(context.getString(R.string.notification_batch_processing_start, count))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)
-            .setContentIntent(pendingIntent)
-            .setProgress(count, 0, false)
-            .build()
-        
-        notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
-    }
-    
-    /**
-     * Обновляет уведомление о прогрессе обработки нескольких изображений
-     */
-    private fun updateBatchProcessingNotification(progress: MultipleImagesProgress) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Создаем Intent для остановки обработки
-        val stopIntent = Intent(context, MainActivity::class.java).apply {
-            action = Constants.ACTION_STOP_SERVICE
-        }
-        val stopPendingIntent = PendingIntent.getActivity(
-            context,
-            1,
-            stopIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Создаем уведомление о прогрессе обработки
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_title))
-            .setContentText(context.getString(
-                R.string.notification_batch_processing_progress,
-                progress.processed,
-                progress.total
-            ))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)
-            .addAction(
-                R.drawable.ic_launcher_foreground,
-                context.getString(R.string.notification_action_stop),
-                stopPendingIntent
-            )
-            .setProgress(progress.total, progress.processed, false)
-            .build()
-        
-        notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
-    }
-    
-    /**
-     * Показывает уведомление о завершении обработки нескольких изображений
-     */
-    private fun showBatchProcessingCompletedNotification(progress: MultipleImagesProgress) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Создаем Intent для открытия приложения
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Создаем текст уведомления с учетом пропущенных файлов
-        val contentText = if (progress.skipped > 0) {
-            context.getString(
-                R.string.notification_batch_processing_completed_with_skipped,
-                progress.successful,
-                progress.skipped,
-                progress.failed,
-                progress.total
-            )
-        } else {
-            context.getString(
-                R.string.notification_batch_processing_completed,
-                progress.successful,
-                progress.failed,
-                progress.total
-            )
-        }
-        
-        // Создаем уведомление о завершении обработки
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_completed_title))
-            .setContentText(contentText)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .build()
-        
-        notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
-    }
-
-    /**
      * Останавливает текущую обработку изображений
      */
     fun stopBatchProcessing() {
-        processingJob?.cancel()
-        processingJob = null
-        
-        // Удаляем уведомление о прогрессе
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
-        
-        // Показываем уведомление об остановке
-        showToast(context.getString(R.string.batch_processing_stopped))
+        sequentialImageProcessor.cancelProcessing()
     }
 
     /**
@@ -691,6 +447,12 @@ class MainViewModel @Inject constructor(
             Timber.e(e, "Ошибка при проверке статуса IS_PENDING файла")
             return@withContext false
         }
+    }
+
+    // Очистка ресурсов при уничтожении ViewModel
+    override fun onCleared() {
+        super.onCleared()
+        sequentialImageProcessor.destroy()
     }
 }
 

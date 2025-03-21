@@ -124,8 +124,8 @@ class ImageDetectionJobService : JobService() {
                 triggerUris.forEach { uri ->
                     Timber.d("ImageDetectionJobService: обработка URI: $uri")
                     
-                    // Проверяем, является ли файл временным
-                    if (isFilePending(uri)) {
+                    // Проверяем, не является ли файл временным
+                    if (FileUtil.isFilePendingSuspend(applicationContext, uri)) {
                         Timber.d("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
                         skippedCount++
                         return@forEach
@@ -191,31 +191,6 @@ class ImageDetectionJobService : JobService() {
     }
 
     /**
-     * Проверяет, является ли файл временным (pending)
-     */
-    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val isPendingIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
-                    return@withContext cursor.getInt(isPendingIndex) == 1
-                }
-            }
-            false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса файла")
-            true // В случае ошибки считаем файл временным
-        }
-    }
-
-    /**
      * Получение размера файла
      */
     private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
@@ -258,5 +233,12 @@ class ImageDetectionJobService : JobService() {
      */
     private fun isAutoCompressionEnabled(context: Context): Boolean {
         return SettingsManager.getInstance(context).isAutoCompressionEnabled()
+    }
+
+    /**
+     * Проверяет, находится ли файл в процессе записи
+     */
+    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        return@withContext FileUtil.isFilePendingSuspend(applicationContext, uri)
     }
 } 

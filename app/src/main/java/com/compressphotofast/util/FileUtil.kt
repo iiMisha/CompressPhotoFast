@@ -596,12 +596,22 @@ object FileUtil {
                     }
                 }
             }
-            // Если не удалось определить, предполагаем, что не в состоянии IS_PENDING
+            
             return false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке состояния IS_PENDING у URI: $uri")
+            Timber.e(e, "Ошибка при проверке IS_PENDING: $uri", e)
             return false
         }
+    }
+    
+    /**
+     * Корутинная версия проверки статуса IS_PENDING
+     * @param context контекст
+     * @param uri URI файла
+     * @return true если файл в состоянии IS_PENDING, false в противном случае
+     */
+    suspend fun isFilePendingSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        return@withContext isFilePending(context, uri)
     }
 
     /**
@@ -756,10 +766,10 @@ object FileUtil {
     }
     
     /**
-     * Сохранение сжатого изображения напрямую из ByteArrayOutputStream
+     * Сохранение сжатого изображения напрямую из InputStream
      * 
      * @param context Контекст приложения
-     * @param outputStream ByteArrayOutputStream с сжатым изображением
+     * @param inputStream InputStream с сжатым изображением
      * @param fileName Имя файла для сохранения
      * @param directory Директория для сохранения
      * @param originalUri URI оригинального файла для получения EXIF данных
@@ -768,7 +778,7 @@ object FileUtil {
      */
     suspend fun saveCompressedImageFromStream(
         context: Context,
-        outputStream: ByteArrayOutputStream,
+        inputStream: InputStream,
         fileName: String,
         directory: String,
         originalUri: Uri,
@@ -793,9 +803,9 @@ object FileUtil {
             
             try {
                 // Сначала записываем сжатое изображение
-                context.contentResolver.openOutputStream(uri)?.use { outputFileStream ->
-                    outputStream.writeTo(outputFileStream)
-                    outputFileStream.flush()
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                    outputStream.flush()
                 } ?: throw IOException("Не удалось открыть OutputStream")
                 
                 Timber.d("Данные изображения записаны в URI: $uri")
@@ -944,5 +954,38 @@ object FileUtil {
         }
         
         return@withContext isAvailable
+    }
+
+    /**
+     * Проверяет, существует ли URI в системе
+     * @param context контекст
+     * @param uri URI для проверки
+     * @return true если URI существует, false в противном случае
+     */
+    fun isUriExists(context: Context, uri: Uri): Boolean {
+        try {
+            val exists = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                cursor.count > 0
+            } ?: false
+            
+            if (!exists) {
+                Timber.d("URI не существует: $uri")
+            }
+            
+            return exists
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке существования URI: $uri")
+            return false
+        }
+    }
+    
+    /**
+     * Корутинная версия проверки существования URI
+     * @param context контекст
+     * @param uri URI для проверки
+     * @return true если URI существует, false в противном случае
+     */
+    suspend fun isUriExistsSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        return@withContext isUriExists(context, uri)
     }
 } 

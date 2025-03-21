@@ -51,6 +51,7 @@ import android.graphics.BitmapFactory
 import java.io.ByteArrayOutputStream
 import android.content.pm.ServiceInfo
 import android.content.IntentSender
+import java.io.ByteArrayInputStream
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -71,6 +72,26 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val compressionQuality = inputData.getInt("compression_quality", Constants.COMPRESSION_QUALITY_MEDIUM)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+        if (uriString.isNullOrEmpty()) {
+            Timber.e("URI не установлен для компрессии")
+            return@withContext Result.failure()
+        }
+
+        val uri = Uri.parse(uriString)
+        
+        // Проверка существования файла с использованием централизованного метода
+        if (!FileUtil.isUriExistsSuspend(applicationContext, uri)) {
+            Timber.e("Файл не существует: $uriString")
+            return@withContext Result.failure()
+        }
+        
+        // Проверка на временный файл с использованием централизованного метода
+        if (FileUtil.isFilePendingSuspend(applicationContext, uri)) {
+            Timber.d("Файл находится в процессе записи, пропускаем: $uriString")
+            return@withContext Result.failure()
+        }
+        
         // Устанавливаем foreground notification
         val notificationId = Constants.NOTIFICATION_ID_COMPRESSION
         val notificationTitle = applicationContext.getString(R.string.notification_title_processing)
@@ -87,20 +108,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             val imageUri = Uri.parse(imageUriString)
             val context = applicationContext
-            
-            // Проверяем доступность файла
-            if (!isFileAccessible(imageUri)) {
-                Timber.e("Файл недоступен или нельзя получить его имя: $imageUri")
-                // Очищаем URI из списка обрабатываемых
-                try {
-                    com.compressphotofast.util.UriProcessingTracker.removeProcessingUri(imageUriString)
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при очистке URI из списка обрабатываемых")
-                }
-                return@withContext Result.failure(
-                    workDataOf(Constants.WORK_ERROR_MSG to "Файл недоступен")
-                )
-            }
             
             // Начинаем отслеживание сжатия
             StatsTracker.startTracking(imageUri)
@@ -226,7 +233,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     // Сохраняем сжатое изображение с именем оригинала
                     val savedUri = FileUtil.saveCompressedImageFromStream(
                         context,
-                        compressedStream,
+                        ByteArrayInputStream(compressedStream.toByteArray()),
                         fileName,
                         directory,
                         backupUri ?: imageUri,
@@ -432,27 +439,10 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Проверка, является ли файл временным (pending)
+     * Проверка, является ли файл временным/в процессе записи
      */
     private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    return@withContext getCursorLong(cursor, MediaStore.MediaColumns.IS_PENDING, 0) == 1L
-                }
-            }
-            false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса файла")
-            true // В случае ошибки считаем файл временным
-        }
+        return@withContext FileUtil.isFilePendingSuspend(applicationContext, uri)
     }
 
     /**
@@ -721,5 +711,12 @@ class ImageCompressionWorker @AssistedInject constructor(
         } else {
             Result.success(createSuccessOutput(skipped))
         }
+    }
+
+    /**
+     * Проверка на наличие файла
+     */
+    private suspend fun isUriExists(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        return@withContext FileUtil.isUriExistsSuspend(applicationContext, uri)
     }
 } 

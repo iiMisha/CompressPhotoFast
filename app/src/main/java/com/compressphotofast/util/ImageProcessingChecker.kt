@@ -60,7 +60,7 @@ object ImageProcessingChecker {
     private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование URI
-            if (!isUriExists(context, uri)) {
+            if (!FileUtil.isUriExistsSuspend(context, uri)) {
                 Timber.d("URI не существует: $uri")
                 return@withContext false
             }
@@ -96,7 +96,7 @@ object ImageProcessingChecker {
             }
             
             // Проверяем, является ли файл временным или в процессе записи
-            if (isFilePending(context, uri)) {
+            if (FileUtil.isFilePendingSuspend(context, uri)) {
                 Timber.d("Файл является временным или в процессе записи: $uri")
                 return@withContext false
             }
@@ -123,7 +123,7 @@ object ImageProcessingChecker {
      */
     suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (!isUriExists(context, uri)) {
+            if (!FileUtil.isUriExistsSuspend(context, uri)) {
                 Timber.d("URI не существует, считаем файл обработанным: $uri")
                 return@withContext true
             }
@@ -342,27 +342,7 @@ object ImageProcessingChecker {
      * @return true если файл временный, false в противном случае
      */
     private suspend fun isFilePending(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем, установлен ли флаг IS_PENDING
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val isPendingColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
-                    return@withContext cursor.getInt(isPendingColumnIndex) == 1
-                }
-            }
-            
-            return@withContext false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса IS_PENDING: ${e.message}")
-            return@withContext false
-        }
+        return@withContext FileUtil.isFilePendingSuspend(context, uri)
     }
     
     /**
@@ -380,16 +360,7 @@ object ImageProcessingChecker {
     }
 
     private suspend fun isUriExists(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val exists = context.contentResolver.query(uri, null, null, null, null)?.use { it.count > 0 } ?: false
-            if (!exists) {
-                Timber.d("URI не существует: $uri")
-            }
-            return@withContext exists
-        } catch (e: Exception) {
-            Timber.d("Не удалось проверить существование URI: $uri, ${e.message}")
-            return@withContext false
-        }
+        return@withContext FileUtil.isUriExistsSuspend(context, uri)
     }
 
     private fun isInAppDirectory(path: String): Boolean {
