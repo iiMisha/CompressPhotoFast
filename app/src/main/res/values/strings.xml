@@ -24,6 +24,9 @@
     <string name="notification_background_service">Служба мониторинга фотографий</string>
     <string name="notification_background_service_description">Приложение автоматически сжимает новые фотографии для экономии места на устройстве</string>
     <string name="notification_action_stop">Остановить</string>
+    <string name="notification_stop">Остановить</string>
+    <string name="background_service_notification_title">Автоматическое сжатие фотографий</string>
+    <string name="background_service_notification_text">Приложение мониторит новые фотографии и автоматически сжимает их</string>
     <string name="notification_compressing">Сжатие фотографий…</string>
     <string name="notification_processing">Обработка изображения...</string>
     <string name="notification_compression_complete">Сжатие завершено</string>

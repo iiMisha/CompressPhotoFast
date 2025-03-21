@@ -19,16 +19,49 @@ import androidx.documentfile.provider.DocumentFile
 
 /**
  * Централизованный класс для проверки необходимости обработки изображений
+ * Предотвращает дублирование логики в разных частях приложения
  */
 object ImageProcessingChecker {
 
     /**
+     * ОСНОВНОЙ ПУБЛИЧНЫЙ МЕТОД
      * Проверяет, нужно ли обрабатывать изображение
      * Централизованная версия логики для всего приложения
+     * 
+     * @param context Контекст
+     * @param uri URI изображения
+     * @param forceProcess Принудительная обработка, даже если автосжатие отключено
+     * @return true если изображение нужно обработать, false в противном случае
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         try {
+            // 1. Базовые предварительные проверки
+            if (!passesBasicChecks(context, uri, forceProcess)) {
+                return@withContext false
+            }
+            
+            // 2. Проверка на уже обработанное изображение
+            if (isAlreadyProcessed(context, uri)) {
+                return@withContext false
+            }
+            
+            // Если прошли все проверки, изображение требует обработки
+            return@withContext true
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: $uri")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверяет основные условия и настройки для обработки изображения
+     * @return true если прошли все базовые проверки
+     */
+    private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем существование URI
             if (!isUriExists(context, uri)) {
+                Timber.d("URI не существует: $uri")
                 return@withContext false
             }
             
@@ -43,38 +76,98 @@ object ImageProcessingChecker {
             val settingsManager = SettingsManager.getInstance(context)
             val isAutoEnabled = settingsManager.isAutoCompressionEnabled()
             
-            // Если автосжатие отключено и нет флага принудительной обработки, 
-            // возвращаем false
+            // Если автосжатие отключено и нет флага принудительной обработки, возвращаем false
             if (!isAutoEnabled && !forceProcess) {
+                Timber.d("Автосжатие отключено и нет принудительной обработки: $uri")
                 return@withContext false
             }
             
             // Проверяем, не является ли изображение скриншотом
-            if (FileUtil.isScreenshot(context, uri)) {
+            if (!settingsManager.shouldProcessScreenshots() && FileUtil.isScreenshot(context, uri)) {
+                Timber.d("Файл является скриншотом, обработка скриншотов отключена: $uri")
                 return@withContext false
             }
             
-            // Проверяем, было ли изображение уже обработано
-            if (isAlreadyProcessed(context, uri)) {
+            // Проверяем, не находится ли файл в директории приложения
+            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
+            if (isInAppDirectory(path)) {
+                Timber.d("Файл находится в директории приложения: $path")
                 return@withContext false
             }
             
+            // Проверяем, является ли файл временным или в процессе записи
+            if (isFilePending(context, uri)) {
+                Timber.d("Файл является временным или в процессе записи: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем MIME тип
+            val mimeType = FileUtil.getMimeType(context, uri)
+            if (!isProcessableMimeType(mimeType)) {
+                Timber.d("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
+                return@withContext false
+            }
+            
+            // Прошли все базовые проверки
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: $uri")
+            Timber.e(e, "Ошибка при базовой проверке изображения: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Проверка, было ли изображение уже обработано
+     * Централизованная версия логики из разных частей приложения
+     * @return true если изображение уже обработано, false в противном случае
+     */
+    suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (!isUriExists(context, uri)) {
+                Timber.d("URI не существует, считаем файл обработанным: $uri")
+                return@withContext true
+            }
+            
+            // Получаем размер файла для проверок
+            val fileSize = FileUtil.getFileSize(context, uri)
+            
+            // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
+            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
+            if (isInAppDirectory(path)) {
+                Timber.d("Файл находится в директории приложения, считаем его обработанным: $path")
+                return@withContext true
+            }
+            
+            // 1. Проверяем EXIF маркер и дату модификации - это основная проверка
+            val isCompressedAndNotModified = isImageCompressedAndNotModified(context, uri)
+            if (isCompressedAndNotModified) {
+                Timber.d("Изображение уже сжато (EXIF маркер) и не модифицировано: $uri")
+                return@withContext true
+            }
+            
+            // 2. Если файл уже достаточно мал (меньше оптимального размера), считаем его обработанным
+            val optimumSize = Constants.OPTIMUM_FILE_SIZE
+            if (fileSize < optimumSize) {
+                Timber.d("Файл уже достаточно мал (${fileSize/1024}KB < ${optimumSize/1024}KB), пропускаем: $uri")
+                return@withContext true
+            }
+            
+            // В остальных случаях считаем, что файл требует обработки
+            Timber.d("Файл требует обработки: $uri")
+            return@withContext false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке обработанности изображения: ${e.message}")
             return@withContext false
         }
     }
     
     /**
      * Проверяет наличие EXIF-маркера сжатия и было ли изображение модифицировано после сжатия
-     * @param context контекст
-     * @param uri URI изображения
      * @return true если изображение сжато и не модифицировано после сжатия, false в противном случае
      */
     private suspend fun isImageCompressedAndNotModified(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            Timber.d("Выполняется приоритетная проверка EXIF-маркера сжатия: $uri")
+            Timber.d("Выполняется проверка EXIF-маркера сжатия: $uri")
             
             // Проверяем наличие EXIF-маркера сжатия
             val hasCompressMarker = ExifUtil.isImageCompressed(context, uri)
@@ -96,49 +189,6 @@ object ImageProcessingChecker {
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке EXIF-маркера сжатия: ${e.message}")
-            return@withContext false
-        }
-    }
-    
-    /**
-     * Проверяет основные условия для обработки изображения
-     * @param context контекст
-     * @param uri URI изображения
-     * @return true если изображение должно быть обработано, false в противном случае
-     */
-    private suspend fun shouldBeProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем, не находится ли файл в директории приложения
-            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
-            if (isInAppDirectory(path)) {
-                Timber.d("Файл находится в директории приложения: $path")
-                return@withContext false
-            }
-            
-            // Проверяем, является ли файл временным или в процессе записи
-            if (isFilePending(context, uri)) {
-                Timber.d("Файл является временным или в процессе записи: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем MIME тип
-            val mimeType = FileUtil.getMimeType(context, uri)
-            if (!isProcessableMimeType(mimeType)) {
-                Timber.d("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
-                return@withContext false
-            }
-            
-            // Проверяем, не является ли файл скриншотом, если настройка запрещает обработку скриншотов
-            if (!SettingsManager.getInstance(context).shouldProcessScreenshots()) {
-                if (FileUtil.isScreenshot(context, uri)) {
-                    Timber.d("Файл является скриншотом, обработка скриншотов отключена: $uri")
-                    return@withContext false
-                }
-            }
-            
-            return@withContext true
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке базовых условий обработки: ${e.message}")
             return@withContext false
         }
     }
@@ -282,65 +332,6 @@ object ImageProcessingChecker {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении даты модификации файла: ${e.message}")
             return@withContext null
-        }
-    }
-    
-    /**
-     * Проверка, было ли изображение уже обработано (для использования в ImageCompressionWorker)
-     * Централизованная версия логики из ImageCompressionWorker.isImageAlreadyProcessedExceptSize
-     * @param context контекст
-     * @param uri URI изображения
-     * @return true если изображение уже обработано, false в противном случае
-     */
-    suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            if (!isUriExists(context, uri)) {
-                Timber.d("URI не существует, считаем файл обработанным: $uri")
-                return@withContext true
-            }
-            
-            // Получаем размер файла для проверок
-            val fileSize = FileUtil.getFileSize(context, uri)
-            
-            // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
-            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
-            if (isInAppDirectory(path)) {
-                Timber.d("Файл находится в директории приложения, считаем его обработанным: $path")
-                return@withContext true
-            }
-            
-            // Проверяем EXIF маркер
-            val hasCompressMarker = ExifUtil.isImageCompressed(context, uri)
-            
-            if (hasCompressMarker) {
-                Timber.d("Найден EXIF маркер сжатия, проверяем модификацию после сжатия: $uri")
-                
-                // Если файл был сжат ранее, проверяем, не был ли он модифицирован после сжатия
-                val wasModifiedAfterCompression = wasFileModifiedAfterCompression(context, uri)
-                if (wasModifiedAfterCompression) {
-                    Timber.d("Изображение было сжато ранее, но модифицировано после этого, требуется повторная обработка: $uri")
-                    return@withContext false // Файл нужно обработать повторно
-                }
-                
-                Timber.d("Изображение уже сжато (найден EXIF маркер) и не модифицировано после этого: $uri")
-                return@withContext true
-            } else {
-                Timber.d("EXIF маркер сжатия не найден: $uri")
-            }
-
-            // Если файл уже достаточно мал (меньше оптимального размера)
-            val optimumSize = Constants.OPTIMUM_FILE_SIZE
-            if (fileSize < optimumSize) {
-                Timber.d("Файл уже достаточно мал (${fileSize/1024}KB < ${optimumSize/1024}KB), пропускаем: $uri")
-                return@withContext true
-            }
-            
-            // В остальных случаях считаем, что файл требует обработки
-            Timber.d("Файл требует обработки: $uri")
-            return@withContext false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса обработки файла: ${e.message}")
-            return@withContext false
         }
     }
     

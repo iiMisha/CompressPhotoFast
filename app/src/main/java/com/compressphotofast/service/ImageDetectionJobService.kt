@@ -26,6 +26,7 @@ import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.GalleryScanUtil
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {

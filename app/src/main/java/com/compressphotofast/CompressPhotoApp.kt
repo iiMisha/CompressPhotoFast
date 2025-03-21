@@ -9,6 +9,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.compressphotofast.R
+import com.compressphotofast.util.NotificationUtil
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
@@ -31,55 +32,14 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         }
         
         // Создание канала уведомлений (для Android 8.0+)
-        createNotificationChannel()
+        // Используем централизованный метод из NotificationUtil
+        NotificationUtil.createDefaultNotificationChannel(this)
 
         // Инициализация WorkManager с конфигурацией
         WorkManager.initialize(
             applicationContext,
             workManagerConfiguration
         )
-    }
-
-    /**
-     * Создает канал уведомлений для Android 8.0+
-     */
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.notification_channel_name)
-            val description = getString(R.string.notification_channel_description)
-            val importance = NotificationManager.IMPORTANCE_LOW
-            
-            val channel = NotificationChannel(
-                getString(R.string.notification_channel_id),
-                name,
-                importance
-            ).apply {
-                this.description = description
-                // Устанавливаем настройки для предотвращения ошибки "weird-custom-notification"
-                setShowBadge(false)
-                enableLights(false)
-                enableVibration(false)
-            }
-            
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            
-            // Создаем дополнительный канал для уведомлений о завершении сжатия
-            val completionChannel = NotificationChannel(
-                "compression_completion_channel",
-                getString(R.string.notification_completion_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                this.description = getString(R.string.notification_completion_channel_description)
-                setShowBadge(true)
-                enableLights(true)
-                enableVibration(true)
-            }
-            
-            notificationManager.createNotificationChannel(completionChannel)
-            
-            Timber.d("Notification channels created")
-        }
     }
 
     /**

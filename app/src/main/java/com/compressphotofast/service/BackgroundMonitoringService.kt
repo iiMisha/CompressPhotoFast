@@ -157,8 +157,8 @@ class BackgroundMonitoringService : Service() {
                     val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                     
                     // Удаляем URI из списка обрабатываемых
-                    val wasRemoved = UriProcessingTracker.removeProcessingUri(uriString)
-                    Timber.d("URI был ${if (wasRemoved) "успешно удалён" else "не найден"} в списке обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
+                    UriProcessingTracker.removeProcessingUri(uriString)
+                    Timber.d("URI удален из списка обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
                     Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
                     // Показываем Toast-уведомление о результате сжатия
@@ -178,7 +178,7 @@ class BackgroundMonitoringService : Service() {
         Timber.d("BackgroundMonitoringService: onCreate")
         
         // Создаем канал уведомлений
-        NotificationUtil.createNotificationChannel(applicationContext)
+        NotificationUtil.createDefaultNotificationChannel(applicationContext)
         
         // Создаем уведомление и запускаем сервис как Foreground Service
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -370,27 +370,12 @@ class BackgroundMonitoringService : Service() {
                 Timber.d("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
                 return
             }
-
-            // Логируем подробную информацию о файле
-            logDetailedFileInfo(uri)
             
-            // Используем централизованный метод для обработки изображения
+            // Используем централизованный метод обработки изображения
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
-            
-            if (result.first) { // Успешно выполнился метод
-                if (result.second) { // Изображение было добавлено в очередь
-                    Timber.d("BackgroundMonitoringService: запрос на обработку изображения отправлен: $uri")
-                } else {
-                    Timber.d("BackgroundMonitoringService: изображение не требует обработки: $uri - ${result.third}")
-                }
-            } else {
-                Timber.e("BackgroundMonitoringService: ошибка при обработке изображения: $uri - ${result.third}")
-            }
-            
+            Timber.d("BackgroundMonitoringService: результат обработки изображения: ${result.third}")
         } catch (e: Exception) {
-            Timber.e(e, "BackgroundMonitoringService: ошибка при обработке изображения: $uri")
-            val uriString = uri.toString()
-            UriProcessingTracker.removeProcessingUri(uriString)
+            Timber.e(e, "BackgroundMonitoringService: ошибка при обработке нового изображения: $uri")
         }
     }
     

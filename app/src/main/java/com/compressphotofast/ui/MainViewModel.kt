@@ -490,16 +490,8 @@ class MainViewModel @Inject constructor(
     private fun showBatchProcessingStartedNotification(count: Int) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        // Создание канала уведомлений для Android 8.0+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                context.getString(R.string.notification_channel_id),
-                context.getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            )
-            channel.description = context.getString(R.string.notification_channel_description)
-            notificationManager.createNotificationChannel(channel)
-        }
+        // Убеждаемся что каналы уведомлений созданы
+        NotificationUtil.createDefaultNotificationChannel(context)
         
         // Создаем Intent для открытия приложения при нажатии на уведомление
         val pendingIntent = PendingIntent.getActivity(
@@ -625,6 +617,80 @@ class MainViewModel @Inject constructor(
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
         NotificationUtil.showToast(context, message, duration)
+    }
+
+    /**
+     * Проверяет, можно ли обработать изображение
+     */
+    suspend fun canProcessImage(context: Context, uri: Uri, quality: Int? = null): Boolean {
+        return try {
+            withContext(Dispatchers.IO) {
+                // Проверяем, существует ли файл
+                val exists = context.contentResolver.query(uri, null, null, null, null)?.use { cursor -> 
+                    cursor.count > 0 
+                } ?: false
+                
+                if (!exists) {
+                    Timber.e("Файл не существует или недоступен: $uri")
+                    return@withContext false
+                }
+                
+                // Проверяем, не является ли файл временным
+                val isPending = isPendingFile(context, uri)
+                if (isPending) {
+                    Timber.e("Файл в процессе создания (IS_PENDING=1): $uri")
+                    return@withContext false
+                }
+                
+                // Проверяем поддерживаемые типы файлов
+                val mimeType = FileUtil.getMimeType(context, uri)
+                if (mimeType?.startsWith("image/") != true || (!mimeType.contains("jpeg") && !mimeType.contains("png"))) {
+                    Timber.e("Неподдерживаемый тип файла: $mimeType")
+                    return@withContext false
+                }
+                
+                // Проверяем, не был ли уже обработан файл
+                val isAlreadyProcessed = withContext(Dispatchers.IO) {
+                    ImageProcessingChecker.isAlreadyProcessed(context, uri)
+                }
+                
+                if (isAlreadyProcessed) {
+                    Timber.d("Файл уже был обработан ранее: $uri")
+                    return@withContext false
+                }
+                
+                // Если дошли до этой точки, то можно обрабатывать изображение
+                return@withContext true
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке возможности обработки изображения: $uri")
+            false
+        }
+    }
+    
+    /**
+     * Проверяет, является ли файл временным (IS_PENDING=1)
+     */
+    private suspend fun isPendingFile(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val isPendingColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
+                    return@withContext cursor.getInt(isPendingColumn) == 1
+                }
+            }
+            return@withContext false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке статуса IS_PENDING файла")
+            return@withContext false
+        }
     }
 }
 

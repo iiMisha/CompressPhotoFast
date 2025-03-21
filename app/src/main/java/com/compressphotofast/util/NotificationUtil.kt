@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Утилитарный класс для работы с уведомлениями и Toast
+ * Централизованная точка для всех операций с уведомлениями
  */
 object NotificationUtil {
     // Карта для отслеживания времени последнего показа конкретного сообщения
@@ -36,51 +37,112 @@ object NotificationUtil {
     /**
      * Создание уведомления для фонового сервиса
      */
-    fun createBackgroundServiceNotification(context: Context): Notification {
-        val notificationIntent = Intent(context, MainActivity::class.java)
+    fun createForegroundNotification(
+        context: Context, 
+        title: String, 
+        content: String
+    ): Notification {
+        // Убеждаемся, что канал уведомлений создан
+        createDefaultNotificationChannel(context)
+
+        // Создаем Intent для открытия приложения при нажатии на уведомление
         val pendingIntent = PendingIntent.getActivity(
-            context, 0, notificationIntent,
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
         
-        // Создаем действие для остановки сервиса
+        // Создаем Intent для остановки сервиса
         val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = Constants.ACTION_STOP_SERVICE
         }
+        
         val stopPendingIntent = PendingIntent.getService(
-            context, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE
+            context,
+            0,
+            stopIntent,
+            PendingIntent.FLAG_IMMUTABLE
         )
         
+        // Создаем и возвращаем уведомление
         return NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_title))
-            .setContentText(context.getString(R.string.notification_background_service))
+            .setContentTitle(title)
+            .setContentText(content)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(
-                R.drawable.ic_launcher_foreground,
-                context.getString(R.string.notification_action_stop),
-                stopPendingIntent
-            )
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(context.getString(R.string.notification_background_service_description)))
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.notification_stop), stopPendingIntent)
             .build()
     }
     
     /**
-     * Настраивает канал уведомлений для Android 8.0+
+     * Создает основной канал уведомлений с настройками по умолчанию
+     * Централизованный метод, используемый во всем приложении
      */
-    fun createNotificationChannel(context: Context) {
+    fun createDefaultNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = context.getString(R.string.notification_channel_name)
+            val description = context.getString(R.string.notification_channel_description)
+            val importance = NotificationManager.IMPORTANCE_LOW
+            
+            createNotificationChannel(
+                context,
+                context.getString(R.string.notification_channel_id),
+                name,
+                description,
+                importance,
+                showBadge = false,
+                enableLights = false,
+                enableVibration = false
+            )
+            
+            // Создаем дополнительный канал для уведомлений о завершении сжатия
+            createNotificationChannel(
+                context,
+                "compression_completion_channel",
+                context.getString(R.string.notification_completion_channel_name),
+                context.getString(R.string.notification_completion_channel_description),
+                NotificationManager.IMPORTANCE_DEFAULT,
+                showBadge = true,
+                enableLights = true,
+                enableVibration = true
+            )
+            
+            Timber.d("Уведомления: каналы уведомлений созданы")
+        }
+    }
+    
+    /**
+     * Создает канал уведомлений с заданными параметрами
+     * Универсальный метод для создания любых каналов уведомлений в приложении
+     */
+    fun createNotificationChannel(
+        context: Context,
+        channelId: String,
+        channelName: String,
+        description: String,
+        importance: Int,
+        showBadge: Boolean = true,
+        enableLights: Boolean = true,
+        enableVibration: Boolean = true
+    ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                context.getString(R.string.notification_channel_id),
-                context.getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            )
-            channel.description = context.getString(R.string.notification_channel_description)
+                channelId,
+                channelName,
+                importance
+            ).apply {
+                this.description = description
+                setShowBadge(showBadge)
+                enableLights(enableLights)
+                enableVibration(enableVibration)
+            }
             
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+            Timber.d("Уведомления: создан канал $channelName (id=$channelId)")
         }
     }
     
@@ -200,5 +262,16 @@ object NotificationUtil {
             .build()
         
         notificationManager.notify(notificationId, notification)
+    }
+
+    /**
+     * Создание уведомления для фонового сервиса мониторинга
+     */
+    fun createBackgroundServiceNotification(context: Context): Notification {
+        return createForegroundNotification(
+            context,
+            context.getString(R.string.background_service_notification_title),
+            context.getString(R.string.background_service_notification_text)
+        )
     }
 } 

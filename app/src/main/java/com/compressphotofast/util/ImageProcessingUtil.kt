@@ -32,53 +32,67 @@ object ImageProcessingUtil {
      */
     suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
         try {
-            // Сначала проверяем, требуется ли обработка
-            val shouldProcess = shouldProcessImage(context, uri, forceProcess)
-            if (!shouldProcess) {
-                return@withContext Triple(true, false, "Изображение уже оптимизировано")
-            }
+            // Добавляем URI в список обрабатываемых
+            UriProcessingTracker.addProcessingUri(uri.toString())
             
-            // Проверяем, нужно ли принудительно обрабатывать
-            val settingsManager = SettingsManager.getInstance(context)
-            val isAutoEnabled = settingsManager.isAutoCompressionEnabled()
-            
-            // Если автосжатие отключено и нет флага принудительной обработки, 
-            // возвращаем сообщение о том, что нужна ручная обработка
-            if (!isAutoEnabled && !forceProcess) {
-                return@withContext Triple(true, false, "Требуется ручное сжатие")
-            }
-            
-            // Получаем качество сжатия из настроек
-            val quality = settingsManager.getCompressionQuality()
-            
-            // Создаем уникальный тег для работы
-            val fileName = FileUtil.getFileNameFromUri(context, uri)
-            val workTag = "compress_${System.currentTimeMillis()}_$fileName"
-            
-            // Получаем размер исходного файла для логирования
-            val originalSize = FileUtil.getFileSize(context, uri)
-            
-            // Создаем и запускаем работу по сжатию
-            val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                .setInputData(
-                    workDataOf(
-                        Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                        "compression_quality" to quality,
-                        "original_size" to originalSize
+            try {
+                // Сначала проверяем, требуется ли обработка - используем централизованную логику
+                val shouldProcess = ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
+                
+                if (!shouldProcess) {
+                    // Удаляем URI из списка обрабатываемых
+                    UriProcessingTracker.removeProcessingUri(uri.toString())
+                    return@withContext Triple(true, false, "Изображение уже оптимизировано")
+                }
+                
+                // Проверяем, нужно ли принудительно обрабатывать
+                val settingsManager = SettingsManager.getInstance(context)
+                val isAutoEnabled = settingsManager.isAutoCompressionEnabled()
+                
+                // Если автосжатие отключено и нет флага принудительной обработки, 
+                // возвращаем сообщение о том, что нужна ручная обработка
+                if (!isAutoEnabled && !forceProcess) {
+                    // Удаляем URI из списка обрабатываемых
+                    UriProcessingTracker.removeProcessingUri(uri.toString())
+                    return@withContext Triple(true, false, "Требуется ручное сжатие")
+                }
+                
+                // Получаем качество сжатия из настроек
+                val quality = settingsManager.getCompressionQuality()
+                
+                // Создаем уникальный тег для работы
+                val fileName = FileUtil.getFileNameFromUri(context, uri)
+                val workTag = "compress_${System.currentTimeMillis()}_$fileName"
+                
+                // Получаем размер исходного файла для логирования
+                val originalSize = FileUtil.getFileSize(context, uri)
+                
+                // Создаем и запускаем работу по сжатию
+                val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                    .setInputData(
+                        workDataOf(
+                            Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                            "compression_quality" to quality,
+                            "original_size" to originalSize
+                        )
                     )
-                )
-                .addTag(workTag)
-                .build()
-            
-            WorkManager.getInstance(context)
-                .enqueueUniqueWork(
-                    workTag,
-                    ExistingWorkPolicy.REPLACE,
-                    compressionWorkRequest
-                )
-            
-            Timber.d("Запущена работа по сжатию для $uri с тегом $workTag")
-            return@withContext Triple(true, true, "Сжатие запущено")
+                    .addTag(workTag)
+                    .build()
+                
+                WorkManager.getInstance(context)
+                    .enqueueUniqueWork(
+                        workTag,
+                        ExistingWorkPolicy.REPLACE,
+                        compressionWorkRequest
+                    )
+                
+                Timber.d("Запущена работа по сжатию для $uri с тегом $workTag")
+                return@withContext Triple(true, true, "Сжатие запущено")
+            } catch (e: Exception) {
+                // Удаляем URI из списка обрабатываемых в случае ошибки
+                UriProcessingTracker.removeProcessingUri(uri.toString())
+                throw e
+            }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при обработке изображения: $uri")
             return@withContext Triple(false, false, "Ошибка: ${e.message}")
@@ -86,34 +100,30 @@ object ImageProcessingUtil {
     }
 
     /**
-     * Проверяет, нужно ли обрабатывать изображение
-     * Централизованная логика для всего приложения
-     */
-    suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
-        // Делегируем проверку классу ImageProcessingChecker
-        return@withContext ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
-    }
-    
-    /**
-     * Запускает обработку изображения с использованием WorkManager
-     * @deprecated Используйте handleImage вместо этого метода
+     * Обертка вокруг handleImage для обратной совместимости
+     * Возвращает true, если обработка была успешно запущена
      */
     suspend fun processImage(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Используем новый централизованный метод
             val result = handleImage(context, uri)
-            return@withContext result.second // Возвращаем, было ли изображение добавлено в очередь
+            return@withContext result.first && result.second
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при запуске обработки изображения: $uri")
+            Timber.e(e, "Ошибка при обработке изображения: $uri")
             return@withContext false
         }
     }
 
     /**
+     * Проверяет, нужно ли обрабатывать изображение
+     * Делегирует к централизованной логике
+     */
+    suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        // Делегируем проверку классу ImageProcessingChecker
+        return@withContext ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
+    }
+
+    /**
      * Проверяет, содержатся ли в изображении EXIF-метаданные
-     * @param context контекст
-     * @param uri URI изображения
-     * @return true если изображение содержит EXIF-метаданные, false в противном случае
      */
     suspend fun hasExifMetadata(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         return@withContext ExifUtil.hasBasicExifTags(context, uri)

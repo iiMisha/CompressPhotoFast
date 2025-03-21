@@ -130,34 +130,17 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Продолжаем выполнение, так как ошибка может быть временной
             }
             
-            // ОПТИМИЗИРОВАННАЯ ЛОГИКА:
-            // 1. Сначала проверяем EXIF-маркер и дату модификации (самая быстрая и приоритетная проверка)
-            // 2. Только если требуется обработка, выполняем ресурсоемкое тестовое сжатие
+            // Используем централизованную логику из ImageProcessingChecker для определения необходимости обработки
+            // Это заменяет старый код с дублирующейся логикой
+            val isAlreadyProcessed = ImageProcessingChecker.isAlreadyProcessed(context, imageUri)
             
-            // Получаем решение о необходимости обработки из централизованной логики,
-            // НО ИГНОРИРУЕМ ПРОВЕРКУ "URI В СПИСКЕ ОБРАБАТЫВАЕМЫХ", так как Worker уже запущен
-            Timber.d("Выполняем ПРИОРИТЕТНУЮ проверку необходимости обработки через EXIF для URI: $imageUri")
-            
-            // Модифицированная проверка - только EXIF и дата модификации
-            val hasExifCompressMarker = ExifUtil.isImageCompressed(context, imageUri)
-            
-            if (hasExifCompressMarker) {
-                // Проверяем дату модификации, чтобы понять, нужна ли повторная обработка
-                val wasModifiedAfterCompression = ImageProcessingChecker.wasFileModifiedAfterCompression(context, imageUri)
-                
-                if (!wasModifiedAfterCompression) {
-                    // Если есть EXIF-маркер и файл НЕ был модифицирован после обработки - пропускаем
-                    Timber.d("Изображение уже сжато и не было модифицировано после этого, пропускаем: $imageUri")
-                    return@withContext updateStatusAndReturn(
-                        imageUri, 
-                        StatsTracker.COMPRESSION_STATUS_SKIPPED, 
-                        skipped = true
-                    )
-                }
-                
-                Timber.d("Изображение было сжато ранее, но требует повторной обработки: $imageUri")
-            } else {
-                Timber.d("EXIF-маркер сжатия не найден, продолжаем обработку: $imageUri")
+            if (isAlreadyProcessed) {
+                Timber.d("Изображение уже обработано (централизованная проверка): $imageUri")
+                return@withContext updateStatusAndReturn(
+                    imageUri, 
+                    StatsTracker.COMPRESSION_STATUS_SKIPPED, 
+                    skipped = true
+                )
             }
             
             // Если файл требует обработки, проверяем эффективность сжатия
@@ -477,7 +460,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun createForegroundInfo(notificationId: Int, notificationTitle: String): ForegroundInfo {
         // Создаем или обновляем канал уведомлений
-        NotificationUtil.createNotificationChannel(applicationContext)
+        NotificationUtil.createDefaultNotificationChannel(applicationContext)
         
         val notification = NotificationCompat.Builder(applicationContext, Constants.NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
