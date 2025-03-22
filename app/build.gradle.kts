@@ -43,6 +43,20 @@ android {
         viewBinding = true
         buildConfig = true
     }
+
+    // Настройка имени выходного APK для release версии
+    applicationVariants.configureEach {
+        val variant = this
+        outputs.configureEach {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            if (variant.buildType.name == "release") {
+                val appName = rootProject.name.replace(" ", "")
+                val versionName = variant.versionName
+                
+                output.outputFileName = "${appName}_v${versionName}.apk"
+            }
+        }
+    }
 }
 
 dependencies {
