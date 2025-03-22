@@ -1329,10 +1329,6 @@ object FileUtil {
                 fileExtension = ""
             }
             
-            // Паттерн для поиска: базовое имя файла + возможный суффикс + то же расширение
-            // Используем COMPRESSED_FILE_SUFFIX в паттерне, чтобы искать файлы с нашим суффиксом
-            val filePattern = "$fileBaseName${Constants.COMPRESSED_FILE_SUFFIX}$fileExtension"
-            
             // Формируем запрос для поиска файлов в директории приложения
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
@@ -1340,16 +1336,16 @@ object FileUtil {
                 MediaStore.Images.Media.RELATIVE_PATH
             )
             
-            // Используем точное совпадение с суффиксом
-            val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+            // Ищем любые файлы с совпадающим базовым именем и расширением,
+            // но с возможными дополнительными символами между ними
+            val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
             val selectionArgs = arrayOf(
-                "%${Constants.APP_DIRECTORY}%",  // Ищем в директории приложения
-                filePattern                      // Имя с нашим суффиксом
+                "%${Constants.APP_DIRECTORY}%",    // Ищем в директории приложения
+                "$fileBaseName%$fileExtension"     // Любой суффикс
             )
             
-            Timber.d("Ищем сжатую версию файла '$filePattern' в папке ${Constants.APP_DIRECTORY}")
+            Timber.d("Ищем сжатую версию файла с паттерном '$fileBaseName%$fileExtension' в папке ${Constants.APP_DIRECTORY}")
             
-            // Сначала ищем точное совпадение с нашим стандартным суффиксом
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -1365,35 +1361,6 @@ object FileUtil {
                     val compressedUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
                     
                     Timber.i("Найдена сжатая версия для $originalFileName: $compressedUri (имя файла: $foundName)")
-                    return@withContext compressedUri
-                }
-            }
-            
-            // Если точное совпадение не найдено, ищем любые файлы с похожим именем, 
-            // на случай если существуют сжатые файлы с другими суффиксами
-            val wildcardSelection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
-            val wildcardSelectionArgs = arrayOf(
-                "%${Constants.APP_DIRECTORY}%",  // Ищем в директории приложения
-                "$fileBaseName%$fileExtension"   // Любой суффикс
-            )
-            
-            Timber.d("Ищем сжатую версию файла с любым суффиксом '$fileBaseName%$fileExtension' в папке ${Constants.APP_DIRECTORY}")
-            
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                wildcardSelection,
-                wildcardSelectionArgs,
-                "${MediaStore.Images.Media.DATE_ADDED} DESC" // Самые новые файлы первыми
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                    val id = cursor.getLong(idColumn)
-                    val foundName = cursor.getString(nameColumn)
-                    val compressedUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    
-                    Timber.i("Найдена сжатая версия с нестандартным суффиксом для $originalFileName: $compressedUri (имя файла: $foundName)")
                     return@withContext compressedUri
                 }
             }
