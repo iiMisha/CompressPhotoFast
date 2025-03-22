@@ -14,6 +14,7 @@ import java.io.FileInputStream
 import java.util.Collections
 import java.util.Date
 import java.util.HashMap
+import android.provider.MediaStore
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -225,80 +226,36 @@ object ExifUtil {
     }
     
     /**
-     * Проверяет, является ли изображение сжатым по EXIF-метаданным
+     * Проверяет, было ли изображение сжато ранее и не было ли оно модифицировано после сжатия
      * @param context контекст
      * @param uri URI изображения
-     * @return true если изображение сжато, false в противном случае
+     * @return true если изображение сжато и не модифицировано после сжатия, false в противном случае
      */
     suspend fun isImageCompressed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            val uriString = uri.toString()
-            
-            // Проверяем кэш
-            val cachedResult = exifCheckCache[uriString]
-            val lastChecked = exifCacheTimestamps[uriString] ?: 0L
-            val isCacheValid = cachedResult != null && (System.currentTimeMillis() - lastChecked < EXIF_CACHE_EXPIRATION)
-            
-            if (isCacheValid) {
-                val isCompressed = cachedResult ?: false
-                if (isCompressed) {
-                    Timber.d("Изображение по URI $uri уже сжато (из кэша)")
-                } else {
-                    Timber.d("Изображение по URI $uri не сжато (из кэша)")
-                }
-                return@withContext isCompressed
+            // Получаем маркер сжатия
+            val (isCompressed, quality, timestamp) = getCompressionMarker(context, uri)
+            if (!isCompressed) {
+                return@withContext false
             }
-            
-            // Если нет в кэше или кэш устарел, выполняем проверку
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val exif = ExifInterface(inputStream)
-                
-                // Проверяем маркер сжатия в UserComment
-                val userComment = exif.getAttribute(EXIF_USER_COMMENT)
-                
-                if (userComment == null) {
-                    Timber.d("EXIF-маркер сжатия не найден (UserComment отсутствует), продолжаем обработку: $uri")
-                    exifCheckCache[uriString] = false
-                    exifCacheTimestamps[uriString] = System.currentTimeMillis()
-                    return@withContext false
-                }
-                
-                val isCompressed = userComment.startsWith(EXIF_COMPRESSION_MARKER)
-                
-                if (isCompressed) {
-                    // Проверяем формат маркера для диагностики
-                    val parts = userComment.split(":")
-                    if (parts.size >= 3) {
-                        val quality = parts[1].toIntOrNull()
-                        val dateTimeMs = parts[2].toLongOrNull()
-                        
-                        if (quality != null && dateTimeMs != null) {
-                            Timber.d("EXIF-маркер сжатия найден: качество=$quality, дата=${Date(dateTimeMs)}, URI: $uri")
-                        } else {
-                            Timber.w("EXIF-маркер сжатия найден, но имеет некорректный формат: $userComment, URI: $uri")
-                        }
-                    } else {
-                        Timber.w("EXIF-маркер сжатия найден, но имеет неполный формат (нет даты): $userComment, URI: $uri")
-                    }
-                } else {
-                    Timber.d("EXIF-маркер сжатия не найден, продолжаем обработку: $uri (UserComment=$userComment)")
-                }
-                
-                // Кэшируем результат
-                exifCheckCache[uriString] = isCompressed
-                exifCacheTimestamps[uriString] = System.currentTimeMillis()
-                
-                return@withContext isCompressed
+
+            // Проверяем дату модификации
+            val modificationDate = getFileModificationDate(context, uri)
+            if (modificationDate == null) {
+                LogUtil.processWarning("Не удалось получить дату модификации файла")
+                return@withContext true // Если не можем проверить дату модификации, предполагаем что файл не изменен
             }
-            
-            // Если не удалось открыть поток, сохраняем отрицательный результат в кэше
-            Timber.w("Не удалось открыть InputStream для проверки EXIF-маркера сжатия: $uri")
-            exifCheckCache[uriString] = false
-            exifCacheTimestamps[uriString] = System.currentTimeMillis()
-            
-            return@withContext false
+
+            // Если файл был модифицирован после сжатия, считаем его несжатым
+            if (modificationDate > timestamp) {
+                val diffSeconds = (modificationDate - timestamp) / 1000L
+                LogUtil.processDebug("Файл был модифицирован после сжатия (разница $diffSeconds сек), требуется повторное сжатие")
+                return@withContext false
+            }
+
+            return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке EXIF маркера сжатия в URI: ${e.message}")
+            LogUtil.error(uri, "Проверка сжатия", "Ошибка при проверке маркера сжатия", e)
             return@withContext false
         }
     }
@@ -1107,6 +1064,59 @@ object ExifUtil {
     }
 
     /**
+     * Получает информацию о сжатии из EXIF тега UserComment
+     * @return Triple<Boolean, Int, Long> где:
+     *   - Boolean: было ли изображение сжато ранее
+     *   - Int: качество сжатия или -1, если неизвестно
+     *   - Long: временная метка сжатия в миллисекундах или 0L, если неизвестно
+     */
+    fun getCompressionMarker(context: Context, uri: Uri): Triple<Boolean, Int, Long> {
+        try {
+            val exifInterface = getExifInterface(context, uri) ?: return Triple(false, -1, 0L)
+            
+            // Получаем UserComment
+            val userComment = exifInterface.getAttribute(ExifInterface.TAG_USER_COMMENT)
+            if (userComment.isNullOrEmpty()) {
+                return Triple(false, -1, 0L)
+            }
+            
+            // Проверяем, содержит ли UserComment наш маркер
+            if (userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
+                // Разбираем информацию из маркера: CompressPhotoFast_Compressed:70:1742629672908
+                val parts = userComment.split(":")
+                if (parts.size >= 3) {
+                    try {
+                        val quality = parts[1].toInt()
+                        val timestamp = parts[2].toLong()
+                        LogUtil.processDebug("Найден EXIF маркер с timestamp: $timestamp для URI: $uri")
+                        return Triple(true, quality, timestamp)
+                    } catch (e: NumberFormatException) {
+                        LogUtil.error(uri, "Парсинг маркера", "Ошибка при парсинге маркера сжатия: $userComment", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "EXIF", "Ошибка при получении маркера сжатия", e)
+        }
+        
+        return Triple(false, -1, 0L)
+    }
+
+    /**
+     * Получает ExifInterface для данного URI
+     */
+    private fun getExifInterface(context: Context, uri: Uri): ExifInterface? {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                return ExifInterface(inputStream)
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "EXIF", "Ошибка при получении ExifInterface", e)
+        }
+        return null
+    }
+
+    /**
      * Проверяет, было ли изображение уже сжато нашим приложением
      * @param context Контекст приложения
      * @param uri URI изображения
@@ -1114,21 +1124,39 @@ object ExifUtil {
      */
     fun isCompressedImage(context: Context, uri: Uri): Boolean {
         try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val exif = ExifInterface(inputStream)
-                val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                
-                if (userComment != null && userComment.contains(EXIF_COMPRESSION_MARKER)) {
-                    LogUtil.processInfo("Изображение уже сжато: $uri, UserComment: $userComment")
-                    return true
-                }
-            }
-            return false
+            val (isCompressed, _, _) = getCompressionMarker(context, uri)
+            return isCompressed
         } catch (e: Exception) {
             LogUtil.error(uri, "Проверка сжатия", "Ошибка при проверке маркера сжатия", e)
             // В случае ошибки предполагаем, что изображение не сжато
             return false
         }
+    }
+
+    /**
+     * Получает дату модификации файла
+     */
+    private fun getFileModificationDate(context: Context, uri: Uri): Long? {
+        try {
+            val projection = arrayOf(MediaStore.Images.Media.DATE_MODIFIED)
+            context.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val dateModifiedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
+                    if (dateModifiedIndex != -1 && !cursor.isNull(dateModifiedIndex)) {
+                        return cursor.getLong(dateModifiedIndex) * 1000L // Конвертируем в миллисекунды
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Дата модификации", "Ошибка при получении даты модификации", e)
+        }
+        return null
     }
 
     /**
@@ -1227,7 +1255,7 @@ object ExifUtil {
                 // Если нужно добавить маркер сжатия, то делаем это
                 if (quality != null) {
                     val timestamp = System.currentTimeMillis()
-                    val compressionInfo = "CompressPhotoFast_Compressed:$quality:$timestamp"
+                    val compressionInfo = "$EXIF_COMPRESSION_MARKER:$quality:$timestamp"
                     exif.setAttribute(ExifInterface.TAG_USER_COMMENT, compressionInfo)
                     LogUtil.processDebug("Добавлен маркер сжатия: $compressionInfo")
                     appliedTags++
@@ -1245,7 +1273,7 @@ object ExifUtil {
                 if (quality != null) {
                     val verificationExif = ExifInterface(parcelFileDescriptor.fileDescriptor)
                     val userComment = verificationExif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                    if (userComment?.contains("CompressPhotoFast_Compressed:$quality") == true) {
+                    if (userComment?.contains("$EXIF_COMPRESSION_MARKER:$quality") == true) {
                         LogUtil.processInfo("Проверка маркера сжатия: успешно, UserComment: $userComment")
                         return true
                     } else {

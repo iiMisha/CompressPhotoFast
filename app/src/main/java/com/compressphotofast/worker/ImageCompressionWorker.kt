@@ -98,11 +98,17 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.uriInfo(imageUri, "[ПРОЦЕСС] Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
             
             // Проверяем, не сжато ли уже изображение
-            val isCompressed = ExifUtil.isCompressedImage(appContext, imageUri)
-            if (isCompressed) {
-                LogUtil.uriInfo(imageUri, "Изображение уже сжато, пропускаем")
-                setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_compressed)))
-                return@withContext Result.success()
+            if (ExifUtil.isCompressedImage(appContext, imageUri)) {
+                // Дополнительно проверяем, не было ли изображение модифицировано после сжатия
+                val wasModified = !ExifUtil.isImageCompressed(appContext, imageUri)
+                
+                if (!wasModified) {
+                    LogUtil.uriInfo(imageUri, "Изображение уже сжато, пропускаем")
+                    setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_compressed)))
+                    return@withContext Result.success()
+                } else {
+                    LogUtil.uriInfo(imageUri, "Изображение было модифицировано после сжатия, требуется повторная обработка")
+                }
             }
             
             // Проверка существования файла
