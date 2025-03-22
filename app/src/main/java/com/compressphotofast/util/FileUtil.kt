@@ -1048,13 +1048,56 @@ object FileUtil {
                         }
                     }
                     
-                    // Если файл существует, сначала удаляем его
-                    if (existingUri != null) {
+                    // Если файл существует и включен режим замены, удаляем его
+                    if (existingUri != null && isSaveModeReplace(context)) {
                         try {
                             context.contentResolver.delete(existingUri!!, null, null)
-                            Timber.d("Android 11: Существующий файл удален")
+                            Timber.d("Android 11: Существующий файл удален (режим замены)")
                         } catch (e: Exception) {
                             Timber.e(e, "Android 11: Ошибка при удалении существующего файла: ${e.message}")
+                        }
+                    } else if (existingUri != null) {
+                        // Если файл существует, но режим замены выключен, добавляем числовой индекс
+                        val fileNameWithoutExt = fileName.substringBeforeLast(".")
+                        val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
+                        
+                        // Проверяем существующие файлы и находим доступный индекс
+                        var index = 1
+                        var newFileName: String
+                        var isFileExists = true
+                        
+                        while (isFileExists && index < 100) { // Ограничиваем до 100 попыток
+                            newFileName = "${fileNameWithoutExt}_${index}${extension}"
+                            
+                            // Проверяем существует ли файл с таким именем
+                            val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+                            val existsArgs = arrayOf(newFileName)
+                            val existsCursor = context.contentResolver.query(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                arrayOf(MediaStore.Images.Media._ID),
+                                existsSelection,
+                                existsArgs,
+                                null
+                            )
+                            
+                            isFileExists = (existsCursor?.count ?: 0) > 0
+                            existsCursor?.close()
+                            
+                            if (!isFileExists) {
+                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
+                                Timber.d("Android 11: Режим замены выключен, используем новое имя с индексом: $newFileName")
+                                break
+                            }
+                            
+                            index++
+                        }
+                        
+                        // Если мы перебрали все индексы и не нашли свободного, используем временную метку как запасной вариант
+                        if (isFileExists) {
+                            val timestamp = System.currentTimeMillis()
+                            val fallbackName = "${fileNameWithoutExt}_${timestamp}${extension}"
+                            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, fallbackName)
+                            Timber.d("Android 11: Не найден свободный индекс, используем временную метку: $fallbackName")
                         }
                     }
                 } catch (e: Exception) {
