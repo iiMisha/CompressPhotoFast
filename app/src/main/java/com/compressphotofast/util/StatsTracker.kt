@@ -80,6 +80,15 @@ object StatsTracker {
                 return@withContext true
             }
             
+            // Проверяем наличие сжатой версии файла в директории приложения по имени оригинала
+            if (!FileUtil.isSaveModeReplace(context)) {
+                val compressedUri = FileUtil.findCompressedVersionByOriginalName(context, uri)
+                if (compressedUri != null) {
+                    Timber.d("Найдена существующая сжатая версия в директории приложения: $compressedUri")
+                    return@withContext true
+                }
+            }
+            
             // В остальных случаях считаем, что файл не обработан
             Timber.d("Файл не был обработан ранее: $uri")
             return@withContext false

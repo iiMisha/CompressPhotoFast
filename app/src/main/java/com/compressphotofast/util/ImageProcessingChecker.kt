@@ -138,6 +138,15 @@ object ImageProcessingChecker {
                 return@withContext true
             }
             
+            // 0. НОВАЯ ПРОВЕРКА: Поиск сжатой версии в директории приложения по имени
+            if (!FileUtil.isSaveModeReplace(context)) { // Только если режим замены отключен
+                val compressedUri = FileUtil.findCompressedVersionByOriginalName(context, uri)
+                if (compressedUri != null) {
+                    Timber.d("Найдена существующая сжатая версия в директории приложения: $compressedUri")
+                    return@withContext true
+                }
+            }
+            
             // 1. Проверяем EXIF маркер и дату модификации - это основная проверка
             val isCompressedAndNotModified = isImageCompressedAndNotModified(context, uri)
             if (isCompressedAndNotModified) {

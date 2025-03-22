@@ -25,6 +25,19 @@ import java.io.IOException
 import java.io.ByteArrayOutputStream
 import android.provider.OpenableColumns
 import com.compressphotofast.util.LogUtil
+import android.content.Intent
+import android.content.IntentSender
+import android.content.res.AssetFileDescriptor
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.webkit.MimeTypeMap
+import androidx.core.content.FileProvider
+import java.io.ByteArrayInputStream
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Утилитарный класс для работы с файлами
@@ -56,10 +69,17 @@ object FileUtil {
 
     /**
      * Создает имя файла для сжатой версии
-     * Теперь просто возвращает оригинальное имя файла
+     * Добавляет суффикс _compressed к имени файла
      */
     fun createCompressedFileName(originalName: String): String {
-        return originalName
+        val dotIndex = originalName.lastIndexOf('.')
+        return if (dotIndex > 0) {
+            val baseName = originalName.substring(0, dotIndex)
+            val extension = originalName.substring(dotIndex) // включая точку
+            "${baseName}${Constants.COMPRESSED_FILE_SUFFIX}$extension"
+        } else {
+            "${originalName}${Constants.COMPRESSED_FILE_SUFFIX}"
+        }
     }
 
     /**
@@ -1279,5 +1299,110 @@ object FileUtil {
      */
     suspend fun isUriExistsSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         return@withContext isUriExists(context, uri)
+    }
+
+    /**
+     * Находит сжатую версию файла в директории приложения по имени оригинального файла
+     * @param context контекст приложения
+     * @param originalUri URI оригинального файла
+     * @return URI сжатой версии файла или null, если не найдена
+     */
+    suspend fun findCompressedVersionByOriginalName(context: Context, originalUri: Uri): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // Получаем имя оригинального файла
+            val originalFileName = getFileNameFromUri(context, originalUri)
+            if (originalFileName.isNullOrEmpty()) {
+                Timber.d("Не удалось получить имя оригинального файла: $originalUri")
+                return@withContext null
+            }
+            
+            // Разбиваем имя файла на основную часть и расширение
+            val dotIndex = originalFileName.lastIndexOf('.')
+            val fileBaseName: String
+            val fileExtension: String
+            
+            if (dotIndex > 0) {
+                fileBaseName = originalFileName.substring(0, dotIndex)
+                fileExtension = originalFileName.substring(dotIndex) // включая точку
+            } else {
+                fileBaseName = originalFileName
+                fileExtension = ""
+            }
+            
+            // Паттерн для поиска: базовое имя файла + возможный суффикс + то же расширение
+            // Используем COMPRESSED_FILE_SUFFIX в паттерне, чтобы искать файлы с нашим суффиксом
+            val filePattern = "$fileBaseName${Constants.COMPRESSED_FILE_SUFFIX}$fileExtension"
+            
+            // Формируем запрос для поиска файлов в директории приложения
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH
+            )
+            
+            // Используем точное совпадение с суффиксом
+            val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+            val selectionArgs = arrayOf(
+                "%${Constants.APP_DIRECTORY}%",  // Ищем в директории приложения
+                filePattern                      // Имя с нашим суффиксом
+            )
+            
+            Timber.d("Ищем сжатую версию файла '$filePattern' в папке ${Constants.APP_DIRECTORY}")
+            
+            // Сначала ищем точное совпадение с нашим стандартным суффиксом
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                "${MediaStore.Images.Media.DATE_ADDED} DESC" // Самые новые файлы первыми
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                    val id = cursor.getLong(idColumn)
+                    val foundName = cursor.getString(nameColumn)
+                    val compressedUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    
+                    Timber.i("Найдена сжатая версия для $originalFileName: $compressedUri (имя файла: $foundName)")
+                    return@withContext compressedUri
+                }
+            }
+            
+            // Если точное совпадение не найдено, ищем любые файлы с похожим именем, 
+            // на случай если существуют сжатые файлы с другими суффиксами
+            val wildcardSelection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
+            val wildcardSelectionArgs = arrayOf(
+                "%${Constants.APP_DIRECTORY}%",  // Ищем в директории приложения
+                "$fileBaseName%$fileExtension"   // Любой суффикс
+            )
+            
+            Timber.d("Ищем сжатую версию файла с любым суффиксом '$fileBaseName%$fileExtension' в папке ${Constants.APP_DIRECTORY}")
+            
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                wildcardSelection,
+                wildcardSelectionArgs,
+                "${MediaStore.Images.Media.DATE_ADDED} DESC" // Самые новые файлы первыми
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                    val id = cursor.getLong(idColumn)
+                    val foundName = cursor.getString(nameColumn)
+                    val compressedUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    
+                    Timber.i("Найдена сжатая версия с нестандартным суффиксом для $originalFileName: $compressedUri (имя файла: $foundName)")
+                    return@withContext compressedUri
+                }
+            }
+            
+            Timber.d("Сжатая версия для файла '$originalFileName' не найдена")
+            return@withContext null
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при поиске сжатой версии файла: ${e.message}")
+            return@withContext null
+        }
     }
 } 
