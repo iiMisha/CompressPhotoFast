@@ -24,6 +24,23 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * Интерфейс для отслеживания прогресса сжатия
+ */
+interface CompressionProgressListener {
+    fun onBatchStarted(totalImages: Int)
+    fun onBatchProgress(progress: Int, processed: Int, total: Int)
+    fun onBatchCompleted(results: Map<Uri, Uri?>)
+    fun onBatchCancelled()
+    fun onCompressionStarted(uri: Uri)
+    fun onCompressionProgress(uri: Uri, progress: Int)
+    fun onCompressionCompleted(uri: Uri, savedUri: Uri, originalSize: Long, compressedSize: Long)
+    fun onCompressionSkipped(uri: Uri, reason: String)
+    fun onCompressionFailed(uri: Uri, error: String)
+    fun onBatchFailed(error: String)
+}
 
 /**
  * Класс для последовательной обработки изображений без использования WorkManager
@@ -47,178 +64,63 @@ class SequentialImageProcessor(private val context: Context) {
     private val processingScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     // Флаг для отмены обработки
-    private var isCancelled = false
+    private val processingCancelled = AtomicBoolean(false)
     
     /**
-     * Сжатие списка изображений последовательно
+     * Обрабатывает список изображений последовательно
+     * 
      * @param uris Список URI изображений для обработки
-     * @param compressionQuality Качество сжатия (от 0 до 100)
-     * @param showResultNotification Показывать ли уведомление с результатом обработки
+     * @param compressionQuality Качество сжатия (0-100)
+     * @param listener Слушатель событий прогресса
+     * @return Карта, где ключ - исходный URI, значение - URI сжатого изображения или null при ошибке
      */
-    fun processImages(
-        uris: List<Uri>, 
-        compressionQuality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
-        showResultNotification: Boolean = true
-    ) {
-        if (uris.isEmpty()) return
-        
-        // Сбрасываем флаг отмены
-        isCancelled = false
-        
-        processingScope.launch {
-            _isLoading.value = true
-            // Сбрасываем предыдущий результат
-            _result.value = null
-            
-            // Инициализируем прогресс
-            _progress.value = MultipleImagesProgress(
-                total = uris.size,
-                processed = 0,
-                successful = 0,
-                failed = 0,
-                skipped = 0
-            )
-            
-            // Уведомляем о начале обработки, если изображений больше одного
-            if (uris.size > 1 && showResultNotification) {
-                NotificationUtil.showBatchProcessingStartedNotification(context, uris.size)
+    suspend fun processImages(
+        uris: List<Uri>,
+        compressionQuality: Int,
+        listener: CompressionProgressListener?
+    ): Map<Uri, Uri?> = withContext(Dispatchers.IO) {
+        try {
+            if (processingCancelled.get()) {
+                return@withContext emptyMap<Uri, Uri?>()
             }
             
-            // Перебираем изображения и обрабатываем их последовательно
-            withContext(Dispatchers.IO) {
-                for ((index, uri) in uris.withIndex()) {
-                    if (isCancelled) {
-                        LogUtil.processInfo("Обработка отменена пользователем")
-                        break
-                    }
+            val results = mutableMapOf<Uri, Uri?>()
+            val totalImages = uris.size
+            
+            listener?.onBatchStarted(totalImages)
+            
+            for ((index, uri) in uris.withIndex()) {
+                if (processingCancelled.get()) {
+                    break
+                }
+                
+                try {
+                    // Обновляем прогресс по общему процессу
+                    val progress = (index.toFloat() / totalImages) * 100
+                    listener?.onBatchProgress(progress.toInt(), index, totalImages)
                     
-                    try {
-                        LogUtil.processInfo("Начало обработки изображения ${index+1}/${uris.size}")
-                        LogUtil.uriInfo(uri, "Начало обработки")
-                        
-                        // 1. Проверяем, нужно ли обрабатывать изображение
-                        val isAlreadyProcessed = ImageProcessingChecker.isAlreadyProcessed(context, uri)
-                        if (isAlreadyProcessed) {
-                            LogUtil.skipImage(uri, "Уже обработано ранее")
-                            updateProgress(skipped = true)
-                            continue
-                        }
-                        
-                        // 2. Получаем имя файла
-                        val fileName = FileUtil.getFileNameFromUri(context, uri)
-                        if (fileName.isNullOrEmpty()) {
-                            LogUtil.error(uri, "Получение имени файла", "Не удалось получить имя файла")
-                            updateProgress(success = false)
-                            continue
-                        }
-                        LogUtil.uriInfo(uri, "Имя файла: $fileName")
-                        
-                        // 3. Получаем путь для сохранения
-                        val directory = if (FileUtil.isSaveModeReplace(context)) {
-                            // Если включен режим замены, сохраняем в той же директории
-                            FileUtil.getDirectoryFromUri(context, uri) ?: Constants.APP_DIRECTORY
-                        } else {
-                            // Иначе сохраняем в директории приложения
-                            Constants.APP_DIRECTORY
-                        }
-                        LogUtil.uriInfo(uri, "Директория для сохранения: $directory")
-                        
-                        // 4. Проверяем тип URI и определяем стратегию обработки
-                        val isMediaDocumentsUri = uri.authority == "com.android.providers.media.documents"
-                        
-                        // 5. Получаем поток с сжатым изображением
-                        val compressedStream = compressImage(uri, compressionQuality)
-                        
-                        if (compressedStream == null) {
-                            LogUtil.error(uri, "Сжатие", "Не удалось получить поток с сжатым изображением")
-                            updateProgress(success = false)
-                            continue
-                        }
-                        
-                        // 6. Переименовываем оригинальный файл с помощью централизованного метода
-                        val backupUri = FileUtil.renameOriginalFileIfNeeded(context, uri)
-                        
-                        if (backupUri == null) {
-                            LogUtil.error(uri, "Переименование", "Не удалось переименовать оригинальный файл")
-                            compressedStream.close()
-                            updateProgress(success = false)
-                            continue
-                        }
-                        
-                        // 7. Сохраняем сжатое изображение
-                        val savedUri = FileUtil.saveCompressedImageFromStream(
-                            context,
-                            compressedStream,
-                            fileName,
-                            directory,
-                            backupUri,
-                            compressionQuality
-                        )
-                        
-                        // Закрываем поток после использования
-                        compressedStream.close()
-                        
-                        if (savedUri == null) {
-                            LogUtil.error(uri, "Сохранение", "Не удалось сохранить сжатый файл")
-                            updateProgress(success = false)
-                            continue
-                        }
-                        
-                        LogUtil.fileOperation(uri, "Сохранение", "Сжатый файл сохранен: $savedUri")
-                        
-                        // 8. Удаляем переименованный оригинальный файл, если был включен режим замены
-                        // и переименование было выполнено успешно (т.е. backupUri не совпадает с оригинальным uri)
-                        if (FileUtil.isSaveModeReplace(context) && backupUri != uri) {
-                            try {
-                                val deleteResult = FileUtil.deleteFile(context, backupUri)
-                                
-                                if (deleteResult is Boolean && deleteResult) {
-                                    LogUtil.fileOperation(backupUri, "Удаление", "Переименованный оригинал успешно удален")
-                                } else if (deleteResult is IntentSender) {
-                                    LogUtil.fileOperation(backupUri, "Удаление", "Требуется разрешение пользователя")
-                                    // Здесь можно добавить обработку запроса на удаление
-                                } else {
-                                    LogUtil.error(backupUri, "Удаление", "Не удалось удалить переименованный оригинал")
-                                }
-                            } catch (e: Exception) {
-                                LogUtil.error(backupUri, "Удаление", e)
-                            }
-                        }
-                        
-                        // 9. Обновляем прогресс
-                        updateProgress(success = true)
-                        
-                    } catch (e: Exception) {
-                        LogUtil.error(uri, "Обработка", e)
-                        updateProgress(success = false)
-                    }
+                    // Обрабатываем отдельное изображение с использованием нового метода
+                    val savedUri = processImage(uri, compressionQuality, listener)
+                    results[uri] = savedUri
                     
-                    // Небольшая задержка между обработкой файлов, чтобы система могла обновить MediaStore
-                    delay(100)
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "Обработка", "Ошибка при обработке изображения", e)
+                    listener?.onCompressionFailed(uri, e.message ?: "Неизвестная ошибка")
+                    results[uri] = null
                 }
             }
             
-            // Завершаем обработку
-            _isLoading.value = false
-            
-            // Показываем уведомление о завершении обработки, если изображений больше одного
-            if (uris.size > 1 && showResultNotification) {
-                NotificationUtil.showBatchProcessingCompletedNotification(context, _progress.value)
+            if (!processingCancelled.get()) {
+                listener?.onBatchCompleted(results)
+            } else {
+                listener?.onBatchCancelled()
             }
             
-            // Показываем результат
-            _result.value = CompressionResult(
-                success = _progress.value.failed == 0,
-                errorMessage = if (_progress.value.failed > 0) 
-                    "Не удалось обработать ${_progress.value.failed} изображений" else null,
-                totalImages = _progress.value.total,
-                successfulImages = _progress.value.successful,
-                failedImages = _progress.value.failed,
-                skippedImages = _progress.value.skipped,
-                allSuccessful = _progress.value.failed == 0
-            )
-            
-            LogUtil.processInfo("Обработка завершена: всего=${_progress.value.total}, успешно=${_progress.value.successful}, пропущено=${_progress.value.skipped}, ошибок=${_progress.value.failed}")
+            return@withContext results
+        } catch (e: Exception) {
+            LogUtil.error(null, "Обработка", "Ошибка при пакетной обработке изображений", e)
+            listener?.onBatchFailed(e.message ?: "Неизвестная ошибка")
+            return@withContext emptyMap<Uri, Uri?>()
         }
     }
     
@@ -280,7 +182,7 @@ class SequentialImageProcessor(private val context: Context) {
      * Отменяет текущую обработку изображений
      */
     fun cancelProcessing() {
-        isCancelled = true
+        processingCancelled.set(true)
         
         // Удаляем уведомление о прогрессе
         if (_progress.value.total > 1) {
@@ -299,5 +201,143 @@ class SequentialImageProcessor(private val context: Context) {
     fun destroy() {
         cancelProcessing()
         processingScope.cancel()
+    }
+
+    /**
+     * Обрабатывает одно изображение
+     * @param uri URI изображения для обработки
+     * @param compressionQuality Качество сжатия (0-100)
+     * @param listener Слушатель для обратной связи о прогрессе
+     * @return URI сохраненного сжатого изображения
+     */
+    private suspend fun processImage(
+        uri: Uri,
+        compressionQuality: Int,
+        listener: CompressionProgressListener?
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем, что изображение еще не сжато
+            if (ExifUtil.isCompressedImage(context, uri)) {
+                LogUtil.skipImage(uri, "Изображение уже сжато")
+                listener?.onCompressionSkipped(uri, "Изображение уже сжато")
+                return@withContext uri
+            }
+            
+            // Проверяем размер исходного файла
+            val sourceSize = FileUtil.getFileSize(context, uri)
+            
+            // Если размер слишком маленький или слишком большой, пропускаем
+            if (!FileUtil.isFileSizeValid(sourceSize)) {
+                LogUtil.skipImage(uri, "Размер файла невалидный: $sourceSize")
+                listener?.onCompressionSkipped(uri, "Размер файла невалидный")
+                return@withContext uri
+            }
+            
+            // Уведомляем о старте сжатия
+            listener?.onCompressionStarted(uri)
+            
+            // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
+            val exifDataMemory = ExifUtil.readExifDataToMemory(context, uri)
+            LogUtil.uriInfo(uri, "Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
+            
+            // Получаем имя файла
+            val fileName = FileUtil.getFileNameFromUri(context, uri)
+            if (fileName.isNullOrEmpty()) {
+                LogUtil.error(uri, "Имя файла", "Не удалось получить имя файла")
+                throw IllegalStateException("Не удалось получить имя файла")
+            }
+            
+            // Получаем информацию о режиме сохранения
+            val isSaveModeReplace = FileUtil.isSaveModeReplace(context)
+            
+            // Определяем директорию для сохранения
+            val directory = if (isSaveModeReplace) {
+                FileUtil.getDirectoryFromUri(context, uri)
+            } else {
+                Constants.APP_DIRECTORY
+            }
+            
+            // Проверяем, является ли URI из MediaDocumentProvider
+            val isMediaDocumentsUri = uri.authority == "com.android.providers.media.documents"
+            
+            // Переименовываем оригинальный файл перед сохранением сжатой версии, если нужно
+            var backupUri = uri
+            
+            if (!isMediaDocumentsUri) {
+                backupUri = FileUtil.renameOriginalFileIfNeeded(context, uri) ?: uri
+            }
+            
+            // Сжимаем изображение
+            val compressedImageStream = CompressionTestUtil.getCompressedImageStream(
+                context,
+                uri,
+                compressionQuality
+            )
+            
+            if (compressedImageStream == null) {
+                LogUtil.error(uri, "Сжатие", "Ошибка при сжатии изображения")
+                throw IllegalStateException("Ошибка при сжатии изображения")
+            }
+            
+            // Сохраняем сжатое изображение
+            val savedUri = FileUtil.saveCompressedImageFromStream(
+                context,
+                ByteArrayInputStream(compressedImageStream.toByteArray()),
+                fileName,
+                directory ?: Constants.APP_DIRECTORY,
+                backupUri,
+                compressionQuality,
+                exifDataMemory
+            )
+            
+            // Закрываем поток сжатого изображения
+            compressedImageStream.close()
+            
+            if (savedUri == null) {
+                LogUtil.error(uri, "Сохранение", "Не удалось сохранить сжатое изображение")
+                throw IllegalStateException("Не удалось сохранить сжатое изображение")
+            }
+            
+            LogUtil.fileOperation(uri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
+            
+            // Если режим замены включен и URI был переименован, удаляем переименованный оригинальный файл
+            try {
+                if (isSaveModeReplace && backupUri != uri) {
+                    val deleteResult = FileUtil.deleteFile(context, backupUri)
+                    
+                    when (deleteResult) {
+                        is Boolean -> {
+                            if (deleteResult) {
+                                LogUtil.fileOperation(uri, "Удаление", "Переименованный оригинальный файл успешно удален")
+                            } else {
+                                LogUtil.error(uri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
+                            }
+                        }
+                        is android.content.IntentSender -> {
+                            LogUtil.fileOperation(uri, "Удаление", "Требуется разрешение пользователя на удаление переименованного оригинала")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Удаление", "Ошибка при удалении переименованного оригинального файла", e)
+            }
+            
+            // Уведомляем о завершении сжатия
+            val compressedSize = FileUtil.getFileSize(context, savedUri)
+            listener?.onCompressionCompleted(uri, savedUri, sourceSize, compressedSize)
+            
+            return@withContext savedUri
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Обработка", "Ошибка при обработке изображения", e)
+            listener?.onCompressionFailed(uri, e.message ?: "Неизвестная ошибка")
+            return@withContext null
+        }
+    }
+
+    /**
+     * Сбрасывает флаг отмены обработки
+     */
+    fun resetCancellation() {
+        processingCancelled.set(false)
     }
 } 

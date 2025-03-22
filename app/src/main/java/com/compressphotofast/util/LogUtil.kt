@@ -138,6 +138,28 @@ object LogUtil {
     }
     
     /**
+     * Логирование отладочной информации о процессе
+     */
+    fun processDebug(message: String) {
+        Timber.d("[$CATEGORY_PROCESS] $message")
+    }
+    
+    /**
+     * Логирование предупреждений о процессе
+     */
+    fun processWarning(message: String) {
+        Timber.w("[$CATEGORY_PROCESS] $message")
+    }
+    
+    /**
+     * Логирование информации о сжатии изображения
+     */
+    fun imageCompression(uri: Uri, message: String) {
+        val fileId = getFileId(uri)
+        Timber.i("[$CATEGORY_COMPRESSION:$fileId] $message")
+    }
+    
+    /**
      * Создает короткий идентификатор файла на основе URI для идентификации в логах
      */
     private fun getFileId(uri: Uri): String {

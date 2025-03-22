@@ -48,6 +48,7 @@ import android.widget.TextView
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import com.compressphotofast.util.SequentialImageProcessor
+import com.compressphotofast.util.CompressionProgressListener
 
 /**
  * Модель представления для главного экрана
@@ -178,11 +179,53 @@ class MainViewModel @Inject constructor(
         }
         
         // Запускаем обработку изображений последовательно
-        sequentialImageProcessor.processImages(
-            uris = uris,
-            compressionQuality = getCompressionQuality(),
-            showResultNotification = true
-        )
+        viewModelScope.launch {
+            sequentialImageProcessor.processImages(
+                uris = uris,
+                compressionQuality = getCompressionQuality(),
+                listener = object : CompressionProgressListener {
+                    override fun onBatchStarted(totalImages: Int) {
+                        // Можно добавить логику уведомления о начале обработки
+                    }
+                    
+                    override fun onBatchProgress(progress: Int, processed: Int, total: Int) {
+                        // Прогресс обновляется через StateFlow
+                    }
+                    
+                    override fun onBatchCompleted(results: Map<Uri, Uri?>) {
+                        // Результат обновляется через StateFlow
+                    }
+                    
+                    override fun onBatchCancelled() {
+                        // Обработка отмены
+                    }
+                    
+                    override fun onCompressionStarted(uri: Uri) {
+                        // Начало сжатия отдельного изображения
+                    }
+                    
+                    override fun onCompressionProgress(uri: Uri, progress: Int) {
+                        // Прогресс сжатия отдельного изображения
+                    }
+                    
+                    override fun onCompressionCompleted(uri: Uri, savedUri: Uri, originalSize: Long, compressedSize: Long) {
+                        // Завершение сжатия отдельного изображения
+                    }
+                    
+                    override fun onCompressionSkipped(uri: Uri, reason: String) {
+                        // Пропуск сжатия изображения
+                    }
+                    
+                    override fun onCompressionFailed(uri: Uri, error: String) {
+                        // Ошибка при сжатии изображения
+                    }
+                    
+                    override fun onBatchFailed(error: String) {
+                        // Ошибка при пакетной обработке
+                    }
+                }
+            )
+        }
         
         // Логируем начало обработки
         Timber.d("Запущена последовательная обработка ${uris.size} изображений")

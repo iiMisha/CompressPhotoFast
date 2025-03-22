@@ -32,6 +32,7 @@ object Constants {
     const val WORK_TAG_COMPRESSION = "compression_work"
     const val WORK_INPUT_IMAGE_URI = "image_uri"
     const val WORK_ERROR_MSG = "error_message"
+    const val WORK_COMPRESSION_QUALITY = "compression_quality"
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
@@ -46,6 +47,7 @@ object Constants {
     const val COMPRESSION_QUALITY_LOW = 60
     const val COMPRESSION_QUALITY_MEDIUM = 70
     const val COMPRESSION_QUALITY_HIGH = 85
+    const val MIN_COMPRESSION_SAVING_PERCENT = 10f // Минимальный процент экономии для продолжения сжатия
 
     
     // Интервалы

@@ -337,27 +337,66 @@ object FileUtil {
                     MediaStore.Images.Media.RELATIVE_PATH
                 )
                 
-                context.contentResolver.query(
-                    uri,
-                    projection,
-                    null,
-                    null,
-                    null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                        val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                        
-                        if (nameIndex != -1 && pathIndex != -1) {
-                            // Проверяем на null, чтобы избежать ошибки "Reading a NULL string not supported here"
-                            val fileName = if (cursor.isNull(nameIndex)) null else cursor.getString(nameIndex)
-                            val relativePath = if (cursor.isNull(pathIndex)) null else cursor.getString(pathIndex)
+                try {
+                    context.contentResolver.query(
+                        uri,
+                        projection,
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                            val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
                             
-                            // Проверяем, что получили непустые значения
-                            if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
-                                return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
+                            if (nameIndex != -1 && pathIndex != -1) {
+                                // Проверяем на null, чтобы избежать ошибки "Reading a NULL string not supported here"
+                                val fileName = if (cursor.isNull(nameIndex)) null else cursor.getString(nameIndex)
+                                val relativePath = if (cursor.isNull(pathIndex)) null else cursor.getString(pathIndex)
+                                
+                                // Проверяем, что получили непустые значения
+                                if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
+                                    return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
+                                }
                             }
                         }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при получении пути: ${e.message}")
+                }
+                
+                // Специальная обработка для Android 11
+                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+                    try {
+                        // Попытка получить ID изображения из URI
+                        val id = uri.lastPathSegment?.toLongOrNull()
+                        if (id != null) {
+                            // Получаем информацию через ContentResolver
+                            context.contentResolver.query(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                projection,
+                                "${MediaStore.Images.Media._ID} = ?",
+                                arrayOf(id.toString()),
+                                null
+                            )?.use { cursor ->
+                                if (cursor.moveToFirst()) {
+                                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                                    val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                                    
+                                    if (nameIndex != -1 && pathIndex != -1 && 
+                                        !cursor.isNull(nameIndex) && !cursor.isNull(pathIndex)) {
+                                        val fileName = cursor.getString(nameIndex)
+                                        val relativePath = cursor.getString(pathIndex)
+                                        
+                                        if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
+                                            return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Android 11: Ошибка при получении пути: ${e.message}")
                     }
                 }
                 
@@ -429,11 +468,61 @@ object FileUtil {
             // Сначала пробуем получить через простой метод
             var fileName = getFileName(context.contentResolver, uri)
             
+            // Специальная обработка для Android 11
+            if (fileName == null && Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+                try {
+                    // Получаем ID файла из URI
+                    val idString = uri.lastPathSegment
+                    val id = idString?.toLongOrNull()
+                    
+                    if (id != null) {
+                        // Пробуем получить имя файла через ID
+                        context.contentResolver.query(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                            "${MediaStore.Images.Media._ID} = ?",
+                            arrayOf(id.toString()),
+                            null
+                        )?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                                if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
+                                    fileName = cursor.getString(nameIndex)
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Android 11: Ошибка при получении имени файла: ${e.message}")
+                }
+            }
+            
             // Если не удалось, пробуем через lastPathSegment
             if (fileName == null) {
                 uri.lastPathSegment?.let { segment ->
                     if (segment.contains(".")) {
                         fileName = segment
+                    } else if (segment.toLongOrNull() != null) {
+                        // Для Android 11, если lastPathSegment - это ID, пробуем получить имя через ID
+                        try {
+                            val id = segment.toLong()
+                            context.contentResolver.query(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                                "${MediaStore.Images.Media._ID} = ?",
+                                arrayOf(id.toString()),
+                                null
+                            )?.use { cursor ->
+                                if (cursor.moveToFirst()) {
+                                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                                    if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
+                                        fileName = cursor.getString(nameIndex)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Ошибка при получении имени через ID: ${e.message}")
+                        }
                     }
                 }
             }
@@ -515,24 +604,69 @@ object FileUtil {
             // Пытаемся получить RELATIVE_PATH для Android 10+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
-                context.contentResolver.query(
-                    uri,
-                    projection,
-                    null,
-                    null,
-                    null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val relativePath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH))
-                        if (!relativePath.isNullOrEmpty()) {
-                            // Убираем завершающий слеш
-                            val path = if (relativePath.endsWith("/")) {
-                                relativePath.substring(0, relativePath.length - 1)
-                            } else {
-                                relativePath
+                try {
+                    context.contentResolver.query(
+                        uri,
+                        projection,
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                            if (pathIndex != -1 && !cursor.isNull(pathIndex)) {
+                                val relativePath = cursor.getString(pathIndex)
+                                if (!relativePath.isNullOrEmpty()) {
+                                    // Убираем завершающий слеш
+                                    val path = if (relativePath.endsWith("/")) {
+                                        relativePath.substring(0, relativePath.length - 1)
+                                    } else {
+                                        relativePath
+                                    }
+                                    return path
+                                }
                             }
-                            return path
                         }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Ошибка при запросе RELATIVE_PATH: ${e.message}")
+                }
+                
+                // Специальная обработка для Android 11
+                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+                    try {
+                        // Попытка получить ID изображения из URI
+                        val idString = uri.lastPathSegment
+                        val id = idString?.toLongOrNull()
+                        
+                        if (id != null) {
+                            // Пробуем получить относительный путь через ID
+                            context.contentResolver.query(
+                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                arrayOf(MediaStore.Images.Media.RELATIVE_PATH),
+                                "${MediaStore.Images.Media._ID} = ?",
+                                arrayOf(id.toString()),
+                                null
+                            )?.use { cursor ->
+                                if (cursor.moveToFirst()) {
+                                    val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                                    if (pathIndex != -1 && !cursor.isNull(pathIndex)) {
+                                        val relativePath = cursor.getString(pathIndex)
+                                        if (!relativePath.isNullOrEmpty()) {
+                                            // Убираем завершающий слеш
+                                            val path = if (relativePath.endsWith("/")) {
+                                                relativePath.substring(0, relativePath.length - 1)
+                                            } else {
+                                                relativePath
+                                            }
+                                            return path
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Android 11: Ошибка при получении относительного пути: ${e.message}")
                     }
                 }
             }
@@ -556,7 +690,7 @@ object FileUtil {
         }
         
         // Возвращаем стандартный путь, если не удалось определить директорию
-        return "${Environment.DIRECTORY_PICTURES}/${Constants.APP_DIRECTORY}"
+        return "Pictures/${Constants.APP_DIRECTORY}"
     }
 
     /**
@@ -849,6 +983,7 @@ object FileUtil {
      * @param directory Директория для сохранения
      * @param originalUri URI оригинального файла для получения EXIF данных
      * @param quality Качество сжатия (0-100)
+     * @param exifDataMemory Предварительно загруженные EXIF данные или null
      * @return URI сохраненного файла или null при ошибке
      */
     suspend fun saveCompressedImageFromStream(
@@ -857,7 +992,8 @@ object FileUtil {
         fileName: String,
         directory: String,
         originalUri: Uri,
-        quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM
+        quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
+        exifDataMemory: Map<String, Any>? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             val contentValues = ContentValues().apply {
@@ -887,6 +1023,45 @@ object FileUtil {
                 }
             }
             
+            // Специальная обработка для Android 11 - проверяем, существует ли уже файл с таким именем
+            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+                try {
+                    // Проверяем наличие файла с таким же именем в указанной директории
+                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+                    val selectionArgs = arrayOf(fileName)
+                    
+                    var existingUri: Uri? = null
+                    context.contentResolver.query(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        arrayOf(MediaStore.Images.Media._ID),
+                        selection,
+                        selectionArgs,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                            if (idColumn != -1 && !cursor.isNull(idColumn)) {
+                                val id = cursor.getLong(idColumn)
+                                existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                                Timber.d("Android 11: Найден существующий файл с таким же именем: $existingUri")
+                            }
+                        }
+                    }
+                    
+                    // Если файл существует, сначала удаляем его
+                    if (existingUri != null) {
+                        try {
+                            context.contentResolver.delete(existingUri!!, null, null)
+                            Timber.d("Android 11: Существующий файл удален")
+                        } catch (e: Exception) {
+                            Timber.e(e, "Android 11: Ошибка при удалении существующего файла: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Android 11: Ошибка при проверке существующего файла: ${e.message}")
+                }
+            }
+            
             // Создаем новую запись
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw IOException("Не удалось создать запись MediaStore")
@@ -911,64 +1086,46 @@ object FileUtil {
                 }
                 
                 // Ждем, чтобы файл стал доступен в системе
-                // Используем более длительное ожидание и проверяем, что файл действительно доступен
-                val maxWaitTime = 2000L // Увеличиваем до 2 секунд
+                val maxWaitTime = 2000L
                 val fileAvailable = waitForUriAvailability(context, uri, maxWaitTime)
                 
                 if (!fileAvailable) {
                     Timber.w("URI не стал доступен после ожидания: $uri")
                 }
                 
-                // Копируем EXIF данные напрямую между URI
-                var exifCopied = false
-                try {
-                    // Дополнительная задержка перед работой с EXIF
+                // Специальная обработка для Android 11
+                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+                    // Дополнительное ожидание для Android 11
                     delay(300)
-                    exifCopied = ExifUtil.copyExifDataBetweenUris(context, originalUri, uri)
-                    Timber.d("Копирование EXIF данных между URI: ${if (exifCopied) "успешно" else "неудачно"}")
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
                 }
                 
-                // Добавляем маркер сжатия напрямую через URI
-                var markerAdded = false
-                try {
-                    markerAdded = ExifUtil.markCompressedImageUri(context, uri, quality)
-                    Timber.d("Добавление маркера сжатия в URI: ${if (markerAdded) "успешно" else "неудачно"}")
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при добавлении маркера сжатия в URI: ${e.message}")
-                }
-                
-                // Проверяем успешность операций с EXIF
-                if (exifCopied && markerAdded) {
-                    Timber.d("EXIF данные и маркер сжатия успешно применены к URI: $uri")
+                // Используем заранее загруженные EXIF данные, если они доступны
+                var exifSuccess = false
+                if (exifDataMemory != null && exifDataMemory.isNotEmpty()) {
+                    try {
+                        exifSuccess = ExifUtil.applyExifDataFromMemory(context, uri, exifDataMemory, quality)
+                        LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
+                    } catch (e: Exception) {
+                        LogUtil.error(uri, "EXIF", "Ошибка при применении EXIF данных из памяти", e)
+                    }
                 } else {
-                    // Если первая попытка не удалась, делаем еще одну попытку после дополнительного ожидания
-                    if (!exifCopied || !markerAdded) {
-                        Timber.d("Первая попытка работы с EXIF была неудачной, выполняю повторную попытку после паузы")
-                        delay(500) // Ждем еще полсекунды
+                    // Если заранее загруженных данных нет, пробуем скопировать EXIF обычным способом
+                    try {
+                        // Дополнительная задержка перед работой с EXIF
+                        delay(300)
+                        exifSuccess = ExifUtil.copyExifDataBetweenUris(context, originalUri, uri)
+                        Timber.d("Копирование EXIF данных между URI: ${if (exifSuccess) "успешно" else "неудачно"}")
                         
-                        if (!exifCopied) {
-                            try {
-                                exifCopied = ExifUtil.copyExifDataBetweenUris(context, originalUri, uri)
-                                Timber.d("Повторное копирование EXIF данных: ${if (exifCopied) "успешно" else "неудачно"}")
-                            } catch (e: Exception) {
-                                Timber.e(e, "Ошибка при повторном копировании EXIF данных: ${e.message}")
-                            }
+                        if (!exifSuccess) {
+                            LogUtil.processWarning("Не удалось скопировать EXIF данные, пробуем добавить только маркер сжатия")
+                            exifSuccess = ExifUtil.markCompressedImageUri(context, uri, quality)
                         }
-                        
-                        if (!markerAdded) {
-                            try {
-                                markerAdded = ExifUtil.markCompressedImageUri(context, uri, quality)
-                                Timber.d("Повторное добавление маркера сжатия: ${if (markerAdded) "успешно" else "неудачно"}")
-                            } catch (e: Exception) {
-                                Timber.e(e, "Ошибка при повторном добавлении маркера сжатия: ${e.message}")
-                            }
-                        }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
                     }
                 }
                 
-                // Верификация через чтение EXIF
+                // Финальная верификация EXIF данных
                 try {
                     delay(100) // Небольшая задержка перед проверкой
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->

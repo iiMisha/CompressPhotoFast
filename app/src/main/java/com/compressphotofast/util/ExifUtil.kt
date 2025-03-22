@@ -1108,52 +1108,159 @@ object ExifUtil {
 
     /**
      * Проверяет, было ли изображение уже сжато нашим приложением
-     *
      * @param context Контекст приложения
-     * @param uri URI изображения для проверки
-     * @return Пара (Boolean, Int), где Boolean - было ли изображение сжато, 
-     *         Int - качество сжатия или null если не сжато
+     * @param uri URI изображения
+     * @return true если изображение уже сжато, false в противном случае
      */
-    fun checkIsCompressed(context: Context, uri: Uri): Pair<Boolean, Int?> {
-        Timber.d("Проверка, было ли изображение сжато: $uri")
-        
+    fun isCompressedImage(context: Context, uri: Uri): Boolean {
         try {
-            var isCompressed = false
-            var quality: Int? = null
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val exif = ExifInterface(inputStream)
+                val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+                
+                if (userComment != null && userComment.contains(EXIF_COMPRESSION_MARKER)) {
+                    LogUtil.processInfo("Изображение уже сжато: $uri, UserComment: $userComment")
+                    return true
+                }
+            }
+            return false
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Проверка сжатия", "Ошибка при проверке маркера сжатия", e)
+            // В случае ошибки предполагаем, что изображение не сжато
+            return false
+        }
+    }
+
+    /**
+     * Считывает EXIF данные из URI в памяти для последующего их применения к другому файлу
+     * @param context Контекст приложения
+     * @param uri URI исходного изображения
+     * @return Map с EXIF тегами и их значениями или пустая карта в случае ошибки
+     */
+    fun readExifDataToMemory(context: Context, uri: Uri): Map<String, Any> {
+        val exifTagValues = mutableMapOf<String, Any>()
+        try {
+            LogUtil.processInfo("Чтение EXIF данных из $uri в память")
             
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                try {
-                    val exif = ExifInterface(inputStream)
-                    val comment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                    
-                    if (comment != null && comment.startsWith(EXIF_COMPRESSION_MARKER)) {
-                        // Извлекаем качество сжатия из маркера
-                        val parts = comment.split(":")
-                        if (parts.size >= 2) {
-                            val qualityStr = parts[1].trim()
-                            quality = try {
-                                qualityStr.toInt()
-                            } catch (e: NumberFormatException) {
-                                Timber.w("Не удалось извлечь качество из маркера сжатия: $comment")
-                                null
-                            }
-                        }
-                        
-                        isCompressed = true
-                        Timber.d("Обнаружен маркер сжатия, качество: $quality")
-                    } else {
-                        Timber.d("Маркер сжатия не найден. UserComment: $comment")
+                val exif = ExifInterface(inputStream)
+                
+                // Сохраняем все основные EXIF теги
+                for (tag in TAG_LIST) {
+                    val value = exif.getAttribute(tag)
+                    if (value != null) {
+                        exifTagValues[tag] = value
+                        LogUtil.processDebug("EXIF в памяти: $tag = $value")
                     }
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при чтении EXIF данных из URI: ${e.message}")
                 }
-            } ?: Timber.w("Не удалось открыть входной поток для URI: $uri")
-            
-            return Pair(isCompressed, quality)
-            
+                
+                // Сохраняем GPS данные, если они есть
+                val hasGps = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) != null && 
+                             exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) != null
+                             
+                if (hasGps) {
+                    LogUtil.processInfo("Сохранение GPS данных в память")
+                    exifTagValues["HAS_GPS"] = true
+                    
+                    // Сохраняем все GPS-теги
+                    for (tag in TAG_LIST) {
+                        val value = exif.getAttribute(tag)
+                        if (value != null) {
+                            exifTagValues[tag] = value
+                            LogUtil.processDebug("GPS в памяти: $tag = $value")
+                        }
+                    }
+                } else {
+                    exifTagValues["HAS_GPS"] = false
+                }
+                
+                // Сохраняем оригинальный UserComment, если есть
+                val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+                if (userComment != null) {
+                    exifTagValues[ExifInterface.TAG_USER_COMMENT] = userComment
+                    LogUtil.processDebug("UserComment в памяти: $userComment")
+                }
+                
+                LogUtil.processInfo("Сохранено ${exifTagValues.size} EXIF тегов в памяти")
+            }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке сжатия изображения: ${e.message}")
-            return Pair(false, null)
+            LogUtil.error(uri, "EXIF", "Ошибка при чтении EXIF данных в память", e)
+        }
+        
+        return exifTagValues
+    }
+
+    /**
+     * Применяет EXIF данные из памяти к указанному URI
+     * @param context Контекст приложения
+     * @param uri URI изображения, к которому нужно применить EXIF данные
+     * @param exifData Map с тегами EXIF и их значениями
+     * @param quality Качество сжатия для добавления в маркер (если нужно)
+     * @return true если операция выполнена успешно, иначе false
+     */
+    fun applyExifDataFromMemory(
+        context: Context,
+        uri: Uri,
+        exifData: Map<String, Any>,
+        quality: Int? = null
+    ): Boolean {
+        if (exifData.isEmpty()) {
+            LogUtil.processInfo("Нет EXIF данных для применения к $uri")
+            return false
+        }
+        
+        try {
+            LogUtil.processInfo("Применение ${exifData.size} EXIF тегов из памяти к $uri")
+            
+            context.contentResolver.openFileDescriptor(uri, "rw")?.use { parcelFileDescriptor ->
+                val exif = ExifInterface(parcelFileDescriptor.fileDescriptor)
+                
+                // Применяем все сохраненные теги
+                var appliedTags = 0
+                for ((tag, value) in exifData) {
+                    if (tag != "HAS_GPS" && value is String) {
+                        exif.setAttribute(tag, value)
+                        appliedTags++
+                    }
+                }
+                
+                // Если нужно добавить маркер сжатия, то делаем это
+                if (quality != null) {
+                    val timestamp = System.currentTimeMillis()
+                    val compressionInfo = "CompressPhotoFast_Compressed:$quality:$timestamp"
+                    exif.setAttribute(ExifInterface.TAG_USER_COMMENT, compressionInfo)
+                    LogUtil.processDebug("Добавлен маркер сжатия: $compressionInfo")
+                    appliedTags++
+                } else if (exifData.containsKey(ExifInterface.TAG_USER_COMMENT)) {
+                    // Если маркер сжатия не нужно добавлять, но есть оригинальный UserComment,
+                    // то оставляем его как есть (он уже должен был быть добавлен выше)
+                    LogUtil.processDebug("Использован оригинальный UserComment")
+                }
+                
+                // Сохраняем EXIF данные в файл
+                exif.saveAttributes()
+                LogUtil.processInfo("Применено $appliedTags EXIF тегов к $uri")
+                
+                // Проверяем, что маркер сжатия действительно записался
+                if (quality != null) {
+                    val verificationExif = ExifInterface(parcelFileDescriptor.fileDescriptor)
+                    val userComment = verificationExif.getAttribute(ExifInterface.TAG_USER_COMMENT)
+                    if (userComment?.contains("CompressPhotoFast_Compressed:$quality") == true) {
+                        LogUtil.processInfo("Проверка маркера сжатия: успешно, UserComment: $userComment")
+                        return true
+                    } else {
+                        LogUtil.processWarning("Проверка маркера сжатия не удалась, UserComment: $userComment")
+                        return false
+                    }
+                }
+                
+                return appliedTags > 0
+            }
+            
+            return false
+        } catch (e: Exception) {
+            LogUtil.error(uri, "EXIF", "Ошибка при применении EXIF данных из памяти", e)
+            return false
         }
     }
 } 

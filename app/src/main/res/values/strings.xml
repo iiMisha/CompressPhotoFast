@@ -45,6 +45,12 @@
     <string name="notification_batch_processing_completed_title">Обработка изображений завершена</string>
     <string name="notification_batch_processing_completed">Успешно: %1$d, ошибок: %2$d из %3$d</string>
     <string name="notification_batch_processing_completed_with_skipped">Успешно: %1$d, пропущено: %2$d, ошибок: %3$d из %4$d</string>
+    <string name="notification_compression_in_progress">Сжатие изображения...</string>
+    <string name="notification_compression_failed">Ошибка сжатия</string>
+    <string name="notification_skipping_compressed">Изображение уже сжато, пропускаем</string>
+    <string name="notification_skipping_invalid_size">Размер файла невалидный, пропускаем</string>
+    <string name="notification_skipping_inefficient">Сжатие неэффективно, пропускаем</string>
+    <string name="notification_compression_completed">Сжатие завершено</string>
     
     <!-- Сообщения -->
     <string name="compression_success">Обработка завершена</string>

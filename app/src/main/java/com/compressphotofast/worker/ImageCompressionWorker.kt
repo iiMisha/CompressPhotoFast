@@ -63,6 +63,10 @@ class ImageCompressionWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
+    // Переопределяем поле applicationContext для удобного доступа
+    private val appContext: Context
+        get() = context
+
     // Класс для хранения статистики сжатия
     data class CompressionStats(
         val originalSize: Long,
@@ -73,233 +77,241 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val compressionQuality = inputData.getInt("compression_quality", Constants.COMPRESSION_QUALITY_MEDIUM)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-        if (uriString.isNullOrEmpty()) {
-            LogUtil.processInfo("URI не установлен для компрессии")
-            return@withContext Result.failure()
-        }
-
-        val uri = Uri.parse(uriString)
-        
-        // Проверка существования файла с использованием централизованного метода
-        if (!FileUtil.isUriExistsSuspend(applicationContext, uri)) {
-            LogUtil.error(uri, "Проверка файла", "Файл не существует")
-            return@withContext Result.failure()
-        }
-        
-        // Проверка на временный файл с использованием централизованного метода
-        if (FileUtil.isFilePendingSuspend(applicationContext, uri)) {
-            LogUtil.skipImage(uri, "Файл находится в процессе записи")
-            return@withContext Result.failure()
-        }
-        
-        // Устанавливаем foreground notification
-        val notificationId = Constants.NOTIFICATION_ID_COMPRESSION
-        val notificationTitle = applicationContext.getString(R.string.notification_title_processing)
-        
         try {
-            // Создаем и показываем уведомление
-            setForeground(createForegroundInfo(notificationId, notificationTitle))
+            // Получаем параметры задачи
+            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+            if (uriString.isNullOrEmpty()) {
+                LogUtil.processInfo("URI не установлен для компрессии")
+                return@withContext Result.failure()
+            }
+
+            val imageUri = Uri.parse(uriString)
+            val compressionQuality = inputData.getInt(Constants.WORK_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
             
-            // Получаем URI изображения из входных данных
-            val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-                ?: return@withContext Result.failure(
-                    workDataOf(Constants.WORK_ERROR_MSG to "URI не указан")
-                )
+            // Обновляем уведомление
+            setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_in_progress)))
             
-            val imageUri = Uri.parse(imageUriString)
-            val context = applicationContext
+            LogUtil.processInfo("[ПРОЦЕСС] Используется качество сжатия: $compressionQuality")
+            
+            // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
+            val exifDataMemory = ExifUtil.readExifDataToMemory(appContext, imageUri)
+            LogUtil.uriInfo(imageUri, "[ПРОЦЕСС] Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
+            
+            // Проверяем, не сжато ли уже изображение
+            val isCompressed = ExifUtil.isCompressedImage(appContext, imageUri)
+            if (isCompressed) {
+                LogUtil.uriInfo(imageUri, "Изображение уже сжато, пропускаем")
+                setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_compressed)))
+                return@withContext Result.success()
+            }
+            
+            // Проверка существования файла
+            if (!FileUtil.isUriExistsSuspend(appContext, imageUri)) {
+                LogUtil.error(imageUri, "Проверка файла", "Файл не существует")
+                return@withContext Result.failure()
+            }
+            
+            // Проверка на временный файл
+            if (FileUtil.isFilePendingSuspend(appContext, imageUri)) {
+                LogUtil.skipImage(imageUri, "Файл находится в процессе записи")
+                return@withContext Result.failure()
+            }
             
             // Начинаем отслеживание сжатия
             StatsTracker.startTracking(imageUri)
-            StatsTracker.updateStatus(context, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
+            StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
-            // Логируем переданное качество сжатия для отладки
-            LogUtil.processInfo("Используется качество сжатия: $compressionQuality")
+            // Проверяем размер исходного файла
+            val sourceSize = FileUtil.getFileSize(appContext, imageUri)
             
-            // Получаем размер файла
-            val fileSize = FileUtil.getFileSize(context, imageUri)
-            
-            // Проверяем, существует ли URI
-            try {
-                val checkCursor = context.contentResolver.query(imageUri, arrayOf(MediaStore.Images.Media._ID), null, null, null)
-                val exists = checkCursor?.use { it.count > 0 } ?: false
-                
-                if (!exists) {
-                    LogUtil.uriInfo(imageUri, "URI не существует, возможно обработан другим процессом")
-                    return@withContext updateStatusAndReturn(
-                        imageUri, 
-                        StatsTracker.COMPRESSION_STATUS_SKIPPED, 
-                        skipped = true
-                    )
-                }
-            } catch (e: Exception) {
-                LogUtil.error(imageUri, "Проверка существования", e)
-                // Продолжаем выполнение, так как ошибка может быть временной
+            // Если размер слишком маленький или слишком большой, пропускаем
+            if (!FileUtil.isFileSizeValid(sourceSize)) {
+                LogUtil.uriInfo(imageUri, "Размер файла невалидный: $sourceSize, пропускаем")
+                setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_invalid_size)))
+                return@withContext Result.success()
             }
             
-            // Используем централизованную логику из ImageProcessingChecker для определения необходимости обработки
-            // Это заменяет старый код с дублирующейся логикой
-            val isAlreadyProcessed = ImageProcessingChecker.isAlreadyProcessed(context, imageUri)
-            
-            if (isAlreadyProcessed) {
-                LogUtil.skipImage(imageUri, "Изображение уже обработано")
-                return@withContext updateStatusAndReturn(
-                    imageUri, 
-                    StatsTracker.COMPRESSION_STATUS_SKIPPED, 
-                    skipped = true
-                )
-            }
-            
-            // Если файл требует обработки, проверяем эффективность сжатия
-            LogUtil.processInfo("Выполняем тестовое сжатие в RAM")
+            // Выполняем тестовое сжатие для оценки эффективности
+            LogUtil.processInfo("[ПРОЦЕСС] Выполняем тестовое сжатие в RAM")
             LogUtil.uriInfo(imageUri, "Изображение требует обработки")
+            LogUtil.uriInfo(imageUri, "Начало тестового сжатия в RAM")
             
-            // Проверяем эффективность сжатия с использованием централизованной логики
-            val compressionEffective = CompressionTestUtil.testCompression(
-                context, 
-                imageUri, 
-                fileSize, 
+            val testCompressionResult = CompressionTestUtil.testCompression(
+                appContext,
+                imageUri,
+                sourceSize,
                 compressionQuality
             )
             
-            if (compressionEffective) {
-                // Если сжатие эффективно (>10%), начинаем процесс сжатия
-                LogUtil.processInfo("Тестовое сжатие эффективно, начинаем полное сжатие")
+            if (testCompressionResult == null) {
+                LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
+                setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
+                StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                return@withContext Result.failure()
+            }
+            
+            val sourceSizeKB = testCompressionResult.originalSize / 1024
+            val compressedSizeKB = testCompressionResult.compressedSize / 1024
+            val compressionSavingPercent = testCompressionResult.reductionPercent
+            
+            LogUtil.imageCompression(imageUri, "${sourceSizeKB}KB → ${compressedSizeKB}KB (-${compressionSavingPercent}%)")
+            
+            // Определяем минимальный процент экономии для продолжения сжатия
+            val minCompressionSaving = Constants.MIN_COMPRESSION_SAVING_PERCENT
+            
+            // Если сжатие эффективно, продолжаем с полным сжатием и сохранением
+            if (compressionSavingPercent >= minCompressionSaving) {
+                LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} эффективно (экономия $compressionSavingPercent% > $minCompressionSaving%), выполняем полное сжатие")
+                LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие")
                 
+                // Получаем имя файла
+                val fileName = FileUtil.getFileNameFromUri(appContext, imageUri)
+                
+                if (fileName.isNullOrEmpty()) {
+                    LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
+                    setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
+                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                }
+                
+                LogUtil.uriInfo(imageUri, "Имя файла: $fileName")
+                
+                // Проверяем, является ли URI из MediaDocumentProvider
+                val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
+                
+                // Определяем директорию для сохранения
+                val directory = if (FileUtil.isSaveModeReplace(appContext)) {
+                    // Если включен режим замены, сохраняем в той же директории
+                    FileUtil.getDirectoryFromUri(appContext, imageUri)
+                } else {
+                    // Иначе сохраняем в директории приложения
+                    Constants.APP_DIRECTORY
+                }
+                
+                LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
+                
+                // Получаем поток с изображением
+                val imageStream = appContext.contentResolver.openInputStream(imageUri)
+                
+                if (imageStream == null) {
+                    LogUtil.error(imageUri, "Открытие потока", "Не удалось открыть поток изображения")
+                    setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
+                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                }
+                
+                // Сжимаем изображение
+                val compressedImageStream = CompressionTestUtil.getCompressedImageStream(
+                    appContext,
+                    imageUri,
+                    compressionQuality
+                )
+                
+                // Закрываем исходный поток
+                imageStream.close()
+                
+                if (compressedImageStream == null) {
+                    LogUtil.error(imageUri, "Сжатие", "Ошибка при сжатии изображения")
+                    setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
+                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                }
+                
+                // Переименовываем оригинальный файл перед сохранением сжатой версии, если нужно
+                var backupUri = imageUri
+                
+                if (!isMediaDocumentsUri) {
+                    backupUri = FileUtil.renameOriginalFileIfNeeded(appContext, imageUri) ?: imageUri
+                }
+                
+                // Сохраняем сжатое изображение
+                val savedUri = FileUtil.saveCompressedImageFromStream(
+                    appContext,
+                    ByteArrayInputStream(compressedImageStream.toByteArray()),
+                    fileName,
+                    directory ?: Constants.APP_DIRECTORY,
+                    backupUri,
+                    compressionQuality,
+                    exifDataMemory // Передаем заранее загруженные EXIF данные
+                )
+                
+                // Закрываем поток сжатого изображения
+                compressedImageStream.close()
+                
+                // Проверяем результат сохранения
+                if (savedUri == null) {
+                    LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
+                    setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
+                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                }
+                
+                LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
+                
+                // Если режим замены включен и URI был переименован, удаляем переименованный оригинальный файл
                 try {
-                    // Получаем имя файла из URI
-                    val fileName = getFileNameSafely(imageUri)
-                    if (fileName.isNullOrEmpty()) {
-                        LogUtil.error(imageUri, "Получение имени файла", "Не удалось получить имя файла")
-                        return@withContext updateStatusAndReturn(
-                            imageUri, 
-                            StatsTracker.COMPRESSION_STATUS_FAILED, 
-                            errorMessage = "Не удалось получить имя файла"
-                        )
-                    }
-                    LogUtil.uriInfo(imageUri, "Имя файла: $fileName")
-                    
-                    // Получаем директорию для сохранения сжатого файла
-                    val directory = if (FileUtil.isSaveModeReplace(context)) {
-                        // Если включен режим замены, сохраняем в той же директории
-                        FileUtil.getDirectoryFromUri(context, imageUri) ?: Constants.APP_DIRECTORY
-                    } else {
-                        // Иначе сохраняем в директории приложения
-                        Constants.APP_DIRECTORY
-                    }
-                    LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
-                    
-                    // Получаем поток с сжатым изображением напрямую из RAM-сжатия
-                    val compressedStream = CompressionTestUtil.getCompressedImageStream(
-                        context,
-                        imageUri,
-                        compressionQuality
-                    )
-                    
-                    if (compressedStream == null) {
-                        LogUtil.error(imageUri, "Сжатие", "Не удалось получить поток с сжатым изображением")
-                        return@withContext updateStatusAndReturn(
-                            imageUri,
-                            StatsTracker.COMPRESSION_STATUS_FAILED,
-                            errorMessage = "Ошибка при сжатии изображения"
-                        )
-                    }
-                    
-                    // Переименовываем оригинальный файл, если это необходимо
-                    var backupUri = FileUtil.renameOriginalFileIfNeeded(context, imageUri)
-                    
-                    // Если переименование не выполнено или произошла ошибка,
-                    // используем исходный URI в качестве backupUri для копирования EXIF
-                    if (backupUri == null) {
-                        // Закрываем поток сжатого изображения при ошибке переименования
-                        compressedStream.close()
-                        return@withContext updateStatusAndReturn(
-                            imageUri,
-                            StatsTracker.COMPRESSION_STATUS_FAILED,
-                            errorMessage = "Не удалось переименовать оригинальный файл"
-                        )
-                    }
-                    
-                    // Сохраняем сжатое изображение с именем оригинала
-                    val savedUri = FileUtil.saveCompressedImageFromStream(
-                        context,
-                        ByteArrayInputStream(compressedStream.toByteArray()),
-                        fileName,
-                        directory,
-                        backupUri,
-                        compressionQuality
-                    )
-                    
-                    // Закрываем поток после использования
-                    compressedStream.close()
-                    
-                    if (savedUri == null) {
-                        LogUtil.error(Uri.EMPTY, "Сохранение", "Ошибка при сохранении сжатого изображения")
-                        return@withContext Result.failure(createFailureOutput("Ошибка при сохранении сжатого изображения"))
-                    }
-                    
-                    LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
-                    
-                    // Удаляем переименованный оригинальный файл, если был включен режим замены
-                    // и переименование было выполнено успешно (т.е. backupUri не совпадает с оригинальным imageUri)
-                    if (FileUtil.isSaveModeReplace(context) && backupUri != imageUri) {
-                        try {
-                            val deleteResult = FileUtil.deleteFile(context, backupUri)
-                            
-                            if (deleteResult is Boolean && deleteResult) {
-                                LogUtil.fileOperation(backupUri, "Удаление", "Переименованный оригинальный файл успешно удален")
-                            } else if (deleteResult is IntentSender) {
-                                LogUtil.fileOperation(backupUri, "Удаление", "Для удаления переименованного оригинального файла требуется разрешение пользователя")
-                                // Отправляем запрос на удаление с разрешением пользователя
-                                addPendingDeleteRequest(backupUri, deleteResult)
-                            } else {
-                                LogUtil.error(backupUri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
+                    if (FileUtil.isSaveModeReplace(appContext) && backupUri != imageUri) {
+                        LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление файла: $backupUri")
+                        val deleteResult = FileUtil.deleteFile(appContext, backupUri)
+                        
+                        when (deleteResult) {
+                            is Boolean -> {
+                                if (deleteResult) {
+                                    LogUtil.fileOperation(imageUri, "Удаление", "Переименованный оригинальный файл успешно удален")
+                                } else {
+                                    LogUtil.error(imageUri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
+                                }
                             }
-                        } catch (e: Exception) {
-                            LogUtil.error(backupUri, "Удаление", "Ошибка при удалении переименованного оригинального файла", e)
+                            is android.content.IntentSender -> {
+                                LogUtil.fileOperation(imageUri, "Удаление", "Требуется разрешение пользователя на удаление переименованного оригинала")
+                                // В WorkManager мы не можем запросить разрешение через IntentSender
+                                addPendingDeleteRequest(backupUri, deleteResult)
+                            }
                         }
                     }
-                    
-                    // Получаем размер сжатого файла для уведомления
-                    val compressedSize = FileUtil.getFileSize(context, savedUri)
-                    val sizeReduction = if (fileSize > 0 && compressedSize > 0) {
-                            ((fileSize - compressedSize).toFloat() / fileSize) * 100
-                        } else 0f
-                        
-                        // Показываем уведомление о завершении сжатия
-                        sendCompressionStatusNotification(fileName, fileSize, compressedSize, sizeReduction, false)
-                    
-                    // Обновляем статус при успешном сжатии
-                    return@withContext updateStatusAndReturn(
-                        imageUri, 
-                        StatsTracker.COMPRESSION_STATUS_COMPLETED
-                    )
                 } catch (e: Exception) {
-                    LogUtil.error(imageUri, "Сжатие", "Ошибка при сжатии с новой стратегией", e)
-                    return@withContext updateStatusAndReturn(
-                        imageUri, 
-                        StatsTracker.COMPRESSION_STATUS_FAILED, 
-                        errorMessage = e.message ?: "Ошибка при сжатии"
-                    )
+                    LogUtil.error(imageUri, "Удаление", "Ошибка при удалении переименованного оригинального файла", e)
                 }
+                
+                // Получаем размер сжатого файла для уведомления
+                val compressedSize = FileUtil.getFileSize(appContext, savedUri)
+                val sizeReduction = if (sourceSize > 0 && compressedSize > 0) {
+                    ((sourceSize - compressedSize).toFloat() / sourceSize) * 100
+                } else 0f
+                
+                // Отправляем уведомление о завершении сжатия
+                sendCompressionStatusNotification(
+                    fileName,
+                    sourceSize,
+                    compressedSize,
+                    sizeReduction,
+                    false
+                )
+                
+                LogUtil.processInfo("[ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=$fileName")
+                setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_completed)))
+                
+                // Обновляем статус и возвращаем успех
+                StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+                return@withContext Result.success()
             } else {
-                // Если сжатие неэффективно, пропускаем файл
-                LogUtil.processInfo("Тестовое сжатие в RAM неэффективно (экономия меньше порогового значения ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), пропускаем файл")
+                // Если сжатие неэффективно, пропускаем
+                LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent% < $minCompressionSaving%), пропускаем")
+                setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_inefficient)))
                 
                 // Получаем имя файла для уведомления
                 val fileName = getFileNameSafely(imageUri)
                 
                 // Получаем более точную статистику о результатах тестового сжатия
                 val stats = CompressionTestUtil.getTestCompressionStats(
-                    context,
+                    appContext,
                     imageUri,
-                    fileSize,
+                    sourceSize,
                     compressionQuality
                 )
                 
                 // Определяем размер сжатого файла и процент сокращения
-                val estimatedCompressedSize = stats?.compressedSize ?: (fileSize - (fileSize * 0.08f).toLong())
+                val estimatedCompressedSize = stats?.compressedSize ?: (sourceSize - (sourceSize * 0.08f).toLong())
                 val estimatedSizeReduction = stats?.reductionPercent ?: 8.0f
                 
                 // Проверяем использование памяти и форсируем GC при необходимости
@@ -312,31 +324,29 @@ class ImageCompressionWorker @AssistedInject constructor(
                 }
                 
                 // Показываем уведомление о пропуске файла
-                sendCompressionStatusNotification(fileName, fileSize, estimatedCompressedSize, estimatedSizeReduction, true)
-                
-                // Обновляем статус
-                return@withContext updateStatusAndReturn(
-                    imageUri, 
-                    StatsTracker.COMPRESSION_STATUS_SKIPPED, 
-                    skipped = true
+                sendCompressionStatusNotification(
+                    fileName,
+                    sourceSize,
+                    estimatedCompressedSize,
+                    estimatedSizeReduction,
+                    true
                 )
+                
+                // Обновляем статус и возвращаем успех с пропуском
+                StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                return@withContext Result.success()
             }
         } catch (e: Exception) {
-            // Обновляем статус при неожиданной ошибке
-            val imageUriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-            if (imageUriString != null) {
-                val uri = Uri.parse(imageUriString)
-                LogUtil.error(uri, "Неожиданная ошибка в worker", e)
-                return@withContext updateStatusAndReturn(
-                    uri,
-                    StatsTracker.COMPRESSION_STATUS_FAILED,
-                    errorMessage = e.message ?: "Неожиданная ошибка"
-                )
+            LogUtil.error(null, "Сжатие", "Ошибка при сжатии изображения", e)
+            setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
+            
+            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+            if (uriString != null) {
+                val uri = Uri.parse(uriString)
+                StatsTracker.updateStatus(appContext, uri, StatsTracker.COMPRESSION_STATUS_FAILED)
             }
             
-            // Если не удалось получить URI, возвращаем стандартную ошибку
-            LogUtil.error(Uri.EMPTY, "Неожиданная ошибка в worker", e)
-            return@withContext Result.failure(createFailureOutput(e.message ?: "Неожиданная ошибка"))
+            return@withContext Result.failure()
         }
     }
 
@@ -390,29 +400,40 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Получение информации о файле для отладки
      */
     private suspend fun getFileInfo(uri: Uri): String = withContext(Dispatchers.IO) {
-        val cursor = context.contentResolver.query(
-            uri,
-            arrayOf(
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATA
-            ),
-            null,
-            null,
-            null
-        )
-        
-        var info = "Нет данных"
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val name = getCursorString(it, MediaStore.Images.Media.DISPLAY_NAME, "неизвестно")
-                val date = getCursorLong(it, MediaStore.Images.Media.DATE_ADDED, 0)
-                val size = getCursorLong(it, MediaStore.Images.Media.SIZE, 0)
-                val data = getCursorString(it, MediaStore.Images.Media.DATA, "неизвестно")
-                
-                info = "Имя: $name, Дата: $date, Размер: $size, Путь: $data"
+        var info = "URI: $uri\n"
+        try {
+            val cursor = appContext.contentResolver.query(
+                uri, null, null, null, null
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val id = getCursorLong(it, MediaStore.MediaColumns._ID)
+                    val displayName = getCursorString(it, MediaStore.MediaColumns.DISPLAY_NAME)
+                    val size = getCursorLong(it, MediaStore.MediaColumns.SIZE)
+                    val mimeType = getCursorString(it, MediaStore.MediaColumns.MIME_TYPE)
+                    val relativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        getCursorString(it, MediaStore.MediaColumns.RELATIVE_PATH)
+                    } else "N/A"
+                    
+                    info += "ID: $id\n"
+                    info += "Name: $displayName\n" 
+                    info += "Size: $size\n"
+                    info += "MIME: $mimeType\n"
+                    info += "Relative Path: $relativePath\n"
+                    
+                    // Проверяем, находится ли файл в состоянии IS_PENDING
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val isPending = getCursorLong(it, MediaStore.MediaColumns.IS_PENDING)
+                        info += "Is Pending: $isPending\n"
+                    }
+                }
             }
+            
+            // Получаем абсолютный путь к файлу (если возможно)
+            val path = FileUtil.getFilePathFromUri(appContext, uri)
+            info += "Path: $path\n"
+        } catch (e: Exception) {
+            info += "Error: ${e.message}\n"
         }
         
         return@withContext info
@@ -422,27 +443,27 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Проверка, является ли файл временным/в процессе записи
      */
     private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext FileUtil.isFilePendingSuspend(applicationContext, uri)
+        return@withContext FileUtil.isFilePendingSuspend(appContext, uri)
     }
 
     /**
      * Создает информацию для foreground сервиса
      */
-    private fun createForegroundInfo(notificationId: Int, notificationTitle: String): ForegroundInfo {
+    private fun createForegroundInfo(notificationTitle: String): ForegroundInfo {
         // Создаем или обновляем канал уведомлений
-        NotificationUtil.createDefaultNotificationChannel(applicationContext)
+        NotificationUtil.createDefaultNotificationChannel(appContext)
         
-        val notification = NotificationCompat.Builder(applicationContext, Constants.NOTIFICATION_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(appContext, Constants.NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(notificationTitle)
-            .setContentText(applicationContext.getString(R.string.notification_processing))
+            .setContentText(appContext.getString(R.string.notification_processing))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
-            ForegroundInfo(notificationId, notification)
+            ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
         }
     }
 
@@ -474,7 +495,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
                     flags = Intent.FLAG_RECEIVER_FOREGROUND
                 }
-                context.sendBroadcast(intent)
+                appContext.sendBroadcast(intent)
             }
             
             // Логируем информацию о результате
@@ -517,7 +538,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private suspend fun isImageAlreadyProcessedExceptSize(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         // Используем централизованную логику из ImageProcessingChecker
-        return@withContext ImageProcessingChecker.isAlreadyProcessed(context, uri)
+        return@withContext ImageProcessingChecker.isAlreadyProcessed(appContext, uri)
     }
 
     /**
@@ -540,7 +561,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Сохраняем сжатое изображение в галерею
             val savedUri = FileUtil.saveCompressedImageToGallery(
-                context,
+                appContext,
                 compressedFile,
                 compressedFileName,
                 originalUri
@@ -548,7 +569,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Добавляем URI в список обработанных
             savedUri?.let {
-                LogUtil.fileOperation(it, "Сохранение", "Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(context, it)}")
+                LogUtil.fileOperation(it, "Сохранение", "Сжатый файл сохранен: ${FileUtil.getFilePathFromUri(appContext, it)}")
                 
                 // Показываем уведомление о завершении сжатия
                 sendCompressionStatusNotification(
@@ -573,7 +594,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private suspend fun getCompressedImageUri(uri: Uri): Uri? = withContext(Dispatchers.IO) {
         try {
             // Проверяем, есть ли URI в списке обработанных
-            if (StatsTracker.isImageProcessed(context, uri)) {
+            if (StatsTracker.isImageProcessed(appContext, uri)) {
                 LogUtil.processInfo("URI найден в списке обработанных: $uri")
                 return@withContext uri
             }
@@ -593,7 +614,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         LogUtil.processInfo("Требуется разрешение пользователя для удаления оригинального файла: $uri")
         
         // Сохраняем URI в SharedPreferences для последующей обработки
-        val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        val prefs = appContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, mutableSetOf()) ?: mutableSetOf()
         val newSet = pendingDeleteUris.toMutableSet()
         newSet.add(uri.toString())
@@ -608,7 +629,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Добавляем IntentSender как Parcelable
             putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent)
         }
-        context.sendBroadcast(intent)
+        appContext.sendBroadcast(intent)
     }
 
     /**
@@ -616,7 +637,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun getFileNameSafely(uri: Uri): String {
         try {
-            val fileName = FileUtil.getFileNameFromUri(context, uri)
+            val fileName = FileUtil.getFileNameFromUri(appContext, uri)
             
             // Если имя файла не определено, генерируем временное имя на основе времени
             if (fileName.isNullOrBlank() || fileName == "unknown") {
@@ -639,14 +660,14 @@ class ImageCompressionWorker @AssistedInject constructor(
     private suspend fun isFileAccessible(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем размер файла
-            val fileSize = FileUtil.getFileSize(context, uri)
+            val fileSize = FileUtil.getFileSize(appContext, uri)
             if (fileSize <= 0) {
                 LogUtil.processInfo("Файл недоступен или пуст: $uri")
                 return@withContext false
             }
             
             // Проверяем, можно ли получить имя файла
-            val fileName = FileUtil.getFileNameFromUri(context, uri)
+            val fileName = FileUtil.getFileNameFromUri(appContext, uri)
             if (fileName.isNullOrBlank() || fileName == "unknown") {
                 LogUtil.processInfo("Не удалось получить имя файла для URI: $uri")
                 return@withContext false
@@ -684,7 +705,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         skipped: Boolean = false, 
         errorMessage: String? = null
     ): Result {
-        StatsTracker.updateStatus(context, uri, status)
+        StatsTracker.updateStatus(appContext, uri, status)
         
         return if (errorMessage != null) {
             Result.failure(createFailureOutput(errorMessage))
@@ -697,6 +718,6 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Проверка на наличие файла
      */
     private suspend fun isUriExists(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext FileUtil.isUriExistsSuspend(applicationContext, uri)
+        return@withContext FileUtil.isUriExistsSuspend(appContext, uri)
     }
 } 

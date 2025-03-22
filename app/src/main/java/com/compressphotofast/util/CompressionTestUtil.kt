@@ -21,14 +21,14 @@ object CompressionTestUtil {
      * @param uri URI изображения для тестирования
      * @param originalSize Размер оригинального изображения в байтах
      * @param quality Качество сжатия (0-100)
-     * @return true если сжатие эффективно (экономия > порогового значения), false в противном случае
+     * @return Объект CompressionStats или null при ошибке
      */
     suspend fun testCompression(
         context: Context, 
         uri: Uri, 
         originalSize: Long, 
         quality: Int
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): CompressionStats? = withContext(Dispatchers.IO) {
         try {
             LogUtil.uriInfo(uri, "Начало тестового сжатия в RAM")
             
@@ -46,7 +46,7 @@ object CompressionTestUtil {
             if (!success) {
                 LogUtil.error(uri, "Тестовое сжатие", "Ошибка при сжатии Bitmap")
                 inputBitmap.recycle() // Освобождаем ресурсы Bitmap
-                return@withContext false
+                return@withContext null
             }
             
             // Получаем размер сжатого изображения в байтах
@@ -63,17 +63,20 @@ object CompressionTestUtil {
             inputBitmap.recycle()
             outputStream.close()
             
-            // Если сжатие дало более 10% экономии
+            // Возвращаем статистику сжатия
+            val result = CompressionStats(originalSize, compressedSize, sizeReduction)
+            
+            // Логируем результат
             if (sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
                 LogUtil.processInfo("Тестовое сжатие для ${getFileId(uri)} эффективно (экономия ${sizeReduction.toInt()}% > ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), выполняем полное сжатие")
-                return@withContext true
             } else {
                 LogUtil.skipImage(uri, "Тестовое сжатие неэффективно (экономия ${sizeReduction.toInt()}% < ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%)")
-                return@withContext false
             }
+            
+            return@withContext result
         } catch (e: Exception) {
             LogUtil.error(uri, "Тестовое сжатие", e)
-            return@withContext false
+            return@withContext null
         }
     }
     
