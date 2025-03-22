@@ -24,6 +24,7 @@ import android.provider.DocumentsContract
 import java.io.IOException
 import java.io.ByteArrayOutputStream
 import android.provider.OpenableColumns
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для работы с файлами
@@ -241,27 +242,47 @@ object FileUtil {
      */
     fun deleteFile(context: Context, uri: Uri): Any? {
         try {
+            LogUtil.processInfo("Начинаем удаление файла: $uri")
+            
+            // Если URI имеет фрагмент #renamed_original, удаляем этот фрагмент
+            val cleanUri = if (uri.toString().contains("#renamed_original")) {
+                val original = Uri.parse(uri.toString().replace("#renamed_original", ""))
+                LogUtil.processInfo("URI содержит маркер #renamed_original, используем очищенный URI: $original")
+                original
+            } else {
+                uri
+            }
+            
             // Проверяем наличие MANAGE_EXTERNAL_STORAGE для Android 11+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 if (Environment.isExternalStorageManager()) {
                     // Если есть разрешение MANAGE_EXTERNAL_STORAGE, удаляем напрямую
-                    val path = getFilePathFromUri(context, uri)
+                    val path = getFilePathFromUri(context, cleanUri)
                     if (path != null) {
+                        LogUtil.processInfo("Удаляем файл по пути: $path")
                         val file = File(path)
-                        return file.delete()
+                        val result = file.delete()
+                        LogUtil.processInfo("Результат удаления файла: $result")
+                        return result
                     }
                     // Если не удалось получить путь, пробуем через MediaStore
-                    return context.contentResolver.delete(uri, null, null) > 0
+                    LogUtil.processInfo("Не удалось получить путь к файлу, удаляем через MediaStore")
+                    val result = context.contentResolver.delete(cleanUri, null, null) > 0
+                    LogUtil.processInfo("Результат удаления через MediaStore: $result")
+                    return result
                 }
             }
             
             // Для Android 10+ используем MediaStore API с обработкой RecoverableSecurityException
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    return context.contentResolver.delete(uri, null, null) > 0
+                    LogUtil.processInfo("Удаляем файл через MediaStore (Android 10+)")
+                    val result = context.contentResolver.delete(cleanUri, null, null) > 0
+                    LogUtil.processInfo("Результат удаления через MediaStore: $result")
+                    return result
                 } catch (e: SecurityException) {
                     if (e is android.app.RecoverableSecurityException) {
-                        Timber.d("Требуется разрешение пользователя для удаления файла: $uri")
+                        LogUtil.processInfo("Требуется разрешение пользователя для удаления файла: $cleanUri")
                         return e.userAction.actionIntent.intentSender
                     } else {
                         throw e
@@ -269,14 +290,17 @@ object FileUtil {
                 }
             } else {
                 // Для более старых версий получаем путь к файлу и удаляем его напрямую
-                val path = getFilePathFromUri(context, uri)
+                val path = getFilePathFromUri(context, cleanUri)
                 if (path != null) {
+                    LogUtil.processInfo("Удаляем файл по пути (старый API): $path")
                     val file = File(path)
-                    return file.delete()
+                    val result = file.delete()
+                    LogUtil.processInfo("Результат удаления файла: $result")
+                    return result
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при удалении файла: $uri")
+            LogUtil.error(uri, "Удаление", "Ошибка при удалении файла", e)
         }
         return false
     }
@@ -715,8 +739,55 @@ object FileUtil {
     }
 
     /**
-     * Переименование исходного файла 
-     * Используется перед созданием нового сжатого файла для гарантии сохранности оригинала
+     * Переименовывает оригинальный файл, если это необходимо и возможно
+     * 
+     * Проверяет все условия:
+     * 1. Не является ли URI из MediaDocumentProvider
+     * 2. Включен ли режим замены (isSaveModeReplace)
+     * 
+     * @param context Контекст приложения
+     * @param uri URI исходного файла
+     * @return URI переименованного файла или null, если переименование не требуется или произошла ошибка
+     */
+    suspend fun renameOriginalFileIfNeeded(
+        context: Context,
+        uri: Uri
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем тип URI
+            val isMediaDocumentsUri = uri.authority == "com.android.providers.media.documents"
+            
+            // Проверяем режим сохранения
+            val isSaveModeReplace = isSaveModeReplace(context)
+            
+            // Если URI из MediaDocumentProvider или режим замены выключен,
+            // возвращаем исходный URI без переименования
+            if (isMediaDocumentsUri || !isSaveModeReplace) {
+                if (isMediaDocumentsUri) {
+                    LogUtil.uriInfo(uri, "URI относится к MediaDocumentsProvider, пропускаем переименование")
+                } else if (!isSaveModeReplace) {
+                    LogUtil.uriInfo(uri, "Режим замены выключен, пропускаем переименование")
+                }
+                return@withContext uri
+            }
+            
+            // Если все условия выполнены, переименовываем файл
+            val backupUri = renameOriginalFile(context, uri)
+            if (backupUri == null) {
+                LogUtil.error(uri, "Переименование", "Не удалось переименовать оригинальный файл")
+                return@withContext null
+            }
+            
+            LogUtil.fileOperation(uri, "Переименование", "Оригинал → ${backupUri}")
+            return@withContext backupUri
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Переименование", "Ошибка при переименовании", e)
+            return@withContext null
+        }
+    }
+
+    /**
+     * Переименовывает оригинальный файл, добавляя суффикс "_original" к имени файла.
      * 
      * @param context Контекст приложения
      * @param uri URI исходного файла
@@ -758,7 +829,11 @@ object FileUtil {
             }
             
             Timber.d("Файл переименован: $fileName -> $backupFileName")
-            return@withContext uri
+            
+            // Создаем новый URI, чтобы отличать его от исходного
+            // Это позволит правильно определять, что файл был переименован
+            val newUri = Uri.parse(uri.toString() + "#renamed_original")
+            return@withContext newUri
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при переименовании файла: ${e.message}")
             return@withContext null
@@ -790,8 +865,25 @@ object FileUtil {
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, directory)
+                    // Проверяем, содержит ли directory разделитель пути
+                    // Если нет, добавляем префикс "Pictures/"
+                    val relativePath = if (directory.contains("/")) directory 
+                                     else "Pictures/$directory"
+                    LogUtil.processInfo("Использую относительный путь для сохранения: $relativePath")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
+                } else {
+                    // Для API < 29 нужно указать полный путь к файлу
+                    val targetDir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                        directory
+                    )
+                    if (!targetDir.exists()) {
+                        targetDir.mkdirs()
+                    }
+                    val filePath = File(targetDir, fileName).absolutePath
+                    LogUtil.processInfo("Использую полный путь для сохранения (API < 29): $filePath")
+                    put(MediaStore.Images.Media.DATA, filePath)
                 }
             }
             

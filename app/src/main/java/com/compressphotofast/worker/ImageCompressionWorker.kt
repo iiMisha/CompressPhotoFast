@@ -190,10 +190,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                     }
                     LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
                     
-                    // Проверяем, является ли URI документом из MediaDocumentsProvider
-                    val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
-                    LogUtil.uriInfo(imageUri, "Тип URI: ${if (isMediaDocumentsUri) "MediaDocumentsProvider" else "стандартный"}")
-                    
                     // Получаем поток с сжатым изображением напрямую из RAM-сжатия
                     val compressedStream = CompressionTestUtil.getCompressedImageStream(
                         context,
@@ -210,26 +206,19 @@ class ImageCompressionWorker @AssistedInject constructor(
                         )
                     }
                     
-                    // Для MediaDocumentsProvider URI не пытаемся переименовывать оригинальный файл
-                    var backupUri: Uri? = null
-                    if (!isMediaDocumentsUri) {
-                        // Переименовываем оригинальный файл только для обычных URI
-                        backupUri = FileUtil.renameOriginalFile(context, imageUri)
-                        if (backupUri == null) {
-                            LogUtil.error(imageUri, "Переименование", "Не удалось переименовать оригинальный файл")
-                            // Закрываем поток сжатого изображения
-                            compressedStream.close()
-                            return@withContext updateStatusAndReturn(
-                                imageUri,
-                                StatsTracker.COMPRESSION_STATUS_FAILED,
-                                errorMessage = "Не удалось переименовать оригинальный файл"
-                            )
-                        }
-                        LogUtil.fileOperation(imageUri, "Переименование", "Оригинал успешно переименован")
-                    } else {
-                        LogUtil.uriInfo(imageUri, "MediaDocumentsProvider URI, пропускаем переименование")
-                        // Используем исходный URI в качестве backupUri для копирования EXIF
-                        backupUri = imageUri
+                    // Переименовываем оригинальный файл, если это необходимо
+                    var backupUri = FileUtil.renameOriginalFileIfNeeded(context, imageUri)
+                    
+                    // Если переименование не выполнено или произошла ошибка,
+                    // используем исходный URI в качестве backupUri для копирования EXIF
+                    if (backupUri == null) {
+                        // Закрываем поток сжатого изображения при ошибке переименования
+                        compressedStream.close()
+                        return@withContext updateStatusAndReturn(
+                            imageUri,
+                            StatsTracker.COMPRESSION_STATUS_FAILED,
+                            errorMessage = "Не удалось переименовать оригинальный файл"
+                        )
                     }
                     
                     // Сохраняем сжатое изображение с именем оригинала
@@ -238,7 +227,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         ByteArrayInputStream(compressedStream.toByteArray()),
                         fileName,
                         directory,
-                        backupUri ?: imageUri,
+                        backupUri,
                         compressionQuality
                     )
                     
@@ -252,38 +241,27 @@ class ImageCompressionWorker @AssistedInject constructor(
                     
                     LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
                     
-                    // Удаляем переименованный оригинальный файл только если это не MediaDocumentsProvider URI
-                    // и если включен режим замены
-                    if (!isMediaDocumentsUri && FileUtil.isSaveModeReplace(context)) {
+                    // Удаляем переименованный оригинальный файл, если был включен режим замены
+                    // и переименование было выполнено успешно (т.е. backupUri не совпадает с оригинальным imageUri)
+                    if (FileUtil.isSaveModeReplace(context) && backupUri != imageUri) {
                         try {
-                            // Удаляем переименованный оригинальный файл
-                            backupUri?.let { uri ->
-                                val deleteResult = FileUtil.deleteFile(context, uri)
-                                
-                                if (deleteResult is Boolean && deleteResult) {
-                                    LogUtil.fileOperation(uri, "Удаление", "Переименованный оригинальный файл успешно удален")
-                                } else if (deleteResult is IntentSender) {
-                                    LogUtil.fileOperation(uri, "Удаление", "Для удаления переименованного оригинального файла требуется разрешение пользователя")
-                                    // Отправляем запрос на удаление с разрешением пользователя
-                                    addPendingDeleteRequest(uri, deleteResult)
-                                } else {
-                                    LogUtil.error(uri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
-                                }
+                            val deleteResult = FileUtil.deleteFile(context, backupUri)
+                            
+                            if (deleteResult is Boolean && deleteResult) {
+                                LogUtil.fileOperation(backupUri, "Удаление", "Переименованный оригинальный файл успешно удален")
+                            } else if (deleteResult is IntentSender) {
+                                LogUtil.fileOperation(backupUri, "Удаление", "Для удаления переименованного оригинального файла требуется разрешение пользователя")
+                                // Отправляем запрос на удаление с разрешением пользователя
+                                addPendingDeleteRequest(backupUri, deleteResult)
+                            } else {
+                                LogUtil.error(backupUri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
                             }
                         } catch (e: Exception) {
                             LogUtil.error(backupUri, "Удаление", "Ошибка при удалении переименованного оригинального файла", e)
                         }
-                    } else if (isMediaDocumentsUri) {
-                        LogUtil.uriInfo(imageUri, "MediaDocumentsProvider URI, пропускаем удаление оригинала")
-                    } else {
-                        if (backupUri != null) {
-                            LogUtil.fileOperation(backupUri, "Режим замены", "Режим замены выключен, оригинальный файл сохранен как $backupUri")
-                        } else {
-                            LogUtil.processInfo("Режим замены выключен, оригинальный файл не был переименован")
-                        }
                     }
-                        
-                        // Получаем размер сжатого файла для уведомления
+                    
+                    // Получаем размер сжатого файла для уведомления
                     val compressedSize = FileUtil.getFileSize(context, savedUri)
                     val sizeReduction = if (fileSize > 0 && compressedSize > 0) {
                             ((fileSize - compressedSize).toFloat() / fileSize) * 100

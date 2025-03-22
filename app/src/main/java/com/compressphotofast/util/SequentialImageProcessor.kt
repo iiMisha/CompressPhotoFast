@@ -135,22 +135,14 @@ class SequentialImageProcessor(private val context: Context) {
                             continue
                         }
                         
-                        // 6. Переименовываем оригинальный файл (если не MediaDocuments URI)
-                        var backupUri: Uri? = null
-                        if (!isMediaDocumentsUri) {
-                            // Переименовываем оригинальный файл
-                            backupUri = FileUtil.renameOriginalFile(context, uri)
-                            if (backupUri == null) {
-                                LogUtil.error(uri, "Переименование", "Не удалось переименовать оригинальный файл")
-                                compressedStream.close()
-                                updateProgress(success = false)
-                                continue
-                            }
-                            LogUtil.fileOperation(uri, "Переименование", "Оригинал → ${backupUri}")
-                        } else {
-                            LogUtil.uriInfo(uri, "URI относится к MediaDocumentsProvider, пропускаем переименование")
-                            // Используем исходный URI в качестве backupUri
-                            backupUri = uri
+                        // 6. Переименовываем оригинальный файл с помощью централизованного метода
+                        val backupUri = FileUtil.renameOriginalFileIfNeeded(context, uri)
+                        
+                        if (backupUri == null) {
+                            LogUtil.error(uri, "Переименование", "Не удалось переименовать оригинальный файл")
+                            compressedStream.close()
+                            updateProgress(success = false)
+                            continue
                         }
                         
                         // 7. Сохраняем сжатое изображение
@@ -174,20 +166,19 @@ class SequentialImageProcessor(private val context: Context) {
                         
                         LogUtil.fileOperation(uri, "Сохранение", "Сжатый файл сохранен: $savedUri")
                         
-                        // 8. Удаляем переименованный оригинальный файл (если не MediaDocuments URI)
-                        if (!isMediaDocumentsUri && FileUtil.isSaveModeReplace(context)) {
+                        // 8. Удаляем переименованный оригинальный файл, если был включен режим замены
+                        // и переименование было выполнено успешно (т.е. backupUri не совпадает с оригинальным uri)
+                        if (FileUtil.isSaveModeReplace(context) && backupUri != uri) {
                             try {
-                                backupUri?.let { renamedUri ->
-                                    val deleteResult = FileUtil.deleteFile(context, renamedUri)
-                                    
-                                    if (deleteResult is Boolean && deleteResult) {
-                                        LogUtil.fileOperation(renamedUri, "Удаление", "Переименованный оригинал успешно удален")
-                                    } else if (deleteResult is IntentSender) {
-                                        LogUtil.fileOperation(renamedUri, "Удаление", "Требуется разрешение пользователя")
-                                        // Здесь можно добавить обработку запроса на удаление
-                                    } else {
-                                        LogUtil.error(renamedUri, "Удаление", "Не удалось удалить переименованный оригинал")
-                                    }
+                                val deleteResult = FileUtil.deleteFile(context, backupUri)
+                                
+                                if (deleteResult is Boolean && deleteResult) {
+                                    LogUtil.fileOperation(backupUri, "Удаление", "Переименованный оригинал успешно удален")
+                                } else if (deleteResult is IntentSender) {
+                                    LogUtil.fileOperation(backupUri, "Удаление", "Требуется разрешение пользователя")
+                                    // Здесь можно добавить обработку запроса на удаление
+                                } else {
+                                    LogUtil.error(backupUri, "Удаление", "Не удалось удалить переименованный оригинал")
                                 }
                             } catch (e: Exception) {
                                 LogUtil.error(backupUri, "Удаление", e)
