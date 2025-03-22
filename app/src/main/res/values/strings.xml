@@ -56,7 +56,7 @@
     <string name="compression_success">Обработка завершена</string>
     <string name="compression_error">Ошибка при сжатии фото</string>
     <string name="compression_skipped">Файл %1$s пропущен: экономия мала (%2$.1f%% &lt; %3$s%%)</string>
-    <string name="compression_skipped_size_limit">Файл слишком большой для сжатия</string>
+    <string name="compression_skipped_size_limit">Выбранные файлы уже обработаны</string>
     <string name="no_images_selected">Не выбрано ни одного изображения</string>
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>

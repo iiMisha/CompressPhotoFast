@@ -160,15 +160,14 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
                 val fileInfo = getFileInfo(intent) ?: return
-                val (_, originalSize, _) = fileInfo
+                val (fileName, originalSize, compressionPercent) = fileInfo
                 
                 // Получаем форматированный размер оригинального файла
                 val originalSizeStr = FileUtil.formatFileSize(originalSize)
                 
-                // Показываем toast
+                // Показываем toast с информацией о причине пропуска
                 showToast(getString(
-                    R.string.compression_skipped_size_limit,
-                    originalSizeStr
+                    R.string.compression_skipped_size_limit
                 ))
             }
         }

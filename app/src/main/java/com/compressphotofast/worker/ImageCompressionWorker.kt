@@ -79,11 +79,11 @@ class ImageCompressionWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             // Получаем параметры задачи
-            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-            if (uriString.isNullOrEmpty()) {
+        val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+        if (uriString.isNullOrEmpty()) {
                 LogUtil.processInfo("URI не установлен для компрессии")
-                return@withContext Result.failure()
-            }
+            return@withContext Result.failure()
+        }
 
             val imageUri = Uri.parse(uriString)
             val compressionQuality = inputData.getInt(Constants.WORK_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
@@ -144,7 +144,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             val testCompressionResult = CompressionTestUtil.testCompression(
                 appContext,
-                imageUri,
+                    imageUri, 
                 sourceSize,
                 compressionQuality
             )
@@ -173,7 +173,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Получаем имя файла
                 val fileName = FileUtil.getFileNameFromUri(appContext, imageUri)
                 
-                if (fileName.isNullOrEmpty()) {
+                    if (fileName.isNullOrEmpty()) {
                     LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
                     StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
@@ -187,12 +187,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Определяем директорию для сохранения
                 val directory = if (FileUtil.isSaveModeReplace(appContext)) {
-                    // Если включен режим замены, сохраняем в той же директории
+                        // Если включен режим замены, сохраняем в той же директории
                     FileUtil.getDirectoryFromUri(appContext, imageUri)
-                } else {
-                    // Иначе сохраняем в директории приложения
-                    Constants.APP_DIRECTORY
-                }
+                    } else {
+                        // Иначе сохраняем в директории приложения
+                        Constants.APP_DIRECTORY
+                    }
                 
                 LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
                 
@@ -209,10 +209,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Сжимаем изображение
                 val compressedImageStream = CompressionTestUtil.getCompressedImageStream(
                     appContext,
-                    imageUri,
-                    compressionQuality
-                )
-                
+                        imageUri,
+                        compressionQuality
+                    )
+                    
                 // Закрываем исходный поток
                 imageStream.close()
                 
@@ -226,15 +226,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Переименовываем оригинальный файл перед сохранением сжатой версии, если нужно
                 var backupUri = imageUri
                 
-                if (!isMediaDocumentsUri) {
+                    if (!isMediaDocumentsUri) {
                     backupUri = FileUtil.renameOriginalFileIfNeeded(appContext, imageUri) ?: imageUri
                 }
                 
                 // Сохраняем сжатое изображение
-                val savedUri = FileUtil.saveCompressedImageFromStream(
+                    val savedUri = FileUtil.saveCompressedImageFromStream(
                     appContext,
                     ByteArrayInputStream(compressedImageStream.toByteArray()),
-                    fileName,
+                        fileName,
                     directory ?: Constants.APP_DIRECTORY,
                     backupUri,
                     compressionQuality,
@@ -245,7 +245,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 compressedImageStream.close()
                 
                 // Проверяем результат сохранения
-                if (savedUri == null) {
+                    if (savedUri == null) {
                     LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
                     StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
@@ -411,8 +411,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             val cursor = appContext.contentResolver.query(
                 uri, null, null, null, null
             )
-            cursor?.use {
-                if (it.moveToFirst()) {
+        cursor?.use {
+            if (it.moveToFirst()) {
                     val id = getCursorLong(it, MediaStore.MediaColumns._ID)
                     val displayName = getCursorString(it, MediaStore.MediaColumns.DISPLAY_NAME)
                     val size = getCursorLong(it, MediaStore.MediaColumns.SIZE)
