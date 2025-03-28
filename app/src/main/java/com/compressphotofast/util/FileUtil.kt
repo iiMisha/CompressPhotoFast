@@ -330,24 +330,9 @@ object FileUtil {
      */
     fun getFilePathFromUri(context: Context, uri: Uri): String? {
         try {
-            // Специальная обработка для URI из MediaProvider Documents
-            if (uri.authority == "com.android.providers.media.documents") {
-                Timber.d("getFilePathFromUri: обнаружен URI MediaProvider Documents: $uri")
-                
-                // Извлекаем ID документа
-                val docId = DocumentsContract.getDocumentId(uri)
-                if (docId.startsWith("image:")) {
-                    // Извлекаем ID изображения
-                    val id = docId.split(":")[1]
-                    // Создаем новый URI для обращения к MediaStore
-                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toLong())
-                    Timber.d("getFilePathFromUri: преобразованный URI: $contentUri")
-                    
-                    // Рекурсивно вызываем тот же метод для обработки преобразованного URI
-                    return getFilePathFromUri(context, contentUri)
-                }
-            }
-            
+            // Преобразуем MediaDocumentsUri, если необходимо
+            val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
+
             // На Android 10 (API 29) и выше MediaStore.Images.Media.DATA считается устаревшим
             // и может возвращать null, поэтому используем другой подход
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -359,7 +344,7 @@ object FileUtil {
                 
                 try {
                     context.contentResolver.query(
-                        uri,
+                        effectiveUri, // Используем effectiveUri
                         projection,
                         null,
                         null,
@@ -385,43 +370,26 @@ object FileUtil {
                     Timber.e(e, "Ошибка при получении пути: ${e.message}")
                 }
                 
-                // Специальная обработка для Android 11
-                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                    try {
-                        // Попытка получить ID изображения из URI
-                        val id = uri.lastPathSegment?.toLongOrNull()
-                        if (id != null) {
-                            // Получаем информацию через ContentResolver
-                            context.contentResolver.query(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                projection,
-                                "${MediaStore.Images.Media._ID} = ?",
-                                arrayOf(id.toString()),
-                                null
-                            )?.use { cursor ->
-                                if (cursor.moveToFirst()) {
-                                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                                    val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                                    
-                                    if (nameIndex != -1 && pathIndex != -1 && 
-                                        !cursor.isNull(nameIndex) && !cursor.isNull(pathIndex)) {
-                                        val fileName = cursor.getString(nameIndex)
-                                        val relativePath = cursor.getString(pathIndex)
-                                        
-                                        if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
-                                            return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Android 11: Ошибка при получении пути: ${e.message}")
-                    }
+                // Специальная обработка для Android 11 (API 30) - используем хелпер
+                queryMediaStoreWithIdFallbackApi30(context, effectiveUri, projection)?.use { cursor -> // Используем effectiveUri
+                    if (cursor.moveToFirst()) {
+                         val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                         val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+
+                         if (nameIndex != -1 && pathIndex != -1 &&
+                             !cursor.isNull(nameIndex) && !cursor.isNull(pathIndex)) {
+                             val fileName = cursor.getString(nameIndex)
+                             val relativePath = cursor.getString(pathIndex)
+
+                             if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
+                                 return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
+                             }
+                         }
+                     }
                 }
                 
                 // Если не удалось получить путь через MediaStore, пробуем через lastPathSegment
-                uri.lastPathSegment?.let { segment ->
+                effectiveUri.lastPathSegment?.let { segment -> // Используем effectiveUri
                     if (segment.contains("/")) {
                         return segment
                     }
@@ -429,12 +397,12 @@ object FileUtil {
                 
                 // Для content URI возвращаем сам URI в виде строки, чтобы можно было
                 // проверить, находится ли файл в директории приложения
-                return uri.toString()
+                return effectiveUri.toString() // Используем effectiveUri
             } else {
                 // Для Android 9 и ниже используем старый подход
                 val projection = arrayOf(MediaStore.Images.Media.DATA)
                 context.contentResolver.query(
-                    uri,
+                    effectiveUri, // Используем effectiveUri
                     projection,
                     null,
                     null,
@@ -467,82 +435,39 @@ object FileUtil {
      */
     fun getFileNameFromUri(context: Context, uri: Uri): String? {
         try {
-            // Специальная обработка для URI из MediaProvider Documents
-            if (uri.authority == "com.android.providers.media.documents") {
-                Timber.d("getFileNameFromUri: обнаружен URI MediaProvider Documents: $uri")
-                
-                // Извлекаем ID документа
-                val docId = DocumentsContract.getDocumentId(uri)
-                if (docId.startsWith("image:")) {
-                    // Извлекаем ID изображения
-                    val id = docId.split(":")[1]
-                    // Создаем новый URI для обращения к MediaStore
-                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toLong())
-                    Timber.d("getFileNameFromUri: преобразованный URI: $contentUri")
-                    
-                    // Рекурсивно вызываем тот же метод для обработки преобразованного URI
-                    return getFileNameFromUri(context, contentUri)
-                }
-            }
-            
+            // Преобразуем MediaDocumentsUri, если необходимо
+            val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
+
             // Сначала пробуем получить через простой метод
-            var fileName = getFileName(context.contentResolver, uri)
-            
-            // Специальная обработка для Android 11
-            if (fileName == null && Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                try {
-                    // Получаем ID файла из URI
-                    val idString = uri.lastPathSegment
-                    val id = idString?.toLongOrNull()
-                    
-                    if (id != null) {
-                        // Пробуем получить имя файла через ID
-                        context.contentResolver.query(
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                            "${MediaStore.Images.Media._ID} = ?",
-                            arrayOf(id.toString()),
-                            null
-                        )?.use { cursor ->
-                            if (cursor.moveToFirst()) {
-                                val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                                if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
-                                    fileName = cursor.getString(nameIndex)
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Android 11: Ошибка при получении имени файла: ${e.message}")
+            var fileName = getFileName(context.contentResolver, effectiveUri) // Используем effectiveUri
+
+            // Специальная обработка для Android 11 (API 30) - используем хелпер
+            if (fileName == null) {
+                queryMediaStoreWithIdFallbackApi30(context, effectiveUri, arrayOf(MediaStore.Images.Media.DISPLAY_NAME))?.use { cursor -> // Используем effectiveUri
+                     if (cursor.moveToFirst()) {
+                         val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                         if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
+                             fileName = cursor.getString(nameIndex)
+                         }
+                     }
                 }
             }
-            
+
             // Если не удалось, пробуем через lastPathSegment
             if (fileName == null) {
-                uri.lastPathSegment?.let { segment ->
+                effectiveUri.lastPathSegment?.let { segment -> // Используем effectiveUri
                     if (segment.contains(".")) {
                         fileName = segment
-                    } else if (segment.toLongOrNull() != null) {
-                        // Для Android 11, если lastPathSegment - это ID, пробуем получить имя через ID
-                        try {
-                            val id = segment.toLong()
-                            context.contentResolver.query(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                                "${MediaStore.Images.Media._ID} = ?",
-                                arrayOf(id.toString()),
-                                null
-                            )?.use { cursor ->
-                                if (cursor.moveToFirst()) {
-                                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                                    if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
-                                        fileName = cursor.getString(nameIndex)
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Timber.e(e, "Ошибка при получении имени через ID: ${e.message}")
-                        }
+                    } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && segment.toLongOrNull() != null) {
+                        // Для Android 11, если lastPathSegment - это ID, пробуем получить имя через ID (вторая попытка через хелпер)
+                         queryMediaStoreWithIdFallbackApi30(context, effectiveUri, arrayOf(MediaStore.Images.Media.DISPLAY_NAME))?.use { cursor -> // Используем effectiveUri
+                             if (cursor.moveToFirst()) {
+                                 val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                                 if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
+                                     fileName = cursor.getString(nameIndex)
+                                 }
+                             }
+                         }
                     }
                 }
             }
@@ -603,30 +528,15 @@ object FileUtil {
      */
     fun getDirectoryFromUri(context: Context, uri: Uri): String {
         try {
-            // Специальная обработка для URI из MediaProvider Documents
-            if (uri.authority == "com.android.providers.media.documents") {
-                Timber.d("getDirectoryFromUri: обнаружен URI MediaProvider Documents: $uri")
-                
-                // Извлекаем ID документа
-                val docId = DocumentsContract.getDocumentId(uri)
-                if (docId.startsWith("image:")) {
-                    // Извлекаем ID изображения
-                    val id = docId.split(":")[1]
-                    // Создаем новый URI для обращения к MediaStore
-                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toLong())
-                    Timber.d("getDirectoryFromUri: преобразованный URI: $contentUri")
-                    
-                    // Рекурсивно вызываем тот же метод для обработки преобразованного URI
-                    return getDirectoryFromUri(context, contentUri)
-                }
-            }
-            
+            // Преобразуем MediaDocumentsUri, если необходимо
+            val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
+
             // Пытаемся получить RELATIVE_PATH для Android 10+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
                 try {
                     context.contentResolver.query(
-                        uri,
+                        effectiveUri, // Используем effectiveUri
                         projection,
                         null,
                         null,
@@ -652,47 +562,28 @@ object FileUtil {
                     Timber.e(e, "Ошибка при запросе RELATIVE_PATH: ${e.message}")
                 }
                 
-                // Специальная обработка для Android 11
-                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                    try {
-                        // Попытка получить ID изображения из URI
-                        val idString = uri.lastPathSegment
-                        val id = idString?.toLongOrNull()
-                        
-                        if (id != null) {
-                            // Пробуем получить относительный путь через ID
-                            context.contentResolver.query(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                arrayOf(MediaStore.Images.Media.RELATIVE_PATH),
-                                "${MediaStore.Images.Media._ID} = ?",
-                                arrayOf(id.toString()),
-                                null
-                            )?.use { cursor ->
-                                if (cursor.moveToFirst()) {
-                                    val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                                    if (pathIndex != -1 && !cursor.isNull(pathIndex)) {
-                                        val relativePath = cursor.getString(pathIndex)
-                                        if (!relativePath.isNullOrEmpty()) {
-                                            // Убираем завершающий слеш
-                                            val path = if (relativePath.endsWith("/")) {
-                                                relativePath.substring(0, relativePath.length - 1)
-                                            } else {
-                                                relativePath
-                                            }
-                                            return path
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Android 11: Ошибка при получении относительного пути: ${e.message}")
-                    }
+                // Специальная обработка для Android 11 (API 30) - используем хелпер
+                queryMediaStoreWithIdFallbackApi30(context, effectiveUri, projection)?.use { cursor -> // Используем effectiveUri
+                    if (cursor.moveToFirst()) {
+                         val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+                         if (pathIndex != -1 && !cursor.isNull(pathIndex)) {
+                             val relativePath = cursor.getString(pathIndex)
+                             if (!relativePath.isNullOrEmpty()) {
+                                 // Убираем завершающий слеш
+                                 val path = if (relativePath.endsWith("/")) {
+                                     relativePath.substring(0, relativePath.length - 1)
+                                 } else {
+                                     relativePath
+                                 }
+                                 return path
+                             }
+                         }
+                     }
                 }
             }
             
             // Если не удалось получить RELATIVE_PATH, пытаемся получить полный путь
-            val path = getFilePathFromUri(context, uri)
+            val path = getFilePathFromUri(context, effectiveUri) // Используем effectiveUri
             if (!path.isNullOrEmpty()) {
                 val file = File(path)
                 val parent = file.parentFile
@@ -1371,5 +1262,68 @@ object FileUtil {
             Timber.e(e, "Ошибка при поиске сжатой версии файла: ${e.message}")
             return@withContext null
         }
+    }
+
+    /**
+     * Преобразует URI вида com.android.providers.media.documents в content:// URI
+     * @param uri Исходный URI
+     * @return Преобразованный content:// URI или null, если преобразование невозможно или не требуется
+     */
+    private fun convertMediaDocumentsUri(uri: Uri): Uri? {
+        if (uri.authority == "com.android.providers.media.documents") {
+            Timber.d("convertMediaDocumentsUri: обнаружен URI MediaProvider Documents: $uri")
+            try {
+                val docId = DocumentsContract.getDocumentId(uri)
+                if (docId.startsWith("image:")) {
+                    val id = docId.split(":")[1].toLong()
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    Timber.d("convertMediaDocumentsUri: преобразованный URI: $contentUri")
+                    return contentUri
+                } else {
+                     Timber.w("convertMediaDocumentsUri: Неподдерживаемый тип документа: $docId")
+                }
+            } catch (e: Exception) {
+                 Timber.e(e, "Ошибка при преобразовании MediaDocumentsUri: $uri")
+            }
+        }
+        return null
+    }
+
+    /**
+     * Выполняет запрос к MediaStore по ID из lastPathSegment URI.
+     * Используется как запасной вариант для Android 11 (API 30).
+     * @param context Контекст
+     * @param uri URI, из которого будет извлечен ID
+     * @param projection Необходимые колонки для запроса
+     * @return Cursor с результатами запроса или null, если ID не найден, произошла ошибка или версия Android не 11.
+     */
+    private fun queryMediaStoreWithIdFallbackApi30(
+        context: Context,
+        uri: Uri,
+        projection: Array<String>
+    ): Cursor? {
+        if (Build.VERSION.SDK_INT != Build.VERSION_CODES.R) {
+             return null // Только для API 30
+        }
+        try {
+            val idString = uri.lastPathSegment
+            val id = idString?.toLongOrNull()
+
+            if (id != null) {
+                 Timber.d("Android 11 fallback: Пытаемся запросить по ID=$id из URI: $uri")
+                return context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    "${MediaStore.Images.Media._ID} = ?",
+                    arrayOf(id.toString()),
+                    null
+                )
+            } else {
+                 Timber.d("Android 11 fallback: Не удалось извлечь ID из lastPathSegment: $idString")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Android 11 fallback: Ошибка при запросе по ID: ${e.message}")
+        }
+        return null
     }
 } 
