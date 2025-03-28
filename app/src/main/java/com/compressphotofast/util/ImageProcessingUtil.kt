@@ -115,7 +115,7 @@ object ImageProcessingUtil {
 
     /**
      * Проверяет, нужно ли обрабатывать изображение
-     * Делегирует к централизованной логике
+     * Делегирует к централизованной логике в ImageProcessingChecker
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         // Делегируем проверку классу ImageProcessingChecker

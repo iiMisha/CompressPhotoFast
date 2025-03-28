@@ -97,18 +97,18 @@ class ImageCompressionWorker @AssistedInject constructor(
             val exifDataMemory = ExifUtil.readExifDataToMemory(appContext, imageUri)
             LogUtil.uriInfo(imageUri, "[ПРОЦЕСС] Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
             
-            // Проверяем, не сжато ли уже изображение
-            if (ExifUtil.isCompressedImage(appContext, imageUri)) {
-                // Дополнительно проверяем, не было ли изображение модифицировано после сжатия
-                val wasModified = !ExifUtil.isImageCompressed(appContext, imageUri)
-                
-                if (!wasModified) {
-                    LogUtil.uriInfo(imageUri, "Изображение уже сжато, пропускаем")
-                    setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_compressed)))
-                    return@withContext Result.success()
-                } else {
-                    LogUtil.uriInfo(imageUri, "Изображение было модифицировано после сжатия, требуется повторная обработка")
-                }
+            // Используем централизованную логику для проверки необходимости обработки
+            val processingCheckResult = ImageProcessingChecker.isProcessingRequired(appContext, imageUri)
+            
+            // Если файл уже обработан и не требует повторной обработки, пропускаем его
+            if (!processingCheckResult.processingRequired && 
+                processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED) {
+                LogUtil.uriInfo(imageUri, "Изображение уже сжато и не требует повторной обработки, пропускаем")
+                setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_compressed)))
+                return@withContext Result.success()
+            } else if (processingCheckResult.hasCompressionMarker) {
+                // Если файл имеет маркер сжатия, но требует повторной обработки
+                LogUtil.uriInfo(imageUri, "Изображение было модифицировано после сжатия, требуется повторная обработка")
             }
             
             // Проверка существования файла

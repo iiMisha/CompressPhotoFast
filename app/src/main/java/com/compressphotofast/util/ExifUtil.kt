@@ -17,6 +17,7 @@ import java.util.Date
 import java.util.HashMap
 import android.provider.MediaStore
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.ImageProcessingChecker
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -229,33 +230,19 @@ object ExifUtil {
     
     /**
      * Проверяет, было ли изображение сжато ранее и не было ли оно модифицировано после сжатия
+     * Делегирует логику в ImageProcessingChecker для централизации
+     * 
      * @param context контекст
      * @param uri URI изображения
      * @return true если изображение сжато и не модифицировано после сжатия, false в противном случае
      */
     suspend fun isImageCompressed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Получаем маркер сжатия
-            val (isCompressed, quality, timestamp) = getCompressionMarker(context, uri)
-            if (!isCompressed) {
-                return@withContext false
-            }
-
-            // Проверяем дату модификации
-            val modificationDate = getFileModificationDate(context, uri)
-            if (modificationDate == null) {
-                LogUtil.processWarning("Не удалось получить дату модификации файла")
-                return@withContext true // Если не можем проверить дату модификации, предполагаем что файл не изменен
-            }
-
-            // Если файл был модифицирован после сжатия, считаем его несжатым
-            if (modificationDate > timestamp) {
-                val diffSeconds = (modificationDate - timestamp) / 1000L
-                LogUtil.processDebug("Файл был модифицирован после сжатия (разница $diffSeconds сек), требуется повторное сжатие")
-                return@withContext false
-            }
-
-            return@withContext true
+            // Используем централизованную логику из ImageProcessingChecker
+            val result = ImageProcessingChecker.isProcessingRequired(context, uri, false)
+            return@withContext !result.processingRequired && 
+                            (result.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED || 
+                             result.reason == ImageProcessingChecker.ProcessingSkipReason.IN_APP_DIRECTORY)
         } catch (e: Exception) {
             LogUtil.error(uri, "Проверка сжатия", "Ошибка при проверке маркера сжатия", e)
             return@withContext false
@@ -1137,8 +1124,11 @@ object ExifUtil {
 
     /**
      * Получает дату модификации файла
+     * @param context Контекст приложения
+     * @param uri URI файла
+     * @return Дата модификации в миллисекундах или null в случае ошибки
      */
-    private fun getFileModificationDate(context: Context, uri: Uri): Long? {
+    fun getFileModificationDate(context: Context, uri: Uri): Long? {
         try {
             val projection = arrayOf(MediaStore.Images.Media.DATE_MODIFIED)
             context.contentResolver.query(

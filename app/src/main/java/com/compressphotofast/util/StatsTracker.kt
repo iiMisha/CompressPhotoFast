@@ -52,46 +52,25 @@ object StatsTracker {
 
     /**
      * Проверяет, было ли изображение обработано ранее
+     * Делегирует к централизованной логике в ImageProcessingChecker
+     * 
      * @param context контекст
      * @param uri URI изображения
      * @return true если изображение уже обработано, false в противном случае
      */
     suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверяем EXIF маркер с помощью ExifUtil
-            val isCompressed = ExifUtil.isImageCompressed(context, uri)
+            // Используем централизованную логику из ImageProcessingChecker
+            val result = ImageProcessingChecker.isProcessingRequired(context, uri, false)
+            val isProcessed = !result.processingRequired
             
-            // Если найден маркер CompressPhotoFast_Compressed, проверяем наличие даты сжатия
-            if (isCompressed) {
-                val compressionDate = ExifUtil.getCompressionDateFromExif(context, uri)
-                if (compressionDate != null) {
-                    Timber.d("Изображение обработано (найден EXIF маркер с датой): $uri")
-                } else {
-                    Timber.d("Изображение обработано (найден EXIF маркер без даты): $uri")
-                }
-                return@withContext true
+            if (isProcessed) {
+                Timber.d("Изображение уже обработано (причина: ${result.reason}): $uri")
+            } else {
+                Timber.d("Изображение требует обработки: $uri")
             }
             
-            // Если маркер не найден, проверяем путь к файлу
-            val path = FileUtil.getFilePathFromUri(context, uri)
-            if (path?.contains("/${Constants.APP_DIRECTORY}/") == true || 
-                (path?.contains("content://media/external/images/media") == true && path.contains(Constants.APP_DIRECTORY))) {
-                Timber.d("Файл находится в директории приложения: $path")
-                return@withContext true
-            }
-            
-            // Проверяем наличие сжатой версии файла в директории приложения по имени оригинала
-            if (!FileUtil.isSaveModeReplace(context)) {
-                val compressedUri = FileUtil.findCompressedVersionByOriginalName(context, uri)
-                if (compressedUri != null) {
-                    Timber.d("Найдена существующая сжатая версия в директории приложения: $compressedUri")
-                    return@withContext true
-                }
-            }
-            
-            // В остальных случаях считаем, что файл не обработан
-            Timber.d("Файл не был обработан ранее: $uri")
-            return@withContext false
+            return@withContext isProcessed
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке статуса обработки файла: ${e.message}")
             return@withContext false
@@ -99,8 +78,8 @@ object StatsTracker {
     }
     
     /**
-     * Проверяет, нужно ли обрабатывать изображение с учетом размера файла
-     * Делегирует вызов в ImageProcessingChecker для предотвращения дублирования логики
+     * Проверяет, нужно ли обрабатывать изображение
+     * Делегирует к централизованной логике в ImageProcessingChecker
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean {
         return ImageProcessingChecker.shouldProcessImage(context, uri)
