@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.exifinterface.media.ExifInterface
 import timber.log.Timber
 import java.io.File
 import java.io.FileNotFoundException
@@ -1053,50 +1052,20 @@ object FileUtil {
                     delay(300)
                 }
                 
-                // Используем заранее загруженные EXIF данные, если они доступны
-                var exifSuccess = false
-                if (exifDataMemory != null && exifDataMemory.isNotEmpty()) {
-                    try {
-                        exifSuccess = ExifUtil.applyExifDataFromMemory(context, uri, exifDataMemory, quality)
-                        LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
-                    } catch (e: Exception) {
-                        LogUtil.error(uri, "EXIF", "Ошибка при применении EXIF данных из памяти", e)
-                    }
-                } else {
-                    // Если заранее загруженных данных нет, пробуем скопировать EXIF обычным способом
-                    try {
-                        // Дополнительная задержка перед работой с EXIF
-                        delay(300)
-                        exifSuccess = ExifUtil.copyExifDataBetweenUris(context, originalUri, uri)
-                        Timber.d("Копирование EXIF данных между URI: ${if (exifSuccess) "успешно" else "неудачно"}")
-                        
-                        if (!exifSuccess) {
-                            LogUtil.processWarning("Не удалось скопировать EXIF данные, пробуем добавить только маркер сжатия")
-                            exifSuccess = ExifUtil.markCompressedImageUri(context, uri, quality)
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
-                    }
-                }
+                // Делегируем всю работу с EXIF в ExifUtil
+                val exifSuccess = ExifUtil.handleExifForSavedImage(
+                    context, 
+                    originalUri, 
+                    uri, 
+                    quality, 
+                    exifDataMemory
+                )
                 
-                // Финальная верификация EXIF данных
-                try {
-                    delay(100) // Небольшая задержка перед проверкой
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val exif = ExifInterface(inputStream)
-                        val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                        if (userComment?.contains("CompressPhotoFast_Compressed:$quality") == true) {
-                            Timber.d("Финальная верификация успешна: маркер сжатия присутствует в URI")
-                        } else {
-                            Timber.w("Финальная верификация не удалась: маркер сжатия отсутствует в URI. UserComment: $userComment")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при финальной верификации: ${e.message}")
-                }
+                Timber.d("Обработка EXIF данных: ${if (exifSuccess) "успешно" else "неудачно"}")
                 
+                return@withContext uri
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при записи данных или обработке EXIF: ${e.message}")
+                Timber.e(e, "Ошибка при записи данных: ${e.message}")
                 // Если произошла ошибка, изображение может быть сохранено частично, но без EXIF
             }
             
