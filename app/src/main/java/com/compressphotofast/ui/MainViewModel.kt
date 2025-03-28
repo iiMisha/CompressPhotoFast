@@ -49,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import com.compressphotofast.util.SequentialImageProcessor
 import com.compressphotofast.util.CompressionProgressListener
+import com.compressphotofast.util.ToastManager
 
 /**
  * Модель представления для главного экрана
@@ -415,7 +416,7 @@ class MainViewModel @Inject constructor(
      * Показывает Toast с дедупликацией
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
-        NotificationUtil.showToast(context, message, duration)
+        ToastManager.showToast(context, message, duration)
     }
 
     /**

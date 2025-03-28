@@ -14,6 +14,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.Log
+import java.text.DecimalFormat
+import kotlin.math.log10
+import kotlin.math.pow
 
 /**
  * Централизованный менеджер для работы с файлами и URI
@@ -24,6 +28,7 @@ object FileManager {
     private const val COMPRESSED_SUFFIX = "_compressed"
     private const val CONTENT_SCHEME = "content"
     private const val FILE_SCHEME = "file"
+    private const val TAG = "FileManager"
     
     /**
      * Получает имя файла из URI
@@ -254,10 +259,53 @@ object FileManager {
      * @return Отформатированная строка (например, "1.5 MB")
      */
     fun formatFileSize(size: Long): String {
-        return when {
-            size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KB"
-            else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
+        if (size <= 0) return "0 B"
+        
+        val units = arrayOf("B", "KB", "MB", "GB", "TB")
+        val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
+        
+        return DecimalFormat("#,##0.#").format(
+            size / 1024.0.pow(digitGroups.toDouble())
+        ) + " " + units[digitGroups]
+    }
+    
+    /**
+     * Записывает входной поток в файл
+     */
+    fun writeInputStreamToFile(inputStream: InputStream, outputFile: File): Boolean {
+        return try {
+            FileOutputStream(outputFile).use { output ->
+                inputStream.copyTo(output)
+            }
+            Log.d(TAG, "Файл успешно записан: ${outputFile.absolutePath}")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при записи файла: ${e.message}")
+            false
+        } finally {
+            try {
+                inputStream.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка при закрытии потока: ${e.message}")
+            }
         }
+    }
+    
+    /**
+     * Создает временный файл в кэш-директории
+     */
+    fun createTempFile(context: Context, prefix: String, suffix: String): File {
+        val cacheDir = context.cacheDir
+        return File.createTempFile(prefix, suffix, cacheDir)
+    }
+    
+    /**
+     * Получает размер файла по URI
+     */
+    fun getFileSize(context: Context, uri: Uri): Long {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { 
+            return it.statSize
+        }
+        return 0L
     }
 } 

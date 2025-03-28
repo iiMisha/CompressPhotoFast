@@ -40,12 +40,15 @@ import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.ui.CompressionResult
 import com.compressphotofast.ui.MultipleImagesProgress
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.FileManager
 import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.worker.ImageCompressionWorker
+import com.compressphotofast.util.StatsTracker
+import com.compressphotofast.util.ToastManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -115,9 +118,12 @@ class MainActivity : AppCompatActivity() {
             return Triple(fileName, originalSize, compressedSize)
         }
         
+        /**
+         * Форматирует размеры файлов для отображения
+         */
         protected fun formatFileSizes(originalSize: Long, compressedSize: Long): Pair<String, String> {
-            val originalSizeStr = FileUtil.formatFileSize(originalSize)
-            val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+            val originalSizeStr = FileManager.formatFileSize(originalSize)
+            val compressedSizeStr = FileManager.formatFileSize(compressedSize)
             return Pair(originalSizeStr, compressedSizeStr)
         }
     }
@@ -126,60 +132,56 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-        NotificationUtil.showToast(this, message, duration)
+        ToastManager.showToast(this, message, duration)
     }
 
     /**
-     * Приемник для получения уведомлений о завершении сжатия
+     * Показывает Toast с результатами сжатия
      */
-    private val compressionCompletedReceiver = object : BaseCompressionReceiver() {
+    private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
+        val truncatedFileName = FileUtil.truncateFileName(fileName)
+        ToastManager.showCompressionResultToast(this, truncatedFileName, originalSize, compressedSize)
+    }
+
+    /**
+     * BroadcastReceiver для получения уведомлений о завершении сжатия одного изображения
+     */
+    private val compressionCompletedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
-                val fileInfo = getFileInfo(intent) ?: return
-                val (fileName, originalSize, compressedSize) = fileInfo
-                val reduction = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
+                val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
+                val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0L)
+                val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0L)
                 
-                // Форматируем размеры
-                val (originalSizeStr, compressedSizeStr) = formatFileSizes(originalSize, compressedSize)
-                val reductionStr = String.format("%.1f", reduction)
-                
-                // Логируем информацию о завершении сжатия
-                Timber.d("Получено уведомление о завершении сжатия: $fileName, $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
-                
-                // Показываем Toast с результатами сжатия
-                val truncatedFileName = FileUtil.truncateFileName(fileName)
-                showToast("$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)")
+                // Показываем результаты сжатия
+                showCompressionResult(fileName, originalSize, compressedSize)
             }
         }
     }
     
     /**
-     * Приемник для получения уведомлений о пропуске сжатия
+     * BroadcastReceiver для получения уведомлений о пропуске изображения
      */
-    private val compressionSkippedReceiver = object : BaseCompressionReceiver() {
+    private val compressionSkippedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
-                val fileInfo = getFileInfo(intent) ?: return
-                val (fileName, originalSize, compressionPercent) = fileInfo
+                val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
+                val reason = intent.getStringExtra(Constants.EXTRA_SKIP_REASON) ?: "неизвестная причина"
                 
-                // Получаем форматированный размер оригинального файла
-                val originalSizeStr = FileUtil.formatFileSize(originalSize)
-                
-                // Показываем toast с информацией о причине пропуска
-                showToast(getString(
-                    R.string.compression_skipped_size_limit
-                ))
+                showToast("$fileName: пропущено ($reason)")
             }
         }
     }
-
-    // Приемник для получения информации о пропущенных (уже оптимизированных) изображениях
-    private val compressionSkippedFromGalleryReceiver = object : BaseCompressionReceiver() {
+    
+    /**
+     * BroadcastReceiver для получения уведомлений об уже оптимизированных изображениях
+     */
+    private val alreadyOptimizedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Constants.ACTION_IMAGE_ALREADY_OPTIMIZED) {
-                // Показываем уведомление для пользователя
-                showToast(getString(R.string.image_already_optimized))
-                Timber.d("Получено уведомление о ранее оптимизированном изображении")
+            if (intent?.action == Constants.ACTION_ALREADY_OPTIMIZED) {
+                val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
+                
+                showToast("$fileName: уже оптимизировано")
             }
         }
     }
@@ -208,8 +210,8 @@ class MainActivity : AppCompatActivity() {
         
         // Регистрируем BroadcastReceiver для получения уведомлений о ранее оптимизированных изображениях
         registerReceiver(
-            compressionSkippedFromGalleryReceiver,
-            IntentFilter(Constants.ACTION_IMAGE_ALREADY_OPTIMIZED),
+            alreadyOptimizedReceiver,
+            IntentFilter(Constants.ACTION_ALREADY_OPTIMIZED),
             Context.RECEIVER_NOT_EXPORTED
         )
     }
@@ -220,7 +222,7 @@ class MainActivity : AppCompatActivity() {
             unregisterReceiver(deletePermissionReceiver)
             unregisterReceiver(compressionCompletedReceiver)
             unregisterReceiver(compressionSkippedReceiver)
-            unregisterReceiver(compressionSkippedFromGalleryReceiver)
+            unregisterReceiver(alreadyOptimizedReceiver)
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver в onStop")
         }

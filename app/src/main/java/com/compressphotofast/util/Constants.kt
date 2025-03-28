@@ -69,22 +69,45 @@ object Constants {
     // BroadcastReceiver actions
     const val ACTION_PROCESS_IMAGE = "com.compressphotofast.PROCESS_IMAGE"
     const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.REQUEST_DELETE_PERMISSION"
-    const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.COMPRESSION_COMPLETED"
-    const val ACTION_COMPRESSION_SKIPPED = "com.compressphotofast.COMPRESSION_SKIPPED"
+    const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.ACTION_COMPRESSION_COMPLETED"
+    const val ACTION_COMPRESSION_SKIPPED = "com.compressphotofast.ACTION_COMPRESSION_SKIPPED"
     const val ACTION_STOP_SERVICE = "com.compressphotofast.STOP_SERVICE"
-    const val ACTION_IMAGE_ALREADY_OPTIMIZED = "com.compressphotofast.IMAGE_ALREADY_OPTIMIZED"
+    const val ACTION_ALREADY_OPTIMIZED = "com.compressphotofast.ACTION_ALREADY_OPTIMIZED"
+    const val ACTION_COMPRESSION_PROGRESS = "com.compressphotofast.ACTION_COMPRESSION_PROGRESS"
     
     // Intent extras
     const val EXTRA_URI = "extra_uri"
     const val EXTRA_DELETE_INTENT_SENDER = "extra_delete_intent_sender"
-    const val EXTRA_FILE_NAME = "extra_file_name"
-    const val EXTRA_ORIGINAL_SIZE = "extra_original_size"
-    const val EXTRA_COMPRESSED_SIZE = "extra_compressed_size"
+    const val EXTRA_FILE_NAME = "file_name"
+    const val EXTRA_ORIGINAL_SIZE = "original_size"
+    const val EXTRA_COMPRESSED_SIZE = "compressed_size"
     const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
+    const val EXTRA_SKIP_REASON = "skip_reason"
+    const val EXTRA_PROGRESS = "progress"
+    const val EXTRA_TOTAL = "total"
     
     // Временные файлы
     const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут
     
     /** Минимальный размер файла для обработки (100 КБ) */
     const val MIN_PROCESSABLE_FILE_SIZE = 100 * 1024L
+    
+    // Статусы обработки
+    const val STATUS_PENDING = 0
+    const val STATUS_PROCESSING = 1
+    const val STATUS_COMPLETED = 2
+    const val STATUS_FAILED = 3
+    const val STATUS_SKIPPED = 4
+    
+    // Другие константы
+    const val MAX_URI_AGE_DAYS = 7
+    const val URI_CHUNK_SIZE = 20
+    
+    // Параметры для сжатия
+    const val DEFAULT_COMPRESSION_QUALITY = 85
+    const val MIN_COMPRESSION_QUALITY = 50
+    const val MAX_COMPRESSION_QUALITY = 100
+    
+    // Обычно мы хотим сжать изображение как минимум на 20% от исходного размера
+    const val MIN_COMPRESSION_RATIO = 0.8f
 } 
