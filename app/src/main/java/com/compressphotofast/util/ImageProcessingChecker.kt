@@ -190,6 +190,15 @@ object ImageProcessingChecker {
                 if (modificationTimestamp > compressionTimestamp) {
                     // Файл был модифицирован после сжатия, требуется повторная обработка
                     val diffSeconds = (modificationTimestamp - compressionTimestamp) / 1000
+                    // Если разница 0 секунд или меньше, считаем, что файл не был модифицирован
+                    if (diffSeconds <= 0) {
+                        // Файл не был модифицирован после сжатия
+                        Timber.d("Файл не был модифицирован после сжатия (разница $diffSeconds сек)")
+                        result.processingRequired = false
+                        result.reason = ProcessingSkipReason.ALREADY_COMPRESSED
+                        return@withContext result
+                    }
+                    
                     Timber.d("Файл был модифицирован после сжатия (разница $diffSeconds сек), требуется повторная обработка")
                     result.processingRequired = true
                     result.reason = ProcessingSkipReason.NONE
