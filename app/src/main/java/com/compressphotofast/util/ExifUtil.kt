@@ -440,6 +440,7 @@ object ExifUtil {
                     try {
                         val quality = parts[1].toInt()
                         val timestamp = parts[2].toLong()
+                        LogUtil.processDebug("Найден EXIF маркер сжатия в URI $uri: качество=$quality, время=${Date(timestamp)}")
                         return@withContext Triple(true, quality, timestamp)
                     } catch (e: NumberFormatException) {
                         LogUtil.error(uri, "Парсинг маркера сжатия", e)
@@ -498,7 +499,7 @@ object ExifUtil {
     }
     
     /**
-     * Получает информацию о сжатии из тега UserComment
+     * Получает информацию о сжатии из тега UserComment (не suspend вариант для обратной совместимости)
      * @param context Контекст приложения
      * @param uri URI изображения
      * @return Triple<Boolean, Int, Long> где:
@@ -588,35 +589,6 @@ object ExifUtil {
     }
     
     /**
-     * Получает дату модификации файла
-     * @param context Контекст приложения
-     * @param uri URI файла
-     * @return Дата модификации в миллисекундах или null в случае ошибки
-     */
-    fun getFileModificationDate(context: Context, uri: Uri): Long? {
-        try {
-            val projection = arrayOf(MediaStore.Images.Media.DATE_MODIFIED)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val dateModifiedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
-                    if (dateModifiedIndex != -1 && !cursor.isNull(dateModifiedIndex)) {
-                        return cursor.getLong(dateModifiedIndex) * 1000L // Конвертируем в миллисекунды
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Дата модификации", "Ошибка при получении даты модификации", e)
-        }
-        return null
-    }
-    
-    /**
      * Централизованный метод для обработки EXIF данных при сохранении сжатого изображения
      * 
      * @param context Контекст приложения
@@ -650,14 +622,14 @@ object ExifUtil {
                     // Дополнительная задержка перед работой с EXIF
                     delay(300)
                     exifSuccess = copyExifData(context, sourceUri, destinationUri)
-                    Timber.d("Копирование EXIF данных между URI: ${if (exifSuccess) "успешно" else "неудачно"}")
+                    LogUtil.processDebug("Копирование EXIF данных между URI: ${if (exifSuccess) "успешно" else "неудачно"}")
                     
                     if (!exifSuccess) {
                         LogUtil.processWarning("Не удалось скопировать EXIF данные, пробуем добавить только маркер сжатия")
                         exifSuccess = markCompressedImage(context, destinationUri, quality)
                     }
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при копировании EXIF данных между URI: ${e.message}")
+                    LogUtil.error(sourceUri, "Копирование EXIF", e)
                 }
             }
             
@@ -667,19 +639,19 @@ object ExifUtil {
                 context.contentResolver.openInputStream(destinationUri)?.use { input ->
                     val exif = ExifInterface(input)
                     val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                    if (userComment?.contains("CompressPhotoFast_Compressed:$quality") == true) {
-                        Timber.d("Финальная верификация успешна: маркер сжатия присутствует в URI")
+                    if (userComment?.contains("$EXIF_COMPRESSION_MARKER:$quality") == true) {
+                        LogUtil.processDebug("Финальная верификация успешна: маркер сжатия присутствует в URI")
                     } else {
-                        Timber.w("Финальная верификация не удалась: маркер сжатия отсутствует в URI. UserComment: $userComment")
+                        LogUtil.processWarning("Финальная верификация не удалась: маркер сжатия отсутствует в URI. UserComment: $userComment")
                     }
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при финальной верификации: ${e.message}")
+                LogUtil.error(destinationUri, "Верификация EXIF", e)
             }
             
             return@withContext exifSuccess
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при обработке EXIF данных: ${e.message}")
+            LogUtil.error(sourceUri, "Обработка EXIF данных", e)
             return@withContext false
         }
     }

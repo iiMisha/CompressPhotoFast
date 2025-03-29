@@ -176,11 +176,11 @@ object ImageProcessingChecker {
             // Если файл имеет маркер сжатия, проверяем, не был ли он модифицирован после сжатия
             if (isCompressed) {
                 // Получаем дату последней модификации файла
-                val modificationTimestamp = ExifUtil.getFileModificationDate(context, uri)
+                val modificationTimestamp = FileManager.getFileLastModified(context, uri)
                 result.fileModificationTimestamp = modificationTimestamp
                 
                 // Если мы не можем получить дату модификации, считаем что файл не был изменен
-                if (modificationTimestamp == null) {
+                if (modificationTimestamp == 0L) {
                     result.processingRequired = false
                     result.reason = ProcessingSkipReason.ALREADY_COMPRESSED
                     return@withContext result

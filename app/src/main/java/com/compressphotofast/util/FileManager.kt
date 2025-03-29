@@ -18,6 +18,8 @@ import android.util.Log
 import java.text.DecimalFormat
 import kotlin.math.log10
 import kotlin.math.pow
+import android.provider.DocumentsContract
+import androidx.documentfile.provider.DocumentFile
 
 /**
  * Централизованный менеджер для работы с файлами и URI
@@ -187,6 +189,46 @@ object FileManager {
         try {
             when (uri.scheme) {
                 CONTENT_SCHEME -> {
+                    // Специальная обработка для URI документов из галереи
+                    if (uri.toString().startsWith("content://com.android.providers.media.documents/")) {
+                        LogUtil.processDebug("Обнаружен URI документа медиа-провайдера, используем специальную обработку")
+                        
+                        // Получаем ID документа
+                        try {
+                            val docId = DocumentsContract.getDocumentId(uri)
+                            val split = docId.split(":")
+                            if (split.size >= 2) {
+                                val type = split[0]
+                                val id = split[1]
+                                
+                                // Для изображений
+                                if (type == "image") {
+                                    val contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                                    val selection = MediaStore.Images.Media._ID + "=?"
+                                    val selectionArgs = arrayOf(id)
+                                    
+                                    context.contentResolver.query(
+                                        contentUri,
+                                        arrayOf(MediaStore.Images.Media.DATE_MODIFIED),
+                                        selection,
+                                        selectionArgs,
+                                        null
+                                    )?.use { cursor ->
+                                        if (cursor.moveToFirst()) {
+                                            val dateModifiedColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+                                            // DATE_MODIFIED хранится в секундах, умножаем на 1000 для миллисекунд
+                                            val dateModified = cursor.getLong(dateModifiedColumnIndex) * 1000
+                                            LogUtil.processDebug("Дата модификации файла из MediaStore: ${Date(dateModified)} (${dateModified}ms)")
+                                            return@withContext dateModified
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            LogUtil.error(uri, "Получение docId", e)
+                        }
+                    }
+                    
                     // Пробуем получить дату через MediaStore
                     val projection = arrayOf(MediaStore.MediaColumns.DATE_MODIFIED)
                     context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -196,6 +238,20 @@ object FileManager {
                                 return@withContext cursor.getLong(dateIndex) * 1000 // Переводим в миллисекунды
                             }
                         }
+                    }
+                    
+                    // Если не удалось через MediaStore, пробуем через DocumentFile
+                    try {
+                        val documentFile = DocumentFile.fromSingleUri(context, uri)
+                        if (documentFile != null && documentFile.exists()) {
+                            val lastModified = documentFile.lastModified()
+                            if (lastModified > 0) {
+                                LogUtil.processDebug("Дата модификации получена через DocumentFile: ${Date(lastModified)} (${lastModified}ms)")
+                                return@withContext lastModified
+                            }
+                        }
+                    } catch (e: Exception) {
+                        LogUtil.error(uri, "DocumentFile", e)
                     }
                 }
                 FILE_SCHEME -> {
