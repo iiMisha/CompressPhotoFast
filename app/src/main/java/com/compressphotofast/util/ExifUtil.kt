@@ -655,4 +655,19 @@ object ExifUtil {
             return@withContext false
         }
     }
+    
+    /**
+     * Записывает EXIF данные из памяти в изображение
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @param exifData Карта с EXIF-тегами и их значениями
+     * @return true если запись успешна
+     */
+    suspend fun writeExifDataFromMemory(
+        context: Context, 
+        uri: Uri, 
+        exifData: Map<String, Any>
+    ): Boolean = withContext(Dispatchers.IO) {
+        return@withContext applyExifFromMemory(context, uri, exifData)
+    }
 } 

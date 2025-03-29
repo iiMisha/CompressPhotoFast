@@ -4,10 +4,14 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -179,11 +183,212 @@ object ImageCompressionUtil {
     }
     
     /**
+     * Полностью обрабатывает одно изображение - сжатие и сохранение
+     * 
+     * @param context Контекст приложения
+     * @param uri URI исходного изображения
+     * @param quality Качество сжатия (0-100)
+     * @return Triple с результатами:
+     *   - первый элемент: успех операции
+     *   - второй элемент: URI сохраненного файла или null
+     *   - третий элемент: сообщение о результате операции
+     */
+    suspend fun processAndSaveImage(
+        context: Context,
+        uri: Uri,
+        quality: Int
+    ): Triple<Boolean, Uri?, String> = withContext(Dispatchers.IO) {
+        try {
+            // Проверка URI
+            if (!isValidUri(context, uri)) {
+                return@withContext Triple(false, null, "Недействительный URI")
+            }
+            
+            // Получение имени и размера файла
+            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
+            val fileSize = FileUtil.getFileSize(context, uri)
+            
+            if (fileSize <= 0) {
+                return@withContext Triple(false, null, "Не удалось получить размер файла или файл пуст")
+            }
+            
+            // Проверка на минимальный размер
+            if (fileSize < Constants.MIN_PROCESSABLE_FILE_SIZE) {
+                return@withContext Triple(true, uri, "Файл слишком маленький для сжатия")
+            }
+            
+            // Получение EXIF данных для сохранения
+            val exifData = ExifUtil.readExifDataToMemory(context, uri)
+            
+            // Сжатие изображения в поток
+            val outputStream = compressImageToStream(context, uri, quality)
+                ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
+            
+            val compressedSize = outputStream.size().toLong()
+            val ratio = compressedSize.toFloat() / fileSize.toFloat()
+            
+            // Проверка эффективности сжатия
+            if (ratio >= Constants.MIN_COMPRESSION_RATIO || (fileSize - compressedSize) < 10 * 1024) { // Экономия < 10KB
+                outputStream.close()
+                return@withContext Triple(true, uri, "Сжатие не дало значительного результата")
+            }
+            
+            // Создание имени для сжатого файла
+            val compressedFileName = FileUtil.createCompressedFileName(fileName)
+            
+            // Сохранение сжатого файла
+            val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
+            val savedFileResult = FileUtil.saveCompressedImageFromStream(
+                context,
+                compressedInputStream, 
+                compressedFileName,
+                FileUtil.getDirectoryFromUri(context, uri) ?: Constants.APP_DIRECTORY,
+                uri,
+                quality,
+                exifData
+            )
+            
+            compressedInputStream.close()
+            outputStream.close()
+            
+            if (savedFileResult == null) {
+                return@withContext Triple(false, null, "Ошибка при сохранении сжатого изображения")
+            }
+            
+            // Расчет сокращения размера в процентах
+            val sizeReduction = ((fileSize - compressedSize).toFloat() / fileSize) * 100
+            
+            return@withContext Triple(
+                true, 
+                savedFileResult,
+                "Сжатие успешно: экономия ${String.format("%.1f", sizeReduction)}%"
+            )
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Обработка изображения", e)
+            return@withContext Triple(false, null, "Ошибка: ${e.message}")
+        }
+    }
+    
+    /**
+     * Сжимает изображение во временный файл
+     * 
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @param quality Качество сжатия (0-100)
+     * @return Пара (Файл, Размер сжатого изображения) или null при ошибке
+     */
+    suspend fun compressToTempFile(
+        context: Context,
+        uri: Uri,
+        quality: Int
+    ): Pair<File, Long>? = withContext(Dispatchers.IO) {
+        try {
+            // Сжимаем изображение в поток
+            val outputStream = compressImageToStream(context, uri, quality) ?: return@withContext null
+            
+            // Создаем временный файл
+            val tempFile = FileUtil.createTempImageFile(context)
+            
+            // Сохраняем сжатое изображение во временный файл
+            val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
+            val fileOutputStream = FileOutputStream(tempFile)
+            compressedInputStream.copyTo(fileOutputStream)
+            fileOutputStream.close()
+            compressedInputStream.close()
+            
+            // Получаем размер сжатого изображения
+            val compressedSize = outputStream.size().toLong()
+            outputStream.close()
+            
+            return@withContext Pair(tempFile, compressedSize)
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Сжатие во временный файл", e)
+            return@withContext null
+        }
+    }
+    
+    /**
+     * Проверяет, является ли URI действительным
+     */
+    private suspend fun isValidUri(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем существование URI
+            val exists = FileUtil.isUriExistsSuspend(context, uri)
+            if (!exists) {
+                LogUtil.uriInfo(uri, "URI не существует")
+                return@withContext false
+            }
+            
+            // Проверяем тип файла
+            val mimeType = FileUtil.getMimeType(context, uri)
+            val isImage = mimeType?.startsWith("image/") == true
+            if (!isImage) {
+                LogUtil.uriInfo(uri, "URI не является изображением: $mimeType")
+                return@withContext false
+            }
+            
+            return@withContext true
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Проверка валидности URI", e)
+            return@withContext false
+        }
+    }
+    
+    /**
      * Модель для хранения результатов сжатия
      */
     data class CompressionStats(
         val originalSize: Long,
         val compressedSize: Long,
         val sizeReduction: Float
-    )
+    ) {
+        /**
+         * Проверяет, было ли сжатие эффективным
+         */
+        fun isEfficient(): Boolean {
+            return sizeReduction >= Constants.MIN_COMPRESSION_SAVING_PERCENT && 
+                   (originalSize - compressedSize) >= 10 * 1024 // Минимальная экономия 10KB
+        }
+    }
+    
+    /**
+     * Создаёт запись в MediaStore для сжатого изображения
+     */
+    suspend fun createMediaStoreEntry(
+        context: Context,
+        compressedFile: File,
+        fileName: String,
+        directory: String,
+        mimeType: String = "image/jpeg"
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            return@withContext FileUtil.insertImageIntoMediaStore(
+                context,
+                compressedFile,
+                fileName,
+                directory,
+                mimeType
+            )
+        } catch (e: Exception) {
+            LogUtil.error(null, "Создание записи в MediaStore", e)
+            return@withContext null
+        }
+    }
+    
+    /**
+     * Копирует EXIF данные из исходного изображения в сжатое
+     */
+    suspend fun copyExifData(
+        context: Context,
+        sourceUri: Uri,
+        targetUri: Uri
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val exifData = ExifUtil.readExifDataToMemory(context, sourceUri)
+            return@withContext ExifUtil.writeExifDataFromMemory(context, targetUri, exifData)
+        } catch (e: Exception) {
+            LogUtil.error(sourceUri, "Копирование EXIF данных", e)
+            return@withContext false
+        }
+    }
 } 

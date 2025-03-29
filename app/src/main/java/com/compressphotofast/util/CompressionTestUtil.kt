@@ -8,7 +8,9 @@ import java.io.ByteArrayOutputStream
 
 /**
  * Утилитарный класс для тестирования эффективности сжатия изображений
+ * @deprecated Вся функциональность перенесена в ImageCompressionUtil. Используйте методы из ImageCompressionUtil напрямую.
  */
+@Deprecated("Используйте методы из ImageCompressionUtil напрямую")
 object CompressionTestUtil {
 
     /**
@@ -25,26 +27,7 @@ object CompressionTestUtil {
         originalSize: Long, 
         quality: Int
     ): ImageCompressionUtil.CompressionStats? = withContext(Dispatchers.IO) {
-        try {
-            LogUtil.uriInfo(uri, "Начало тестового сжатия в RAM")
-            
-            // Используем централизованный метод из ImageCompressionUtil
-            val result = ImageCompressionUtil.testCompression(context, uri, originalSize, quality)
-            
-            if (result != null) {
-                // Логируем результат
-                if (result.sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
-                    LogUtil.processInfo("Тестовое сжатие для ${getFileId(uri)} эффективно (экономия ${result.sizeReduction.toInt()}% > ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), выполняем полное сжатие")
-                } else {
-                    LogUtil.skipImage(uri, "Тестовое сжатие неэффективно (экономия ${result.sizeReduction.toInt()}% < ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%)")
-                }
-            }
-            
-            return@withContext result
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Тестовое сжатие", e)
-            return@withContext null
-        }
+        return@withContext ImageCompressionUtil.testCompression(context, uri, originalSize, quality)
     }
     
     /**
@@ -61,13 +44,7 @@ object CompressionTestUtil {
         originalSize: Long,
         quality: Int
     ): ImageCompressionUtil.CompressionStats? = withContext(Dispatchers.IO) {
-        try {
-            LogUtil.uriInfo(uri, "Получение статистики тестового сжатия")
-            return@withContext ImageCompressionUtil.testCompression(context, uri, originalSize, quality)
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Статистика сжатия", e)
-            return@withContext null
-        }
+        return@withContext ImageCompressionUtil.testCompression(context, uri, originalSize, quality)
     }
     
     /**
@@ -84,20 +61,6 @@ object CompressionTestUtil {
         uri: Uri,
         quality: Int
     ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
-        try {
-            LogUtil.uriInfo(uri, "Получение сжатого изображения")
-            // Используем централизованный метод из ImageCompressionUtil
-            return@withContext ImageCompressionUtil.compressImageToStream(context, uri, quality)
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Получение сжатого потока", e)
-            return@withContext null
-        }
-    }
-
-    /**
-     * Получает короткий идентификатор для URI, используемый в логах
-     */
-    private fun getFileId(uri: Uri): String {
-        return uri.lastPathSegment?.takeLast(4) ?: uri.toString().takeLast(4)
+        return@withContext ImageCompressionUtil.compressImageToStream(context, uri, quality)
     }
 } 

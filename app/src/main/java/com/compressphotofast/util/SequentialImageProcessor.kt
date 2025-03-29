@@ -171,15 +171,15 @@ class SequentialImageProcessor(private val context: Context) {
      */
     private suspend fun compressImage(uri: Uri, quality: Int): InputStream? = withContext(Dispatchers.IO) {
         try {
-            // Используем CompressionTestUtil для сжатия изображения в памяти
-            val byteArrayOutputStream = CompressionTestUtil.getCompressedImageStream(
+            // Используем централизованный метод из ImageCompressionUtil
+            val outputStream = ImageCompressionUtil.compressImageToStream(
                 context,
                 uri,
                 quality
             )
 
             // Преобразуем ByteArrayOutputStream в InputStream если сжатие успешно
-            return@withContext byteArrayOutputStream?.let { ByteArrayInputStream(it.toByteArray()) }
+            return@withContext outputStream?.let { ByteArrayInputStream(it.toByteArray()) }
         } catch (e: Exception) {
             LogUtil.error(uri, "Сжатие", e)
             return@withContext null
@@ -255,86 +255,40 @@ class SequentialImageProcessor(private val context: Context) {
         updateProgress(position, total, fileName)
 
         try {
-            // Проверяем, действителен ли URI
-            if (!isValidUri(uri)) {
-                LogUtil.skipImage(uri, "Недействительный URI")
-                listener?.onCompressionSkipped(uri, "Недействительный URI")
-                return@withContext null
-            }
-
-            // Получаем размер файла
-            val fileSize = FileUtil.getFileSize(context, uri)
-            if (fileSize <= 0) {
-                LogUtil.skipImage(uri, "Невозможно получить размер файла или файл пуст")
-                listener?.onCompressionSkipped(uri, "Невозможно получить размер файла или файл пуст")
-                return@withContext null
-            }
-
-            // Проверяем тип файла
-            if (!FileManager.isImageFile(context, uri)) {
-                LogUtil.skipImage(uri, "Файл не является изображением")
-                listener?.onCompressionSkipped(uri, "Файл не является изображением")
-                return@withContext null
-            }
-
-            // Если файл слишком маленький, пропускаем его
-            if (fileSize < Constants.MIN_PROCESSABLE_FILE_SIZE) {
-                LogUtil.skipImage(uri, "Файл слишком маленький для сжатия")
-                listener?.onCompressionSkipped(uri, "Файл слишком маленький для сжатия")
-                return@withContext null
-            }
-
-            // Открываем входной поток для изображения
-            val inputStream = context.contentResolver.openInputStream(uri)
-            if (inputStream == null) {
-                LogUtil.error(uri, "Входной поток", "Не удалось открыть входной поток для $uri")
-                listener?.onCompressionFailed(uri, "Не удалось открыть входной поток для $uri")
-                return@withContext null
-            }
-
-            // Сжимаем изображение
-            val outputStream = ByteArrayOutputStream()
-            val compressResult = ImageCompressionUtil.compressStream(context, inputStream, outputStream, compressionQuality)
+            // Используем централизованный метод для обработки изображения
+            val result = ImageCompressionUtil.processAndSaveImage(context, uri, compressionQuality)
             
-            // Закрываем входной поток
-            inputStream.close()
-
-            if (!compressResult) {
-                LogUtil.error(uri, "Сжатие", "Ошибка сжатия")
-                listener?.onCompressionFailed(uri, "Ошибка сжатия")
+            if (!result.first) {
+                // Если произошла ошибка
+                LogUtil.error(uri, "Обработка", result.third)
+                listener?.onCompressionFailed(uri, result.third)
                 return@withContext null
             }
-
-            val compressedSize = outputStream.size().toLong()
-            val ratio = compressedSize.toFloat() / fileSize.toFloat()
-
-            // Если размер не уменьшился или увеличился, возвращаем исходный файл
-            if (ratio >= Constants.MIN_COMPRESSION_RATIO) {
-                LogUtil.skipImage(uri, "Сжатие не дало значительного результата")
-                listener?.onCompressionSkipped(uri, "Недостаточное сжатие")
-                outputStream.close()
+            
+            // Если изображение было пропущено (сжатие неэффективно)
+            if (result.second == null || result.second == uri) {
+                LogUtil.skipImage(uri, result.third)
+                listener?.onCompressionSkipped(uri, result.third)
                 return@withContext null
             }
-
-            // Создаем временный файл для сохранения результата
-            val outputFile = FileUtil.createTempImageFile(context)
-            val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
-            val fileOutputStream = FileOutputStream(outputFile)
-            compressedInputStream.copyTo(fileOutputStream)
-            fileOutputStream.close()
-            compressedInputStream.close()
-            outputStream.close()
-
+            
+            // Если сжатие было успешным
+            val savedUri = result.second!!
+            val originalSize = FileUtil.getFileSize(context, uri)
+            val compressedSize = FileUtil.getFileSize(context, savedUri)
+            
             // Отправляем broadcast о завершении сжатия
             val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED)
             intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
-            intent.putExtra(Constants.EXTRA_ORIGINAL_SIZE, fileSize)
+            intent.putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
             intent.putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
             context.sendBroadcast(intent)
-
-            // Возвращаем результат
-            LogUtil.fileOperation(uri, "Сохранение", "Изображение успешно сжато: $fileName, $fileSize -> $compressedSize байт (${ratio * 100}%)")
-            return@withContext uri // Временно возвращаем исходный URI, так как нам не нужно сохранять файл
+            
+            // Отправляем информацию через listener
+            listener?.onCompressionCompleted(uri, savedUri, originalSize, compressedSize)
+            
+            LogUtil.fileOperation(uri, "Сохранение", "Изображение успешно сжато: $fileName, ${originalSize/1024}KB → ${compressedSize/1024}KB")
+            return@withContext savedUri
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка", "Ошибка при обработке изображения", e)
             listener?.onCompressionFailed(uri, e.message ?: "Неизвестная ошибка")

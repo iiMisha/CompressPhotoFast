@@ -1211,4 +1211,64 @@ object FileUtil {
         }
         return null
     }
+
+    /**
+     * Вставляет изображение в MediaStore
+     * @param context Контекст приложения
+     * @param file Файл с изображением
+     * @param fileName Имя файла
+     * @param directory Директория для сохранения
+     * @param mimeType MIME-тип файла
+     * @return URI вставленного изображения или null при ошибке
+     */
+    suspend fun insertImageIntoMediaStore(
+        context: Context,
+        file: File,
+        fileName: String,
+        directory: String,
+        mimeType: String = "image/jpeg"
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            // Проверяем существование файла
+            if (!file.exists()) {
+                LogUtil.error(null, "MediaStore", "Файл не существует: ${file.absolutePath}")
+                return@withContext null
+            }
+            
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/$directory")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+            }
+            
+            val uri = context.contentResolver.insert(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                contentValues
+            ) ?: throw IOException("Ошибка при вставке в MediaStore")
+            
+            // Копируем данные
+            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                file.inputStream().use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            } ?: throw IOException("Не удалось открыть выходной поток")
+            
+            // Завершаем операцию для Android 10+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                context.contentResolver.update(uri, contentValues, null, null)
+            }
+            
+            LogUtil.fileOperation(uri, "MediaStore", "Успешно сохранено в медиатеку: $fileName")
+            return@withContext uri
+        } catch (e: Exception) {
+            LogUtil.error(null, "MediaStore", "Ошибка при вставке в медиатеку", e)
+            return@withContext null
+        }
+    }
 } 
