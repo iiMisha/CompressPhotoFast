@@ -121,7 +121,7 @@ object FileUtil {
             }
             
             // Проверка и обработка существующих файлов с таким именем, особая обработка для Android 11
-            var finalFileName = fileName
+            var finalFileName: String
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
@@ -192,7 +192,7 @@ object FileUtil {
                             index++
                         }
                         
-                        // Если мы перебрали все индексы и не нашли свободного, используем временную метку как запасной вариант
+                        // Если мы перебрали все индексы и не нашли свободный, используем временную метку как запасной вариант
                         if (isFileExists) {
                             val timestamp = System.currentTimeMillis()
                             finalFileName = "${fileNameWithoutExt}_${timestamp}${extension}"
@@ -399,7 +399,7 @@ object FileUtil {
             
             // Дополнительная проверка через InputStream
             try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
+                context.contentResolver.openInputStream(uri)?.use { _ ->
                     return@withContext true
                 }
             } catch (e: Exception) {
@@ -638,7 +638,13 @@ object FileUtil {
      * Проверяет, включен ли режим замены файлов
      */
     fun isSaveModeReplace(context: Context): Boolean {
-        return SettingsManager.getInstance(context).isSaveModeReplace()
+        try {
+            // Открываем настройки
+            return SettingsManager.getInstance(context).isSaveModeReplace()
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении режима сохранения")
+            return false // Значение по умолчанию
+        }
     }
 
     /**
@@ -1269,6 +1275,137 @@ object FileUtil {
         } catch (e: Exception) {
             LogUtil.error(null, "MediaStore", "Ошибка при вставке в медиатеку", e)
             return@withContext null
+        }
+    }
+
+    /**
+     * Получает дату последнего изменения файла
+     * @param context Контекст приложения
+     * @param uri URI файла
+     * @return Дата последнего изменения в миллисекундах или 0, если не удалось определить
+     */
+    suspend fun getFileLastModified(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
+        try {
+            when (uri.scheme) {
+                "content" -> {
+                    // Специальная обработка для URI документов из галереи
+                    if (uri.toString().startsWith("content://com.android.providers.media.documents/")) {
+                        LogUtil.processDebug("Обнаружен URI документа медиа-провайдера, используем специальную обработку")
+                        
+                        // Получаем ID документа
+                        try {
+                            val docId = DocumentsContract.getDocumentId(uri)
+                            val split = docId.split(":")
+                            if (split.size >= 2) {
+                                val type = split[0]
+                                val id = split[1]
+                                
+                                // Для изображений
+                                if (type == "image") {
+                                    val contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                                    val selection = MediaStore.Images.Media._ID + "=?"
+                                    val selectionArgs = arrayOf(id)
+                                    
+                                    context.contentResolver.query(
+                                        contentUri,
+                                        arrayOf(MediaStore.Images.Media.DATE_MODIFIED),
+                                        selection,
+                                        selectionArgs,
+                                        null
+                                    )?.use { cursor ->
+                                        if (cursor.moveToFirst()) {
+                                            val dateModifiedColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+                                            // DATE_MODIFIED хранится в секундах, умножаем на 1000 для миллисекунд
+                                            val dateModified = cursor.getLong(dateModifiedColumnIndex) * 1000
+                                            LogUtil.processDebug("Дата модификации файла из MediaStore: ${Date(dateModified)} (${dateModified}ms)")
+                                            return@withContext dateModified
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            LogUtil.error(uri, "Получение docId", e)
+                        }
+                    }
+                    
+                    // Пробуем получить дату через MediaStore
+                    val projection = arrayOf(MediaStore.MediaColumns.DATE_MODIFIED)
+                    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val dateIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
+                            if (dateIndex != -1) {
+                                return@withContext cursor.getLong(dateIndex) * 1000 // Переводим в миллисекунды
+                            }
+                        }
+                    }
+                    
+                    // Если не удалось через MediaStore, пробуем через DocumentFile
+                    try {
+                        val documentFile = androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)
+                        if (documentFile != null && documentFile.exists()) {
+                            val lastModified = documentFile.lastModified()
+                            if (lastModified > 0) {
+                                LogUtil.processDebug("Дата модификации получена через DocumentFile: ${Date(lastModified)} (${lastModified}ms)")
+                                return@withContext lastModified
+                            }
+                        }
+                    } catch (e: Exception) {
+                        LogUtil.error(uri, "DocumentFile", e)
+                    }
+                }
+                "file" -> {
+                    // Если схема file, используем обычный File
+                    val path = uri.path
+                    if (path != null) {
+                        val file = File(path)
+                        if (file.exists()) {
+                            return@withContext file.lastModified()
+                        }
+                    }
+                }
+            }
+            
+            return@withContext 0L
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Получение даты изменения файла", e)
+            return@withContext 0L
+        }
+    }
+
+    /**
+     * Возвращает ByteArray из входного потока
+     */
+    fun streamToByteArray(inputStream: InputStream): ByteArray {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        try {
+            val buffer = ByteArray(1024)
+            var length: Int
+            while (inputStream.read(buffer).also { length = it } != -1) {
+                byteArrayOutputStream.write(buffer, 0, length)
+            }
+            return byteArrayOutputStream.toByteArray()
+        } finally {
+            try {
+                byteArrayOutputStream.close()
+            } catch (_: Exception) {
+                // Игнорируем ошибку закрытия
+            }
+        }
+    }
+
+    /**
+     * Проверяет, включен ли режим замены оригинальных файлов
+     */
+    fun isSaveModeReplace(): Boolean {
+        try {
+            // В этой версии контекст отсутствует, поэтому мы не можем использовать SettingsManager напрямую
+            // Вместо этого можно использовать AppContext или другой способ получения контекста
+            // Временное решение - возвращаем значение по умолчанию
+            Timber.d("Контекст отсутствует для isSaveModeReplace, возвращаем значение по умолчанию")
+            return false
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при получении режима сохранения")
+            return false
         }
     }
 } 

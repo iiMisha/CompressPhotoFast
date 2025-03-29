@@ -40,7 +40,6 @@ import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.ui.CompressionResult
 import com.compressphotofast.ui.MultipleImagesProgress
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.FileManager
 import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.IPermissionsManager
@@ -122,8 +121,8 @@ class MainActivity : AppCompatActivity() {
          * Форматирует размеры файлов для отображения
          */
         protected fun formatFileSizes(originalSize: Long, compressedSize: Long): Pair<String, String> {
-            val originalSizeStr = FileManager.formatFileSize(originalSize)
-            val compressedSizeStr = FileManager.formatFileSize(compressedSize)
+            val originalSizeStr = FileUtil.formatFileSize(originalSize)
+            val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
             return Pair(originalSizeStr, compressedSizeStr)
         }
     }

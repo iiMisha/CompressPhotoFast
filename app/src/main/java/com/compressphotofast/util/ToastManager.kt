@@ -5,7 +5,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
-import com.compressphotofast.util.FileManager
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
@@ -52,8 +51,8 @@ object ToastManager {
      * Показывает Toast с результатами сжатия изображения
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, duration: Int = Toast.LENGTH_LONG) {
-        val originalSizeStr = FileManager.formatFileSize(originalSize)
-        val compressedSizeStr = FileManager.formatFileSize(compressedSize)
+        val originalSizeStr = FileUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
         
         val reductionPercent = if (originalSize > 0) {
             ((originalSize - compressedSize) * 100.0 / originalSize).roundToInt()

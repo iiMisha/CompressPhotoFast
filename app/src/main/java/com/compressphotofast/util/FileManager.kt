@@ -23,8 +23,9 @@ import androidx.documentfile.provider.DocumentFile
 
 /**
  * Централизованный менеджер для работы с файлами и URI
- * Объединяет дублирующийся код из FileUtil и FileInfoUtil
+ * @deprecated Вся функциональность перенесена в FileUtil. Используйте методы из FileUtil напрямую.
  */
+@Deprecated("Используйте методы из FileUtil напрямую")
 object FileManager {
     // Константы для обработки имен файлов
     private const val COMPRESSED_SUFFIX = "_compressed"
@@ -86,13 +87,7 @@ object FileManager {
      * @return MIME-тип или null, если не удалось определить
      */
     fun getMimeTypeFromUri(context: Context, uri: Uri): String? {
-        return try {
-            val contentResolver = context.contentResolver
-            contentResolver.getType(uri) ?: getMimeTypeFromExtension(getExtensionFromUri(context, uri))
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Получение MIME-типа", e)
-            null
-        }
+        return FileUtil.getMimeType(context, uri)
     }
     
     /**
@@ -115,40 +110,7 @@ object FileManager {
      * @return Размер файла в байтах или 0, если не удалось определить
      */
     suspend fun getFileSizeFromUri(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
-        try {
-            when (uri.scheme) {
-                CONTENT_SCHEME -> {
-                    // Пробуем получить размер через OpenableColumns
-                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                            if (sizeIndex != -1) {
-                                return@withContext cursor.getLong(sizeIndex)
-                            }
-                        }
-                    }
-                    
-                    // Если не удалось через OpenableColumns, пробуем через InputStream
-                    return@withContext context.contentResolver.openInputStream(uri)?.use { it.available().toLong() } ?: 0L
-                }
-                FILE_SCHEME -> {
-                    // Если схема file, используем обычный File
-                    val path = uri.path
-                    if (path != null) {
-                        val file = File(path)
-                        if (file.exists()) {
-                            return@withContext file.length()
-                        }
-                    }
-                }
-            }
-            
-            // Пробуем через InputStream как запасной вариант
-            return@withContext context.contentResolver.openInputStream(uri)?.use { it.available().toLong() } ?: 0L
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Получение размера файла", e)
-            return@withContext 0L
-        }
+        return@withContext FileUtil.getFileSize(context, uri)
     }
     
     /**
@@ -246,7 +208,7 @@ object FileManager {
     }
     
     /**
-     * Полная информация о файле
+     * Получает полную информацию о файле
      * @param context Контекст приложения
      * @param uri URI файла
      * @return Объект FileInfo или null при ошибке
@@ -348,11 +310,7 @@ object FileManager {
      * @return Временный файл для изображения
      */
     fun createTempImageFile(context: Context): File {
-        return File.createTempFile(
-            "temp_image_",
-            ".jpg",
-            context.cacheDir
-        )
+        return FileUtil.createTempImageFile(context)
     }
     
     /**
@@ -386,14 +344,7 @@ object FileManager {
      * @return Имя файла с суффиксом для сжатого изображения
      */
     fun getCompressedFileName(originalName: String): String {
-        val dotIndex = originalName.lastIndexOf('.')
-        return if (dotIndex != -1) {
-            val nameWithoutExt = originalName.substring(0, dotIndex)
-            val extension = originalName.substring(dotIndex)
-            "$nameWithoutExt$COMPRESSED_SUFFIX$extension"
-        } else {
-            "$originalName$COMPRESSED_SUFFIX"
-        }
+        return FileUtil.createCompressedFileName(originalName)
     }
     
     /**

@@ -476,26 +476,10 @@ class ImageCompressionWorker @AssistedInject constructor(
         try {
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString != null) {
-                // Определяем тип уведомления: о завершении или о пропуске
-                val action = if (skipped) 
-                    Constants.ACTION_COMPRESSION_SKIPPED 
-                else 
-                    Constants.ACTION_COMPRESSION_COMPLETED
-                    
-                // Отправляем информацию через broadcast
-                val intent = Intent(action).apply {
-                    putExtra(Constants.EXTRA_FILE_NAME, fileName)
-                    putExtra(Constants.EXTRA_URI, uriString)
-                    putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
-                    putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
-                    putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
-                    flags = Intent.FLAG_RECEIVER_FOREGROUND
-                }
-                appContext.sendBroadcast(intent)
-                
-                // Показываем уведомление о результате сжатия с помощью централизованного метода
-                NotificationUtil.showCompressionResultNotification(
+                // Используем централизованный метод для отправки broadcast и показа уведомления
+                NotificationUtil.sendCompressionResultBroadcast(
                     context = appContext,
+                    uriString = uriString,
                     fileName = fileName,
                     originalSize = originalSize,
                     compressedSize = compressedSize,
@@ -503,16 +487,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                     skipped = skipped
                 )
             }
-            
-            // Логируем информацию о результате
-            val message = if (skipped) {
-                "Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", sizeReduction)}%"
-            } else {
-                "Уведомление о завершении сжатия отправлено: Файл=$fileName"
-            }
-            LogUtil.processInfo(message)
         } catch (e: Exception) {
-            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия", e)
+            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления", e)
         }
     }
 

@@ -23,6 +23,11 @@ import androidx.documentfile.provider.DocumentFile
  */
 object ImageProcessingChecker {
 
+    private val TAG = "ImageProcessingChecker"
+    
+    // Минимальный возраст файла для обработки (10 секунд)
+    private const val MIN_FILE_AGE_MS = 10 * 1000L
+
     /**
      * ОСНОВНОЙ ПУБЛИЧНЫЙ МЕТОД
      * Проверяет, нужно ли обрабатывать изображение
@@ -176,7 +181,7 @@ object ImageProcessingChecker {
             // Если файл имеет маркер сжатия, проверяем, не был ли он модифицирован после сжатия
             if (isCompressed) {
                 // Получаем дату последней модификации файла
-                val modificationTimestamp = FileManager.getFileLastModified(context, uri)
+                val modificationTimestamp = FileUtil.getFileLastModified(context, uri)
                 result.fileModificationTimestamp = modificationTimestamp
                 
                 // Если мы не можем получить дату модификации, считаем что файл не был изменен
@@ -280,6 +285,41 @@ object ImageProcessingChecker {
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке EXIF-маркера сжатия: ${e.message}")
             return@withContext false
+        }
+    }
+
+    /**
+     * Проверяет дату модификации файла
+     * Файлы моложе MIN_FILE_AGE_MS не обрабатываем
+     * @return true если файл достаточно старый для обработки
+     */
+    private suspend fun isFileOldEnough(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Получаем дату модификации файла
+            val modificationTimestamp = FileUtil.getFileLastModified(context, uri)
+            
+            // Если не удалось получить дату, пропускаем проверку
+            if (modificationTimestamp <= 0) {
+                LogUtil.processDebug("Не удалось получить дату модификации файла, пропускаем проверку: $uri")
+                return@withContext true
+            }
+            
+            // Вычисляем возраст файла
+            val now = System.currentTimeMillis()
+            val fileAge = now - modificationTimestamp
+            
+            // Проверяем, достаточно ли старый файл
+            val isOldEnough = fileAge >= MIN_FILE_AGE_MS
+            
+            if (!isOldEnough) {
+                LogUtil.processInfo("Файл слишком новый для обработки: возраст=${fileAge}ms, минимальный возраст=${MIN_FILE_AGE_MS}ms")
+            }
+            
+            return@withContext isOldEnough
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Проверка возраста файла", e)
+            // В случае ошибки разрешаем обработку файла
+            return@withContext true
         }
     }
 

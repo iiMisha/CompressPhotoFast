@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -540,5 +541,165 @@ object NotificationUtil {
      */
     fun areNotificationsEnabled(context: Context): Boolean {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+    
+    /**
+     * Создает PendingIntent для открытия главного активити
+     */
+    fun createMainActivityPendingIntent(context: Context, requestCode: Int = 0): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java)
+        return PendingIntent.getActivity(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+    
+    /**
+     * Создает и показывает уведомление о прогрессе с возможностью отмены
+     * @param context Контекст приложения
+     * @param notificationId ID уведомления
+     * @param title Заголовок уведомления
+     * @param content Текст уведомления
+     * @param progress Прогресс выполнения (0-100)
+     * @param max Максимальное значение прогресса
+     * @param indeterminate Показывать ли неопределенный прогресс
+     * @param cancelAction Action для кнопки отмены (если null, кнопка не отображается)
+     */
+    fun showProgressNotification(
+        context: Context,
+        notificationId: Int,
+        title: String,
+        content: String,
+        progress: Int,
+        max: Int = 100,
+        indeterminate: Boolean = false,
+        cancelAction: String? = null
+    ) {
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val contentIntent = createMainActivityPendingIntent(context)
+        
+        // Создаем уведомление с прогрессом
+        val builder = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setProgress(max, progress, indeterminate)
+            .setContentIntent(contentIntent)
+        
+        // Добавляем кнопку отмены, если указан action
+        if (cancelAction != null) {
+            val cancelIntent = Intent(cancelAction)
+            val cancelPendingIntent = PendingIntent.getBroadcast(
+                context,
+                notificationId,
+                cancelIntent,
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            builder.addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                context.getString(R.string.notification_action_stop),
+                cancelPendingIntent
+            )
+        }
+        
+        // Показываем уведомление
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, builder.build())
+    }
+    
+    /**
+     * Обновляет уведомление о прогрессе
+     */
+    fun updateProgressNotification(
+        context: Context,
+        notificationId: Int,
+        title: String,
+        content: String,
+        progress: Int,
+        max: Int = 100,
+        indeterminate: Boolean = false
+    ) {
+        // Создаем Intent для открытия приложения при нажатии на уведомление
+        val contentIntent = createMainActivityPendingIntent(context)
+        
+        // Создаем уведомление с прогрессом
+        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setProgress(max, progress, indeterminate)
+            .setContentIntent(contentIntent)
+            .build()
+        
+        // Показываем уведомление
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, notification)
+    }
+    
+    /**
+     * Отменяет уведомление
+     */
+    fun cancelNotification(context: Context, notificationId: Int) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(notificationId)
+    }
+    
+    /**
+     * Отправляет Broadcast о результате сжатия
+     */
+    fun sendCompressionResultBroadcast(
+        context: Context,
+        uriString: String,
+        fileName: String,
+        originalSize: Long,
+        compressedSize: Long,
+        sizeReduction: Float,
+        skipped: Boolean
+    ) {
+        try {
+            // Определяем тип уведомления: о завершении или о пропуске
+            val action = if (skipped) 
+                Constants.ACTION_COMPRESSION_SKIPPED 
+            else 
+                Constants.ACTION_COMPRESSION_COMPLETED
+                
+            // Отправляем информацию через broadcast
+            val intent = Intent(action).apply {
+                putExtra(Constants.EXTRA_FILE_NAME, fileName)
+                putExtra(Constants.EXTRA_URI, uriString)
+                putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
+                putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
+                putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
+                flags = Intent.FLAG_RECEIVER_FOREGROUND
+            }
+            context.sendBroadcast(intent)
+            
+            // Показываем уведомление о результате сжатия с помощью централизованного метода
+            showCompressionResultNotification(
+                context = context,
+                fileName = fileName,
+                originalSize = originalSize,
+                compressedSize = compressedSize,
+                sizeReduction = sizeReduction,
+                skipped = skipped
+            )
+            
+            // Логируем информацию о результате
+            val message = if (skipped) {
+                "Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", sizeReduction)}%"
+            } else {
+                "Уведомление о завершении сжатия отправлено: Файл=$fileName"
+            }
+            LogUtil.processInfo(message)
+        } catch (e: Exception) {
+            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия", e)
+        }
     }
 } 

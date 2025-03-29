@@ -29,7 +29,6 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.NotificationUtil
-import com.compressphotofast.util.FileManager
 import com.compressphotofast.util.ImageCompressionUtil
 
 /**
@@ -205,7 +204,7 @@ class SequentialImageProcessor(private val context: Context) {
         
         // Удаляем уведомление о прогрессе
         if (_progress.value.total > 1) {
-            NotificationUtil.cancelBatchProcessingNotification(context)
+            NotificationUtil.cancelNotification(context, Constants.NOTIFICATION_ID_BATCH_PROCESSING)
         }
         
         // Показываем уведомление об остановке
@@ -297,17 +296,12 @@ class SequentialImageProcessor(private val context: Context) {
     }
     
     /**
-     * Проверяет, является ли URI действительным
+     * Сбрасывает флаг отмены обработки
      */
-    private fun isValidUri(uri: Uri): Boolean {
-        return try {
-            uri.scheme != null && (uri.scheme == "content" || uri.scheme == "file")
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Проверка URI", e)
-            false
-        }
+    fun resetCancellation() {
+        processingCancelled.set(false)
     }
-    
+
     /**
      * Отправляет broadcast о прогрессе обработки
      */
@@ -315,18 +309,24 @@ class SequentialImageProcessor(private val context: Context) {
         val progress = MultipleImagesProgress(total, current, 0, 0, 0)
         progressListener?.onProgress(progress)
         
+        // Обновляем уведомление о прогрессе, если обрабатываем несколько изображений
+        if (total > 1) {
+            NotificationUtil.updateProgressNotification(
+                context = context,
+                notificationId = Constants.NOTIFICATION_ID_BATCH_PROCESSING,
+                title = "Обработка изображений",
+                content = "Обработано $current из $total",
+                progress = current,
+                max = total
+            )
+        }
+        
+        // Отправляем информацию через broadcast для слушателей
         val intent = Intent(Constants.ACTION_COMPRESSION_PROGRESS)
         intent.putExtra(Constants.EXTRA_PROGRESS, current)
         intent.putExtra(Constants.EXTRA_TOTAL, total)
         intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
         context.sendBroadcast(intent)
-    }
-
-    /**
-     * Сбрасывает флаг отмены обработки
-     */
-    fun resetCancellation() {
-        processingCancelled.set(false)
     }
 
     /**
