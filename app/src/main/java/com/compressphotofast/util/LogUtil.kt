@@ -35,6 +35,14 @@ object LogUtil {
     }
 
     /**
+     * Логирование информации о файле (INFO)
+     */
+    fun fileInfo(uri: Uri, info: String) {
+        val fileId = getFileId(uri)
+        Timber.i("[$CATEGORY_FILE:$fileId] Инфо: $info")
+    }
+
+    /**
      * Логирование информации о сжатии (INFO)
      */
     fun compression(uri: Uri, originalSize: Long, compressedSize: Long, reductionPercent: Int) {
