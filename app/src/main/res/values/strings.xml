@@ -51,6 +51,11 @@
     <string name="notification_skipping_invalid_size">Размер файла невалидный, пропускаем</string>
     <string name="notification_skipping_inefficient">Сжатие неэффективно, пропускаем</string>
     <string name="notification_compression_completed">Сжатие завершено</string>
+    <string name="notification_compression_completed_title">Сжатие фото завершено</string>
+    <string name="notification_compression_completed_text">%1$s: %2$s → %3$s (-%4$s%%)</string>
+    <string name="notification_compression_skipped_title">Сжатие фото пропущено</string>
+    <string name="notification_compression_skipped_text">%1$s: экономия места незначительна (-%2$s%%)</string>
+    <string name="notification_compression_result">Результат сжатия</string>
     
     <!-- Сообщения -->
     <string name="compression_success">Обработка завершена</string>

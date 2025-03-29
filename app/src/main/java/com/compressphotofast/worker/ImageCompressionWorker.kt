@@ -456,21 +456,11 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Создает информацию для foreground сервиса
      */
     private fun createForegroundInfo(notificationTitle: String): ForegroundInfo {
-        // Создаем или обновляем канал уведомлений
-        NotificationUtil.createDefaultNotificationChannel(appContext)
-        
-        val notification = NotificationCompat.Builder(appContext, Constants.NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(notificationTitle)
-            .setContentText(appContext.getString(R.string.notification_processing))
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-        
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            ForegroundInfo(Constants.NOTIFICATION_ID_COMPRESSION, notification)
-        }
+        return NotificationUtil.createForegroundInfo(
+            context = appContext,
+            notificationTitle = notificationTitle,
+            notificationId = Constants.NOTIFICATION_ID_COMPRESSION
+        )
     }
 
     /**
@@ -502,6 +492,16 @@ class ImageCompressionWorker @AssistedInject constructor(
                     flags = Intent.FLAG_RECEIVER_FOREGROUND
                 }
                 appContext.sendBroadcast(intent)
+                
+                // Показываем уведомление о результате сжатия с помощью централизованного метода
+                NotificationUtil.showCompressionResultNotification(
+                    context = appContext,
+                    fileName = fileName,
+                    originalSize = originalSize,
+                    compressedSize = compressedSize,
+                    sizeReduction = sizeReduction,
+                    skipped = skipped
+                )
             }
             
             // Логируем информацию о результате

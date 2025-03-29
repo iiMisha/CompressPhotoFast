@@ -39,6 +39,7 @@ object Constants {
     const val NOTIFICATION_ID_COMPRESSION = 1
     const val NOTIFICATION_ID_BACKGROUND_SERVICE = 2
     const val NOTIFICATION_ID_BATCH_PROCESSING = 3
+    const val NOTIFICATION_ID_COMPRESSION_RESULT = 4
     
     // Директории
     const val APP_DIRECTORY = "CompressPhotoFast"

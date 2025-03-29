@@ -16,6 +16,9 @@ import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.service.BackgroundMonitoringService
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
+import android.content.pm.ServiceInfo
+import androidx.core.app.NotificationManagerCompat
+import androidx.work.ForegroundInfo
 
 /**
  * Утилитарный класс для работы с уведомлениями и Toast
@@ -35,6 +38,72 @@ object NotificationUtil {
     private var isToastShowing = false
     
     /**
+     * Общий метод для создания уведомления с различными настройками
+     * Централизованный метод для создания всех уведомлений в приложении
+     */
+    fun createNotification(
+        context: Context,
+        channelId: String,
+        title: String,
+        content: String,
+        smallIcon: Int = R.drawable.ic_launcher_foreground,
+        priority: Int = NotificationCompat.PRIORITY_DEFAULT,
+        ongoing: Boolean = false,
+        contentIntent: PendingIntent? = null,
+        autoCancel: Boolean = !ongoing,
+        actions: List<NotificationAction> = emptyList(),
+        progress: ProgressInfo? = null
+    ): Notification {
+        // Убеждаемся, что канал уведомлений создан
+        createDefaultNotificationChannel(context)
+        
+        val builder = NotificationCompat.Builder(context, channelId)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(smallIcon)
+            .setPriority(priority)
+            .setOngoing(ongoing)
+            .setAutoCancel(autoCancel)
+        
+        // Добавляем интент для открытия приложения при нажатии на уведомление
+        contentIntent?.let { builder.setContentIntent(it) }
+        
+        // Добавляем информацию о прогрессе, если она предоставлена
+        progress?.let { 
+            builder.setProgress(it.max, it.current, it.indeterminate)
+        }
+        
+        // Добавляем действия, если они предоставлены
+        actions.forEach { action ->
+            builder.addAction(
+                action.iconRes,
+                action.title,
+                action.pendingIntent
+            )
+        }
+        
+        return builder.build()
+    }
+    
+    /**
+     * Модель действия в уведомлении
+     */
+    data class NotificationAction(
+        val iconRes: Int,
+        val title: String,
+        val pendingIntent: PendingIntent
+    )
+    
+    /**
+     * Модель информации о прогрессе
+     */
+    data class ProgressInfo(
+        val max: Int,
+        val current: Int,
+        val indeterminate: Boolean = false
+    )
+    
+    /**
      * Создание уведомления для фонового сервиса
      */
     fun createForegroundNotification(
@@ -42,9 +111,6 @@ object NotificationUtil {
         title: String, 
         content: String
     ): Notification {
-        // Убеждаемся, что канал уведомлений создан
-        createDefaultNotificationChannel(context)
-
         // Создаем Intent для открытия приложения при нажатии на уведомление
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -66,15 +132,48 @@ object NotificationUtil {
         )
         
         // Создаем и возвращаем уведомление
-        return NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(title)
-            .setContentText(content)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .setContentIntent(pendingIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.notification_stop), stopPendingIntent)
-            .build()
+        return createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = title,
+            content = content,
+            priority = NotificationCompat.PRIORITY_LOW,
+            ongoing = true,
+            contentIntent = pendingIntent,
+            actions = listOf(
+                NotificationAction(
+                    iconRes = android.R.drawable.ic_menu_close_clear_cancel,
+                    title = context.getString(R.string.notification_stop),
+                    pendingIntent = stopPendingIntent
+                )
+            )
+        )
+    }
+    
+    /**
+     * Создание ForegroundInfo для WorkManager
+     */
+    fun createForegroundInfo(
+        context: Context, 
+        notificationTitle: String, 
+        notificationId: Int,
+        content: String = context.getString(R.string.notification_processing)
+    ): ForegroundInfo {
+        // Создаем уведомление
+        val notification = createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = notificationTitle,
+            content = content,
+            priority = NotificationCompat.PRIORITY_LOW,
+            ongoing = true
+        )
+        
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(notificationId, notification)
+        }
     }
     
     /**
@@ -243,8 +342,6 @@ object NotificationUtil {
         message: String,
         notificationId: Int
     ) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
         val intent = Intent(context, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -253,14 +350,16 @@ object NotificationUtil {
             PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(title)
-            .setContentText(message)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .build()
+        val notification = createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = title,
+            content = message,
+            autoCancel = true,
+            contentIntent = pendingIntent
+        )
         
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notificationId, notification)
     }
 
@@ -279,11 +378,6 @@ object NotificationUtil {
      * Показывает уведомление о начале обработки нескольких изображений
      */
     fun showBatchProcessingStartedNotification(context: Context, count: Int) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Убеждаемся что каналы уведомлений созданы
-        createDefaultNotificationChannel(context)
-        
         // Создаем Intent для открытия приложения при нажатии на уведомление
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -292,16 +386,17 @@ object NotificationUtil {
             PendingIntent.FLAG_IMMUTABLE
         )
         
-        // Создаем уведомление о начале обработки
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_title))
-            .setContentText(context.getString(R.string.notification_batch_processing_start, count))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)
-            .setContentIntent(pendingIntent)
-            .setProgress(count, 0, false)
-            .build()
+        val notification = createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = context.getString(R.string.notification_batch_processing_title),
+            content = context.getString(R.string.notification_batch_processing_start, count),
+            ongoing = true,
+            contentIntent = pendingIntent,
+            progress = ProgressInfo(count, 0, false)
+        )
         
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
     }
     
@@ -309,8 +404,6 @@ object NotificationUtil {
      * Обновляет уведомление о прогрессе обработки нескольких изображений
      */
     fun updateBatchProcessingNotification(context: Context, progress: com.compressphotofast.ui.MultipleImagesProgress) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
         // Создаем Intent для остановки обработки
         val stopIntent = Intent(context, MainActivity::class.java).apply {
             action = Constants.ACTION_STOP_SERVICE
@@ -322,24 +415,27 @@ object NotificationUtil {
             PendingIntent.FLAG_IMMUTABLE
         )
         
-        // Создаем уведомление о прогрессе обработки
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_title))
-            .setContentText(context.getString(
+        val notification = createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = context.getString(R.string.notification_batch_processing_title),
+            content = context.getString(
                 R.string.notification_batch_processing_progress,
                 progress.processed,
                 progress.total
-            ))
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setOngoing(true)
-            .addAction(
-                R.drawable.ic_launcher_foreground,
-                context.getString(R.string.notification_action_stop),
-                stopPendingIntent
-            )
-            .setProgress(progress.total, progress.processed, false)
-            .build()
+            ),
+            ongoing = true,
+            actions = listOf(
+                NotificationAction(
+                    iconRes = R.drawable.ic_launcher_foreground,
+                    title = context.getString(R.string.notification_action_stop),
+                    pendingIntent = stopPendingIntent
+                )
+            ),
+            progress = ProgressInfo(progress.total, progress.processed, false)
+        )
         
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
     }
     
@@ -347,8 +443,6 @@ object NotificationUtil {
      * Показывает уведомление о завершении обработки нескольких изображений
      */
     fun showBatchProcessingCompletedNotification(context: Context, progress: com.compressphotofast.ui.MultipleImagesProgress) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
         // Создаем Intent для открытия приложения
         val intent = Intent(context, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -376,15 +470,16 @@ object NotificationUtil {
             )
         }
         
-        // Создаем уведомление о завершении обработки
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(context.getString(R.string.notification_batch_processing_completed_title))
-            .setContentText(contentText)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .build()
+        val notification = createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = context.getString(R.string.notification_batch_processing_completed_title),
+            content = contentText,
+            contentIntent = pendingIntent,
+            autoCancel = true
+        )
         
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(Constants.NOTIFICATION_ID_BATCH_PROCESSING, notification)
     }
     
@@ -394,5 +489,56 @@ object NotificationUtil {
     fun cancelBatchProcessingNotification(context: Context) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(Constants.NOTIFICATION_ID_BATCH_PROCESSING)
+    }
+    
+    /**
+     * Показывает уведомление о результате сжатия изображения (успешное или пропущенное)
+     */
+    fun showCompressionResultNotification(
+        context: Context,
+        fileName: String,
+        originalSize: Long,
+        compressedSize: Long,
+        sizeReduction: Float,
+        skipped: Boolean,
+        notificationId: Int = Constants.NOTIFICATION_ID_COMPRESSION_RESULT
+    ) {
+        // Форматируем информацию о размерах файла
+        val originalSizeStr = FileUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+        val reductionStr = String.format("%.1f", sizeReduction)
+        
+        // Определяем заголовок и текст уведомления
+        val title = if (skipped) {
+            context.getString(R.string.notification_compression_skipped_title)
+        } else {
+            context.getString(R.string.notification_compression_completed_title)
+        }
+        
+        val message = if (skipped) {
+            context.getString(
+                R.string.notification_compression_skipped_text,
+                fileName,
+                reductionStr
+            )
+        } else {
+            context.getString(
+                R.string.notification_compression_completed_text,
+                fileName,
+                originalSizeStr,
+                compressedSizeStr,
+                reductionStr
+            )
+        }
+        
+        // Показываем уведомление
+        showCompletionNotification(context, title, message, notificationId)
+    }
+    
+    /**
+     * Проверяет, разрешены ли уведомления
+     */
+    fun areNotificationsEnabled(context: Context): Boolean {
+        return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 } 
