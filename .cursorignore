@@ -1,0 +1,52 @@
+# Сборочные директории
+.gradle
+build/
+app/build/
+buildSrc/build/
+
+# Сгенерированный код
+app/src/main/java/com/compressphotofast/databinding/
+app/src/main/java/com/compressphotofast/di/Hilt*
+app/src/main/java/com/compressphotofast/BR.java
+
+# Временные файлы
+*.log
+.DS_Store
+local.properties
+captures/
+.externalNativeBuild/
+
+# Android Studio 
+.idea/
+*.iml
+
+# Файлы настроек Gradle
+gradle/wrapper/
+gradlew
+gradlew.bat
+
+# Большие ресурсные файлы (исключаем большие изображения, если есть)
+app/src/main/res/drawable*/*.webp
+app/src/main/res/drawable*/*.png
+app/src/main/res/drawable*/*.jpg
+# Но включаем векторную графику, которую мы можем редактировать
+!app/src/main/res/drawable*/*.xml
+
+# Сырые ресурсы
+app/src/main/res/raw/*.mp3
+app/src/main/res/raw/*.mp4
+
+# Специфичные для проекта сжатия изображений
+app/release/
+app/debug/
+
+# Документация
+docs/
+
+# Файл конфигурации CI/CD (если есть)
+.github/workflows/
+.gitlab-ci.yml
+
+# Tests
+app/src/androidTest/
+app/src/test/ 
