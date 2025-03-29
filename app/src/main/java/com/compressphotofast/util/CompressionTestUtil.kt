@@ -1,14 +1,10 @@
 package com.compressphotofast.util
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.compressphotofast.util.LogUtil
 import java.io.ByteArrayOutputStream
-import java.io.IOException
 
 /**
  * Утилитарный класс для тестирования эффективности сжатия изображений
@@ -28,18 +24,19 @@ object CompressionTestUtil {
         uri: Uri, 
         originalSize: Long, 
         quality: Int
-    ): CompressionStats? = withContext(Dispatchers.IO) {
+    ): ImageCompressionUtil.CompressionStats? = withContext(Dispatchers.IO) {
         try {
             LogUtil.uriInfo(uri, "Начало тестового сжатия в RAM")
             
-            val result = compressImageInternal(context, uri, originalSize, quality)
+            // Используем централизованный метод из ImageCompressionUtil
+            val result = ImageCompressionUtil.testCompression(context, uri, originalSize, quality)
             
             if (result != null) {
                 // Логируем результат
-                if (result.reductionPercent > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
-                    LogUtil.processInfo("Тестовое сжатие для ${getFileId(uri)} эффективно (экономия ${result.reductionPercent.toInt()}% > ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), выполняем полное сжатие")
+                if (result.sizeReduction > Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD) {
+                    LogUtil.processInfo("Тестовое сжатие для ${getFileId(uri)} эффективно (экономия ${result.sizeReduction.toInt()}% > ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%), выполняем полное сжатие")
                 } else {
-                    LogUtil.skipImage(uri, "Тестовое сжатие неэффективно (экономия ${result.reductionPercent.toInt()}% < ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%)")
+                    LogUtil.skipImage(uri, "Тестовое сжатие неэффективно (экономия ${result.sizeReduction.toInt()}% < ${Constants.TEST_COMPRESSION_EFFICIENCY_THRESHOLD}%)")
                 }
             }
             
@@ -63,61 +60,12 @@ object CompressionTestUtil {
         uri: Uri,
         originalSize: Long,
         quality: Int
-    ): CompressionStats? = withContext(Dispatchers.IO) {
+    ): ImageCompressionUtil.CompressionStats? = withContext(Dispatchers.IO) {
         try {
             LogUtil.uriInfo(uri, "Получение статистики тестового сжатия")
-            return@withContext compressImageInternal(context, uri, originalSize, quality)
+            return@withContext ImageCompressionUtil.testCompression(context, uri, originalSize, quality)
         } catch (e: Exception) {
             LogUtil.error(uri, "Статистика сжатия", e)
-            return@withContext null
-        }
-    }
-    
-    /**
-     * Внутренний метод, который выполняет сжатие изображения и возвращает статистику
-     * Устраняет дублирование кода между методами testCompression и getTestCompressionStats
-     */
-    private suspend fun compressImageInternal(
-        context: Context,
-        uri: Uri,
-        originalSize: Long,
-        quality: Int
-    ): CompressionStats? = withContext(Dispatchers.IO) {
-        try {
-            // Загружаем изображение в Bitmap
-            val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input)
-            } ?: throw IOException("Не удалось открыть изображение")
-            
-            // Создаем ByteArrayOutputStream для сжатия в память
-            val outputStream = ByteArrayOutputStream()
-            
-            // Сжимаем Bitmap в ByteArrayOutputStream
-            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            
-            if (!success) {
-                LogUtil.error(uri, "Сжатие Bitmap", "Ошибка при сжатии")
-                inputBitmap.recycle() // Освобождаем ресурсы Bitmap
-                return@withContext null
-            }
-            
-            // Получаем размер сжатого изображения в байтах
-            val compressedSize = outputStream.size().toLong()
-            
-            // Вычисляем процент сокращения размера
-            val sizeReduction = if (originalSize > 0) {
-                ((originalSize - compressedSize).toFloat() / originalSize) * 100
-            } else 0f
-            
-            LogUtil.compression(uri, originalSize, compressedSize, sizeReduction.toInt())
-            
-            // Освобождаем ресурсы
-            inputBitmap.recycle()
-            outputStream.close()
-            
-            return@withContext CompressionStats(originalSize, compressedSize, sizeReduction)
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Внутреннее сжатие", e)
             return@withContext null
         }
     }
@@ -138,42 +86,13 @@ object CompressionTestUtil {
     ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
         try {
             LogUtil.uriInfo(uri, "Получение сжатого изображения")
-            
-            // Загружаем изображение в Bitmap
-            val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input)
-            } ?: throw IOException("Не удалось открыть изображение")
-            
-            // Создаем ByteArrayOutputStream для сжатия в память
-            val outputStream = ByteArrayOutputStream()
-            
-            // Сжимаем Bitmap в ByteArrayOutputStream
-            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            
-            if (!success) {
-                LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в потоке")
-                inputBitmap.recycle() // Освобождаем ресурсы Bitmap
-                return@withContext null
-            }
-            
-            // Освобождаем ресурсы Bitmap, но сохраняем поток
-            inputBitmap.recycle()
-            
-            return@withContext outputStream
+            // Используем централизованный метод из ImageCompressionUtil
+            return@withContext ImageCompressionUtil.compressImageToStream(context, uri, quality)
         } catch (e: Exception) {
             LogUtil.error(uri, "Получение сжатого потока", e)
             return@withContext null
         }
     }
-    
-    /**
-     * Класс для хранения статистики сжатия
-     */
-    data class CompressionStats(
-        val originalSize: Long,
-        val compressedSize: Long,
-        val reductionPercent: Float
-    )
 
     /**
      * Получает короткий идентификатор для URI, используемый в логах

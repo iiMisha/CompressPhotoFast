@@ -29,6 +29,8 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.FileManager
+import com.compressphotofast.util.ImageCompressionUtil
 
 /**
  * Интерфейс для отслеживания прогресса сжатия
@@ -269,7 +271,7 @@ class SequentialImageProcessor(private val context: Context) {
             }
 
             // Проверяем тип файла
-            if (!isImageFile(uri)) {
+            if (!FileManager.isImageFile(context, uri)) {
                 LogUtil.skipImage(uri, "Файл не является изображением")
                 listener?.onCompressionSkipped(uri, "Файл не является изображением")
                 return@withContext null
@@ -292,7 +294,7 @@ class SequentialImageProcessor(private val context: Context) {
 
             // Сжимаем изображение
             val outputStream = ByteArrayOutputStream()
-            val compressResult = compressImage(inputStream, outputStream, compressionQuality)
+            val compressResult = ImageCompressionUtil.compressStream(context, inputStream, outputStream, compressionQuality)
             
             // Закрываем входной поток
             inputStream.close()
@@ -352,38 +354,6 @@ class SequentialImageProcessor(private val context: Context) {
         }
     }
     
-    /**
-     * Проверяет, является ли файл изображением
-     */
-    private fun isImageFile(uri: Uri): Boolean {
-        return try {
-            val mimeType = context.contentResolver.getType(uri)
-            mimeType?.startsWith("image/") == true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Проверка типа файла", e)
-            false
-        }
-    }
-    
-    /**
-     * Сжимает изображение
-     */
-    private suspend fun compressImage(
-        inputStream: InputStream,
-        outputStream: ByteArrayOutputStream,
-        quality: Int
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Здесь должен быть код для сжатия изображения
-            // Для простоты просто копируем входной поток в выходной
-            inputStream.copyTo(outputStream)
-            return@withContext true
-        } catch (e: Exception) {
-            LogUtil.error(null, "Сжатие", e)
-            return@withContext false
-        }
-    }
-
     /**
      * Отправляет broadcast о прогрессе обработки
      */

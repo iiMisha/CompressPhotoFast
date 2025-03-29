@@ -158,7 +158,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             val sourceSizeKB = testCompressionResult.originalSize / 1024
             val compressedSizeKB = testCompressionResult.compressedSize / 1024
-            val compressionSavingPercent = testCompressionResult.reductionPercent
+            val compressionSavingPercent = testCompressionResult.sizeReduction
             
             LogUtil.imageCompression(imageUri, "${sourceSizeKB}KB → ${compressedSizeKB}KB (-${compressionSavingPercent}%)")
             
@@ -318,7 +318,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Определяем размер сжатого файла и процент сокращения
                 val estimatedCompressedSize = stats?.compressedSize ?: (sourceSize - (sourceSize * 0.08f).toLong())
-                val estimatedSizeReduction = stats?.reductionPercent ?: 8.0f
+                val estimatedSizeReduction = stats?.sizeReduction ?: 8.0f
                 
                 // Проверяем использование памяти и форсируем GC при необходимости
                 val usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()

@@ -29,33 +29,15 @@ object ImageProcessingTracker {
     /**
      * Проверяет, обработано ли изображение по EXIF метаданным
      */
-    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Используем ExifUtil вместо FileUtil
-            val isCompressed = ExifUtil.isImageCompressed(context, uri)
-            if (isCompressed) {
-                Timber.d("Изображение уже обработано (найден EXIF маркер): $uri")
-                return@withContext true
-            }
-            
-            return@withContext false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса обработки: ${e.message}")
-            return@withContext false
-        }
+    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean {
+        return ImageProcessingChecker.isAlreadyProcessed(context, uri)
     }
     
     /**
      * Маркирует изображение как обработанное
      */
-    suspend fun markAsProcessed(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Используем ExifUtil вместо FileUtil
-            return@withContext ExifUtil.markCompressedImage(context, uri, quality)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при маркировке изображения: ${e.message}")
-            return@withContext false
-        }
+    suspend fun markAsProcessed(context: Context, uri: Uri, quality: Int): Boolean {
+        return ExifUtil.markCompressedImage(context, uri, quality)
     }
 
     /**

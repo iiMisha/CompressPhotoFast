@@ -58,23 +58,8 @@ object StatsTracker {
      * @param uri URI изображения
      * @return true если изображение уже обработано, false в противном случае
      */
-    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Используем централизованную логику из ImageProcessingChecker
-            val result = ImageProcessingChecker.isProcessingRequired(context, uri, false)
-            val isProcessed = !result.processingRequired
-            
-            if (isProcessed) {
-                Timber.d("Изображение уже обработано (причина: ${result.reason}): $uri")
-            } else {
-                Timber.d("Изображение требует обработки: $uri")
-            }
-            
-            return@withContext isProcessed
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса обработки файла: ${e.message}")
-            return@withContext false
-        }
+    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean {
+        return ImageProcessingChecker.isAlreadyProcessed(context, uri)
     }
     
     /**
