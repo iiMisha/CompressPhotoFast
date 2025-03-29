@@ -303,7 +303,7 @@ object FileUtil {
             try {
                 // Записываем сжатое изображение
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    inputStream.copyTo(outputStream)
+                        inputStream.copyTo(outputStream)
                     outputStream.flush()
                 } ?: throw IOException("Не удалось открыть OutputStream")
                 
@@ -640,7 +640,7 @@ object FileUtil {
     fun isSaveModeReplace(context: Context): Boolean {
         try {
             // Открываем настройки
-            return SettingsManager.getInstance(context).isSaveModeReplace()
+        return SettingsManager.getInstance(context).isSaveModeReplace()
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении режима сохранения")
             return false // Значение по умолчанию
@@ -1059,7 +1059,7 @@ object FileUtil {
             return@withContext null
         }
     }
-    
+
     /**
      * Проверяет, существует ли URI в системе
      * @param context контекст
@@ -1082,7 +1082,7 @@ object FileUtil {
             return false
         }
     }
-    
+
     /**
      * Находит сжатую версию файла в директории приложения по имени оригинального файла
      * @param context контекст приложения
