@@ -30,7 +30,7 @@ import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.TempFilesCleaner
-import com.compressphotofast.util.CompressionTestUtil
+import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.ImageProcessingChecker
@@ -142,9 +142,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.uriInfo(imageUri, "Изображение требует обработки")
             LogUtil.uriInfo(imageUri, "Начало тестового сжатия в RAM")
             
-            val testCompressionResult = CompressionTestUtil.testCompression(
+            val testCompressionResult = ImageCompressionUtil.testCompression(
                 appContext,
-                    imageUri, 
+                imageUri, 
                 sourceSize,
                 compressionQuality
             )
@@ -207,11 +207,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 }
                 
                 // Сжимаем изображение
-                val compressedImageStream = CompressionTestUtil.getCompressedImageStream(
+                val compressedImageStream = ImageCompressionUtil.compressImageToStream(
                     appContext,
-                        imageUri,
-                        compressionQuality
-                    )
+                    imageUri,
+                    compressionQuality
+                )
                     
                 // Закрываем исходный поток
                 imageStream.close()
@@ -309,7 +309,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val fileName = getFileNameSafely(imageUri)
                 
                 // Получаем более точную статистику о результатах тестового сжатия
-                val stats = CompressionTestUtil.getTestCompressionStats(
+                val stats = ImageCompressionUtil.testCompression(
                     appContext,
                     imageUri,
                     sourceSize,
