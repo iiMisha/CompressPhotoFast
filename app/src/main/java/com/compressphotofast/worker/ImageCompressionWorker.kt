@@ -721,7 +721,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Проверка на наличие файла
+     * Проверяет, существует ли URI
      */
     private suspend fun isUriExists(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         return@withContext FileUtil.isUriExistsSuspend(appContext, uri)

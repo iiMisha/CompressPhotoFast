@@ -56,35 +56,7 @@ object FileManager {
      * @return Имя файла или null, если не удалось определить
      */
     fun getFileNameFromUri(context: Context, uri: Uri): String? {
-        return try {
-            when (uri.scheme) {
-                CONTENT_SCHEME -> {
-                    // Пробуем получить имя через OpenableColumns
-                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                            if (nameIndex != -1) {
-                                return cursor.getString(nameIndex)
-                            }
-                        }
-                    }
-                    
-                    // Если не удалось через OpenableColumns, пробуем из последнего сегмента URI
-                    uri.lastPathSegment
-                }
-                FILE_SCHEME -> {
-                    // Если схема file, используем File для получения имени
-                    val path = uri.path
-                    if (path != null) {
-                        File(path).name
-                    } else null
-                }
-                else -> null
-            }
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Получение имени файла", e)
-            null
-        }
+        return FileUtil.getFileNameFromUri(context, uri)
     }
     
     /**
@@ -367,30 +339,7 @@ object FileManager {
      * @return Абсолютный путь к файлу или null, если не удалось определить
      */
     fun getFilePathFromUri(context: Context, uri: Uri): String? {
-        try {
-            when (uri.scheme) {
-                FILE_SCHEME -> {
-                    return uri.path
-                }
-                CONTENT_SCHEME -> {
-                    // Для Android 11+ мы не можем получить реальный путь к файлу, но можем попробовать
-                    // Получаем через MediaStore
-                    val projection = arrayOf(MediaStore.Images.Media.DATA)
-                    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-                            if (columnIndex != -1) {
-                                return cursor.getString(columnIndex)
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Получение пути к файлу", e)
-        }
-        
-        return null
+        return FileUtil.getFilePathFromUri(context, uri)
     }
     
     /**
@@ -412,12 +361,7 @@ object FileManager {
      * @return Отформатированная строка с размером файла
      */
     fun formatFileSize(size: Long): String {
-        if (size <= 0) return "0 B"
-        
-        val units = arrayOf("B", "KB", "MB", "GB", "TB")
-        val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
-        
-        return DecimalFormat("#,##0.#").format(size / 1024.0.pow(digitGroups.toDouble())) + " " + units[digitGroups]
+        return FileUtil.formatFileSize(size)
     }
     
     /**
