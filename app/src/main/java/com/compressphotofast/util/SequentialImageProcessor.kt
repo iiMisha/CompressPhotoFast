@@ -81,11 +81,6 @@ class SequentialImageProcessor(private val context: Context) {
     // Слушатель прогресса
     private var progressListener: ProgressListener? = null
     
-    // Максимальные размеры изображения
-    private val maxWidth = 4096
-    private val maxHeight = 4096
-    private val keepExif = true
-    
     /**
      * Обрабатывает список изображений последовательно
      * 
@@ -265,13 +260,6 @@ class SequentialImageProcessor(private val context: Context) {
     }
     
     /**
-     * Сбрасывает флаг отмены обработки
-     */
-    fun resetCancellation() {
-        processingCancelled.set(false)
-    }
-
-    /**
      * Отправляет broadcast о прогрессе обработки
      */
     private fun updateProgress(current: Int, total: Int, fileName: String) {
@@ -295,16 +283,6 @@ class SequentialImageProcessor(private val context: Context) {
         intent.putExtra(Constants.EXTRA_PROGRESS, current)
         intent.putExtra(Constants.EXTRA_TOTAL, total)
         intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
-        context.sendBroadcast(intent)
-    }
-
-    /**
-     * Отправляет broadcast о пропуске изображения
-     */
-    private fun broadcastSkipped(fileName: String, reason: String) {
-        val intent = Intent(Constants.ACTION_COMPRESSION_SKIPPED)
-        intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
-        intent.putExtra(Constants.EXTRA_SKIP_REASON, reason)
         context.sendBroadcast(intent)
     }
 } 
