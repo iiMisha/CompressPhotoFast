@@ -166,37 +166,6 @@ class SequentialImageProcessor(private val context: Context) {
     }
     
     /**
-     * Сжимает изображение и возвращает поток с данными
-     */
-    private suspend fun compressImage(uri: Uri, quality: Int): InputStream? = withContext(Dispatchers.IO) {
-        try {
-            // Используем централизованный метод из ImageCompressionUtil
-            val outputStream = ImageCompressionUtil.compressImageToStream(
-                context,
-                uri,
-                quality
-            )
-
-            // Преобразуем ByteArrayOutputStream в InputStream если сжатие успешно
-            return@withContext outputStream?.let { ByteArrayInputStream(it.toByteArray()) }
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Сжатие", e)
-            return@withContext null
-        }
-    }
-    
-    /**
-     * Вспомогательный метод для добавления задержки между операциями
-     */
-    private suspend fun delay(millis: Long) = withContext(Dispatchers.IO) {
-        try {
-            kotlinx.coroutines.delay(millis)
-        } catch (e: Exception) {
-            // Игнорируем ошибки
-        }
-    }
-    
-    /**
      * Отменяет текущую обработку изображений
      */
     fun cancelProcessing() {

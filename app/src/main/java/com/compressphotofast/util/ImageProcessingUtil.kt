@@ -121,11 +121,4 @@ object ImageProcessingUtil {
         // Делегируем проверку классу ImageProcessingChecker
         return@withContext ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
     }
-
-    /**
-     * Проверяет, содержатся ли в изображении EXIF-метаданные
-     */
-    suspend fun hasExifMetadata(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext ExifUtil.hasBasicExifTags(context, uri)
-    }
 } 

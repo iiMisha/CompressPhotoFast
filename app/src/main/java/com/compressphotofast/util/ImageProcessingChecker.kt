@@ -25,9 +25,6 @@ object ImageProcessingChecker {
 
     private val TAG = "ImageProcessingChecker"
     
-    // Минимальный возраст файла для обработки (10 секунд)
-    private const val MIN_FILE_AGE_MS = 10 * 1000L
-
     /**
      * ОСНОВНОЙ ПУБЛИЧНЫЙ МЕТОД
      * Проверяет, нужно ли обрабатывать изображение
@@ -239,16 +236,6 @@ object ImageProcessingChecker {
     }
     
     /**
-     * Проверка, является ли файл временным или в процессе записи
-     * @param context контекст
-     * @param uri URI изображения
-     * @return true если файл временный, false в противном случае
-     */
-    private suspend fun isFilePending(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext FileUtil.isFilePendingSuspend(context, uri)
-    }
-    
-    /**
      * Проверка MIME типа на поддержку
      * @param mimeType MIME тип файла
      * @return true если MIME тип поддерживается, false в противном случае
@@ -262,65 +249,10 @@ object ImageProcessingChecker {
                 mimeType.contains("png"))
     }
 
-    private suspend fun isUriExists(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext FileUtil.isUriExistsSuspend(context, uri)
-    }
-
     private fun isInAppDirectory(path: String): Boolean {
         return path.contains("/${Constants.APP_DIRECTORY}/") || 
                (path.contains("content://media/external/images/media") && 
                 path.contains(Constants.APP_DIRECTORY))
-    }
-
-    /**
-     * Проверяет наличие EXIF-маркера сжатия и было ли изображение модифицировано после сжатия
-     * @return true если изображение сжато и не модифицировано после сжатия, false в противном случае
-     */
-    private suspend fun isImageCompressedAndNotModified(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val result = isProcessingRequired(context, uri, false)
-            return@withContext !result.processingRequired && 
-                   (result.reason == ProcessingSkipReason.ALREADY_COMPRESSED || 
-                    result.reason == ProcessingSkipReason.IN_APP_DIRECTORY)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке EXIF-маркера сжатия: ${e.message}")
-            return@withContext false
-        }
-    }
-
-    /**
-     * Проверяет дату модификации файла
-     * Файлы моложе MIN_FILE_AGE_MS не обрабатываем
-     * @return true если файл достаточно старый для обработки
-     */
-    private suspend fun isFileOldEnough(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Получаем дату модификации файла
-            val modificationTimestamp = FileUtil.getFileLastModified(context, uri)
-            
-            // Если не удалось получить дату, пропускаем проверку
-            if (modificationTimestamp <= 0) {
-                LogUtil.processDebug("Не удалось получить дату модификации файла, пропускаем проверку: $uri")
-                return@withContext true
-            }
-            
-            // Вычисляем возраст файла
-            val now = System.currentTimeMillis()
-            val fileAge = now - modificationTimestamp
-            
-            // Проверяем, достаточно ли старый файл
-            val isOldEnough = fileAge >= MIN_FILE_AGE_MS
-            
-            if (!isOldEnough) {
-                LogUtil.processInfo("Файл слишком новый для обработки: возраст=${fileAge}ms, минимальный возраст=${MIN_FILE_AGE_MS}ms")
-            }
-            
-            return@withContext isOldEnough
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Проверка возраста файла", e)
-            // В случае ошибки разрешаем обработку файла
-            return@withContext true
-        }
     }
 
     /**
