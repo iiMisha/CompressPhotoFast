@@ -40,14 +40,6 @@ object ToastManager {
     }
 
     /**
-     * Очищает историю показанных сообщений
-     */
-    fun clearHistory() {
-        lastMessages.clear()
-        Log.d(TAG, "Toast message history cleared")
-    }
-    
-    /**
      * Показывает Toast с результатами сжатия изображения
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, duration: Int = Toast.LENGTH_LONG) {

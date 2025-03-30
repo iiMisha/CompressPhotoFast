@@ -99,13 +99,6 @@ object GalleryScanUtil {
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
                     )
                     
-                    // Проверяем, не обрабатывается ли URI уже через MainActivity
-                    if (checkProcessable && StatsTracker.isUriBeingProcessedByMainActivity(contentUri)) {
-                        Timber.d("GalleryScanUtil: URI $contentUri уже обрабатывается через MainActivity, пропускаем")
-                        skippedCount++
-                        continue
-                    }
-                    
                     // Проверяем, не находится ли URI уже в процессе обработки
                     if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri.toString())) {
                         Timber.d("GalleryScanUtil: URI $contentUri уже в процессе обработки, пропускаем")

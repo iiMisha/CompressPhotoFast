@@ -540,55 +540,6 @@ object ExifUtil {
     }
     
     /**
-     * Проверяет наличие базовых EXIF тегов в изображении по URI
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @return true если найдены базовые EXIF теги, false в противном случае
-     */
-    suspend fun hasBasicExifTags(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val exif = ExifInterface(inputStream)
-                // Проверяем наличие основных тегов
-                val hasBasicTags = exif.getAttribute(ExifInterface.TAG_DATETIME) != null ||
-                                 exif.getAttribute(ExifInterface.TAG_MAKE) != null ||
-                                 exif.getAttribute(ExifInterface.TAG_MODEL) != null
-                
-                // Проверяем наличие GPS тегов более комплексно
-                val gpsLatitude = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE)
-                val gpsLatitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF)
-                val gpsLongitude = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE)
-                val gpsLongitudeRef = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF)
-                
-                val hasGpsTags = gpsLatitude != null || gpsLatitudeRef != null || 
-                               gpsLongitude != null || gpsLongitudeRef != null || 
-                               exif.latLong != null
-                
-                if (hasGpsTags) {
-                    Timber.d("URI $uri содержит GPS теги:")
-                    if (gpsLatitude != null) Timber.d("TAG_GPS_LATITUDE: $gpsLatitude")
-                    if (gpsLatitudeRef != null) Timber.d("TAG_GPS_LATITUDE_REF: $gpsLatitudeRef")
-                    if (gpsLongitude != null) Timber.d("TAG_GPS_LONGITUDE: $gpsLongitude")
-                    if (gpsLongitudeRef != null) Timber.d("TAG_GPS_LONGITUDE_REF: $gpsLongitudeRef")
-                    
-                    val latLong = exif.latLong
-                    if (latLong != null) {
-                        Timber.d("Координаты через latLong: широта=${latLong[0]}, долгота=${latLong[1]}")
-                    } else {
-                        Timber.d("GPS теги присутствуют, но координаты не читаются через latLong")
-                    }
-                }
-                
-                return@withContext hasBasicTags
-            }
-            return@withContext false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке EXIF тегов: ${e.message}")
-            return@withContext false
-        }
-    }
-    
-    /**
      * Централизованный метод для обработки EXIF данных при сохранении сжатого изображения
      * 
      * @param context Контекст приложения

@@ -234,7 +234,6 @@ object FileUtil {
         Timber.d("saveCompressedImageToGallery: начало сохранения файла: $fileName")
         Timber.d("saveCompressedImageToGallery: размер сжатого файла: ${compressedFile.length()} байт")
         Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${isSaveModeReplace(context)}")
-        Timber.d("saveCompressedImageToGallery: ручное сжатие: ${isManualCompression(context)}")
         
         try {
             // Получаем путь к директории для сохранения
@@ -626,47 +625,6 @@ object FileUtil {
     }
 
     /**
-     * Проверяет, включен ли режим замены файлов
-     */
-    fun isSaveModeReplace(context: Context): Boolean {
-        try {
-            // Открываем настройки
-            return SettingsManager.getInstance(context).isSaveModeReplace()
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении режима сохранения")
-            return false // Значение по умолчанию
-        }
-    }
-
-    /**
-     * Проверяет, запущено ли сжатие вручную
-     */
-    fun isManualCompression(context: Context): Boolean {
-        return !SettingsManager.getInstance(context).isAutoCompressionEnabled()
-    }
-
-    /**
-     * Получает текущий режим сохранения из настроек
-     */
-    fun getSaveMode(context: Context): Int {
-        return SettingsManager.getInstance(context).getSaveMode()
-    }
-
-    /**
-     * Получает уровень качества сжатия из настроек
-     */
-    fun getCompressionQuality(context: Context): Int {
-        return SettingsManager.getInstance(context).getCompressionQuality()
-    }
-
-    /**
-     * Проверяет, можно ли удалить файл без запроса разрешения
-     */
-    fun canDeleteWithoutPermission(context: Context): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-    }
-
-    /**
      * Получает путь директории из URI изображения
      */
     fun getDirectoryFromUri(context: Context, uri: Uri): String {
@@ -1052,29 +1010,6 @@ object FileUtil {
     }
 
     /**
-     * Проверяет, существует ли URI в системе
-     * @param context контекст
-     * @param uri URI для проверки
-     * @return true если URI существует, false в противном случае
-     */
-    fun isUriExists(context: Context, uri: Uri): Boolean {
-        try {
-            val exists = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                cursor.count > 0
-            } ?: false
-            
-            if (!exists) {
-                Timber.d("URI не существует: $uri")
-            }
-            
-            return exists
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке существования URI: $uri")
-            return false
-        }
-    }
-
-    /**
      * Находит сжатую версию файла в директории приложения по имени оригинального файла
      * @param context контекст приложения
      * @param originalUri URI оригинального файла
@@ -1364,23 +1299,14 @@ object FileUtil {
     }
 
     /**
-     * Возвращает ByteArray из входного потока
+     * Проверяет, включен ли режим замены файлов в настройках
      */
-    fun streamToByteArray(inputStream: InputStream): ByteArray {
-        val byteArrayOutputStream = ByteArrayOutputStream()
+    fun isSaveModeReplace(context: Context): Boolean {
         try {
-            val buffer = ByteArray(1024)
-            var length: Int
-            while (inputStream.read(buffer).also { length = it } != -1) {
-                byteArrayOutputStream.write(buffer, 0, length)
-            }
-            return byteArrayOutputStream.toByteArray()
-        } finally {
-            try {
-                byteArrayOutputStream.close()
-            } catch (_: Exception) {
-                // Игнорируем ошибку закрытия
-            }
+            return SettingsManager.getInstance(context).isSaveModeReplace()
+        } catch (e: Exception) {
+            Timber.e(e, "Ошибка при проверке режима замены")
+            return false
         }
     }
 } 

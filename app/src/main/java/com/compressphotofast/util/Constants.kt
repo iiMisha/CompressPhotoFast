@@ -25,13 +25,10 @@ object Constants {
     // Ограничения размера файлов
     const val MIN_FILE_SIZE = 50 * 1024L // 50 KB
     const val MAX_FILE_SIZE = 100 * 1024 * 1024L // 100 MB
-    const val TEST_COMPRESSION_EFFICIENCY_THRESHOLD = 10f // 10% минимальная экономия для применения сжатия
     const val OPTIMUM_FILE_SIZE = 0.1 * 1024 * 1024L // 0.1 MB - файлы меньше этого размера считаются уже оптимизированными
     
     // Теги для WorkManager
-    const val WORK_TAG_COMPRESSION = "compression_work"
     const val WORK_INPUT_IMAGE_URI = "image_uri"
-    const val WORK_ERROR_MSG = "error_message"
     const val WORK_COMPRESSION_QUALITY = "compression_quality"
     
     // Уведомления
@@ -57,11 +54,6 @@ object Constants {
     const val BACKGROUND_SCAN_INTERVAL_MINUTES = 30L
     const val RECENT_SCAN_WINDOW_SECONDS = 5 * 60L // 5 минут в секундах
     const val CONTENT_OBSERVER_DELAY_SECONDS = 5L // 5 секунд задержки при обнаружении файла
-    
-    // Настройки отслеживания файлов
-    const val MAX_TRACKED_FILES = 1000
-    const val PROCESSING_TIMEOUT_MS = 5 * 60 * 1000L // 5 минут
-    const val PROCESSED_FILES_CLEANUP_INTERVAL = 24 * 60 * 60 * 1000L // 24 часа
     
     // Коды запросов
     const val REQUEST_CODE_DELETE_FILE = 12345
@@ -92,10 +84,6 @@ object Constants {
     
     /** Минимальный размер файла для обработки (100 КБ) */
     const val MIN_PROCESSABLE_FILE_SIZE = 100 * 1024L
-    
-    // Другие константы
-    const val MAX_URI_AGE_DAYS = 7
-    const val URI_CHUNK_SIZE = 20
     
     // Параметры для сжатия
     const val DEFAULT_COMPRESSION_QUALITY = 85

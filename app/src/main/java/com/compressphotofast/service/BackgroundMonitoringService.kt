@@ -60,24 +60,6 @@ class BackgroundMonitoringService : Service() {
     // MediaStoreObserver для централизованной работы с ContentObserver
     private lateinit var mediaStoreObserver: MediaStoreObserver
     
-    // Система для предотвращения дублирования событий от ContentObserver
-    private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
-    private val contentObserverDebounceTime = 2000L // 2000мс (2 секунды) для дедупликации событий
-    
-    // Очередь отложенных задач для ContentObserver
-    private val pendingTasks = ConcurrentHashMap<String, Runnable>()
-    
-    companion object {
-        // Пустой companion object, функциональность перенесена в UriProcessingTracker
-    }
-    
-    // Таймаут для обработки изображения (мс)
-    private val processingTimeout = 30000L // 30 секунд
-    
-    // Игнорировать изменения в MediaStore на указанное время после удачного сжатия (мс)
-    private val ignoreMediaStoreChangesAfterCompression = 5000L // 5 секунд
-    private val ignoreChangesUntil = ConcurrentHashMap<String, Long>()
-
     // Handler для периодического сканирования
     private val handler = Handler(Looper.getMainLooper())
     private val scanRunnable = object : Runnable {
@@ -113,12 +95,6 @@ class BackgroundMonitoringService : Service() {
                 
                 uri?.let {
                     Timber.d("Получен запрос на обработку изображения через broadcast: $uri")
-                    
-                    // Проверяем, не обрабатывается ли URI уже через MainActivity
-                    if (StatsTracker.isUriBeingProcessedByMainActivity(uri)) {
-                        Timber.d("URI $uri уже обрабатывается через MainActivity, пропускаем")
-                        return
-                    }
                     
                     // Запускаем корутину для проверки статуса изображения
                     GlobalScope.launch(Dispatchers.IO) {
@@ -276,13 +252,6 @@ class BackgroundMonitoringService : Service() {
         // Останавливаем периодическую очистку
         cleanupHandler.removeCallbacks(cleanupRunnable)
         
-        // Очищаем все отложенные задачи
-        pendingTasks.forEach { (uri, runnable) ->
-            handler.removeCallbacks(runnable)
-            Timber.d("Отменена отложенная задача для $uri при остановке сервиса")
-        }
-        pendingTasks.clear()
-        
         // Отменяем регистрацию BroadcastReceiver
         try {
             unregisterReceiver(imageProcessingReceiver)
@@ -379,14 +348,6 @@ class BackgroundMonitoringService : Service() {
         }
     }
     
-    /**
-     * Логирует подробную информацию о файле для отладки
-     */
-    private fun logDetailedFileInfo(uri: Uri) {
-        // Используем централизованную логику для получения информации о файле
-        FileInfoUtil.getFileInfo(applicationContext, uri)
-    }
-
     /**
      * Сканирование галереи для поиска необработанных изображений
      */
