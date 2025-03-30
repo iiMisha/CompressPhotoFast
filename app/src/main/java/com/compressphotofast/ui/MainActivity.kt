@@ -769,7 +769,7 @@ class MainActivity : AppCompatActivity() {
         
         when (requestCode) {
             Constants.REQUEST_CODE_DELETE_FILE -> {
-                if (FileUtil.handleDeleteFileRequest(resultCode)) {
+                if (resultCode == android.app.Activity.RESULT_OK) {
                     Timber.d("Файл успешно удален")
                     showToast(getString(R.string.file_deleted_successfully))
                 } else {
@@ -784,7 +784,7 @@ class MainActivity : AppCompatActivity() {
                 // Устанавливаем флаг, что разрешение было запрошено
                 prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
                     
-                if (FileUtil.handleDeleteFileRequest(resultCode)) {
+                if (resultCode == android.app.Activity.RESULT_OK) {
                     Timber.d("Тестовый файл успешно удален, разрешение получено")
                 } else {
                     Timber.d("Пользователь отклонил запрос на удаление тестового файла")

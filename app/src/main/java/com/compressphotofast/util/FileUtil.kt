@@ -626,21 +626,12 @@ object FileUtil {
     }
 
     /**
-     * Обрабатывает результат запроса удаления файла
-     * 
-     * Этот метод должен быть вызван из Activity.onActivityResult
-     */
-    fun handleDeleteFileRequest(resultCode: Int): Boolean {
-        return resultCode == android.app.Activity.RESULT_OK
-    }
-
-    /**
      * Проверяет, включен ли режим замены файлов
      */
     fun isSaveModeReplace(context: Context): Boolean {
         try {
             // Открываем настройки
-        return SettingsManager.getInstance(context).isSaveModeReplace()
+            return SettingsManager.getInstance(context).isSaveModeReplace()
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при получении режима сохранения")
             return false // Значение по умолчанию
@@ -1390,22 +1381,6 @@ object FileUtil {
             } catch (_: Exception) {
                 // Игнорируем ошибку закрытия
             }
-        }
-    }
-
-    /**
-     * Проверяет, включен ли режим замены оригинальных файлов
-     */
-    fun isSaveModeReplace(): Boolean {
-        try {
-            // В этой версии контекст отсутствует, поэтому мы не можем использовать SettingsManager напрямую
-            // Вместо этого можно использовать AppContext или другой способ получения контекста
-            // Временное решение - возвращаем значение по умолчанию
-            Timber.d("Контекст отсутствует для isSaveModeReplace, возвращаем значение по умолчанию")
-            return false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении режима сохранения")
-            return false
         }
     }
 } 

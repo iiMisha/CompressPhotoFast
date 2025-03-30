@@ -3,6 +3,7 @@ package com.compressphotofast.util
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import timber.log.Timber
+import androidx.annotation.VisibleForTesting
 
 /**
  * Утилитарный класс для отслеживания обрабатываемых URI
@@ -175,8 +176,10 @@ object UriProcessingTracker {
     }
     
     /**
-     * Очищает все списки (для тестирования или сброса)
+     * Очищает все списки.
+     * Используется только для тестирования или отладки.
      */
+    @VisibleForTesting
     fun clearAll() {
         processingUris.clear()
         recentlyProcessedUris.clear()

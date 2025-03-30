@@ -105,6 +105,24 @@ object ImageCompressionUtil {
     }
     
     /**
+     * Определяет, является ли сжатие изображения эффективным
+     * на основе соотношения размеров и минимальной экономии
+     * 
+     * @param originalSize Размер оригинального файла в байтах
+     * @param compressedSize Размер сжатого файла в байтах
+     * @return true если сжатие эффективно, false в противном случае
+     */
+    fun isImageProcessingEfficient(originalSize: Long, compressedSize: Long): Boolean {
+        if (originalSize <= 0) return false
+        
+        val sizeReduction = ((originalSize - compressedSize).toFloat() / originalSize) * 100
+        val minSaving = Constants.MIN_COMPRESSION_SAVING_PERCENT
+        val minBytesSaving = 10 * 1024 // Минимальная экономия 10KB
+        
+        return sizeReduction >= minSaving && (originalSize - compressedSize) >= minBytesSaving
+    }
+    
+    /**
      * Сжимает изображение из входного потока в выходной
      * 
      * @param context Контекст приложения
@@ -228,7 +246,7 @@ object ImageCompressionUtil {
             val ratio = compressedSize.toFloat() / fileSize.toFloat()
             
             // Проверка эффективности сжатия
-            if (ratio >= Constants.MIN_COMPRESSION_RATIO || (fileSize - compressedSize) < 10 * 1024) { // Экономия < 10KB
+            if (!isImageProcessingEfficient(fileSize, compressedSize)) {
                 outputStream.close()
                 return@withContext Triple(true, uri, "Сжатие не дало значительного результата")
             }
@@ -346,8 +364,7 @@ object ImageCompressionUtil {
          * Проверяет, было ли сжатие эффективным
          */
         fun isEfficient(): Boolean {
-            return sizeReduction >= Constants.MIN_COMPRESSION_SAVING_PERCENT && 
-                   (originalSize - compressedSize) >= 10 * 1024 // Минимальная экономия 10KB
+            return isImageProcessingEfficient(originalSize, compressedSize)
         }
     }
     
