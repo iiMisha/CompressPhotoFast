@@ -4,11 +4,7 @@ import android.content.Context
 import android.net.Uri
 import timber.log.Timber
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Collections
-import java.util.HashSet
 
 /**
  * Утилитарный класс для отслеживания статистики и статуса сжатия изображений
@@ -24,9 +20,6 @@ object StatsTracker {
     // Множество для отслеживания URI в процессе обработки
     private val processingUris = mutableSetOf<String>()
     
-    // Реестр URI, которые обрабатываются через MainActivity (через Intent)
-    private val urisBeingProcessedByMainActivity = Collections.synchronizedSet(HashSet<String>())
-
     /**
      * Начинает отслеживание URI
      */
@@ -51,67 +44,19 @@ object StatsTracker {
     }
 
     /**
-     * Проверяет, было ли изображение обработано ранее
-     * Делегирует к централизованной логике в ImageProcessingChecker
-     * 
-     * @param context контекст
-     * @param uri URI изображения
-     * @return true если изображение уже обработано, false в противном случае
-     */
-    suspend fun isImageProcessed(context: Context, uri: Uri): Boolean {
-        return ImageProcessingChecker.isAlreadyProcessed(context, uri)
-    }
-    
-    /**
      * Проверяет, нужно ли обрабатывать изображение
      * Делегирует к централизованной логике в ImageProcessingChecker
      */
     suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean {
         return ImageProcessingChecker.shouldProcessImage(context, uri)
     }
-    
-    /**
-     * Отмечает изображение как обработанное (добавляет EXIF маркер)
-     */
-    suspend fun markProcessed(context: Context, uri: Uri, quality: Int): Boolean = withContext(Dispatchers.IO) {
-        try {
-            return@withContext ExifUtil.markCompressedImage(context, uri, quality)
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при маркировке изображения как обработанного: ${e.message}")
-            return@withContext false
-        }
-    }
 
-    /**
-     * Регистрирует URI, который обрабатывается через MainActivity
-     * Метод для обратной совместимости
-     */
-    fun registerUriBeingProcessedByMainActivity(uri: Uri) {
-        val uriString = uri.toString()
-        urisBeingProcessedByMainActivity.add(uriString)
-        Timber.d("Зарегистрирован URI для обработки через MainActivity: $uriString")
-    }
-    
     /**
      * Проверяет, обрабатывается ли URI через MainActivity
      * Метод для обратной совместимости
+     * @deprecated Больше не используется, всегда возвращает false
      */
     fun isUriBeingProcessedByMainActivity(uri: Uri): Boolean {
-        val uriString = uri.toString()
-        val isProcessing = urisBeingProcessedByMainActivity.contains(uriString)
-        if (isProcessing) {
-            Timber.d("URI обрабатывается через MainActivity: $uriString")
-        }
-        return isProcessing
-    }
-    
-    /**
-     * Снимает регистрацию URI, который больше не обрабатывается через MainActivity
-     * Метод для обратной совместимости
-     */
-    fun unregisterUriBeingProcessedByMainActivity(uri: Uri) {
-        val uriString = uri.toString()
-        urisBeingProcessedByMainActivity.remove(uriString)
-        Timber.d("Снята регистрация URI для обработки через MainActivity: $uriString")
+        return false // Всегда возвращает false, так как механизм регистрации больше не используется
     }
 } 
