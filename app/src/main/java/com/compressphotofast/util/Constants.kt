@@ -93,13 +93,6 @@ object Constants {
     /** Минимальный размер файла для обработки (100 КБ) */
     const val MIN_PROCESSABLE_FILE_SIZE = 100 * 1024L
     
-    // Статусы обработки
-    const val STATUS_PENDING = 0
-    const val STATUS_PROCESSING = 1
-    const val STATUS_COMPLETED = 2
-    const val STATUS_FAILED = 3
-    const val STATUS_SKIPPED = 4
-    
     // Другие константы
     const val MAX_URI_AGE_DAYS = 7
     const val URI_CHUNK_SIZE = 20
