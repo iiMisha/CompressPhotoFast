@@ -47,7 +47,6 @@ import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.worker.ImageCompressionWorker
 import com.compressphotofast.util.StatsTracker
-import com.compressphotofast.util.ToastManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -107,7 +106,7 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-        ToastManager.showToast(this, message, duration)
+        NotificationUtil.showToast(this, message, duration)
     }
 
     /**
@@ -115,7 +114,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
         val truncatedFileName = FileUtil.truncateFileName(fileName)
-        ToastManager.showCompressionResultToast(this, truncatedFileName, originalSize, compressedSize)
+        NotificationUtil.showCompressionResultToast(this, truncatedFileName, originalSize, compressedSize)
     }
 
     /**

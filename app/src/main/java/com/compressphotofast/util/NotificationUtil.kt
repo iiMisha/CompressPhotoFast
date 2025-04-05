@@ -20,6 +20,10 @@ import java.util.concurrent.ConcurrentHashMap
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.ForegroundInfo
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Утилитарный класс для работы с уведомлениями и Toast
@@ -30,13 +34,20 @@ object NotificationUtil {
     private val lastMessageTime = ConcurrentHashMap<String, Long>()
     
     // Минимальный интервал между показом Toast (мс)
-    private const val MIN_TOAST_INTERVAL = 3000L
+    private const val MIN_TOAST_INTERVAL = 2000L
     
     // Блокировка для синхронизации показа Toast
     private val toastLock = Any()
     
     // Флаг, указывающий что Toast в процессе отображения
     private var isToastShowing = false
+    
+    /**
+     * Получает NotificationManager из контекста
+     */
+    private fun getNotificationManager(context: Context): NotificationManager {
+        return context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    }
     
     /**
      * Общий метод для создания уведомления с различными настройками
@@ -113,12 +124,7 @@ object NotificationUtil {
         content: String
     ): Notification {
         // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        val pendingIntent = createMainActivityPendingIntent(context)
         
         // Создаем Intent для остановки сервиса
         val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
@@ -240,8 +246,7 @@ object NotificationUtil {
                 enableVibration(enableVibration)
             }
             
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+            getNotificationManager(context).createNotificationChannel(channel)
             Timber.d("Уведомления: создан канал $channelName (id=$channelId)")
         }
     }
@@ -250,34 +255,40 @@ object NotificationUtil {
      * Показывает Toast с результатом сжатия
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
-        // Запускаем на главном потоке
-        Handler(Looper.getMainLooper()).post {
-            try {
-                // Сокращаем длинное имя файла
-                val truncatedFileName = FileUtil.truncateFileName(fileName)
-                
-                // Форматируем размеры
-                val originalSizeStr = FileUtil.formatFileSize(originalSize)
-                val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
-                val reductionStr = String.format("%.1f", reduction)
-                
-                // Создаем текст уведомления
-                val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
-                
-                // Показываем Toast
-                showToast(context, message, Toast.LENGTH_LONG)
-            } catch (e: Exception) {
-                Timber.e(e, "Ошибка при показе Toast о результате сжатия")
-            }
+        val truncatedFileName = FileUtil.truncateFileName(fileName)
+        val originalSizeStr = FileUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+        val reductionStr = String.format("%.1f", reduction)
+        
+        val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+        showToast(context, message, Toast.LENGTH_LONG)
+    }
+    
+    /**
+     * Показывает Toast с результатом сжатия (вариант с вычислением процента сокращения)
+     */
+    fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, duration: Int = Toast.LENGTH_LONG) {
+        val originalSizeStr = FileUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+        
+        val reductionPercent = if (originalSize > 0) {
+            ((originalSize - compressedSize) * 100.0 / originalSize).roundToInt()
+        } else {
+            0
         }
+        
+        val message = "$fileName: $originalSizeStr → $compressedSizeStr (-$reductionPercent%)"
+        showToast(context, message, duration)
     }
     
     /**
      * Показывает Toast с дедупликацией сообщений
+     * Улучшенная версия с использованием корутин
      * Централизованный метод для всего приложения
      */
     fun showToast(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
-        Handler(Looper.getMainLooper()).post {
+        // Запускаем на главном потоке
+        CoroutineScope(Dispatchers.Main).launch {
             synchronized(toastLock) {
                 try {
                     // Проверяем, не показывали ли мы недавно это сообщение
@@ -286,13 +297,13 @@ object NotificationUtil {
                     val timePassed = currentTime - lastTime
                     
                     if (timePassed <= MIN_TOAST_INTERVAL) {
-                        Timber.d("Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
+                        LogUtil.debug("NotificationUtil", "Пропуск Toast - сообщение '$message' уже было показано ${timePassed}мс назад")
                         return@synchronized
                     }
                     
                     // Если Toast уже отображается, пропускаем
                     if (isToastShowing) {
-                        Timber.d("Пропуск Toast - другое сообщение уже отображается")
+                        LogUtil.debug("NotificationUtil", "Пропуск Toast - другое сообщение уже отображается")
                         return@synchronized
                     }
                     
@@ -321,13 +332,14 @@ object NotificationUtil {
                     }
                     
                     toast.show()
+                    LogUtil.debug("NotificationUtil", "Показан Toast: $message")
                     
                     // Очищаем старые записи через двойное время интервала
                     Handler(Looper.getMainLooper()).postDelayed({
                         lastMessageTime.remove(message)
                     }, MIN_TOAST_INTERVAL * 2)
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при показе Toast: ${e.message}")
+                    LogUtil.errorWithException("NotificationUtil", e) 
                     isToastShowing = false
                 }
             }
@@ -343,13 +355,7 @@ object NotificationUtil {
         message: String,
         notificationId: Int
     ) {
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        val pendingIntent = createMainActivityPendingIntent(context)
         
         val notification = createNotification(
             context = context,
@@ -360,8 +366,7 @@ object NotificationUtil {
             contentIntent = pendingIntent
         )
         
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notification)
+        getNotificationManager(context).notify(notificationId, notification)
     }
 
     /**
@@ -440,7 +445,7 @@ object NotificationUtil {
     }
     
     /**
-     * Создает и показывает уведомление о прогрессе с возможностью отмены
+     * Создает и/или обновляет уведомление о прогрессе с возможностью отмены
      * @param context Контекст приложения
      * @param notificationId ID уведомления
      * @param title Заголовок уведомления
@@ -463,15 +468,8 @@ object NotificationUtil {
         // Создаем Intent для открытия приложения при нажатии на уведомление
         val contentIntent = createMainActivityPendingIntent(context)
         
-        // Создаем уведомление с прогрессом
-        val builder = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(title)
-            .setContentText(content)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .setProgress(max, progress, indeterminate)
-            .setContentIntent(contentIntent)
+        // Список действий для уведомления
+        val actions = mutableListOf<NotificationAction>()
         
         // Добавляем кнопку отмены, если указан action
         if (cancelAction != null) {
@@ -483,21 +481,38 @@ object NotificationUtil {
                 PendingIntent.FLAG_IMMUTABLE
             )
             
-            builder.addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                context.getString(R.string.notification_action_stop),
-                cancelPendingIntent
+            actions.add(
+                NotificationAction(
+                    iconRes = android.R.drawable.ic_menu_close_clear_cancel,
+                    title = context.getString(R.string.notification_action_stop),
+                    pendingIntent = cancelPendingIntent
+                )
             )
         }
         
+        // Создаем уведомление с прогрессом
+        val notification = createNotification(
+            context = context,
+            channelId = context.getString(R.string.notification_channel_id),
+            title = title,
+            content = content,
+            priority = NotificationCompat.PRIORITY_LOW,
+            ongoing = true,
+            contentIntent = contentIntent,
+            actions = actions,
+            progress = ProgressInfo(max, progress, indeterminate)
+        )
+        
         // Показываем уведомление
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, builder.build())
+        getNotificationManager(context).notify(notificationId, notification)
     }
     
     /**
      * Обновляет уведомление о прогрессе
+     * @deprecated Используйте showProgressNotification вместо этого метода
      */
+    @Deprecated("Используйте showProgressNotification вместо этого метода", 
+                ReplaceWith("showProgressNotification(context, notificationId, title, content, progress, max, indeterminate)"))
     fun updateProgressNotification(
         context: Context,
         notificationId: Int,
@@ -507,31 +522,14 @@ object NotificationUtil {
         max: Int = 100,
         indeterminate: Boolean = false
     ) {
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val contentIntent = createMainActivityPendingIntent(context)
-        
-        // Создаем уведомление с прогрессом
-        val notification = NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
-            .setContentTitle(title)
-            .setContentText(content)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .setProgress(max, progress, indeterminate)
-            .setContentIntent(contentIntent)
-            .build()
-        
-        // Показываем уведомление
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notification)
+        showProgressNotification(context, notificationId, title, content, progress, max, indeterminate)
     }
     
     /**
      * Отменяет уведомление
      */
     fun cancelNotification(context: Context, notificationId: Int) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(notificationId)
+        getNotificationManager(context).cancel(notificationId)
     }
     
     /**

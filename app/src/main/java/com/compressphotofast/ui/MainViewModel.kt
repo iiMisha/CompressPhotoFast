@@ -33,7 +33,7 @@ import timber.log.Timber
 import android.widget.Toast
 import com.compressphotofast.util.SequentialImageProcessor
 import com.compressphotofast.util.CompressionProgressListener
-import com.compressphotofast.util.ToastManager
+import com.compressphotofast.util.NotificationUtil
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 
@@ -318,7 +318,7 @@ class MainViewModel @Inject constructor(
      * Показывает Toast с дедупликацией
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
-        ToastManager.showToast(context, message, duration)
+        NotificationUtil.showToast(context, message, duration)
     }
 
     /**

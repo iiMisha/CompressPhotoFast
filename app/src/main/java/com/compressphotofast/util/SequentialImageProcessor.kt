@@ -8,7 +8,7 @@ import android.widget.Toast
 import com.compressphotofast.util.Constants
 import com.compressphotofast.ui.CompressionResult
 import com.compressphotofast.ui.MultipleImagesProgress
-import com.compressphotofast.util.ToastManager
+import com.compressphotofast.util.NotificationUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,7 +28,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
-import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.ImageCompressionUtil
 
 /**
@@ -162,7 +161,7 @@ class SequentialImageProcessor(private val context: Context) {
         processingCancelled.set(true)
         
         // Показываем уведомление об остановке
-        ToastManager.showToast(context, "Обработка изображений остановлена")
+        NotificationUtil.showToast(context, "Обработка изображений остановлена")
         
         _isLoading.value = false
     }
