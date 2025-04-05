@@ -104,30 +104,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Базовый класс для обработки уведомлений о сжатии
-     */
-    private abstract inner class BaseCompressionReceiver : BroadcastReceiver() {
-        protected fun getFileInfo(intent: Intent?): Triple<String, Long, Long>? {
-            if (intent == null) return null
-            
-            val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "Файл"
-            val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
-            val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
-            
-            return Triple(fileName, originalSize, compressedSize)
-        }
-        
-        /**
-         * Форматирует размеры файлов для отображения
-         */
-        protected fun formatFileSizes(originalSize: Long, compressedSize: Long): Pair<String, String> {
-            val originalSizeStr = FileUtil.formatFileSize(originalSize)
-            val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
-            return Pair(originalSizeStr, compressedSizeStr)
-        }
-    }
-
-    /**
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
@@ -377,13 +353,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Получение списка URI из интента
-     */
-    private fun getMultipleUrisFromIntent(intent: Intent): List<Uri> {
-        return extractUrisFromIntent(intent)
-    }
-
-    /**
      * Логирует подробную информацию о файле
      */
     private fun logFileDetails(uri: Uri) {
@@ -536,31 +505,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Показывает диалог с объяснением необходимости полного доступа к файловой системе
-     */
-    private fun showStoragePermissionDialog() {
-        permissionsManager.showStoragePermissionDialog { initializeBackgroundServices() }
-    }
-
-    /**
-     * Запрашивает остальные разрешения (кроме MANAGE_EXTERNAL_STORAGE)
-     */
-    private fun requestOtherPermissions() {
-        permissionsManager.requestOtherPermissions { initializeBackgroundServices() }
-    }
-
-    /**
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
         permissionsManager.checkAndRequestAllPermissions { initializeBackgroundServices() }
-    }
-
-    /**
-     * Проверка разрешения на отправку уведомлений
-     */
-    private fun hasNotificationPermission(): Boolean {
-        return permissionsManager.hasNotificationPermission()
     }
 
     /**
@@ -579,28 +527,6 @@ class MainActivity : AppCompatActivity() {
             grantResults,
             onAllGranted = { initializeBackgroundServices() },
             onSomePermissionsDenied = { /* Ничего не делаем, т.к. это обрабатывается внутри handlePermissionResult */ }
-        )
-    }
-
-    /**
-     * Показывает объяснение о необходимости разрешения на уведомления
-     */
-    private fun showNotificationPermissionExplanation() {
-        permissionsManager.showNotificationPermissionExplanation(
-            onRetry = { 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        PermissionsManager.PERMISSION_REQUEST_CODE
-                    )
-                }
-            },
-            onSkip = {
-                initializeBackgroundServices()
-                // Показываем toast о том, что уведомления не будут отображаться
-                showToast("Уведомления о завершении сжатия не будут отображаться")
-            }
         )
     }
 
@@ -790,24 +716,6 @@ class MainActivity : AppCompatActivity() {
             Timber.d("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при запуске фонового сервиса")
-        }
-    }
-
-    /**
-     * Обработка списка изображений
-     */
-    private fun processImages() {
-        // Проверяем, включено ли автоматическое сжатие
-        if (!viewModel.isAutoCompressionEnabled()) {
-            // Если автоматическое сжатие выключено, запускаем сжатие вручную
-            viewModel.selectedImageUri.value?.let { _ ->
-                viewModel.compressSelectedImage()
-            }
-        } else {
-            // Иначе запускаем обработку через фоновый сервис
-            viewModel.selectedImageUri.value?.let { uri ->
-                startBackgroundProcessing(uri)
-            }
         }
     }
 
