@@ -32,6 +32,7 @@ import java.util.concurrent.Executors
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -49,6 +50,7 @@ import com.compressphotofast.util.MediaStoreObserver
 /**
  * Сервис для фонового мониторинга новых изображений
  */
+@OptIn(DelicateCoroutinesApi::class)
 @AndroidEntryPoint
 class BackgroundMonitoringService : Service() {
 

@@ -31,7 +31,7 @@ object StatsTracker {
     /**
      * Обновляет статус сжатия для указанного URI
      */
-    fun updateStatus(context: Context, uri: Uri, status: Int) {
+    fun updateStatus(uri: Uri, status: Int) {
         try {
             // Если статус завершающий (COMPLETED или FAILED), убираем URI из отслеживаемых
             if (status == COMPRESSION_STATUS_COMPLETED || status == COMPRESSION_STATUS_FAILED || status == COMPRESSION_STATUS_SKIPPED) {
@@ -57,7 +57,7 @@ object StatsTracker {
      * @deprecated Больше не используется, всегда возвращает false
      */
     @Deprecated("Метод больше не используется, всегда возвращает false")
-    fun isUriBeingProcessedByMainActivity(uri: Uri): Boolean {
+    fun isUriBeingProcessedByMainActivity(): Boolean {
         return false // Всегда возвращает false, так как механизм регистрации больше не используется
     }
 } 

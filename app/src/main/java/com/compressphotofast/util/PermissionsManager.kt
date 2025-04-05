@@ -12,6 +12,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import com.compressphotofast.R
 import timber.log.Timber
 
@@ -36,6 +38,22 @@ class PermissionsManager(
 
     // Получение доступа к SharedPreferences
     private val prefs = activity.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+    
+    // ActivityResultLauncher для запуска настроек разрешений
+    private val storagePermissionLauncher: ActivityResultLauncher<Intent> = activity.registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        // Проверяем, было ли предоставлено разрешение после возврата
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+            Timber.d("Разрешение MANAGE_EXTERNAL_STORAGE получено")
+            // Проверяем и запрашиваем другие разрешения
+            requestOtherPermissions {}
+        } else {
+            Timber.d("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
+            // Продолжаем запрос других разрешений
+            requestOtherPermissions {}
+        }
+    }
 
     /**
      * Проверяет и запрашивает все необходимые разрешения
@@ -199,7 +217,7 @@ class PermissionsManager(
             return true
         }
 
-        var hasPermissions = false
+        var hasPermissions: Boolean
         
         // Проверка разрешений по версии Android
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -239,10 +257,10 @@ class PermissionsManager(
                     val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
                     intent.addCategory("android.intent.category.DEFAULT")
                     intent.data = Uri.parse("package:${activity.applicationContext.packageName}")
-                    activity.startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                    storagePermissionLauncher.launch(intent)
                 } catch (e: Exception) {
                     val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                    activity.startActivityForResult(intent, REQUEST_MANAGE_EXTERNAL_STORAGE)
+                    storagePermissionLauncher.launch(intent)
                 }
             }
             .setNegativeButton(R.string.dialog_skip) { _, _ ->
@@ -286,7 +304,6 @@ class PermissionsManager(
                         prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
                     IPermissionsManager.PermissionType.NOTIFICATIONS -> 
                         prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
-                    else -> { /* Ничего не делаем */ }
                 }
                 
                 // Вызываем колбэк

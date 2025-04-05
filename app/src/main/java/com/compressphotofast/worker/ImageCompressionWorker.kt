@@ -118,7 +118,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Начинаем отслеживание сжатия
             StatsTracker.startTracking(imageUri)
-            StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
+            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
             // Проверяем размер исходного файла
             val sourceSize = FileUtil.getFileSize(appContext, imageUri)
@@ -145,7 +145,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (testCompressionResult == null) {
                 LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
                 setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
-                StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                 return@withContext Result.failure()
             }
             
@@ -166,7 +166,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     if (fileName.isNullOrEmpty()) {
                     LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
-                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
                 
@@ -192,7 +192,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (imageStream == null) {
                     LogUtil.error(imageUri, "Открытие потока", "Не удалось открыть поток изображения")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
-                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
                 
@@ -209,7 +209,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (compressedImageStream == null) {
                     LogUtil.error(imageUri, "Сжатие", "Ошибка при сжатии изображения")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
-                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
                 
@@ -225,7 +225,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     appContext,
                     ByteArrayInputStream(compressedImageStream.toByteArray()),
                         fileName,
-                    directory ?: Constants.APP_DIRECTORY,
+                    directory,
                     backupUri,
                     compressionQuality,
                     exifDataMemory // Передаем заранее загруженные EXIF данные
@@ -238,7 +238,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     if (savedUri == null) {
                     LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
-                    StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
                 
@@ -288,7 +288,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_completed)))
                 
                 // Обновляем статус и возвращаем успех
-                StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+                StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                 return@withContext Result.success()
             } else {
                 // Если сжатие неэффективно, пропускаем
@@ -307,8 +307,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 )
                 
                 // Определяем размер сжатого файла и процент сокращения
-                val estimatedCompressedSize = stats?.compressedSize ?: (sourceSize - (sourceSize * 0.08f).toLong())
-                val estimatedSizeReduction = stats?.sizeReduction ?: 8.0f
+                val estimatedCompressedSize = if (stats != null) stats.compressedSize else (sourceSize - (sourceSize * 0.08f).toLong())
+                val estimatedSizeReduction = if (stats != null) stats.sizeReduction else 8.0f
                 
                 // Проверяем использование памяти и форсируем GC при необходимости
                 val usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
@@ -329,7 +329,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 )
                 
                 // Обновляем статус и возвращаем успех с пропуском
-                StatsTracker.updateStatus(appContext, imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+                StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
                 return@withContext Result.success()
             }
         } catch (e: Exception) {
@@ -339,7 +339,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString != null) {
                 val uri = Uri.parse(uriString)
-                StatsTracker.updateStatus(appContext, uri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                StatsTracker.updateStatus(uri, StatsTracker.COMPRESSION_STATUS_FAILED)
             }
             
             return@withContext Result.failure()
