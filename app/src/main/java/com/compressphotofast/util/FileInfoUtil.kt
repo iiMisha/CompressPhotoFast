@@ -6,6 +6,7 @@ import android.provider.MediaStore
 import timber.log.Timber
 import java.util.Collections
 import java.util.HashMap
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для работы с информацией о файлах
@@ -41,8 +42,8 @@ object FileInfoUtil {
             val cachedInfo = fileInfoCache[uriString]
             if (cachedInfo != null && (System.currentTimeMillis() - cachedInfo.timestamp < fileInfoCacheExpiration)) {
                 // Используем кэшированную информацию
-                Timber.d("FileInfoUtil: Информация о файле (из кэша): ID=${cachedInfo.id}, Имя=${cachedInfo.name}, Размер=${cachedInfo.size}, Дата=${cachedInfo.date}, MIME=${cachedInfo.mime}, URI=$uri")
-                Timber.d("FileInfoUtil: Путь к файлу: ${cachedInfo.path}")
+                LogUtil.debug("FileInfoUtil", "Информация о файле (из кэша): ID=${cachedInfo.id}, Имя=${cachedInfo.name}, Размер=${cachedInfo.size}, Дата=${cachedInfo.date}, MIME=${cachedInfo.mime}, URI=$uri")
+                LogUtil.debug("FileInfoUtil", "Путь к файлу: ${cachedInfo.path}")
                 return cachedInfo
             }
             
@@ -82,8 +83,8 @@ object FileInfoUtil {
                     val fileInfo = FileInfo(id, name, size, date, mime, path)
                     fileInfoCache[uriString] = fileInfo
                     
-                    Timber.d("FileInfoUtil: Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
-                    Timber.d("FileInfoUtil: Путь к файлу: $path")
+                    LogUtil.debug("FileInfoUtil", "Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
+                    LogUtil.debug("FileInfoUtil", "Путь к файлу: $path")
                     
                     return fileInfo
                 }
@@ -91,7 +92,7 @@ object FileInfoUtil {
             
             return null
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении информации о файле: $uri")
+            LogUtil.error(uri, "Получение информации о файле", e)
             return null
         }
     }
@@ -106,6 +107,6 @@ object FileInfoUtil {
             .map { it.key }
             
         entriesToRemove.forEach { key -> fileInfoCache.remove(key) }
-        Timber.d("FileInfoUtil: Очищено ${entriesToRemove.size} устаревших записей в кэше")
+        LogUtil.processDebug("FileInfoUtil: Очищено ${entriesToRemove.size} устаревших записей в кэше")
     }
 } 

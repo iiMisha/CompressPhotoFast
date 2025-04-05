@@ -33,7 +33,7 @@ object ImageProcessingUtil {
     suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
         try {
             // Добавляем URI в список обрабатываемых
-            UriProcessingTracker.addProcessingUri(uri.toString())
+            UriProcessingTracker.addProcessingUri(uri)
             
             try {
                 // Сначала проверяем, требуется ли обработка - используем централизованную логику
@@ -41,7 +41,7 @@ object ImageProcessingUtil {
                 
                 if (!shouldProcess) {
                     // Удаляем URI из списка обрабатываемых
-                    UriProcessingTracker.removeProcessingUri(uri.toString())
+                    UriProcessingTracker.removeProcessingUri(uri)
                     return@withContext Triple(true, false, "Изображение уже оптимизировано")
                 }
                 
@@ -53,7 +53,7 @@ object ImageProcessingUtil {
                 // возвращаем сообщение о том, что нужна ручная обработка
                 if (!isAutoEnabled && !forceProcess) {
                     // Удаляем URI из списка обрабатываемых
-                    UriProcessingTracker.removeProcessingUri(uri.toString())
+                    UriProcessingTracker.removeProcessingUri(uri)
                     return@withContext Triple(true, false, "Требуется ручное сжатие")
                 }
                 
@@ -90,7 +90,7 @@ object ImageProcessingUtil {
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки
-                UriProcessingTracker.removeProcessingUri(uri.toString())
+                UriProcessingTracker.removeProcessingUri(uri)
                 throw e
             }
         } catch (e: Exception) {

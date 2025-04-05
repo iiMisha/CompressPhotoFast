@@ -100,7 +100,7 @@ object GalleryScanUtil {
                     )
                     
                     // Проверяем, не находится ли URI уже в процессе обработки
-                    if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri.toString())) {
+                    if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri)) {
                         Timber.d("GalleryScanUtil: URI $contentUri уже в процессе обработки, пропускаем")
                         skippedCount++
                         continue

@@ -12,6 +12,7 @@ import androidx.work.WorkManager
 import com.compressphotofast.R
 import com.compressphotofast.util.FileInfoUtil
 import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.LogUtil
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
@@ -66,15 +67,16 @@ class CompressPhotoApp : Application(), Configuration.Provider {
      */
     private class ReleaseTree : Timber.Tree() {
         override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-            // Показываем только ERROR и INFO логи в релизе
+            // В релизе логируем только ошибки и информационные сообщения
             if (priority == Log.ERROR || priority == Log.INFO) {
-                // В реальном приложении можно отправлять в Firebase Crashlytics или другие аналитические системы
-                Log.println(priority, tag ?: "CompressPhotoFast", message)
-                
-                // Сохраняем ошибки в Firebase Crashlytics, если она подключена
-                // if (priority == Log.ERROR && t != null) {
-                //     Crashlytics.logException(t)
-                // }
+                // Записываем лог, возможно в файл или отправляем на сервер
+                if (priority == Log.ERROR && t != null) {
+                    LogUtil.errorWithMessageAndException("APP", message, t)
+                } else if (priority == Log.ERROR) {
+                    LogUtil.errorSimple("APP", message)
+                } else if (priority == Log.INFO) {
+                    LogUtil.processInfo(message)
+                }
             }
         }
     }

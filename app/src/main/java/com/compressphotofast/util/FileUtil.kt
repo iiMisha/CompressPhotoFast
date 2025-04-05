@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import timber.log.Timber
 import java.io.File
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +28,18 @@ import android.widget.Toast
  * Утилитарный класс для работы с файлами
  */
 object FileUtil {
+
+    /**
+     * Проверяет, включен ли режим замены файлов в настройках
+     */
+    fun isSaveModeReplace(context: Context): Boolean {
+        try {
+            return SettingsManager.getInstance(context).isSaveModeReplace()
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Проверка режима замены", e)
+            return false
+        }
+    }
 
     /**
      * Создает имя файла для сжатой версии
@@ -103,7 +114,7 @@ object FileUtil {
                             if (idColumn != -1 && !cursor.isNull(idColumn)) {
                                 val id = cursor.getLong(idColumn)
                                 existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                                Timber.d("Найден существующий файл с таким же именем: $existingUri")
+                                LogUtil.debug("MediaStore", "Найден существующий файл с таким же именем: $existingUri")
                             }
                         }
                     }
@@ -112,9 +123,9 @@ object FileUtil {
                     if (existingUri != null && isSaveModeReplace(context)) {
                         try {
                             context.contentResolver.delete(existingUri!!, null, null)
-                            Timber.d("Существующий файл удален (режим замены)")
+                            LogUtil.debug("MediaStore", "Существующий файл удален (режим замены)")
                         } catch (e: Exception) {
-                            Timber.e(e, "Ошибка при удалении существующего файла: ${e.message}")
+                            LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла", e)
                         }
                     } else if (existingUri != null) {
                         // Если файл существует, но режим замены выключен, добавляем числовой индекс
@@ -145,7 +156,7 @@ object FileUtil {
                             if (!isFileExists) {
                                 // Обновляем имя файла в contentValues
                                 contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
-                                Timber.d("Режим замены выключен, используем новое имя с индексом: $newFileName")
+                                LogUtil.debug("MediaStore", "Режим замены выключен, используем новое имя с индексом: $newFileName")
                                 break
                             }
                             
@@ -157,11 +168,11 @@ object FileUtil {
                             val timestamp = System.currentTimeMillis()
                             val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
                             contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
-                            Timber.d("Не найден свободный индекс, используем временную метку: $timeBasedName")
+                            LogUtil.debug("MediaStore", "Не найден свободный индекс, используем временную метку: $timeBasedName")
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при проверке существующего файла: ${e.message}")
+                    LogUtil.errorWithException("Проверка существующего файла", e)
                 }
             }
             
@@ -169,14 +180,14 @@ object FileUtil {
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             
             if (uri != null) {
-                Timber.d("Создан URI для изображения: $uri")
+                LogUtil.debug("MediaStore", "Создан URI для изображения: $uri")
             } else {
                 throw IOException("Не удалось создать запись MediaStore")
             }
             
             return@withContext uri
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при создании записи в MediaStore: ${e.message}")
+            LogUtil.errorWithException("Создание записи в MediaStore", e)
             return@withContext null
         }
     }
@@ -189,7 +200,7 @@ object FileUtil {
             val contentValues = ContentValues()
             contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
             context.contentResolver.update(uri, contentValues, null, null)
-            Timber.d("IS_PENDING статус сброшен для URI: $uri")
+            LogUtil.debug("MediaStore", "IS_PENDING статус сброшен для URI: $uri")
         }
     }
 
@@ -203,9 +214,9 @@ object FileUtil {
         fileName: String,
         originalUri: Uri
     ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
-        Timber.d("saveCompressedImageToGallery: начало сохранения файла: $fileName")
-        Timber.d("saveCompressedImageToGallery: размер сжатого файла: ${compressedFile.length()} байт")
-        Timber.d("saveCompressedImageToGallery: режим замены оригинальных файлов: ${isSaveModeReplace(context)}")
+        LogUtil.debug("FileUtil", "Начало сохранения файла: $fileName")
+        LogUtil.debug("FileUtil", "Размер сжатого файла: ${compressedFile.length()} байт")
+        LogUtil.debug("FileUtil", "Режим замены оригинальных файлов: ${isSaveModeReplace(context)}")
         
         try {
             // Получаем путь к директории для сохранения
@@ -217,13 +228,13 @@ object FileUtil {
                 Constants.APP_DIRECTORY
             }
             
-            Timber.d("saveCompressedImageToGallery: директория для сохранения: $directory")
+            LogUtil.debug("FileUtil", "Директория для сохранения: $directory")
             
             // Централизованное создание записи в MediaStore
             val uri = createMediaStoreEntry(context, fileName, directory)
             
             if (uri == null) {
-                Timber.e("saveCompressedImageToGallery: не удалось создать запись в MediaStore")
+                LogUtil.errorSimple("FileUtil", "Не удалось создать запись в MediaStore")
                 return@withContext Pair(null, null)
             }
             
@@ -240,7 +251,7 @@ object FileUtil {
             // Возвращаем результат
             return@withContext Pair(uri, null)
         } catch (e: Exception) {
-            Timber.e(e, "saveCompressedImageToGallery: ошибка при сохранении файла")
+            LogUtil.errorWithException("Сохранение файла в галерею", e)
             return@withContext Pair(null, null)
         }
     }
@@ -274,7 +285,7 @@ object FileUtil {
                     outputStream.flush()
                 } ?: throw IOException("Не удалось открыть OutputStream")
                 
-                Timber.d("Данные изображения записаны в URI: $uri")
+                LogUtil.debug("FileUtil", "Данные изображения записаны в URI: $uri")
                 
                 // Сразу завершаем IS_PENDING состояние до обработки EXIF, чтобы файл стал доступен
                 clearIsPendingFlag(context, uri)
@@ -284,7 +295,7 @@ object FileUtil {
                 val fileAvailable = waitForUriAvailability(context, uri, maxWaitTime)
                 
                 if (!fileAvailable) {
-                    Timber.w("URI не стал доступен после ожидания: $uri")
+                    LogUtil.processWarning("URI не стал доступен после ожидания: $uri")
                 }
                 
                 // Специальная обработка для Android 11
@@ -302,18 +313,18 @@ object FileUtil {
                     exifDataMemory
                 )
                 
-                Timber.d("Обработка EXIF данных: ${if (exifSuccess) "успешно" else "неудачно"}")
+                LogUtil.debug("FileUtil", "Обработка EXIF данных: ${if (exifSuccess) "успешно" else "неудачно"}")
                 
                 return@withContext uri
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при записи данных: ${e.message}")
+                LogUtil.errorWithException("Запись данных изображения", e)
                 // Если произошла ошибка, изображение может быть сохранено частично, но без EXIF
             }
             
             return@withContext uri
             
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при сохранении сжатого изображения: ${e.message}")
+            LogUtil.errorWithException("Сохранение сжатого изображения", e)
             return@withContext null
         }
     }
@@ -351,7 +362,7 @@ object FileUtil {
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении относительного пути из URI")
+            LogUtil.error(uri, "Получение пути", "Ошибка при получении относительного пути из URI", e)
         }
         return null
     }
@@ -391,7 +402,7 @@ object FileUtil {
             
             return@withContext false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке существования файла: $uri")
+            LogUtil.error(uri, "Проверка существования", "Ошибка при проверке существования файла", e)
             return@withContext false
         }
     }
@@ -440,7 +451,7 @@ object FileUtil {
                 }
             }
         } catch (e: Exception) {
-            LogUtil.error(uri, "Удаление", "Ошибка при удалении файла", e)
+            LogUtil.error(null, "Удаление", "Ошибка при удалении файла", e)
         }
         return false
     }
@@ -487,7 +498,7 @@ object FileUtil {
                         }
                     }
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при получении пути: ${e.message}")
+                    LogUtil.error(uri, "Получение пути", "Ошибка при получении пути", e)
                 }
                 
                 // Специальная обработка для Android 11 (API 30) - используем хелпер
@@ -541,7 +552,7 @@ object FileUtil {
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении пути к файлу из URI: $uri")
+            LogUtil.error(uri, "Получение пути", "Ошибка при получении пути к файлу из URI", e)
         }
         
         // Если все методы не сработали, возвращаем URI в виде строки
@@ -600,7 +611,7 @@ object FileUtil {
             
             return fileName
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении имени файла из URI")
+            LogUtil.error(uri, "Получение имени", "Ошибка при получении имени файла из URI", e)
             return null
         }
     }
@@ -649,7 +660,7 @@ object FileUtil {
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении директории из URI: $uri")
+            LogUtil.error(uri, "Получение директории", "Ошибка при получении директории из URI", e)
         }
         
         // Возвращаем стандартный путь, если не удалось определить директорию
@@ -691,7 +702,7 @@ object FileUtil {
             // Если обе попытки не удались, возвращаем 0
             return 0L
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении размера файла по URI: $uri")
+            LogUtil.error(uri, "Получение размера", "Ошибка при получении размера файла по URI", e)
             return 0L
         }
     }
@@ -720,7 +731,7 @@ object FileUtil {
             
             return false
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке IS_PENDING: $uri", e)
+            LogUtil.error(uri, "IS_PENDING проверка", "Ошибка при проверке IS_PENDING", e)
             return false
         }
     }
@@ -748,7 +759,7 @@ object FileUtil {
         uri: Uri, 
         maxWaitTimeMs: Long = 1000
     ): Boolean = withContext(Dispatchers.IO) {
-        Timber.d("Ожидание доступности URI: $uri, максимальное время: $maxWaitTimeMs мс")
+        LogUtil.debug("FileUtil", "Ожидание доступности URI: $uri, максимальное время: $maxWaitTimeMs мс")
         
         val startTime = System.currentTimeMillis()
         var isAvailable = false
@@ -762,17 +773,17 @@ object FileUtil {
                     
                     // Если доступны данные, считаем URI доступным
                     if (available > 0) {
-                        Timber.d("URI стал доступен через ${System.currentTimeMillis() - startTime} мс, размер: $available байт")
+                        LogUtil.debug("FileUtil", "URI стал доступен через ${System.currentTimeMillis() - startTime} мс, размер: $available байт")
                         isAvailable = true
                         break
                     } else {
-                        Timber.d("URI открыт, но данные недоступны, повторная попытка...")
+                        LogUtil.debug("FileUtil", "URI открыт, но данные недоступны, повторная попытка...")
                     }
                 } else {
-                    Timber.d("Не удалось открыть поток для URI, повторная попытка...")
+                    LogUtil.debug("FileUtil", "Не удалось открыть поток для URI, повторная попытка...")
                 }
             } catch (e: Exception) {
-                Timber.d("Ошибка при проверке доступности URI: ${e.message}")
+                LogUtil.debug("FileUtil", "Ошибка при проверке доступности URI: ${e.message}")
             }
             
             // Делаем паузу перед следующей попыткой
@@ -780,7 +791,7 @@ object FileUtil {
         }
         
         if (!isAvailable) {
-            Timber.w("Время ожидания истекло, URI не стал доступен за $maxWaitTimeMs мс")
+            LogUtil.processWarning("Время ожидания истекло, URI не стал доступен за $maxWaitTimeMs мс")
         }
         
         return@withContext isAvailable
@@ -837,7 +848,7 @@ object FileUtil {
         return try {
             context.contentResolver.getType(uri)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении MIME типа для $uri")
+            LogUtil.error(null, "Ошибка при получении MIME типа для $uri", e)
             null
         }
     }
@@ -853,7 +864,7 @@ object FileUtil {
                    fileName.contains("скриншот") || 
                    (fileName.contains("screen") && fileName.contains("shot"))
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке скриншота для $uri")
+            LogUtil.error(null, "Ошибка при проверке скриншота для $uri", e)
             return false
         }
     }
@@ -894,14 +905,14 @@ object FileUtil {
             // Если все условия выполнены, переименовываем файл
             val backupUri = renameOriginalFile(context, uri)
             if (backupUri == null) {
-                LogUtil.error(uri, "Переименование", "Не удалось переименовать оригинальный файл")
+                LogUtil.error(null, "Переименование", "Не удалось переименовать оригинальный файл")
                 return@withContext null
             }
             
             LogUtil.fileOperation(uri, "Переименование", "Оригинал → ${backupUri}")
             return@withContext backupUri
         } catch (e: Exception) {
-            LogUtil.error(uri, "Переименование", "Ошибка при переименовании", e)
+            LogUtil.error(null, "Переименование", "Ошибка при переименовании", e)
             return@withContext null
         }
     }
@@ -945,14 +956,14 @@ object FileUtil {
                 context.contentResolver.update(uri, contentValues, null, null)
             }
             
-            Timber.d("Файл переименован: $fileName -> $backupFileName")
+            LogUtil.debug("FileUtil", "Файл переименован: $fileName -> $backupFileName")
             
             // Создаем новый URI, чтобы отличать его от исходного
             // Это позволит правильно определять, что файл был переименован
             val newUri = Uri.parse(uri.toString() + "#renamed_original")
             return@withContext newUri
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при переименовании файла: ${e.message}")
+            LogUtil.error(uri, "Переименование", "Ошибка при переименовании файла", e)
             return@withContext null
         }
     }
@@ -968,7 +979,7 @@ object FileUtil {
             // Получаем имя оригинального файла
             val originalFileName = getFileNameFromUri(context, originalUri)
             if (originalFileName.isNullOrEmpty()) {
-                Timber.d("Не удалось получить имя оригинального файла: $originalUri")
+                LogUtil.debug("FileUtil", "Не удалось получить имя оригинального файла: $originalUri")
                 return@withContext null
             }
             
@@ -1000,7 +1011,7 @@ object FileUtil {
                 "$fileBaseName%$fileExtension"     // Любой суффикс
             )
             
-            Timber.d("Ищем сжатую версию файла с паттерном '$fileBaseName%$fileExtension' в папке ${Constants.APP_DIRECTORY}")
+            LogUtil.debug("FileUtil", "Ищем сжатую версию файла с паттерном '$fileBaseName%$fileExtension' в папке ${Constants.APP_DIRECTORY}")
             
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -1016,15 +1027,15 @@ object FileUtil {
                     val foundName = cursor.getString(nameColumn)
                     val compressedUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
                     
-                    Timber.i("Найдена сжатая версия для $originalFileName: $compressedUri (имя файла: $foundName)")
+                    LogUtil.fileInfo(compressedUri, "Найдена сжатая версия для $originalFileName: $foundName")
                     return@withContext compressedUri
                 }
             }
             
-            Timber.d("Сжатая версия для файла '$originalFileName' не найдена")
+            LogUtil.debug("FileUtil", "Сжатая версия для файла '$originalFileName' не найдена")
             return@withContext null
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при поиске сжатой версии файла: ${e.message}")
+            LogUtil.errorWithException("Поиск сжатой версии файла", e)
             return@withContext null
         }
     }
@@ -1036,19 +1047,19 @@ object FileUtil {
      */
     private fun convertMediaDocumentsUri(uri: Uri): Uri? {
         if (uri.authority == "com.android.providers.media.documents") {
-            Timber.d("convertMediaDocumentsUri: обнаружен URI MediaProvider Documents: $uri")
+            LogUtil.debug("FileUtil", "Обнаружен URI MediaProvider Documents: $uri")
             try {
                 val docId = DocumentsContract.getDocumentId(uri)
                 if (docId.startsWith("image:")) {
                     val id = docId.split(":")[1].toLong()
                     val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    Timber.d("convertMediaDocumentsUri: преобразованный URI: $contentUri")
+                    LogUtil.debug("FileUtil", "Преобразованный URI: $contentUri")
                     return contentUri
                 } else {
-                     Timber.w("convertMediaDocumentsUri: Неподдерживаемый тип документа: $docId")
+                     LogUtil.processWarning("Неподдерживаемый тип документа: $docId")
                 }
             } catch (e: Exception) {
-                 Timber.e(e, "Ошибка при преобразовании MediaDocumentsUri: $uri")
+                 LogUtil.error(uri, "Преобразование URI", "Ошибка при преобразовании MediaDocumentsUri", e)
             }
         }
         return null
@@ -1075,7 +1086,7 @@ object FileUtil {
             val id = idString?.toLongOrNull()
 
             if (id != null) {
-                 Timber.d("Android 11 fallback: Пытаемся запросить по ID=$id из URI: $uri")
+                 LogUtil.debug("FileUtil", "Android 11 fallback: Пытаемся запросить по ID=$id из URI: $uri")
                 return context.contentResolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     projection,
@@ -1084,10 +1095,10 @@ object FileUtil {
                     null
                 )
             } else {
-                 Timber.d("Android 11 fallback: Не удалось извлечь ID из lastPathSegment: $idString")
+                 LogUtil.debug("FileUtil", "Android 11 fallback: Не удалось извлечь ID из lastPathSegment: $idString")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Android 11 fallback: Ошибка при запросе по ID: ${e.message}")
+            LogUtil.error(uri, "Android 11 fallback", "Ошибка при запросе по ID", e)
         }
         return null
     }
@@ -1198,7 +1209,7 @@ object FileUtil {
                                 }
                             }
                         } catch (e: Exception) {
-                            LogUtil.error(uri, "Получение docId", e)
+                            LogUtil.error(null, "Получение docId", e)
                         }
                     }
                     
@@ -1224,7 +1235,7 @@ object FileUtil {
                             }
                         }
                     } catch (e: Exception) {
-                        LogUtil.error(uri, "DocumentFile", e)
+                        LogUtil.error(null, "DocumentFile", e)
                     }
                 }
                 "file" -> {
@@ -1241,20 +1252,8 @@ object FileUtil {
             
             return@withContext 0L
         } catch (e: Exception) {
-            LogUtil.error(uri, "Получение даты изменения файла", e)
+            LogUtil.error(null, "Получение даты изменения файла", e)
             return@withContext 0L
-        }
-    }
-
-    /**
-     * Проверяет, включен ли режим замены файлов в настройках
-     */
-    fun isSaveModeReplace(context: Context): Boolean {
-        try {
-            return SettingsManager.getInstance(context).isSaveModeReplace()
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке режима замены")
-            return false
         }
     }
 } 

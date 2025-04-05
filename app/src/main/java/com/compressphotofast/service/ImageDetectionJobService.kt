@@ -140,14 +140,14 @@ class ImageDetectionJobService : JobService() {
                     }
                     
                     // Проверяем, не обрабатывается ли URI уже
-                    if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                    if (UriProcessingTracker.isImageBeingProcessed(uri)) {
                         Timber.d("ImageDetectionJobService: URI $uri уже в процессе обработки, пропускаем")
                         skippedCount++
                         return@forEach
                     }
                     
                     // Проверяем, не должен ли URI игнорироваться
-                    if (UriProcessingTracker.shouldIgnoreUri(uri.toString())) {
+                    if (UriProcessingTracker.shouldIgnore(uri)) {
                         Timber.d("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
                         skippedCount++
                         return@forEach
@@ -156,9 +156,9 @@ class ImageDetectionJobService : JobService() {
                     if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
                         withContext(Dispatchers.IO) {
                             // Проверяем еще раз перед добавлением в список обрабатываемых
-                            if (!UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                            if (!UriProcessingTracker.isImageBeingProcessed(uri)) {
                                 // Регистрируем URI как обрабатываемый
-                                UriProcessingTracker.addProcessingUri(uri.toString())
+                                UriProcessingTracker.addProcessingUri(uri)
                                 
                                 // Обрабатываем изображение
                                 if (ImageProcessingUtil.processImage(applicationContext, uri)) {
@@ -166,7 +166,7 @@ class ImageDetectionJobService : JobService() {
                                     processedCount++
                                 } else {
                                     Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                                    UriProcessingTracker.removeProcessingUri(uri.toString())
+                                    UriProcessingTracker.removeProcessingUri(uri)
                                     skippedCount++
                                 }
                             } else {

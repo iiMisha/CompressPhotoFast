@@ -35,6 +35,7 @@ import com.compressphotofast.util.SequentialImageProcessor
 import com.compressphotofast.util.CompressionProgressListener
 import com.compressphotofast.util.ToastManager
 import javax.inject.Inject
+import com.compressphotofast.util.LogUtil
 
 /**
  * Модель представления для главного экрана
@@ -122,7 +123,7 @@ class MainViewModel @Inject constructor(
                     )
                     
                     // Логируем результат сжатия для отладки
-                    Timber.d("Результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
+                    LogUtil.processDebug("Результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
                 }
             }
     }
@@ -165,7 +166,7 @@ class MainViewModel @Inject constructor(
         }
         
         // Логируем начало обработки
-        Timber.d("Запущена последовательная обработка ${uris.size} изображений")
+        LogUtil.processInfo("Запущена последовательная обработка ${uris.size} изображений")
     }
 
     /**
@@ -193,7 +194,7 @@ class MainViewModel @Inject constructor(
             ContextCompat.startForegroundService(context, intent)
         }
         
-        Timber.d("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
+        LogUtil.processDebug("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
     }
     
     /**
@@ -225,7 +226,7 @@ class MainViewModel @Inject constructor(
     suspend fun startBackgroundService() {
         if (isAutoCompressionEnabled()) {
             ImageDetectionJobService.scheduleJob(context)
-            Timber.d("JobService запланирован")
+            LogUtil.processDebug("JobService запланирован")
         }
     }
 
@@ -279,15 +280,15 @@ class MainViewModel @Inject constructor(
             // Обрабатываем найденные изображения в главном потоке
             withContext(Dispatchers.Main) {
                 if (uncompressedImages.isNotEmpty()) {
-                    Timber.d("Найдено ${uncompressedImages.size} необработанных изображений")
+                    LogUtil.processDebug("Найдено ${uncompressedImages.size} необработанных изображений")
                     compressMultipleImages(uncompressedImages)
                 } else {
-                    Timber.d("Необработанных изображений не найдено")
+                    LogUtil.processDebug("Необработанных изображений не найдено")
                 }
             }
             
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при обработке пропущенных изображений")
+            LogUtil.errorWithException("Ошибка при обработке пропущенных изображений", e)
         }
     }
 
@@ -333,7 +334,7 @@ class MainViewModel @Inject constructor(
                 return@withContext shouldProcess
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке возможности обработки изображения: $uri")
+            LogUtil.errorWithException("Ошибка при проверке возможности обработки изображения: $uri", e)
             false
         }
     }

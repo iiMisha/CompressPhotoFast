@@ -105,13 +105,13 @@ class BackgroundMonitoringService : Service() {
                         }
                         
                         // Проверяем, не находится ли URI уже в списке обрабатываемых
-                        if (UriProcessingTracker.isImageBeingProcessed(uri.toString())) {
+                        if (UriProcessingTracker.isImageBeingProcessed(uri)) {
                             Timber.d("URI уже в списке обрабатываемых: $uri, пропускаем")
                             return@launch
                         }
                         
                         // Добавляем URI в список обрабатываемых, чтобы избежать повторной обработки
-                        UriProcessingTracker.addProcessingUri(uri.toString())
+                        UriProcessingTracker.addProcessingUri(uri)
                         
                         // Запускаем обработку изображения
                         processNewImage(uri)
@@ -132,8 +132,11 @@ class BackgroundMonitoringService : Service() {
                     val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
                     val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
                     
+                    // Создаем Uri из строки
+                    val uri = Uri.parse(uriString)
+                    
                     // Удаляем URI из списка обрабатываемых
-                    UriProcessingTracker.removeProcessingUri(uriString)
+                    UriProcessingTracker.removeProcessingUri(uri)
                     Timber.d("URI удален из списка обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
                     Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
@@ -141,7 +144,7 @@ class BackgroundMonitoringService : Service() {
                     NotificationUtil.showCompressionResultToast(applicationContext, fileName, originalSize, compressedSize, reductionPercent)
                     
                     // Устанавливаем таймер игнорирования изменений
-                    UriProcessingTracker.setIgnorePeriod(uriString)
+                    UriProcessingTracker.setIgnorePeriod(uri)
                     
                     Timber.d("Обработка URI $uriString завершена и будет игнорироваться")
                 }
@@ -329,13 +332,13 @@ class BackgroundMonitoringService : Service() {
             val uriString = uri.toString()
             
             // Проверяем, обрабатывается ли уже это изображение
-            if (UriProcessingTracker.isImageBeingProcessed(uriString)) {
+            if (UriProcessingTracker.isImageBeingProcessed(uri)) {
                 Timber.d("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
                 return
             }
             
             // Проверяем, не следует ли игнорировать это изменение
-            if (UriProcessingTracker.shouldIgnoreUri(uriString)) {
+            if (UriProcessingTracker.shouldIgnore(uri)) {
                 Timber.d("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
                 return
             }

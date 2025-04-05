@@ -7,6 +7,10 @@ import android.util.Log
 import android.widget.Toast
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import com.compressphotofast.util.LogUtil
 
 /**
  * Менеджер для работы с Toast сообщениями с поддержкой дедупликации
@@ -21,22 +25,36 @@ object ToastManager {
      * Показывает Toast с проверкой дублирования
      */
     fun showToast(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
-        val currentTime = System.currentTimeMillis()
-        val lastShown = lastMessages[message] ?: 0L
-
-        if (currentTime - lastShown > DUPLICATE_TIMEOUT_MS) {
-            lastMessages[message] = currentTime
-            Log.d(TAG, "Showing toast: $message")
-            mainHandler.post {
-                try {
-                    Toast.makeText(context, message, duration).show()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Ошибка отображения Toast: ${e.message}")
-                }
+        try {
+            // Проверяем, не показывали ли мы это сообщение недавно
+            if (shouldSkipDuplicateToast(message)) {
+                LogUtil.debug("ToastManager", "Skipping duplicate toast: $message")
+                return
             }
-        } else {
-            Log.d(TAG, "Skipping duplicate toast: $message")
+
+            // Показываем Toast
+            CoroutineScope(Dispatchers.Main).launch {
+                Toast.makeText(context, message, duration).show()
+                LogUtil.debug("ToastManager", "Showing toast: $message")
+            }
+        } catch (e: Exception) {
+            LogUtil.errorWithException("ToastManager", e)
         }
+    }
+
+    private fun shouldSkipDuplicateToast(message: String): Boolean {
+        val now = System.currentTimeMillis()
+        val lastShown = lastMessages[message]
+        
+        // Если сообщение недавно показывалось (в пределах DUPLICATE_TIMEOUT_MS), пропускаем
+        if (lastShown != null && now - lastShown < DUPLICATE_TIMEOUT_MS) {
+            LogUtil.debug("ToastManager", "Skipping duplicate toast: $message")
+            return true
+        }
+        
+        // Обновляем время последнего показа для этого сообщения
+        lastMessages[message] = now
+        return false
     }
 
     /**
