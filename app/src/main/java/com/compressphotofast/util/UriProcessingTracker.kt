@@ -2,8 +2,6 @@ package com.compressphotofast.util
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
-import androidx.annotation.VisibleForTesting
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
 
@@ -76,14 +74,16 @@ object UriProcessingTracker {
      * Проверяет, был ли URI недавно обработан
      */
     fun wasRecentlyProcessed(uri: Uri): Boolean {
-        val uriString = uri.toString()
+        return isUriRecentlyProcessed(uri.toString())
+    }
+    
+    /**
+     * Проверяет, был ли URI недавно обработан по строковому представлению
+     */
+    private fun isUriRecentlyProcessed(uriString: String): Boolean {
         val timestamp = recentlyProcessedUris[uriString] ?: return false
-        
         val now = System.currentTimeMillis()
-        val elapsedTime = now - timestamp
-        
-        // Если прошло меньше времени, чем период кэширования, считаем URI недавно обработанным
-        return elapsedTime < RECENTLY_PROCESSED_EXPIRATION
+        return (now - timestamp) < RECENTLY_PROCESSED_EXPIRATION
     }
     
     /**
@@ -107,18 +107,7 @@ object UriProcessingTracker {
      * Проверяет, должен ли URI игнорироваться в данный момент
      */
     fun shouldIgnore(uri: Uri): Boolean {
-        val uriString = uri.toString()
-        val ignoreUntil = ignoreUrisUntil[uriString] ?: return false
-        
-        // Если текущее время меньше, чем время окончания периода игнорирования, URI игнорируется
-        val now = System.currentTimeMillis()
-        val shouldIgnore = now < ignoreUntil
-        
-        if (shouldIgnore) {
-            LogUtil.processDebug("URI в периоде игнорирования: $uriString")
-        }
-        
-        return shouldIgnore
+        return shouldIgnoreUri(uri.toString())
     }
     
     /**
@@ -130,7 +119,7 @@ object UriProcessingTracker {
     }
     
     /**
-     * Проверяет, не следует ли игнорировать заданный URI (был недавно обработан)
+     * Проверяет, не следует ли игнорировать заданный URI (был недавно обработан или в периоде игнорирования)
      * @param uriString URI для проверки
      * @return true если URI следует игнорировать, false в противном случае
      */
@@ -146,16 +135,7 @@ object UriProcessingTracker {
         checkAndCleanRecentList()
         
         // Проверяем, есть ли URI в списке недавно обработанных
-        val timestamp = recentlyProcessedUris[uriString]
-        if (timestamp != null) {
-            val currentTime = System.currentTimeMillis()
-            val isNotExpired = (currentTime - timestamp) < RECENTLY_PROCESSED_EXPIRATION
-            if (isNotExpired) {
-                return true
-            }
-        }
-        
-        return false
+        return isUriRecentlyProcessed(uriString)
     }
     
     /**
@@ -166,31 +146,9 @@ object UriProcessingTracker {
         
         // Если прошло достаточно времени с последней очистки или список слишком большой
         if (currentTime - lastCleanupTime > CLEANUP_INTERVAL || recentlyProcessedUris.size > MAX_RECENT_URIS) {
-            cleanupRecentlyProcessedUris()
+            cleanupStaleEntries()
             lastCleanupTime = currentTime
         }
-    }
-    
-    /**
-     * Очищает устаревшие URI из списка недавно обработанных
-     */
-    private fun cleanupRecentlyProcessedUris() {
-        val now = System.currentTimeMillis()
-        val expiredUris = mutableListOf<String>()
-        
-        // Находим устаревшие URI
-        for ((uri, timestamp) in recentlyProcessedUris) {
-            if (now - timestamp > RECENTLY_PROCESSED_EXPIRATION) {
-                expiredUris.add(uri)
-            }
-        }
-        
-        // Удаляем их из списка
-        for (uri in expiredUris) {
-            recentlyProcessedUris.remove(uri)
-        }
-        
-        LogUtil.processDebug("Очищены устаревшие URI: удалено ${expiredUris.size}, осталось ${recentlyProcessedUris.size}")
     }
     
     /**
@@ -201,9 +159,7 @@ object UriProcessingTracker {
         
         // Очищаем устаревшие URI из списка недавно обработанных
         val expiredUris = mutableListOf<String>()
-        for (entry in recentlyProcessedUris.entries) {
-            val uri = entry.key
-            val timestamp = entry.value
+        for ((uri, timestamp) in recentlyProcessedUris) {
             if (now - timestamp > RECENTLY_PROCESSED_EXPIRATION) {
                 expiredUris.add(uri)
             }
@@ -215,9 +171,7 @@ object UriProcessingTracker {
         
         // Очищаем истекшие периоды игнорирования
         val expiredIgnorePeriods = mutableListOf<String>()
-        for (entry in ignoreUrisUntil.entries) {
-            val uri = entry.key
-            val ignoreUntil = entry.value
+        for ((uri, ignoreUntil) in ignoreUrisUntil) {
             if (now >= ignoreUntil) {
                 expiredIgnorePeriods.add(uri)
             }
