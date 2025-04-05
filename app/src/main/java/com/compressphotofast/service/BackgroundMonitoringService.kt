@@ -329,8 +329,6 @@ class BackgroundMonitoringService : Service() {
                 return
             }
 
-            val uriString = uri.toString()
-            
             // Проверяем, обрабатывается ли уже это изображение
             if (UriProcessingTracker.isImageBeingProcessed(uri)) {
                 Timber.d("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
