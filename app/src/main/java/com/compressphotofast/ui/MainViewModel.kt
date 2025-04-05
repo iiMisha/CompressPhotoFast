@@ -22,34 +22,19 @@ import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.ImageProcessingChecker
-import com.compressphotofast.util.ImageProcessingUtil
-import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Job
 import timber.log.Timber
-import javax.inject.Inject
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import androidx.core.app.NotificationCompat
-import android.os.Handler
-import android.os.Looper
 import android.widget.Toast
-import android.view.Gravity
-import android.view.ViewGroup
-import android.widget.TextView
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
 import com.compressphotofast.util.SequentialImageProcessor
 import com.compressphotofast.util.CompressionProgressListener
 import com.compressphotofast.util.ToastManager
+import javax.inject.Inject
 
 /**
  * Модель представления для главного экрана
@@ -81,9 +66,6 @@ class MainViewModel @Inject constructor(
     // LiveData для отслеживания прогресса обработки нескольких изображений
     private val _multipleImagesProgress = MutableLiveData<MultipleImagesProgress>()
     val multipleImagesProgress: LiveData<MultipleImagesProgress> = _multipleImagesProgress
-    
-    // Job для отслеживания текущей обработки
-    private var processingJob: kotlinx.coroutines.Job? = null
     
     // Объект для последовательной обработки изображений
     private val sequentialImageProcessor = SequentialImageProcessor(context)
@@ -127,12 +109,7 @@ class MainViewModel @Inject constructor(
                     val success = workInfo.outputData.getBoolean("success", false)
                     val errorMessage = workInfo.outputData.getString("error_message")
                     
-                    // Снимаем регистрацию URI после обработки
-                    uri.let { 
-                        Timber.d("compressSelectedImage: снимаем регистрацию URI после обработки: $it")
-                    }
-                    
-                    // Показываем корректный результат
+                    // Показываем результат
                     _compressionResult.postValue(
                         CompressionResult(
                             success = success,
@@ -144,9 +121,8 @@ class MainViewModel @Inject constructor(
                         )
                     )
                     
-                    // Логируем реальный результат сжатия для отладки
-                    Timber.d("Реальный результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
-                    Timber.d("Показываем пользователю: успешное сжатие")
+                    // Логируем результат сжатия для отладки
+                    Timber.d("Результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
                 }
             }
     }
@@ -184,47 +160,7 @@ class MainViewModel @Inject constructor(
             sequentialImageProcessor.processImages(
                 uris = uris,
                 compressionQuality = getCompressionQuality(),
-                listener = object : CompressionProgressListener {
-                    override fun onBatchStarted(totalImages: Int) {
-                        // Можно добавить логику уведомления о начале обработки
-                    }
-                    
-                    override fun onBatchProgress(progress: Int, processed: Int, total: Int) {
-                        // Прогресс обновляется через StateFlow
-                    }
-                    
-                    override fun onBatchCompleted(results: Map<Uri, Uri?>) {
-                        // Результат обновляется через StateFlow
-                    }
-                    
-                    override fun onBatchCancelled() {
-                        // Обработка отмены
-                    }
-                    
-                    override fun onCompressionStarted(uri: Uri) {
-                        // Начало сжатия отдельного изображения
-                    }
-                    
-                    override fun onCompressionProgress(uri: Uri, progress: Int) {
-                        // Прогресс сжатия отдельного изображения
-                    }
-                    
-                    override fun onCompressionCompleted(uri: Uri, savedUri: Uri, originalSize: Long, compressedSize: Long) {
-                        // Завершение сжатия отдельного изображения
-                    }
-                    
-                    override fun onCompressionSkipped(uri: Uri, reason: String) {
-                        // Пропуск сжатия изображения
-                    }
-                    
-                    override fun onCompressionFailed(uri: Uri, error: String) {
-                        // Ошибка при сжатии изображения
-                    }
-                    
-                    override fun onBatchFailed(error: String) {
-                        // Ошибка при пакетной обработке
-                    }
-                }
+                listener = null  // Null так как не используем данные колбэки
             )
         }
         
@@ -316,30 +252,7 @@ class MainViewModel @Inject constructor(
             
             val uncompressedImages = mutableListOf<Uri>()
             
-            // Сначала собираем все сжатые версии файлов
-            val compressedFileNames = mutableSetOf<String>()
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
-                    if (displayName.contains("_compressed") || 
-                        displayName.contains("_сжатое") || 
-                        displayName.contains("_small")) {
-                        // Сохраняем оригинальное имя файла (без маркера сжатия)
-                        val originalName = displayName.replace("_compressed", "")
-                            .replace("_сжатое", "")
-                            .replace("_small", "")
-                        compressedFileNames.add(originalName)
-                    }
-                }
-            }
-            
-            // Теперь ищем неотсжатые изображения
+            // Ищем неотсжатые изображения
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -349,27 +262,15 @@ class MainViewModel @Inject constructor(
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
-                    val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
-                    val relativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH))
-                    } else {
-                        ""
-                    }
+                    val contentUri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
                     
-                    // Пропускаем файлы, которые:
-                    // 1. Уже имеют маркер сжатия
-                    // 2. Находятся в нашей директории CompressPhotoFast
-                    // 3. Уже имеют сжатую версию
-                    if (!displayName.contains("_compressed") && 
-                        !displayName.contains("_сжатое") && 
-                        !displayName.contains("_small") &&
-                        !relativePath.contains("CompressPhotoFast") &&
-                        !compressedFileNames.contains(displayName)) {
-                        
-                        val contentUri = ContentUris.withAppendedId(
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            id
-                        )
+                    // Проверяем, требует ли изображение обработки с использованием центрального класса проверки
+                    val shouldProcess = ImageProcessingChecker.shouldProcessImage(context, contentUri, false)
+                    
+                    if (shouldProcess) {
                         uncompressedImages.add(contentUri)
                     }
                 }
@@ -425,71 +326,15 @@ class MainViewModel @Inject constructor(
     suspend fun canProcessImage(context: Context, uri: Uri, quality: Int? = null): Boolean {
         return try {
             withContext(Dispatchers.IO) {
-                // Проверяем, существует ли файл
-                val exists = context.contentResolver.query(uri, null, null, null, null)?.use { cursor -> 
-                    cursor.count > 0 
-                } ?: false
+                // Используем общую логику проверки из ImageProcessingChecker
+                val shouldProcess = ImageProcessingChecker.shouldProcessImage(context, uri, false)
                 
-                if (!exists) {
-                    Timber.e("Файл не существует или недоступен: $uri")
-                    return@withContext false
-                }
-                
-                // Проверяем, не является ли файл временным
-                val isPending = isPendingFile(context, uri)
-                if (isPending) {
-                    Timber.e("Файл в процессе создания (IS_PENDING=1): $uri")
-                    return@withContext false
-                }
-                
-                // Проверяем поддерживаемые типы файлов
-                val mimeType = FileUtil.getMimeType(context, uri)
-                if (mimeType?.startsWith("image/") != true || (!mimeType.contains("jpeg") && !mimeType.contains("png"))) {
-                    Timber.e("Неподдерживаемый тип файла: $mimeType")
-                    return@withContext false
-                }
-                
-                // Проверяем, не был ли уже обработан файл
-                val isAlreadyProcessed = withContext(Dispatchers.IO) {
-                    ImageProcessingChecker.isAlreadyProcessed(context, uri)
-                }
-                
-                if (isAlreadyProcessed) {
-                    Timber.d("Файл уже был обработан ранее: $uri")
-                    return@withContext false
-                }
-                
-                // Если дошли до этой точки, то можно обрабатывать изображение
-                return@withContext true
+                // Возвращаем результат проверки
+                return@withContext shouldProcess
             }
         } catch (e: Exception) {
             Timber.e(e, "Ошибка при проверке возможности обработки изображения: $uri")
             false
-        }
-    }
-    
-    /**
-     * Проверяет, является ли файл временным (IS_PENDING=1)
-     */
-    private suspend fun isPendingFile(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(MediaStore.MediaColumns.IS_PENDING)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val isPendingColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.IS_PENDING)
-                    return@withContext cursor.getInt(isPendingColumn) == 1
-                }
-            }
-            return@withContext false
-        } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке статуса IS_PENDING файла")
-            return@withContext false
         }
     }
 
