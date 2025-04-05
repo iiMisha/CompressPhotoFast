@@ -1,7 +1,6 @@
 package com.compressphotofast.util
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -9,13 +8,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.Fragment
 import com.compressphotofast.R
 import timber.log.Timber
 
@@ -26,13 +22,6 @@ import timber.log.Timber
 class PermissionsManager(
     private val activity: AppCompatActivity
 ) : IPermissionsManager {
-    /**
-     * Типы разрешений, которыми управляет менеджер
-     */
-    // Используем типы из интерфейса
-    private val permissionTypeStorage = IPermissionsManager.PermissionType.STORAGE
-    private val permissionTypeNotifications = IPermissionsManager.PermissionType.NOTIFICATIONS
-    private val permissionTypeAll = IPermissionsManager.PermissionType.ALL
 
     // Константы
     companion object {
@@ -47,18 +36,6 @@ class PermissionsManager(
 
     // Получение доступа к SharedPreferences
     private val prefs = activity.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-
-    /**
-     * Инициализирует регистрацию обработчиков результатов для activity
-     */
-    fun registerPermissionHandlers(
-        permissionLauncher: ActivityResultLauncher<Array<String>>,
-        onAllGranted: () -> Unit,
-        onPermissionDenied: () -> Unit
-    ) {
-        // Этот метод будет использоваться для связывания PermissionsManager с обработчиками в Activity
-        // Но фактическая регистрация будет в Activity, т.к. registerForActivityResult можно вызывать только оттуда
-    }
 
     /**
      * Проверяет и запрашивает все необходимые разрешения
@@ -100,6 +77,24 @@ class PermissionsManager(
      * @return true если все разрешения уже предоставлены
      */
     override fun requestStoragePermissions(onPermissionsGranted: () -> Unit): Boolean {
+        val permissions = getRequiredStoragePermissions()
+
+        if (permissions.isEmpty()) {
+            Timber.d("Все необходимые разрешения для хранилища уже предоставлены")
+            onPermissionsGranted()
+            return true
+        }
+
+        Timber.d("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
+        incrementPermissionRequestCount()
+        ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        return false
+    }
+
+    /**
+     * Получить список необходимых разрешений для хранилища в зависимости от версии Android
+     */
+    private fun getRequiredStoragePermissions(): MutableList<String> {
         val permissions = mutableListOf<String>()
 
         // Для Android 13+ используем READ_MEDIA_IMAGES
@@ -120,17 +115,8 @@ class PermissionsManager(
                 permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
-
-        if (permissions.isEmpty()) {
-            Timber.d("Все необходимые разрешения для хранилища уже предоставлены")
-            onPermissionsGranted()
-            return true
-        }
-
-        Timber.d("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
-        incrementPermissionRequestCount()
-        ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
-        return false
+        
+        return permissions
     }
 
     /**
@@ -162,29 +148,14 @@ class PermissionsManager(
      */
     override fun requestOtherPermissions(onPermissionsGranted: () -> Unit): Boolean {
         val permissions = mutableListOf<String>()
-
-        // Разрешения для Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) != 
-                    PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
-            }
-            
-            if (!hasNotificationPermission()) {
-                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
-            }
-        } 
-        // Разрешения для Android 12 и ниже
-        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) != 
-                    PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != 
-                    PackageManager.PERMISSION_GRANTED) {
-                permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
+        
+        // Добавляем необходимые разрешения для хранилища
+        permissions.addAll(getRequiredStoragePermissions())
+        
+        // Добавляем разрешение на уведомления для Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
         }
 
         if (permissions.isEmpty()) {
@@ -230,14 +201,15 @@ class PermissionsManager(
 
         var hasPermissions = false
         
-        // Для Android 11+ проверяем разрешение MANAGE_EXTERNAL_STORAGE
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            hasPermissions = Environment.isExternalStorageManager()
-        } 
-        // Для Android 13+ проверяем READ_MEDIA_IMAGES
-        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Проверка разрешений по версии Android
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Для Android 13+ проверяем READ_MEDIA_IMAGES
             hasPermissions = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == 
                     PackageManager.PERMISSION_GRANTED
+        } 
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Для Android 11+ проверяем MANAGE_EXTERNAL_STORAGE
+            hasPermissions = Environment.isExternalStorageManager()
         } 
         // Для более старых версий проверяем READ_EXTERNAL_STORAGE и WRITE_EXTERNAL_STORAGE
         else {
@@ -330,7 +302,14 @@ class PermissionsManager(
     override fun showNotificationPermissionExplanation(onRetry: () -> Unit, onSkip: () -> Unit) {
         showPermissionExplanationDialog(IPermissionsManager.PermissionType.NOTIFICATIONS, onRetry, onSkip)
     }
-
+    
+    /**
+     * Проверяет, выбрал ли пользователь "больше не спрашивать" для указанного разрешения
+     */
+    private fun isPermissionPermanentlyDenied(permission: String): Boolean {
+        return !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+    }
+    
     /**
      * Обработка результата запроса разрешений
      * Должна вызываться из onRequestPermissionsResult активити
@@ -342,87 +321,72 @@ class PermissionsManager(
         onAllGranted: () -> Unit,
         onSomePermissionsDenied: () -> Unit
     ) {
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            // Увеличиваем счетчик запросов разрешений
-            val currentCount = prefs.getInt(PREF_PERMISSION_REQUEST_COUNT, 0)
-            prefs.edit().putInt(PREF_PERMISSION_REQUEST_COUNT, currentCount + 1).apply()
-
-            // Проверяем результаты
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                Timber.d("Все разрешения предоставлены")
-                prefs.edit()
-                    .putBoolean("has_storage_permission_granted", true)
-                    .putBoolean(PREF_PERMISSION_SKIPPED, false)
-                    .apply()
-                onAllGranted()
-            } else {
-                Timber.d("Не все разрешения были предоставлены")
+        if (requestCode != PERMISSION_REQUEST_CODE) {
+            return
+        }
+        
+        // Проверяем результаты
+        if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            Timber.d("Все разрешения предоставлены")
+            prefs.edit()
+                .putBoolean("has_storage_permission_granted", true)
+                .putBoolean(PREF_PERMISSION_SKIPPED, false)
+                .apply()
+            onAllGranted()
+            return
+        }
+            
+        Timber.d("Не все разрешения были предоставлены")
+        
+        // Проверяем, было ли отклонено разрешение на уведомления
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notificationPermissionIndex = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
+            if (notificationPermissionIndex != -1 && 
+                    grantResults.getOrNull(notificationPermissionIndex) != PackageManager.PERMISSION_GRANTED) {
                 
-                // Проверяем, было ли отклонено разрешение на уведомления
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val notificationPermissionIndex = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
-                    if (notificationPermissionIndex != -1 && 
-                            grantResults.getOrNull(notificationPermissionIndex) != PackageManager.PERMISSION_GRANTED) {
-                        
-                        Timber.d("Разрешение на уведомления было отклонено")
-                        
-                        // Проверяем, можно ли повторно показать запрос
-                        if (ActivityCompat.shouldShowRequestPermissionRationale(
-                                activity, Manifest.permission.POST_NOTIFICATIONS)) {
-                            showNotificationPermissionExplanation(
-                                onRetry = { requestNotificationPermission { onAllGranted() } },
-                                onSkip = onAllGranted
-                            )
-                        } else {
-                            Timber.d("Пользователь выбрал 'больше не спрашивать' для уведомлений")
-                            prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
-                            onAllGranted()
-                        }
-                    }
+                Timber.d("Разрешение на уведомления было отклонено")
                 
-                    // Обработка других отклоненных разрешений
-                    val storagePermissionDenied = permissions.any {
-                        (it == Manifest.permission.READ_MEDIA_IMAGES || 
-                         it == Manifest.permission.READ_EXTERNAL_STORAGE || 
-                         it == Manifest.permission.WRITE_EXTERNAL_STORAGE) &&
-                        !ActivityCompat.shouldShowRequestPermissionRationale(activity, it)
-                    }
-                    
-                    if (storagePermissionDenied) {
-                        Timber.d("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
-                        prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
-                        onAllGranted()
-                    } else {
-                        showPermissionExplanationDialog(
-                            IPermissionsManager.PermissionType.ALL,
-                            onRetry = { checkAndRequestAllPermissions(onAllGranted) },
-                            onSkip = onAllGranted
-                        )
-                    }
+                // Проверяем, можно ли повторно показать запрос
+                if (isPermissionPermanentlyDenied(Manifest.permission.POST_NOTIFICATIONS)) {
+                    Timber.d("Пользователь выбрал 'больше не спрашивать' для уведомлений")
+                    prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
                 } else {
-                    // Для более старых версий Android - проверяем STORAGE разрешения
-                    val storagePermissionDenied = permissions.any {
-                        (it == Manifest.permission.READ_EXTERNAL_STORAGE || 
-                         it == Manifest.permission.WRITE_EXTERNAL_STORAGE) &&
-                        !ActivityCompat.shouldShowRequestPermissionRationale(activity, it)
-                    }
-                    
-                    if (storagePermissionDenied) {
-                        Timber.d("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
-                        prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
-                        onAllGranted()
-                    } else {
-                        showPermissionExplanationDialog(
-                            IPermissionsManager.PermissionType.ALL,
-                            onRetry = { checkAndRequestAllPermissions(onAllGranted) },
-                            onSkip = onAllGranted
-                        )
-                    }
+                    showNotificationPermissionExplanation(
+                        onRetry = { requestNotificationPermission { onAllGranted() } },
+                        onSkip = onAllGranted
+                    )
+                    onSomePermissionsDenied()
+                    return
                 }
-                
-                onSomePermissionsDenied()
             }
         }
+        
+        // Проверяем, были ли отклонены разрешения для хранилища
+        val storagePermissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            storagePermissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            storagePermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            storagePermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        
+        val storagePermissionDenied = permissions.any { 
+            storagePermissions.contains(it) && isPermissionPermanentlyDenied(it)
+        }
+        
+        if (storagePermissionDenied) {
+            Timber.d("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
+            prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
+            onAllGranted()
+        } else {
+            showPermissionExplanationDialog(
+                IPermissionsManager.PermissionType.ALL,
+                onRetry = { checkAndRequestAllPermissions(onAllGranted) },
+                onSkip = onAllGranted
+            )
+        }
+        
+        onSomePermissionsDenied()
     }
     
     /**
