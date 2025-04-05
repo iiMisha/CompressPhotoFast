@@ -22,6 +22,8 @@ import java.util.Date
 import java.text.DecimalFormat
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
+import android.content.Intent
+import android.widget.Toast
 
 /**
  * Утилитарный класс для работы с файлами
@@ -81,9 +83,7 @@ object FileUtil {
                 }
             }
             
-            // Проверка и обработка существующих файлов с таким именем
-            var finalFileName = fileName
-            
+            // Проверяем нужно ли обрабатывать конфликты имен файлов
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
                     // Проверяем наличие файла с таким же именем в указанной директории
@@ -143,21 +143,21 @@ object FileUtil {
                             existsCursor?.close()
                             
                             if (!isFileExists) {
-                                finalFileName = newFileName
-                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, finalFileName)
-                                Timber.d("Режим замены выключен, используем новое имя с индексом: $finalFileName")
+                                // Обновляем имя файла в contentValues
+                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
+                                Timber.d("Режим замены выключен, используем новое имя с индексом: $newFileName")
                                 break
                             }
                             
                             index++
                         }
                         
-                        // Если мы перебрали все индексы и не нашли свободный, используем временную метку как запасной вариант
+                        // Если мы перебрали все индексы и не нашли свободный, используем временную метку
                         if (isFileExists) {
                             val timestamp = System.currentTimeMillis()
-                            finalFileName = "${fileNameWithoutExt}_${timestamp}${extension}"
-                            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, finalFileName)
-                            Timber.d("Не найден свободный индекс, используем временную метку: $finalFileName")
+                            val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
+                            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
+                            Timber.d("Не найден свободный индекс, используем временную метку: $timeBasedName")
                         }
                     }
                 } catch (e: Exception) {
@@ -220,7 +220,7 @@ object FileUtil {
             Timber.d("saveCompressedImageToGallery: директория для сохранения: $directory")
             
             // Централизованное создание записи в MediaStore
-            val uri = createMediaStoreEntry(context, fileName, directory ?: Constants.APP_DIRECTORY)
+            val uri = createMediaStoreEntry(context, fileName, directory)
             
             if (uri == null) {
                 Timber.e("saveCompressedImageToGallery: не удалось создать запись в MediaStore")
@@ -925,9 +925,6 @@ object FileUtil {
             
             // Создаем новое имя для оригинального файла, добавляя _original
             val backupFileName = "${fileBaseName}_original.${fileExt}"
-            
-            // Получаем директорию файла
-            val directory = getDirectoryFromUri(context, uri) ?: return@withContext null
             
             // Обновляем запись в MediaStore
             val contentValues = ContentValues().apply {

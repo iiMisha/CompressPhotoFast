@@ -323,7 +323,7 @@ class MainViewModel @Inject constructor(
     /**
      * Проверяет, можно ли обработать изображение
      */
-    suspend fun canProcessImage(context: Context, uri: Uri, quality: Int? = null): Boolean {
+    suspend fun canProcessImage(context: Context, uri: Uri): Boolean {
         return try {
             withContext(Dispatchers.IO) {
                 // Используем общую логику проверки из ImageProcessingChecker

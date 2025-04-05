@@ -123,16 +123,14 @@ object ImageCompressionUtil {
     }
     
     /**
-     * Сжимает изображение из входного потока в выходной
+     * Сжимает изображение из входного потока в выходной поток
      * 
-     * @param context Контекст приложения
-     * @param inputStream Входной поток с исходным изображением
+     * @param inputStream Входной поток с изображением
      * @param outputStream Выходной поток для сжатого изображения
      * @param quality Качество сжатия (0-100)
      * @return true если сжатие успешно, false при ошибке
      */
     suspend fun compressStream(
-        context: Context,
         inputStream: InputStream,
         outputStream: OutputStream,
         quality: Int
@@ -243,7 +241,6 @@ object ImageCompressionUtil {
                 ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
             
             val compressedSize = outputStream.size().toLong()
-            val ratio = compressedSize.toFloat() / fileSize.toFloat()
             
             // Проверка эффективности сжатия
             if (!isImageProcessingEfficient(fileSize, compressedSize)) {
@@ -256,11 +253,13 @@ object ImageCompressionUtil {
             
             // Сохранение сжатого файла
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
+            val directory = FileUtil.getDirectoryFromUri(context, uri)
+            val directoryToUse = if (directory.isNullOrEmpty()) Constants.APP_DIRECTORY else directory
             val savedFileResult = FileUtil.saveCompressedImageFromStream(
                 context,
                 compressedInputStream, 
                 compressedFileName,
-                FileUtil.getDirectoryFromUri(context, uri) ?: Constants.APP_DIRECTORY,
+                directoryToUse,
                 uri,
                 quality,
                 exifData
