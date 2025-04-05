@@ -34,7 +34,7 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             // В режиме отладки показываем все логи
             Timber.plant(Timber.DebugTree())
         } else {
-            // В релизной версии фильтруем и показываем только важные логи
+            // В релизной версии полностью отключаем логирование
             Timber.plant(ReleaseTree())
         }
         
@@ -63,21 +63,11 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             .build()
             
     /**
-     * Дерево логирования для релизной версии, фильтрует логи по приоритету
+     * Дерево логирования для релизной версии, полностью отключает все логи
      */
     private class ReleaseTree : Timber.Tree() {
         override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-            // В релизе логируем только ошибки и информационные сообщения
-            if (priority == Log.ERROR || priority == Log.INFO) {
-                // Записываем лог, возможно в файл или отправляем на сервер
-                if (priority == Log.ERROR && t != null) {
-                    LogUtil.errorWithMessageAndException("APP", message, t)
-                } else if (priority == Log.ERROR) {
-                    LogUtil.errorSimple("APP", message)
-                } else if (priority == Log.INFO) {
-                    LogUtil.processInfo(message)
-                }
-            }
+            // Пустая реализация - не логируем ничего в релизе
         }
     }
 } 
