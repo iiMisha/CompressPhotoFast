@@ -95,7 +95,7 @@ class MainViewModel @Inject constructor(
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
             .setInputData(workDataOf(
                 Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                "compression_quality" to getCompressionQuality()
+                Constants.WORK_COMPRESSION_QUALITY to getCompressionQuality()
             ))
             .build()
         

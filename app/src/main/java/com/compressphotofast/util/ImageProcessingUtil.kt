@@ -72,7 +72,7 @@ object ImageProcessingUtil {
                     .setInputData(
                         workDataOf(
                             Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                            "compression_quality" to quality,
+                            Constants.WORK_COMPRESSION_QUALITY to quality,
                             "original_size" to originalSize
                         )
                     )

@@ -68,7 +68,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         get() = context
 
     // Качество сжатия (получаем из входных данных)
-    private val compressionQuality = inputData.getInt("compression_quality", Constants.COMPRESSION_QUALITY_MEDIUM)
+    private val compressionQuality = inputData.getInt(Constants.WORK_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -80,7 +80,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
 
             val imageUri = Uri.parse(uriString)
-            val compressionQuality = inputData.getInt(Constants.WORK_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
             
             // Обновляем уведомление
             setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_in_progress)))
@@ -388,27 +387,6 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Создание данных для результата с успехом
-     */
-    private fun createSuccessOutput(skipped: Boolean = false): Data {
-        return Data.Builder()
-            .putBoolean("success", true)
-            .putBoolean("skipped", skipped)
-            .build()
-    }
-
-    /**
-     * Создание данных для результата с ошибкой
-     */
-    private fun createFailureOutput(errorMessage: String): Data {
-        return Data.Builder()
-            .putBoolean("success", false)
-            .putBoolean("skipped", false)
-            .putString("error_message", errorMessage)
-            .build()
-    }
-
-    /**
      * Добавляет запрос на удаление файла в список ожидающих
      */
     private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: IntentSender) {
@@ -453,21 +431,5 @@ class ImageCompressionWorker @AssistedInject constructor(
             val timestamp = System.currentTimeMillis()
             return "compressed_image_$timestamp.jpg"
         }
-    }
-
-    /**
-     * Безопасно получает строковое значение из курсора по имени колонки
-     */
-    private fun getCursorString(cursor: android.database.Cursor, columnName: String, defaultValue: String = "unknown"): String {
-        val index = cursor.getColumnIndex(columnName)
-        return if (index != -1) cursor.getString(index) else defaultValue
-    }
-    
-    /**
-     * Безопасно получает числовое значение из курсора по имени колонки
-     */
-    private fun getCursorLong(cursor: android.database.Cursor, columnName: String, defaultValue: Long = -1): Long {
-        val index = cursor.getColumnIndex(columnName)
-        return if (index != -1) cursor.getLong(index) else defaultValue
     }
 } 
