@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
                 val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
-                val reason = intent.getStringExtra(Constants.EXTRA_SKIP_REASON) ?: "неизвестная причина"
+                val reason = intent.getStringExtra(Constants.EXTRA_SKIP_REASON) ?: getString(R.string.notification_skipping_inefficient)
                 
                 showToast("$fileName: пропущено ($reason)")
             }
