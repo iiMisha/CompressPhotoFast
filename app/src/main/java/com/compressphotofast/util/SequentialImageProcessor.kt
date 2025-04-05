@@ -152,11 +152,6 @@ class SequentialImageProcessor(private val context: Context) {
                 skipped = if (skipped) currentProgress.skipped + 1 else currentProgress.skipped
             )
             _progress.value = newProgress
-            
-            // Обновляем уведомление о прогрессе, если изображений больше одного
-            if (currentProgress.total > 1) {
-                NotificationUtil.updateBatchProcessingNotification(context, newProgress)
-            }
         }
     }
     
@@ -165,11 +160,6 @@ class SequentialImageProcessor(private val context: Context) {
      */
     fun cancelProcessing() {
         processingCancelled.set(true)
-        
-        // Удаляем уведомление о прогрессе
-        if (_progress.value.total > 1) {
-            NotificationUtil.cancelNotification(context, Constants.NOTIFICATION_ID_BATCH_PROCESSING)
-        }
         
         // Показываем уведомление об остановке
         ToastManager.showToast(context, "Обработка изображений остановлена")
@@ -265,18 +255,6 @@ class SequentialImageProcessor(private val context: Context) {
     private fun updateProgress(current: Int, total: Int, fileName: String) {
         val progress = MultipleImagesProgress(total, current, 0, 0, 0)
         progressListener?.onProgress(progress)
-        
-        // Обновляем уведомление о прогрессе, если обрабатываем несколько изображений
-        if (total > 1) {
-            NotificationUtil.updateProgressNotification(
-                context = context,
-                notificationId = Constants.NOTIFICATION_ID_BATCH_PROCESSING,
-                title = "Обработка изображений",
-                content = "Обработано $current из $total",
-                progress = current,
-                max = total
-            )
-        }
         
         // Отправляем информацию через broadcast для слушателей
         val intent = Intent(Constants.ACTION_COMPRESSION_PROGRESS)

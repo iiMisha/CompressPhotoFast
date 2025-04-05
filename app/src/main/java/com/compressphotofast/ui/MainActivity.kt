@@ -512,29 +512,6 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.clearAnimation()
                 binding.progressBar.visibility = View.GONE
                 
-                // Показываем Toast с результатом обработки
-                if (progress.total > 1) {
-                    // Подготовим текст сообщения учитывая пропущенные файлы
-                    val message = if (progress.skipped > 0) {
-                        getString(
-                            R.string.notification_batch_processing_completed_with_skipped,
-                            progress.successful,
-                            progress.skipped,
-                            progress.failed,
-                            progress.total
-                        )
-                    } else {
-                        getString(
-                            R.string.notification_batch_processing_completed,
-                            progress.successful,
-                            progress.failed,
-                            progress.total
-                        )
-                    }
-                    
-                    showToast(message)
-                }
-                
                 // Логируем завершение для отладки
                 Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
             }
