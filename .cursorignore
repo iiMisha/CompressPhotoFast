@@ -41,7 +41,7 @@ app/release/
 app/debug/
 
 # Документация
-docs/
+docs/archive/
 
 # Файл конфигурации CI/CD (если есть)
 .github/workflows/
