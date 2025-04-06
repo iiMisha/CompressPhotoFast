@@ -8,12 +8,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import androidx.work.WorkManager
-import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
 import dagger.hilt.android.AndroidEntryPoint
 import com.compressphotofast.util.LogUtil
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.SettingsManager
@@ -22,9 +19,6 @@ import com.compressphotofast.util.UriProcessingTracker
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
-
-    @Inject
-    lateinit var workManager: WorkManager
 
     companion object {
         private const val JOB_ID = 1000
