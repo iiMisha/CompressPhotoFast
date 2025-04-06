@@ -8,7 +8,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import com.compressphotofast.util.FileUtil
 import dagger.hilt.android.AndroidEntryPoint
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.Dispatchers

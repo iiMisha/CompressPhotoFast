@@ -17,7 +17,6 @@ import androidx.work.workDataOf
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.worker.ImageCompressionWorker
