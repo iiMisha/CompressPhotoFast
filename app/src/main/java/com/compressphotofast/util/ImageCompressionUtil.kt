@@ -259,7 +259,7 @@ object ImageCompressionUtil {
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
             val directory = UriUtil.getDirectoryFromUri(context, uri)
             val directoryToUse = if (directory.isNullOrEmpty()) Constants.APP_DIRECTORY else directory
-            val savedFileResult = FileUtil.saveCompressedImageFromStream(
+            val savedFileResult = MediaStoreUtil.saveCompressedImageFromStream(
                 context,
                 compressedInputStream, 
                 compressedFileName,
@@ -334,14 +334,14 @@ object ImageCompressionUtil {
     private suspend fun isValidUri(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование URI
-            val exists = FileUtil.isUriExistsSuspend(context, uri)
+            val exists = UriUtil.isUriExistsSuspend(context, uri)
             if (!exists) {
                 LogUtil.uriInfo(uri, "URI не существует")
                 return@withContext false
             }
             
             // Проверяем тип файла
-            val mimeType = FileUtil.getMimeType(context, uri)
+            val mimeType = UriUtil.getMimeType(context, uri)
             val isImage = mimeType?.startsWith("image/") == true
             if (!isImage) {
                 LogUtil.uriInfo(uri, "URI не является изображением: $mimeType")
@@ -382,7 +382,7 @@ object ImageCompressionUtil {
         mimeType: String = "image/jpeg"
     ): Uri? = withContext(Dispatchers.IO) {
         try {
-            return@withContext FileUtil.insertImageIntoMediaStore(
+            return@withContext MediaStoreUtil.insertImageIntoMediaStore(
                 context,
                 compressedFile,
                 fileName,
