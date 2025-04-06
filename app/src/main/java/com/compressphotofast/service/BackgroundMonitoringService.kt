@@ -1,51 +1,32 @@
 package com.compressphotofast.service
 
-import android.app.Notification
-import android.app.PendingIntent
 import android.app.Service
-import android.content.ContentResolver
-import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.provider.MediaStore
-import androidx.core.app.NotificationCompat
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
-import com.compressphotofast.R
-import com.compressphotofast.ui.MainActivity
+import android.content.pm.ServiceInfo
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.StatsTracker
-import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
 import java.util.concurrent.Executors
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.ConcurrentHashMap
-import java.util.Collections
-import android.content.pm.ServiceInfo
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
-import com.compressphotofast.util.FileInfoUtil
 import com.compressphotofast.util.MediaStoreObserver
+import com.compressphotofast.util.LogUtil
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -53,9 +34,6 @@ import com.compressphotofast.util.MediaStoreObserver
 @OptIn(DelicateCoroutinesApi::class)
 @AndroidEntryPoint
 class BackgroundMonitoringService : Service() {
-
-    @Inject
-    lateinit var workManager: WorkManager
 
     private val executorService = Executors.newSingleThreadExecutor()
     
@@ -66,7 +44,7 @@ class BackgroundMonitoringService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val scanRunnable = object : Runnable {
         override fun run() {
-            Timber.d("Запуск периодического сканирования галереи")
+            LogUtil.processDebug("Запуск периодического сканирования галереи")
             scanForNewImages()
             // Планируем следующее сканирование
             handler.postDelayed(this, 60000) // Каждую минуту
@@ -77,7 +55,7 @@ class BackgroundMonitoringService : Service() {
     private val cleanupHandler = Handler(Looper.getMainLooper())
     private val cleanupRunnable = object : Runnable {
         override fun run() {
-            Timber.d("Запуск периодической очистки временных файлов")
+            LogUtil.processDebug("Запуск периодической очистки временных файлов")
             cleanupTempFiles()
             // Планируем следующую очистку через 24 часа
             cleanupHandler.postDelayed(this, 24 * 60 * 60 * 1000) // 24 часа
@@ -96,19 +74,19 @@ class BackgroundMonitoringService : Service() {
                 }
                 
                 uri?.let {
-                    Timber.d("Получен запрос на обработку изображения через broadcast: $uri")
+                    LogUtil.processDebug("Получен запрос на обработку изображения через broadcast: $uri")
                     
                     // Запускаем корутину для проверки статуса изображения
                     GlobalScope.launch(Dispatchers.IO) {
                         // Проверяем, не было ли изображение уже обработано
                         if (!StatsTracker.shouldProcessImage(context, uri)) {
-                            Timber.d("Изображение не требует обработки: $uri, пропускаем")
+                            LogUtil.processDebug("Изображение не требует обработки: $uri, пропускаем")
                             return@launch
                         }
                         
                         // Проверяем, не находится ли URI уже в списке обрабатываемых
                         if (UriProcessingTracker.isImageBeingProcessed(uri)) {
-                            Timber.d("URI уже в списке обрабатываемых: $uri, пропускаем")
+                            LogUtil.processDebug("URI уже в списке обрабатываемых: $uri, пропускаем")
                             return@launch
                         }
                         
@@ -139,8 +117,8 @@ class BackgroundMonitoringService : Service() {
                     
                     // Удаляем URI из списка обрабатываемых
                     UriProcessingTracker.removeProcessingUri(uri)
-                    Timber.d("URI удален из списка обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
-                    Timber.d("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
+                    LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
+                    LogUtil.processDebug("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
                     // Показываем Toast-уведомление о результате сжатия
                     NotificationUtil.showCompressionResultToast(applicationContext, fileName, originalSize, compressedSize, reductionPercent)
@@ -148,7 +126,7 @@ class BackgroundMonitoringService : Service() {
                     // Устанавливаем таймер игнорирования изменений
                     UriProcessingTracker.setIgnorePeriod(uri)
                     
-                    Timber.d("Обработка URI $uriString завершена и будет игнорироваться")
+                    LogUtil.processDebug("Обработка URI $uriString завершена и будет игнорироваться")
                 }
             }
         }
@@ -156,24 +134,13 @@ class BackgroundMonitoringService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        Timber.d("BackgroundMonitoringService: onCreate")
+        LogUtil.processDebug("BackgroundMonitoringService: onCreate")
         
         // Создаем канал уведомлений
         NotificationUtil.createDefaultNotificationChannel(applicationContext)
         
         // Создаем уведомление и запускаем сервис как Foreground Service
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-                NotificationUtil.createBackgroundServiceNotification(applicationContext), 
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-                NotificationUtil.createBackgroundServiceNotification(applicationContext),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-                NotificationUtil.createBackgroundServiceNotification(applicationContext))
-        }
+        startForegroundWithNotification()
         
         // Настраиваем ContentObserver для отслеживания изменений в MediaStore
         setupContentObserver()
@@ -190,29 +157,29 @@ class BackgroundMonitoringService : Service() {
         
         // Проверяем состояние автоматического сжатия при создании сервиса
         val isEnabled = SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
-        Timber.d("BackgroundMonitoringService: состояние автоматического сжатия: ${if (isEnabled) "включено" else "выключено"}")
+        LogUtil.processDebug("BackgroundMonitoringService: состояние автоматического сжатия: ${if (isEnabled) "включено" else "выключено"}")
         
         if (!isEnabled) {
-            Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, останавливаем сервис")
+            LogUtil.processDebug("BackgroundMonitoringService: автоматическое сжатие отключено, останавливаем сервис")
             stopSelf()
             return
         }
         
         // Запускаем периодическое сканирование для обеспечения обработки всех изображений
         handler.post(scanRunnable)
-        Timber.d("BackgroundMonitoringService: периодическое сканирование запущено")
+        LogUtil.processDebug("BackgroundMonitoringService: периодическое сканирование запущено")
 
         // Запускаем периодическую очистку временных файлов
         cleanupHandler.post(cleanupRunnable)
-        Timber.d("BackgroundMonitoringService: периодическая очистка временных файлов запущена")
+        LogUtil.processDebug("BackgroundMonitoringService: периодическая очистка временных файлов запущена")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.d("BackgroundMonitoringService: onStartCommand(startId=$startId)")
+        LogUtil.processDebug("BackgroundMonitoringService: onStartCommand(startId=$startId)")
         
         // Проверяем, не является ли это запросом на остановку сервиса
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
-            Timber.d("BackgroundMonitoringService: получен запрос на остановку сервиса")
+            LogUtil.processDebug("BackgroundMonitoringService: получен запрос на остановку сервиса")
             
             // Отключаем автоматическое сжатие в настройках
             SettingsManager.getInstance(applicationContext).setAutoCompression(false)
@@ -222,8 +189,26 @@ class BackgroundMonitoringService : Service() {
             return START_NOT_STICKY
         }
         
-        // Создание уведомления для foreground сервиса
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // Запускаем сервис в режиме переднего плана
+        startForegroundWithNotification()
+        LogUtil.processDebug("BackgroundMonitoringService: запущен как foreground сервис")
+        
+        // Выполняем первоначальное сканирование при запуске сервиса
+        LogUtil.processDebug("BackgroundMonitoringService: запуск первоначального сканирования")
+        scanForNewImages()
+        
+        return START_STICKY
+    }
+
+    /**
+     * Запуск сервиса в режиме переднего плана с уведомлением
+     */
+    private fun startForegroundWithNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
+                NotificationUtil.createBackgroundServiceNotification(applicationContext), 
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
                 NotificationUtil.createBackgroundServiceNotification(applicationContext),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -231,13 +216,6 @@ class BackgroundMonitoringService : Service() {
             startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
                 NotificationUtil.createBackgroundServiceNotification(applicationContext))
         }
-        Timber.d("BackgroundMonitoringService: запущен как foreground сервис")
-        
-        // Выполняем первоначальное сканирование при запуске сервиса
-        Timber.d("BackgroundMonitoringService: запуск первоначального сканирования")
-        scanForNewImages()
-        
-        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -262,10 +240,10 @@ class BackgroundMonitoringService : Service() {
             unregisterReceiver(imageProcessingReceiver)
             unregisterReceiver(compressionCompletedReceiver)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver")
+            LogUtil.errorWithException("Ошибка при отмене регистрации BroadcastReceiver", e)
         }
         
-        Timber.d("Фоновый сервис остановлен")
+        LogUtil.processDebug("Фоновый сервис остановлен")
     }
     
     /**
@@ -306,12 +284,12 @@ class BackgroundMonitoringService : Service() {
                 scanResult.foundUris.forEach { uri ->
                     // Проверяем состояние автоматического сжатия еще раз перед началом обработки
                     if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
-                        Timber.d("BackgroundMonitoringService: обработка изображения: $uri")
+                        LogUtil.processDebug("BackgroundMonitoringService: обработка изображения: $uri")
                         processNewImage(uri)
                     }
                 }
                 
-                Timber.d("BackgroundMonitoringService: сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
+                LogUtil.processDebug("BackgroundMonitoringService: сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
             }
         }
     }
@@ -320,34 +298,34 @@ class BackgroundMonitoringService : Service() {
      * Обработка нового изображения
      */
     private suspend fun processNewImage(uri: Uri) {
-        Timber.d("BackgroundMonitoringService: начало обработки нового изображения: $uri")
-        Timber.d("BackgroundMonitoringService: URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
+        LogUtil.processDebug("BackgroundMonitoringService: начало обработки нового изображения: $uri")
+        LogUtil.uriInfo(uri, "URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
         
         try {
             // Проверяем, включено ли автоматическое сжатие
             val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
-                Timber.d("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем обработку")
+                LogUtil.processDebug("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем обработку")
                 return
             }
 
             // Проверяем, обрабатывается ли уже это изображение
             if (UriProcessingTracker.isImageBeingProcessed(uri)) {
-                Timber.d("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
+                LogUtil.processDebug("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
                 return
             }
             
             // Проверяем, не следует ли игнорировать это изменение
             if (UriProcessingTracker.shouldIgnore(uri)) {
-                Timber.d("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
+                LogUtil.processDebug("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
                 return
             }
             
             // Используем централизованный метод обработки изображения
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
-            Timber.d("BackgroundMonitoringService: результат обработки изображения: ${result.third}")
+            LogUtil.processDebug("BackgroundMonitoringService: результат обработки изображения: ${result.third}")
         } catch (e: Exception) {
-            Timber.e(e, "BackgroundMonitoringService: ошибка при обработке нового изображения: $uri")
+            LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
         }
     }
     
@@ -363,7 +341,7 @@ class BackgroundMonitoringService : Service() {
             processNewImage(uri)
         }
         
-        Timber.d("BackgroundMonitoringService: начальное сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
+        LogUtil.processDebug("BackgroundMonitoringService: начальное сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
     }
 
     /**
@@ -376,7 +354,7 @@ class BackgroundMonitoringService : Service() {
             IntentFilter(Constants.ACTION_PROCESS_IMAGE),
             Context.RECEIVER_NOT_EXPORTED
         )
-        Timber.d("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
+        LogUtil.processDebug("BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE")
     }
 
     /**
