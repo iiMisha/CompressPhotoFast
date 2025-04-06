@@ -15,6 +15,10 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.FileOperationsUtil
+import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.MediaStoreUtil
 
 /**
  * Централизованная утилита для сжатия изображений
@@ -221,8 +225,8 @@ object ImageCompressionUtil {
             }
             
             // Получение имени и размера файла
-            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
-            val fileSize = FileUtil.getFileSize(context, uri)
+            val fileName = UriUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
+            val fileSize = UriUtil.getFileSize(context, uri)
             
             if (fileSize <= 0) {
                 return@withContext Triple(false, null, "Не удалось получить размер файла или файл пуст")
@@ -249,11 +253,11 @@ object ImageCompressionUtil {
             }
             
             // Создание имени для сжатого файла
-            val compressedFileName = FileUtil.createCompressedFileName(fileName)
+            val compressedFileName = FileOperationsUtil.createCompressedFileName(fileName)
             
             // Сохранение сжатого файла
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
-            val directory = FileUtil.getDirectoryFromUri(context, uri)
+            val directory = UriUtil.getDirectoryFromUri(context, uri)
             val directoryToUse = if (directory.isNullOrEmpty()) Constants.APP_DIRECTORY else directory
             val savedFileResult = FileUtil.saveCompressedImageFromStream(
                 context,
@@ -304,7 +308,7 @@ object ImageCompressionUtil {
             val outputStream = compressImageToStream(context, uri, quality) ?: return@withContext null
             
             // Создаем временный файл
-            val tempFile = FileUtil.createTempImageFile(context)
+            val tempFile = FileOperationsUtil.createTempImageFile(context)
             
             // Сохраняем сжатое изображение во временный файл
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())

@@ -6,6 +6,7 @@ import android.provider.MediaStore
 import java.util.Collections
 import java.util.HashMap
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.UriUtil
 
 /**
  * Утилитарный класс для работы с информацией о файлах
@@ -76,7 +77,7 @@ object FileInfoUtil {
                     val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
                     
                     // Получаем путь к файлу
-                    val path = FileUtil.getFilePathFromUri(context, uri) ?: "неизвестно"
+                    val path = UriUtil.getFilePathFromUri(context, uri) ?: "неизвестно"
                     
                     // Кэшируем полученную информацию
                     val fileInfo = FileInfo(id, name, size, date, mime, path)

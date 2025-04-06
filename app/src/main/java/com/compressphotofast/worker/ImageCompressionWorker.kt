@@ -35,6 +35,9 @@ import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.MediaStoreUtil
+import com.compressphotofast.util.FileOperationsUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -105,13 +108,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Проверка существования файла
-            if (!FileUtil.isUriExistsSuspend(appContext, imageUri)) {
+            if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                 LogUtil.error(imageUri, "Проверка файла", "Файл не существует")
                 return@withContext Result.failure()
             }
             
             // Проверка на временный файл
-            if (FileUtil.isFilePendingSuspend(appContext, imageUri)) {
+            if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
                 LogUtil.skipImage(imageUri, "Файл находится в процессе записи")
                 return@withContext Result.failure()
             }
@@ -121,10 +124,10 @@ class ImageCompressionWorker @AssistedInject constructor(
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
             // Проверяем размер исходного файла
-            val sourceSize = FileUtil.getFileSize(appContext, imageUri)
+            val sourceSize = UriUtil.getFileSize(appContext, imageUri)
             
             // Если размер слишком маленький или слишком большой, пропускаем
-            if (!FileUtil.isFileSizeValid(sourceSize)) {
+            if (!FileOperationsUtil.isFileSizeValid(sourceSize)) {
                 LogUtil.uriInfo(imageUri, "Размер файла невалидный: $sourceSize, пропускаем")
                 setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_invalid_size)))
                 return@withContext Result.success()
@@ -161,7 +164,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие")
                 
                 // Получаем имя файла
-                val fileName = FileUtil.getFileNameFromUri(appContext, imageUri)
+                val fileName = UriUtil.getFileNameFromUri(appContext, imageUri)
                 
                 if (fileName.isNullOrEmpty()) {
                     LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
@@ -176,9 +179,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
                 
                 // Определяем директорию для сохранения
-                val directory = if (FileUtil.isSaveModeReplace(appContext)) {
+                val directory = if (FileOperationsUtil.isSaveModeReplace(appContext)) {
                         // Если включен режим замены, сохраняем в той же директории
-                    FileUtil.getDirectoryFromUri(appContext, imageUri)
+                    UriUtil.getDirectoryFromUri(appContext, imageUri)
                     } else {
                         // Иначе сохраняем в директории приложения
                         Constants.APP_DIRECTORY
@@ -217,11 +220,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 var backupUri = imageUri
                 
                     if (!isMediaDocumentsUri) {
-                    backupUri = FileUtil.renameOriginalFileIfNeeded(appContext, imageUri) ?: imageUri
+                    backupUri = FileOperationsUtil.renameOriginalFileIfNeeded(appContext, imageUri) ?: imageUri
                 }
                 
                 // Сохраняем сжатое изображение
-                    val savedUri = FileUtil.saveCompressedImageFromStream(
+                    val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
                     appContext,
                     ByteArrayInputStream(compressedImageStream.toByteArray()),
                         fileName,
@@ -246,9 +249,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Если режим замены включен и URI был переименован, удаляем переименованный оригинальный файл
                 try {
-                    if (FileUtil.isSaveModeReplace(appContext) && backupUri != imageUri) {
+                    if (FileOperationsUtil.isSaveModeReplace(appContext) && backupUri != imageUri) {
                         LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление файла: $backupUri")
-                        val deleteResult = FileUtil.deleteFile(appContext, backupUri)
+                        val deleteResult = FileOperationsUtil.deleteFile(appContext, backupUri)
                         
                         when (deleteResult) {
                             is Boolean -> {
@@ -270,7 +273,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 }
                 
                 // Получаем размер сжатого файла для уведомления
-                val compressedSize = FileUtil.getFileSize(appContext, savedUri)
+                val compressedSize = UriUtil.getFileSize(appContext, savedUri)
                 val sizeReduction = if (sourceSize > 0 && compressedSize > 0) {
                     ((sourceSize - compressedSize).toFloat() / sourceSize) * 100
                 } else 0f
@@ -416,7 +419,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun getFileNameSafely(uri: Uri): String {
         try {
-            val fileName = FileUtil.getFileNameFromUri(appContext, uri)
+            val fileName = UriUtil.getFileNameFromUri(appContext, uri)
             
             // Если имя файла не определено, генерируем временное имя на основе времени
             if (fileName.isNullOrBlank() || fileName == "unknown") {

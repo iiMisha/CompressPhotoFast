@@ -19,6 +19,9 @@ import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.ImageProcessingChecker
+import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.FileOperationsUtil
+import com.compressphotofast.util.MediaStoreUtil
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений

@@ -16,6 +16,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Date
 import androidx.documentfile.provider.DocumentFile
+import com.compressphotofast.util.FileOperationsUtil
+import com.compressphotofast.util.UriUtil
 
 /**
  * Централизованный класс для проверки необходимости обработки изображений
@@ -55,13 +57,13 @@ object ImageProcessingChecker {
     private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование URI
-            if (!FileUtil.isUriExistsSuspend(context, uri)) {
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
                 LogUtil.processDebug("URI не существует: $uri")
                 return@withContext false
             }
             
             // Проверяем, не является ли файл переименованным оригиналом
-            val fileName = FileUtil.getFileNameFromUri(context, uri) ?: ""
+            val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
             if (fileName.contains("_original.")) {
                 LogUtil.processDebug("Файл является переименованным оригиналом, пропускаем: $uri")
                 return@withContext false
@@ -78,26 +80,26 @@ object ImageProcessingChecker {
             }
             
             // Проверяем, не является ли изображение скриншотом
-            if (!settingsManager.shouldProcessScreenshots() && FileUtil.isScreenshot(context, uri)) {
+            if (!settingsManager.shouldProcessScreenshots() && UriUtil.isScreenshot(context, uri)) {
                 LogUtil.processDebug("Файл является скриншотом, обработка скриншотов отключена: $uri")
                 return@withContext false
             }
             
             // Проверяем, не находится ли файл в директории приложения
-            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
+            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
             if (isInAppDirectory(path)) {
                 LogUtil.processDebug("Файл находится в директории приложения: $path")
                 return@withContext false
             }
             
             // Проверяем, является ли файл временным или в процессе записи
-            if (FileUtil.isFilePendingSuspend(context, uri)) {
+            if (UriUtil.isFilePendingSuspend(context, uri)) {
                 LogUtil.processDebug("Файл является временным или в процессе записи: $uri")
                 return@withContext false
             }
             
             // Проверяем MIME тип
-            val mimeType = FileUtil.getMimeType(context, uri)
+            val mimeType = UriUtil.getMimeType(context, uri)
             if (!isProcessableMimeType(mimeType)) {
                 LogUtil.processDebug("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
                 return@withContext false
@@ -149,7 +151,7 @@ object ImageProcessingChecker {
             }
             
             // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
-            val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
+            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
             if (isInAppDirectory(path)) {
                 result.processingRequired = false
                 result.reason = ProcessingSkipReason.IN_APP_DIRECTORY
@@ -157,8 +159,8 @@ object ImageProcessingChecker {
             }
             
             // Поиск сжатой версии в директории приложения по имени (только если режим замены отключен)
-            if (!FileUtil.isSaveModeReplace(context)) {
-                val compressedUri = FileUtil.findCompressedVersionByOriginalName(context, uri)
+            if (!FileOperationsUtil.isSaveModeReplace(context)) {
+                val compressedUri = FileOperationsUtil.findCompressedVersionByOriginalName(context, uri)
                 if (compressedUri != null) {
                     result.processingRequired = false
                     result.reason = ProcessingSkipReason.COMPRESSED_VERSION_EXISTS
@@ -167,7 +169,7 @@ object ImageProcessingChecker {
             }
             
             // Получаем размер файла для проверок
-            val fileSize = FileUtil.getFileSize(context, uri)
+            val fileSize = UriUtil.getFileSize(context, uri)
             
             // Проверяем EXIF маркер сжатия
             val (isCompressed, quality, compressionTimestamp) = ExifUtil.getCompressionMarker(context, uri)
@@ -178,7 +180,7 @@ object ImageProcessingChecker {
             // Если файл имеет маркер сжатия, проверяем, не был ли он модифицирован после сжатия
             if (isCompressed) {
                 // Получаем дату последней модификации файла
-                val modificationTimestamp = FileUtil.getFileLastModified(context, uri)
+                val modificationTimestamp = UriUtil.getFileLastModified(context, uri)
                 result.fileModificationTimestamp = modificationTimestamp
                 
                 // Если мы не можем получить дату модификации, считаем что файл не был изменен
