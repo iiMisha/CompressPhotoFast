@@ -84,16 +84,8 @@ class BackgroundMonitoringService : Service() {
                             return@launch
                         }
                         
-                        // Проверяем, не находится ли URI уже в списке обрабатываемых
-                        if (UriProcessingTracker.isImageBeingProcessed(uri)) {
-                            LogUtil.processDebug("URI уже в списке обрабатываемых: $uri, пропускаем")
-                            return@launch
-                        }
-                        
-                        // Добавляем URI в список обрабатываемых, чтобы избежать повторной обработки
-                        UriProcessingTracker.addProcessingUri(uri)
-                        
-                        // Запускаем обработку изображения
+                        // Добавляем URI в список обрабатываемых и запускаем обработку
+                        // processNewImage уже содержит все необходимые проверки
                         processNewImage(uri)
                     }
                 }
@@ -189,10 +181,6 @@ class BackgroundMonitoringService : Service() {
             return START_NOT_STICKY
         }
         
-        // Запускаем сервис в режиме переднего плана
-        startForegroundWithNotification()
-        LogUtil.processDebug("BackgroundMonitoringService: запущен как foreground сервис")
-        
         // Выполняем первоначальное сканирование при запуске сервиса
         LogUtil.processDebug("BackgroundMonitoringService: запуск первоначального сканирования")
         scanForNewImages()
@@ -204,17 +192,25 @@ class BackgroundMonitoringService : Service() {
      * Запуск сервиса в режиме переднего плана с уведомлением
      */
     private fun startForegroundWithNotification() {
+        val notification = NotificationUtil.createBackgroundServiceNotification(applicationContext)
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-                NotificationUtil.createBackgroundServiceNotification(applicationContext), 
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(
+                Constants.NOTIFICATION_ID_BACKGROUND_SERVICE,
+                notification, 
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-                NotificationUtil.createBackgroundServiceNotification(applicationContext),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(
+                Constants.NOTIFICATION_ID_BACKGROUND_SERVICE,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
         } else {
-            startForeground(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE, 
-                NotificationUtil.createBackgroundServiceNotification(applicationContext))
+            startForeground(
+                Constants.NOTIFICATION_ID_BACKGROUND_SERVICE,
+                notification
+            )
         }
     }
 
@@ -321,11 +317,21 @@ class BackgroundMonitoringService : Service() {
                 return
             }
             
+            // Добавляем URI в список обрабатываемых
+            UriProcessingTracker.addProcessingUri(uri)
+            
             // Используем централизованный метод обработки изображения
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
             LogUtil.processDebug("BackgroundMonitoringService: результат обработки изображения: ${result.third}")
+            
+            // Если обработка не удалась, удаляем URI из списка обрабатываемых
+            if (!result.first) {
+                UriProcessingTracker.removeProcessingUri(uri)
+            }
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
+            // В случае исключения, очищаем URI из списка обрабатываемых
+            UriProcessingTracker.removeProcessingUri(uri)
         }
     }
     
