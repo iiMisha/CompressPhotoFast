@@ -29,7 +29,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 import android.widget.Toast
 import com.compressphotofast.util.SequentialImageProcessor
 import com.compressphotofast.util.CompressionProgressListener

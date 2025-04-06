@@ -2,7 +2,7 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -25,7 +25,7 @@ object StatsTracker {
      */
     fun startTracking(uri: Uri) {
         processingUris.add(uri.toString())
-        Timber.d("Начато отслеживание URI: $uri")
+        LogUtil.processDebug("Начато отслеживание URI: $uri")
     }
 
     /**
@@ -36,10 +36,10 @@ object StatsTracker {
             // Если статус завершающий (COMPLETED или FAILED), убираем URI из отслеживаемых
             if (status == COMPRESSION_STATUS_COMPLETED || status == COMPRESSION_STATUS_FAILED || status == COMPRESSION_STATUS_SKIPPED) {
                 processingUris.remove(uri.toString())
-                Timber.d("URI удален из отслеживаемых: $uri")
+                LogUtil.processDebug("URI удален из отслеживаемых: $uri")
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при обновлении статуса для $uri")
+            LogUtil.error(uri, "UPDATE_STATUS", "Ошибка при обновлении статуса", e)
         }
     }
 

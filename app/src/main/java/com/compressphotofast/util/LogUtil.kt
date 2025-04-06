@@ -121,6 +121,14 @@ object LogUtil {
         Timber.e(throwable, "[$CATEGORY_ERROR:$operation:$fileId] $message")
     }
 
+    /**
+     * Ошибка с URI, операцией и исключением (ERROR)
+     * Для совместимости
+     */
+    fun errorWithMessageAndException(uri: Uri?, operation: String, message: String, throwable: Throwable) {
+        error(uri, operation, message, throwable)
+    }
+
     // ========== Логирование URI ==========
     
     /**

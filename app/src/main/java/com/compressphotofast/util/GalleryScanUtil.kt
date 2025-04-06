@@ -6,7 +6,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 
 /**
  * Класс для централизованной работы со сканированием галереи
@@ -41,7 +41,7 @@ object GalleryScanUtil {
         try {
             // Проверяем состояние автоматического сжатия
             if (checkProcessable && !SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
-                Timber.d("GalleryScanUtil: автоматическое сжатие отключено, пропускаем сканирование")
+                LogUtil.processDebug("GalleryScanUtil: автоматическое сжатие отключено, пропускаем сканирование")
                 return@withContext ScanResult(0, 0, emptyList())
             }
             
@@ -74,7 +74,7 @@ object GalleryScanUtil {
                 val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
                 
                 val totalImages = cursor.count
-                Timber.d("GalleryScanUtil: найдено $totalImages изображений за последние ${timeWindowSeconds / 60} минут")
+                LogUtil.processDebug("GalleryScanUtil: найдено $totalImages изображений за последние ${timeWindowSeconds / 60} минут")
                 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
@@ -83,14 +83,14 @@ object GalleryScanUtil {
                     
                     // Пропускаем слишком маленькие файлы
                     if (size < Constants.MIN_FILE_SIZE) {
-                        Timber.d("GalleryScanUtil: пропуск маленького файла: $name ($size байт)")
+                        LogUtil.processDebug("GalleryScanUtil: пропуск маленького файла: $name ($size байт)")
                         skippedCount++
                         continue
                     }
                     
                     // Пропускаем слишком большие файлы
                     if (size > Constants.MAX_FILE_SIZE) {
-                        Timber.d("GalleryScanUtil: пропуск большого файла: $name (${size / (1024 * 1024)} MB)")
+                        LogUtil.processDebug("GalleryScanUtil: пропуск большого файла: $name (${size / (1024 * 1024)} MB)")
                         skippedCount++
                         continue
                     }
@@ -101,14 +101,14 @@ object GalleryScanUtil {
                     
                     // Проверяем, не находится ли URI уже в процессе обработки
                     if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri)) {
-                        Timber.d("GalleryScanUtil: URI $contentUri уже в процессе обработки, пропускаем")
+                        LogUtil.processDebug("GalleryScanUtil: URI $contentUri уже в процессе обработки, пропускаем")
                         skippedCount++
                         continue
                     }
                     
                     // Проверяем, не было ли изображение уже обработано (по EXIF)
                     if (checkProcessable && !StatsTracker.shouldProcessImage(context, contentUri)) {
-                        Timber.d("GalleryScanUtil: изображение не требует обработки: $contentUri")
+                        LogUtil.processDebug("GalleryScanUtil: изображение не требует обработки: $contentUri")
                         skippedCount++
                         continue
                     }
@@ -118,10 +118,10 @@ object GalleryScanUtil {
                     processedCount++
                 }
                 
-                Timber.d("GalleryScanUtil: сканирование завершено. Найдено: $processedCount, Пропущено: $skippedCount")
+                LogUtil.processDebug("GalleryScanUtil: сканирование завершено. Найдено: $processedCount, Пропущено: $skippedCount")
             }
         } catch (e: Exception) {
-            Timber.e(e, "GalleryScanUtil: ошибка при сканировании галереи")
+            LogUtil.errorWithException("SCAN_GALLERY", e)
         }
         
         ScanResult(processedCount, skippedCount, foundUris)

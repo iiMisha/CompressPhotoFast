@@ -10,7 +10,7 @@ import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.worker.ImageCompressionWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для логики обработки изображений
@@ -86,7 +86,7 @@ object ImageProcessingUtil {
                         compressionWorkRequest
                     )
                 
-                Timber.d("Запущена работа по сжатию для $uri с тегом $workTag")
+                LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri с тегом $workTag")
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки
@@ -94,7 +94,7 @@ object ImageProcessingUtil {
                 throw e
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при обработке изображения: $uri")
+            LogUtil.error(uri, "PROCESS_IMAGE", "Ошибка при обработке изображения", e)
             return@withContext Triple(false, false, "Ошибка: ${e.message}")
         }
     }
@@ -108,7 +108,7 @@ object ImageProcessingUtil {
             val result = handleImage(context, uri)
             return@withContext result.first && result.second
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при обработке изображения: $uri")
+            LogUtil.error(uri, "PROCESS_IMAGE", "Ошибка при обработке изображения", e)
             return@withContext false
         }
     }

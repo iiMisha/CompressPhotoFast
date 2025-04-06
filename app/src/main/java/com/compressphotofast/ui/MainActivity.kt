@@ -47,11 +47,11 @@ import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.worker.ImageCompressionWorker
 import com.compressphotofast.util.StatsTracker
+import com.compressphotofast.util.LogUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -67,10 +67,10 @@ class MainActivity : AppCompatActivity() {
     ) { permissions ->
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
-            Timber.d("Все разрешения получены")
+            LogUtil.processDebug("Все разрешения получены")
             initializeBackgroundServices()
         } else {
-            Timber.d("Не все разрешения получены")
+            LogUtil.processDebug("Не все разрешения получены")
             showPermissionExplanationDialog()
         }
     }
@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
                     intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
                 }
                 uri?.let {
-                    Timber.d("Получен запрос на удаление файла через broadcast: $it")
+                    LogUtil.processDebug("Получен запрос на удаление файла через broadcast: $it")
                     requestFileDelete(it)
                 }
             }
@@ -198,7 +198,7 @@ class MainActivity : AppCompatActivity() {
             unregisterReceiver(compressionSkippedReceiver)
             unregisterReceiver(alreadyOptimizedReceiver)
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при отмене регистрации BroadcastReceiver в onStop")
+            LogUtil.errorWithException("BROADCAST_UNREGISTER", e)
         }
         
         super.onStop()
@@ -214,8 +214,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Инициализация Timber для логирования
-        Timber.d("MainActivity onCreate")
+        // Инициализация для логирования
+        LogUtil.processDebug("MainActivity onCreate")
         
         // Инициализация SharedPreferences
         prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
@@ -304,12 +304,12 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
         
-        Timber.d("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
+        LogUtil.processDebug("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
         
         // Логируем все данные интента для отладки
         intent.extras?.keySet()?.forEach { key ->
             @Suppress("DEPRECATION")
-            Timber.d("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
+            LogUtil.processDebug("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
         }
         
         val uris = extractUrisFromIntent(intent)
@@ -324,7 +324,7 @@ class MainActivity : AppCompatActivity() {
             var processedCount = 0
             
             for (uri in uris) {
-                Timber.d("handleIntent: Обработка URI: $uri")
+                LogUtil.processDebug("handleIntent: Обработка URI: $uri")
                 logFileDetails(uri)
                 
                 // Принудительно обрабатываем изображения, полученные через Share
@@ -335,7 +335,7 @@ class MainActivity : AppCompatActivity() {
                     processedCount++
                 } else {
                     // Ошибки или уже обработанные изображения
-                    Timber.d("handleIntent: URI $uri пропущен: ${result.third}")
+                    LogUtil.processDebug("handleIntent: URI $uri пропущен: ${result.third}")
                 }
             }
             
@@ -343,7 +343,7 @@ class MainActivity : AppCompatActivity() {
             if (processedCount > 0) {
                 // Не показываем уведомление о запуске сжатия для Share
                 // Сохраняем только логирование
-                Timber.d("Запущено сжатие для $processedCount изображений")
+                LogUtil.processDebug("Запущено сжатие для $processedCount изображений")
             } else {
                 // Если все изображения уже обработаны, показываем сообщение
                 showToast(getString(R.string.all_images_already_compressed))
@@ -384,11 +384,11 @@ class MainActivity : AppCompatActivity() {
                     val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
                     val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
                     
-                    Timber.d("Файл: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
+                    LogUtil.processDebug("Файл: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при получении информации о файле: $uri")
+            LogUtil.errorWithMessageAndException("FILE_INFO", "Ошибка при получении информации о файле", e)
         }
     }
 
@@ -430,13 +430,13 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
                 showToast(getString(R.string.notification_toast_battery_settings))
             } catch (e: Exception) {
-                Timber.e(e, "Ошибка при открытии настроек приложения")
+                LogUtil.errorWithMessageAndException("APP_SETTINGS", "Ошибка при открытии настроек приложения", e)
                 try {
                     // Если прямой метод не сработал, открываем общие настройки приложения
                     val intent = Intent(Settings.ACTION_APPLICATION_SETTINGS)
                     startActivity(intent)
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при открытии общих настроек приложений")
+                    LogUtil.errorWithMessageAndException("APP_SETTINGS", "Ошибка при открытии общих настроек приложений", e)
                     showToast("Пожалуйста, откройте настройки вручную")
                 }
             }
@@ -481,7 +481,7 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 
                 // Логируем завершение для отладки
-                Timber.d("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
+                LogUtil.processDebug("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
             }
         }
         
@@ -498,7 +498,7 @@ class MainActivity : AppCompatActivity() {
                     "totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, " +
                     "failedImages=${it.failedImages}"
                 }
-                Timber.d(resultLog)
+                LogUtil.processDebug(resultLog)
             }
         }
     }
@@ -549,27 +549,27 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupBackgroundService() {
         val isEnabled = viewModel.isAutoCompressionEnabled()
-        Timber.d("setupBackgroundService: автоматическое сжатие ${if (isEnabled) "включено" else "выключено"}")
+        LogUtil.processDebug("setupBackgroundService: автоматическое сжатие ${if (isEnabled) "включено" else "выключено"}")
         
         if (isEnabled) {
             // Запускаем JobService для отслеживания новых изображений
             ImageDetectionJobService.scheduleJob(this)
-            Timber.d("setupBackgroundService: JobService запланирован")
+            LogUtil.processDebug("setupBackgroundService: JobService запланирован")
             
             // Запускаем фоновый сервис
             val serviceIntent = Intent(this, BackgroundMonitoringService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Timber.d("setupBackgroundService: запуск как foreground сервис (Android O+)")
+                LogUtil.processDebug("setupBackgroundService: запуск как foreground сервис (Android O+)")
                 startForegroundService(serviceIntent)
             } else {
-                Timber.d("setupBackgroundService: запуск как обычный сервис")
+                LogUtil.processDebug("setupBackgroundService: запуск как обычный сервис")
                 startService(serviceIntent)
             }
-            Timber.d("Фоновые сервисы запущены успешно")
+            LogUtil.processDebug("Фоновые сервисы запущены успешно")
         } else {
             // Останавливаем фоновый сервис при выключении автоматического сжатия
             stopService(Intent(this, BackgroundMonitoringService::class.java))
-            Timber.d("Фоновые сервисы остановлены")
+            LogUtil.processDebug("Фоновые сервисы остановлены")
         }
     }
 
@@ -599,7 +599,7 @@ class MainActivity : AppCompatActivity() {
         
         // Наблюдаем за изменениями качества сжатия
         viewModel.compressionQuality.observe(this) { quality ->
-            Timber.d("Установлено качество сжатия: $quality")
+            LogUtil.processDebug("Установлено качество сжатия: $quality")
             when (quality) {
                 Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
                 Constants.COMPRESSION_QUALITY_MEDIUM -> binding.rbQualityMedium.isChecked = true
@@ -617,7 +617,7 @@ class MainActivity : AppCompatActivity() {
         val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, null)
         
         if (!pendingDeleteUris.isNullOrEmpty()) {
-            Timber.d("Найдено ${pendingDeleteUris.size} отложенных запросов на удаление файлов")
+            LogUtil.processDebug("Найдено ${pendingDeleteUris.size} отложенных запросов на удаление файлов")
             
             // Обрабатываем первый URI в списке
             val uriString = pendingDeleteUris.firstOrNull()
@@ -634,7 +634,7 @@ class MainActivity : AppCompatActivity() {
                     // Запрашиваем удаление файла
                     requestFileDelete(uri)
                 } catch (e: Exception) {
-                    Timber.e(e, "Ошибка при обработке отложенного запроса на удаление: $uriString")
+                    LogUtil.errorWithMessageAndException("PENDING_DELETE", "Ошибка при обработке отложенного запроса на удаление", e)
                 }
             }
         }
@@ -653,7 +653,7 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при запросе удаления файла: $uri")
+            LogUtil.errorWithMessageAndException(uri, "DELETE_FILE", "Ошибка при запросе удаления файла", e)
         }
     }
     
@@ -672,10 +672,10 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             Constants.REQUEST_CODE_DELETE_FILE -> {
                 if (resultCode == android.app.Activity.RESULT_OK) {
-                    Timber.d("Файл успешно удален")
+                    LogUtil.processDebug("Файл успешно удален")
                     showToast(getString(R.string.file_deleted_successfully))
                 } else {
-                    Timber.d("Пользователь отклонил запрос на удаление файла")
+                    LogUtil.processDebug("Пользователь отклонил запрос на удаление файла")
                 }
                 
                 // Проверяем, есть ли еще отложенные запросы на удаление
@@ -687,9 +687,9 @@ class MainActivity : AppCompatActivity() {
                 prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
                     
                 if (resultCode == android.app.Activity.RESULT_OK) {
-                    Timber.d("Тестовый файл успешно удален, разрешение получено")
+                    LogUtil.processDebug("Тестовый файл успешно удален, разрешение получено")
                 } else {
-                    Timber.d("Пользователь отклонил запрос на удаление тестового файла")
+                    LogUtil.processDebug("Пользователь отклонил запрос на удаление тестового файла")
                 }
                 
                 // Продолжаем инициализацию
@@ -712,9 +712,9 @@ class MainActivity : AppCompatActivity() {
             processIntent.putExtra(Constants.EXTRA_URI, uri)
             sendBroadcast(processIntent)
             
-            Timber.d("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
+            LogUtil.processDebug("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при запуске фонового сервиса")
+            LogUtil.errorWithMessageAndException(uri, "BACKGROUND_PROCESS", "Ошибка при запуске фонового сервиса", e)
         }
     }
 
@@ -729,9 +729,9 @@ class MainActivity : AppCompatActivity() {
             }
             
             // Логируем успешную инициализацию
-            Timber.d("Фоновые сервисы инициализированы успешно")
+            LogUtil.processDebug("Фоновые сервисы инициализированы успешно")
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при инициализации фоновых сервисов")
+            LogUtil.errorWithMessageAndException("BACKGROUND_INIT", "Ошибка при инициализации фоновых сервисов", e)
         }
     }
 

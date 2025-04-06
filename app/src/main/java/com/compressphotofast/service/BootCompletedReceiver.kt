@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.compressphotofast.util.Constants
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 
 /**
  * BroadcastReceiver для запуска сервиса при загрузке системы
@@ -14,7 +14,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Timber.d("Получен BOOT_COMPLETED, запускаем сервисы")
+            LogUtil.processDebug("Получен BOOT_COMPLETED, запускаем сервисы")
             
             // Проверяем, включено ли автоматическое сжатие
             val prefs = context.getSharedPreferences(
@@ -35,7 +35,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
                     context.startService(serviceIntent)
                 }
                 
-                Timber.d("Фоновые сервисы запущены после загрузки системы")
+                LogUtil.processDebug("Фоновые сервисы запущены после загрузки системы")
             }
         }
     }

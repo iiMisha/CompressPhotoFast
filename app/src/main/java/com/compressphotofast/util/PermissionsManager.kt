@@ -15,7 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.compressphotofast.R
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 
 /**
  * Менеджер разрешений для централизованного управления запросами и проверками разрешений.
@@ -45,11 +45,11 @@ class PermissionsManager(
     ) {
         // Проверяем, было ли предоставлено разрешение после возврата
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-            Timber.d("Разрешение MANAGE_EXTERNAL_STORAGE получено")
+            LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE получено")
             // Проверяем и запрашиваем другие разрешения
             requestOtherPermissions {}
         } else {
-            Timber.d("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
+            LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
             // Продолжаем запрос других разрешений
             requestOtherPermissions {}
         }
@@ -62,7 +62,7 @@ class PermissionsManager(
     override fun checkAndRequestAllPermissions(onPermissionsGranted: () -> Unit): Boolean {
         // Проверяем, были ли уже предоставлены все разрешения
         if (hasStoragePermissions()) {
-            Timber.d("Все разрешения уже предоставлены")
+            LogUtil.processDebug("Все разрешения уже предоставлены")
             onPermissionsGranted()
             return true
         }
@@ -73,7 +73,7 @@ class PermissionsManager(
         
         // Если пользователь уже 3 раза отказал или пропустил запрос, не показываем больше
         if (permissionSkipped || permissionRequestCount >= 3) {
-            Timber.d("Запрос разрешений был пропущен или превышено количество попыток, не запрашиваем снова")
+            LogUtil.processDebug("Запрос разрешений был пропущен или превышено количество попыток, не запрашиваем снова")
             onPermissionsGranted()
             return true
         }
@@ -98,12 +98,12 @@ class PermissionsManager(
         val permissions = getRequiredStoragePermissions()
 
         if (permissions.isEmpty()) {
-            Timber.d("Все необходимые разрешения для хранилища уже предоставлены")
+            LogUtil.processDebug("Все необходимые разрешения для хранилища уже предоставлены")
             onPermissionsGranted()
             return true
         }
 
-        Timber.d("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
+        LogUtil.processDebug("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
         incrementPermissionRequestCount()
         ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
         return false
@@ -145,7 +145,7 @@ class PermissionsManager(
         // Для Android 13+ требуется специальное разрешение для уведомлений
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (!hasNotificationPermission()) {
-                Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
+                LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
                 ActivityCompat.requestPermissions(
                     activity, 
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS), 
@@ -173,16 +173,16 @@ class PermissionsManager(
         // Добавляем разрешение на уведомления для Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            Timber.d("Запрашиваем разрешение POST_NOTIFICATIONS")
+            LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
         }
 
         if (permissions.isEmpty()) {
-            Timber.d("Все необходимые разрешения уже предоставлены")
+            LogUtil.processDebug("Все необходимые разрешения уже предоставлены")
             onPermissionsGranted()
             return true
         }
 
-        Timber.d("Запрашиваем разрешения: ${permissions.joinToString()}")
+        LogUtil.processDebug("Запрашиваем разрешения: ${permissions.joinToString()}")
         incrementPermissionRequestCount()
         ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
         return false
@@ -344,7 +344,7 @@ class PermissionsManager(
         
         // Проверяем результаты
         if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-            Timber.d("Все разрешения предоставлены")
+            LogUtil.processDebug("Все разрешения предоставлены")
             prefs.edit()
                 .putBoolean("has_storage_permission_granted", true)
                 .putBoolean(PREF_PERMISSION_SKIPPED, false)
@@ -353,7 +353,7 @@ class PermissionsManager(
             return
         }
             
-        Timber.d("Не все разрешения были предоставлены")
+        LogUtil.processDebug("Не все разрешения были предоставлены")
         
         // Проверяем, было ли отклонено разрешение на уведомления
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -361,11 +361,11 @@ class PermissionsManager(
             if (notificationPermissionIndex != -1 && 
                     grantResults.getOrNull(notificationPermissionIndex) != PackageManager.PERMISSION_GRANTED) {
                 
-                Timber.d("Разрешение на уведомления было отклонено")
+                LogUtil.processDebug("Разрешение на уведомления было отклонено")
                 
                 // Проверяем, можно ли повторно показать запрос
                 if (isPermissionPermanentlyDenied(Manifest.permission.POST_NOTIFICATIONS)) {
-                    Timber.d("Пользователь выбрал 'больше не спрашивать' для уведомлений")
+                    LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для уведомлений")
                     prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
                 } else {
                     showNotificationPermissionExplanation(
@@ -392,7 +392,7 @@ class PermissionsManager(
         }
         
         if (storagePermissionDenied) {
-            Timber.d("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
+            LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
             prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
             onAllGranted()
         } else {
@@ -418,10 +418,10 @@ class PermissionsManager(
         if (requestCode == REQUEST_MANAGE_EXTERNAL_STORAGE) {
             // Проверяем, было ли предоставлено разрешение
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-                Timber.d("Разрешение MANAGE_EXTERNAL_STORAGE получено")
+                LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE получено")
                 onSuccess()
             } else {
-                Timber.d("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
+                LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
                 // Продолжаем запрос других разрешений
                 requestOtherPermissions(onSuccess)
             }

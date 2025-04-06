@@ -2,7 +2,7 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import java.io.File
 import java.io.FileOutputStream
 
@@ -63,14 +63,14 @@ object TempFilesCleaner {
                             if (file.delete()) {
                                 totalSize += fileSize
                                 deletedCount++
-                                Timber.d("Удален временный файл: ${file.absolutePath}, размер: ${fileSize/1024}KB")
+                                LogUtil.processDebug("Удален временный файл: ${file.absolutePath}, размер: ${fileSize/1024}KB")
                             } else {
-                                Timber.w("Не удалось удалить временный файл: ${file.absolutePath}")
+                                LogUtil.processWarning("Не удалось удалить временный файл: ${file.absolutePath}")
                                 // Помечаем файл для удаления при выходе
                                 file.deleteOnExit()
                             }
                         } catch (e: Exception) {
-                            Timber.w(e, "Ошибка при удалении файла: ${file.absolutePath}")
+                            LogUtil.errorWithMessageAndException("FILE_CLEANUP", "Ошибка при удалении файла: ${file.absolutePath}", e)
                             // Помечаем файл для удаления при выходе
                             file.deleteOnExit()
                         }
@@ -78,11 +78,11 @@ object TempFilesCleaner {
                 }
                 
                 if (deletedCount > 0) {
-                    Timber.d("Очистка временных файлов завершена, удалено файлов: $deletedCount, освобождено: ${totalSize/1024}KB")
+                    LogUtil.processDebug("Очистка временных файлов завершена, удалено файлов: $deletedCount, освобождено: ${totalSize/1024}KB")
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при очистке временных файлов")
+            LogUtil.errorWithException("FILE_CLEANUP", e)
         }
     }
     
@@ -98,7 +98,7 @@ object TempFilesCleaner {
                 false // Файл не используется
             }
         } catch (e: Exception) {
-            Timber.d("Файл используется другим процессом: ${file.absolutePath}")
+            LogUtil.processDebug("Файл используется другим процессом: ${file.absolutePath}")
             true // Файл используется
         }
     }

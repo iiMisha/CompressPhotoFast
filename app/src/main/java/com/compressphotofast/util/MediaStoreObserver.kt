@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.io.File
@@ -38,7 +38,7 @@ class MediaStoreObserver(
                     val fileName = FileUtil.getFileNameFromUri(context, it) ?: ""
                     if (fileName.contains("_original.")) {
                         // Это переименованный оригинал, пропускаем его
-                        Timber.d("MediaStoreObserver: пропускаем обработку переименованного оригинала: $fileName")
+                        LogUtil.processDebug("MediaStoreObserver: пропускаем обработку переименованного оригинала: $fileName")
                         return
                     }
                     
@@ -63,17 +63,17 @@ class MediaStoreObserver(
                     urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
                     
                     // Логируем событие
-                    Timber.d("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
+                    LogUtil.processDebug("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
                     
                     // Отменяем предыдущую отложенную задачу для этого URI, если она существует
                     pendingTasks[uriString]?.let { runnable ->
                         handler.removeCallbacks(runnable)
-                        Timber.d("MediaStoreObserver: предыдущая задача для $uriString отменена")
+                        LogUtil.processDebug("MediaStoreObserver: предыдущая задача для $uriString отменена")
                     }
                     
                     // Создаем новую задачу с задержкой
                     val delayTask = Runnable {
-                        Timber.d("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
+                        LogUtil.processDebug("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
                         imageChangeListener(it)
                         pendingTasks.remove(uriString)
                     }
@@ -95,7 +95,7 @@ class MediaStoreObserver(
             true,
             contentObserver
         )
-        Timber.d("MediaStoreObserver: ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI")
+        LogUtil.processDebug("MediaStoreObserver: ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI")
     }
     
     /**
@@ -107,11 +107,11 @@ class MediaStoreObserver(
         // Очищаем все отложенные задачи
         pendingTasks.forEach { (uri, runnable) ->
             handler.removeCallbacks(runnable)
-            Timber.d("MediaStoreObserver: отменена отложенная задача для $uri при остановке")
+            LogUtil.processDebug("MediaStoreObserver: отменена отложенная задача для $uri при остановке")
         }
         pendingTasks.clear()
         
-        Timber.d("MediaStoreObserver: ContentObserver отменен")
+        LogUtil.processDebug("MediaStoreObserver: ContentObserver отменен")
     }
     
     /**
@@ -120,7 +120,7 @@ class MediaStoreObserver(
     fun clearTasks() {
         pendingTasks.forEach { (uri, runnable) ->
             handler.removeCallbacks(runnable)
-            Timber.d("MediaStoreObserver: отменена отложенная задача для $uri при очистке")
+            LogUtil.processDebug("MediaStoreObserver: отменена отложенная задача для $uri при очистке")
         }
         pendingTasks.clear()
     }

@@ -73,11 +73,11 @@ class ImageCompressionWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             // Получаем параметры задачи
-        val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-        if (uriString.isNullOrEmpty()) {
+            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+            if (uriString.isNullOrEmpty()) {
                 LogUtil.processInfo("URI не установлен для компрессии")
-            return@withContext Result.failure()
-        }
+                return@withContext Result.failure()
+            }
 
             val imageUri = Uri.parse(uriString)
             
@@ -163,7 +163,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Получаем имя файла
                 val fileName = FileUtil.getFileNameFromUri(appContext, imageUri)
                 
-                    if (fileName.isNullOrEmpty()) {
+                if (fileName.isNullOrEmpty()) {
                     LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
                     setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_failed)))
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)

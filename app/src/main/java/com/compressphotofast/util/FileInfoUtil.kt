@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import timber.log.Timber
 import java.util.Collections
 import java.util.HashMap
 import com.compressphotofast.util.LogUtil

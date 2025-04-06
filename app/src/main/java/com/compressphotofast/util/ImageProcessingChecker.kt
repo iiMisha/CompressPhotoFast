@@ -7,7 +7,7 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -39,11 +39,11 @@ object ImageProcessingChecker {
         try {
             val result = isProcessingRequired(context, uri, forceProcess)
             if (!result.processingRequired) {
-                Timber.d("Изображение не требует обработки: ${result.reason}")
+                LogUtil.processDebug("Изображение не требует обработки: ${result.reason}")
             }
             return@withContext result.processingRequired
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке необходимости обработки изображения: $uri")
+            LogUtil.error(uri, "CHECK_PROCESSING", "Ошибка при проверке необходимости обработки изображения", e)
             return@withContext false
         }
     }
@@ -56,14 +56,14 @@ object ImageProcessingChecker {
         try {
             // Проверяем существование URI
             if (!FileUtil.isUriExistsSuspend(context, uri)) {
-                Timber.d("URI не существует: $uri")
+                LogUtil.processDebug("URI не существует: $uri")
                 return@withContext false
             }
             
             // Проверяем, не является ли файл переименованным оригиналом
             val fileName = FileUtil.getFileNameFromUri(context, uri) ?: ""
             if (fileName.contains("_original.")) {
-                Timber.d("Файл является переименованным оригиналом, пропускаем: $uri")
+                LogUtil.processDebug("Файл является переименованным оригиналом, пропускаем: $uri")
                 return@withContext false
             }
             
@@ -73,40 +73,40 @@ object ImageProcessingChecker {
             
             // Если автосжатие отключено и нет флага принудительной обработки, возвращаем false
             if (!isAutoEnabled && !forceProcess) {
-                Timber.d("Автосжатие отключено и нет принудительной обработки: $uri")
+                LogUtil.processDebug("Автосжатие отключено и нет принудительной обработки: $uri")
                 return@withContext false
             }
             
             // Проверяем, не является ли изображение скриншотом
             if (!settingsManager.shouldProcessScreenshots() && FileUtil.isScreenshot(context, uri)) {
-                Timber.d("Файл является скриншотом, обработка скриншотов отключена: $uri")
+                LogUtil.processDebug("Файл является скриншотом, обработка скриншотов отключена: $uri")
                 return@withContext false
             }
             
             // Проверяем, не находится ли файл в директории приложения
             val path = FileUtil.getFilePathFromUri(context, uri) ?: ""
             if (isInAppDirectory(path)) {
-                Timber.d("Файл находится в директории приложения: $path")
+                LogUtil.processDebug("Файл находится в директории приложения: $path")
                 return@withContext false
             }
             
             // Проверяем, является ли файл временным или в процессе записи
             if (FileUtil.isFilePendingSuspend(context, uri)) {
-                Timber.d("Файл является временным или в процессе записи: $uri")
+                LogUtil.processDebug("Файл является временным или в процессе записи: $uri")
                 return@withContext false
             }
             
             // Проверяем MIME тип
             val mimeType = FileUtil.getMimeType(context, uri)
             if (!isProcessableMimeType(mimeType)) {
-                Timber.d("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
+                LogUtil.processDebug("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
                 return@withContext false
             }
             
             // Прошли все базовые проверки
             return@withContext true
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при базовой проверке изображения: ${e.message}")
+            LogUtil.errorWithException("CHECK_PROCESSING", e)
             return@withContext false
         }
     }
@@ -121,7 +121,7 @@ object ImageProcessingChecker {
             val result = isProcessingRequired(context, uri, false)
             return@withContext !result.processingRequired
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке обработанности изображения: ${e.message}")
+            LogUtil.errorWithException("CHECK_PROCESSING", e)
             return@withContext false
         }
     }
@@ -198,13 +198,13 @@ object ImageProcessingChecker {
                     // Если разница меньше или равна допустимой, считаем, что файл не был модифицирован
                     if (diffSeconds <= allowedTimeDifferenceSeconds) {
                         // Файл не был модифицирован после сжатия (или отличается в пределах допустимой погрешности)
-                        Timber.d("Файл не был модифицирован после сжатия (разница $diffSeconds сек в пределах допустимой погрешности $allowedTimeDifferenceSeconds сек)")
+                        LogUtil.processDebug("Файл не был модифицирован после сжатия (разница $diffSeconds сек в пределах допустимой погрешности $allowedTimeDifferenceSeconds сек)")
                         result.processingRequired = false
                         result.reason = ProcessingSkipReason.ALREADY_COMPRESSED
                         return@withContext result
                     }
                     
-                    Timber.d("Файл был модифицирован после сжатия (разница $diffSeconds сек), требуется повторная обработка")
+                    LogUtil.processDebug("Файл был модифицирован после сжатия (разница $diffSeconds сек), требуется повторная обработка")
                     result.processingRequired = true
                     result.reason = ProcessingSkipReason.NONE
                 } else {
@@ -228,7 +228,7 @@ object ImageProcessingChecker {
             result.reason = ProcessingSkipReason.NONE
             return@withContext result
         } catch (e: Exception) {
-            Timber.e(e, "Ошибка при проверке необходимости обработки: ${e.message}")
+            LogUtil.errorWithException("CHECK_PROCESSING", e)
             // В случае ошибки возвращаем результат по умолчанию (требуется обработка)
             val result = ProcessingCheckResult()
             result.processingRequired = true

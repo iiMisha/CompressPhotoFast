@@ -15,7 +15,7 @@ import android.widget.Toast
 import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.service.BackgroundMonitoringService
-import timber.log.Timber
+import com.compressphotofast.util.LogUtil
 import java.util.concurrent.ConcurrentHashMap
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationManagerCompat
@@ -216,7 +216,7 @@ object NotificationUtil {
                 enableVibration = true
             )
             
-            Timber.d("Уведомления: каналы уведомлений созданы")
+            LogUtil.notification("Уведомления: каналы уведомлений созданы")
         }
     }
     
@@ -247,7 +247,7 @@ object NotificationUtil {
             }
             
             getNotificationManager(context).createNotificationChannel(channel)
-            Timber.d("Уведомления: создан канал $channelName (id=$channelId)")
+            LogUtil.notification("Уведомления: создан канал $channelName (id=$channelId)")
         }
     }
     
