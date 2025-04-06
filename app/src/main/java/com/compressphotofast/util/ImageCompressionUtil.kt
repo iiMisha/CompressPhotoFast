@@ -15,7 +15,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import com.compressphotofast.util.FileUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
