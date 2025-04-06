@@ -317,8 +317,7 @@ class BackgroundMonitoringService : Service() {
                 return
             }
             
-            // Добавляем URI в список обрабатываемых
-            UriProcessingTracker.addProcessingUri(uri)
+            // Не добавляем URI в список обрабатываемых здесь, это делается в ImageProcessingUtil.handleImage
             
             // Используем централизованный метод обработки изображения
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
