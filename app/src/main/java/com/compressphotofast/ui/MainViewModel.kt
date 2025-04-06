@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
-import android.os.Build
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
@@ -14,9 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.WorkRequest
 import androidx.work.workDataOf
-import com.compressphotofast.R
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
@@ -31,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.widget.Toast
 import com.compressphotofast.util.SequentialImageProcessor
-import com.compressphotofast.util.CompressionProgressListener
 import com.compressphotofast.util.NotificationUtil
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
