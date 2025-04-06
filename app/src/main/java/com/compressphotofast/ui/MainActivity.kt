@@ -40,7 +40,7 @@ import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.ui.CompressionResult
 import com.compressphotofast.ui.MultipleImagesProgress
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.FileUtil
+import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
@@ -48,6 +48,7 @@ import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.worker.ImageCompressionWorker
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.UriUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -113,7 +114,7 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast с результатами сжатия
      */
     private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
-        val truncatedFileName = FileUtil.truncateFileName(fileName)
+        val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
         NotificationUtil.showCompressionResultToast(this, truncatedFileName, originalSize, compressedSize)
     }
 
@@ -645,7 +646,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun requestFileDelete(uri: Uri) {
         try {
-            val intentSender = FileUtil.deleteFile(this, uri)
+            val intentSender = FileOperationsUtil.deleteFile(this, uri)
             if (intentSender is IntentSender) {
                 // И используем его вместо startIntentSenderForResult
                 intentSenderLauncher.launch(

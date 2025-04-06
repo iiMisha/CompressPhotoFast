@@ -29,6 +29,8 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.ImageCompressionUtil
+import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.FileOperationsUtil
 
 /**
  * Интерфейс для отслеживания прогресса сжатия
@@ -197,7 +199,7 @@ class SequentialImageProcessor(private val context: Context) {
 
         // Получаем имя файла для отображения в логах
         val fileName = try {
-            FileUtil.getFileNameFromUri(context, uri) ?: "Неизвестный файл"
+            UriUtil.getFileNameFromUri(context, uri) ?: "Неизвестный файл"
         } catch (e: Exception) {
             LogUtil.error(uri, "Имя файла", "Ошибка получения имени файла: ${e.message}")
             "Неизвестный файл"
@@ -226,8 +228,8 @@ class SequentialImageProcessor(private val context: Context) {
             
             // Если сжатие было успешным
             val savedUri = result.second!!
-            val originalSize = FileUtil.getFileSize(context, uri)
-            val compressedSize = FileUtil.getFileSize(context, savedUri)
+            val originalSize = UriUtil.getFileSize(context, uri)
+            val compressedSize = UriUtil.getFileSize(context, savedUri)
             
             // Отправляем broadcast о завершении сжатия
             val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED)

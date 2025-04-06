@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.util.UriUtil
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -100,7 +101,7 @@ class ImageDetectionJobService : JobService() {
                     LogUtil.processDebug("ImageDetectionJobService: обработка URI: $uri")
                     
                     // Проверяем, не является ли файл временным
-                    if (FileUtil.isFilePendingSuspend(applicationContext, uri)) {
+                    if (UriUtil.isFilePendingSuspend(applicationContext, uri)) {
                         LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
                         skippedCount++
                         return@forEach

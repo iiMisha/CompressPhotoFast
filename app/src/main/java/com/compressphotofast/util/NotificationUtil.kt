@@ -24,6 +24,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.compressphotofast.util.FileOperationsUtil
 
 /**
  * Утилитарный класс для работы с уведомлениями и Toast
@@ -255,9 +256,9 @@ object NotificationUtil {
      * Показывает Toast с результатом сжатия
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
-        val truncatedFileName = FileUtil.truncateFileName(fileName)
-        val originalSizeStr = FileUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+        val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
+        val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
         val reductionStr = String.format("%.1f", reduction)
         
         val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
@@ -268,8 +269,8 @@ object NotificationUtil {
      * Показывает Toast с результатом сжатия (вариант с вычислением процента сокращения)
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, duration: Int = Toast.LENGTH_LONG) {
-        val originalSizeStr = FileUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+        val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
         
         val reductionPercent = if (originalSize > 0) {
             ((originalSize - compressedSize) * 100.0 / originalSize).roundToInt()
@@ -393,8 +394,8 @@ object NotificationUtil {
         notificationId: Int = Constants.NOTIFICATION_ID_COMPRESSION_RESULT
     ) {
         // Форматируем информацию о размерах файла
-        val originalSizeStr = FileUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileUtil.formatFileSize(compressedSize)
+        val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
+        val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
         val reductionStr = String.format("%.1f", sizeReduction)
         
         // Определяем заголовок и текст уведомления

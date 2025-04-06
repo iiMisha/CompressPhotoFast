@@ -31,6 +31,8 @@ import com.compressphotofast.util.SequentialImageProcessor
 import com.compressphotofast.util.NotificationUtil
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.FileOperationsUtil
 
 /**
  * Модель представления для главного экрана

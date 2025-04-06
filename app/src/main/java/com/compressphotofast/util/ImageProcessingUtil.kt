@@ -11,6 +11,7 @@ import com.compressphotofast.worker.ImageCompressionWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.UriUtil
 
 /**
  * Утилитарный класс для логики обработки изображений
@@ -61,11 +62,11 @@ object ImageProcessingUtil {
                 val quality = settingsManager.getCompressionQuality()
                 
                 // Создаем уникальный тег для работы
-                val fileName = FileUtil.getFileNameFromUri(context, uri)
+                val fileName = UriUtil.getFileNameFromUri(context, uri)
                 val workTag = "compress_${System.currentTimeMillis()}_$fileName"
                 
                 // Получаем размер исходного файла для логирования
-                val originalSize = FileUtil.getFileSize(context, uri)
+                val originalSize = UriUtil.getFileSize(context, uri)
                 
                 // Создаем и запускаем работу по сжатию
                 val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
