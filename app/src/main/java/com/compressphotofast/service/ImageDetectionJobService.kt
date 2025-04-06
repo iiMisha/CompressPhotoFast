@@ -7,16 +7,10 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
-import android.os.PersistableBundle
 import android.provider.MediaStore
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileUtil
-import com.compressphotofast.util.StatsTracker
-import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,8 +19,6 @@ import kotlinx.coroutines.withContext
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.UriProcessingTracker
-import com.compressphotofast.util.GalleryScanUtil
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -46,11 +38,7 @@ class ImageDetectionJobService : JobService() {
             Timber.d("ImageDetectionJobService: начало планирования задания")
             
             // Проверяем, включено ли автоматическое сжатие
-            val prefs = context.getSharedPreferences(
-                Constants.PREF_FILE_NAME,
-                Context.MODE_PRIVATE
-            )
-            val isAutoCompressionEnabled = prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
+            val isAutoCompressionEnabled = SettingsManager.getInstance(context).isAutoCompressionEnabled()
             Timber.d("ImageDetectionJobService: состояние автоматического сжатия: ${if (isAutoCompressionEnabled) "включено" else "выключено"}")
             
             if (!isAutoCompressionEnabled) {
@@ -93,13 +81,6 @@ class ImageDetectionJobService : JobService() {
             } else {
                 Timber.e("ImageDetectionJobService: ошибка планирования задания: $result")
             }
-        }
-
-        /**
-         * Создает имя файла для сжатой версии
-         */
-        private fun getSafeFileName(originalName: String): String {
-            return FileUtil.createCompressedFileName(originalName)
         }
     }
 
@@ -155,22 +136,16 @@ class ImageDetectionJobService : JobService() {
                     
                     if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
                         withContext(Dispatchers.IO) {
-                            // Проверяем еще раз перед добавлением в список обрабатываемых
-                            if (!UriProcessingTracker.isImageBeingProcessed(uri)) {
-                                // Регистрируем URI как обрабатываемый
-                                UriProcessingTracker.addProcessingUri(uri)
-                                
-                                // Обрабатываем изображение
-                                if (ImageProcessingUtil.processImage(applicationContext, uri)) {
-                                    Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
-                                    processedCount++
-                                } else {
-                                    Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                                    UriProcessingTracker.removeProcessingUri(uri)
-                                    skippedCount++
-                                }
+                            // Регистрируем URI как обрабатываемый
+                            UriProcessingTracker.addProcessingUri(uri)
+                            
+                            // Обрабатываем изображение
+                            if (ImageProcessingUtil.processImage(applicationContext, uri)) {
+                                Timber.d("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
+                                processedCount++
                             } else {
-                                Timber.d("ImageDetectionJobService: URI уже добавлен в список обрабатываемых: $uri")
+                                Timber.d("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
+                                UriProcessingTracker.removeProcessingUri(uri)
                                 skippedCount++
                             }
                         }
@@ -219,26 +194,5 @@ class ImageDetectionJobService : JobService() {
         Timber.d("onStopJob: задание остановлено")
         // Возвращаем true, чтобы перепланировать задание
         return true
-    }
-
-    /**
-     * Получение текущего уровня сжатия из настроек
-     */
-    private fun getCompressionQuality(context: Context): Int {
-        return SettingsManager.getInstance(context).getCompressionQuality()
-    }
-
-    /**
-     * Проверка состояния автоматического сжатия
-     */
-    private fun isAutoCompressionEnabled(context: Context): Boolean {
-        return SettingsManager.getInstance(context).isAutoCompressionEnabled()
-    }
-
-    /**
-     * Проверяет, находится ли файл в процессе записи
-     */
-    private suspend fun isFilePending(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext FileUtil.isFilePendingSuspend(applicationContext, uri)
     }
 } 
