@@ -160,10 +160,15 @@ class SequentialImageProcessor(private val context: Context) {
      * Отменяет текущую обработку изображений
      */
     fun cancelProcessing() {
+        // Проверяем, была ли запущена обработка изображений
+        val wasProcessing = !processingCancelled.get() && _isLoading.value
+        
         processingCancelled.set(true)
         
-        // Показываем уведомление об остановке
-        NotificationUtil.showToast(context, "Обработка изображений остановлена")
+        // Показываем уведомление об остановке только если действительно была запущена обработка
+        if (wasProcessing) {
+            NotificationUtil.showToast(context, "Обработка изображений остановлена")
+        }
         
         _isLoading.value = false
     }
@@ -264,4 +269,4 @@ class SequentialImageProcessor(private val context: Context) {
         intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
         context.sendBroadcast(intent)
     }
-} 
+}
