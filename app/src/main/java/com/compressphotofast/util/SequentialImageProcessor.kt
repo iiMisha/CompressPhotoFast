@@ -19,8 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
-// Заменяем прямой импорт Timber на LogUtil
-// import timber.log.Timber
 import com.compressphotofast.util.LogUtil
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -141,9 +139,9 @@ class SequentialImageProcessor(private val context: Context) {
     }
     
     /**
-     * Обновляет прогресс обработки
+     * Обновляет прогресс обработки в StateFlow
      */
-    private suspend fun updateProgress(success: Boolean = false, skipped: Boolean = false) {
+    private suspend fun updateProgressState(success: Boolean = false, skipped: Boolean = false) {
         withContext(Dispatchers.Main) {
             val currentProgress = _progress.value
             val newProgress = currentProgress.copy(
@@ -210,7 +208,7 @@ class SequentialImageProcessor(private val context: Context) {
             "Неизвестный файл"
         }
 
-        // Обновляем прогресс
+        // Обновляем прогресс обработки
         updateProgress(position, total, fileName)
 
         try {
@@ -256,7 +254,7 @@ class SequentialImageProcessor(private val context: Context) {
     }
     
     /**
-     * Отправляет broadcast о прогрессе обработки
+     * Отправляет broadcast о прогрессе обработки и обновляет UI через listener
      */
     private fun updateProgress(current: Int, total: Int, fileName: String) {
         val progress = MultipleImagesProgress(total, current, 0, 0, 0)
