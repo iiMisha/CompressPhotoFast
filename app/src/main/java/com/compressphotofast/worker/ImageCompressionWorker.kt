@@ -218,7 +218,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Переименовываем оригинальный файл перед сохранением сжатой версии, если нужно
                 var backupUri = imageUri
                 
-                    if (!isMediaDocumentsUri) {
+                // Для MediaDocumentsProvider URI переименование не работает, но мы все равно можем удалить оригинал
+                if (!isMediaDocumentsUri) {
                     backupUri = FileOperationsUtil.renameOriginalFileIfNeeded(appContext, imageUri) ?: imageUri
                 }
                 
@@ -245,29 +246,45 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
                 
-                // Если режим замены включен и URI был переименован, удаляем переименованный оригинальный файл
+                // Если режим замены включен, удаляем оригинальный файл
                 try {
-                    if (FileOperationsUtil.isSaveModeReplace(appContext) && backupUri != imageUri) {
-                        LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление файла: $backupUri")
-                        val deleteResult = FileOperationsUtil.deleteFile(appContext, backupUri)
+                    if (FileOperationsUtil.isSaveModeReplace(appContext)) {
+                        val uriToDelete = if (backupUri != imageUri) {
+                            // Если файл был переименован, удаляем переименованный файл
+                            LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление переименованного файла: $backupUri")
+                            backupUri
+                        } else if (isMediaDocumentsUri) {
+                            // Для MediaDocumentsProvider URI удаляем оригинальный файл напрямую
+                            LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление оригинального файла (MediaDocuments): $imageUri")
+                            imageUri
+                        } else {
+                            null
+                        }
                         
-                        when (deleteResult) {
-                            is Boolean -> {
-                                if (deleteResult) {
-                                    LogUtil.fileOperation(imageUri, "Удаление", "Переименованный оригинальный файл успешно удален")
-                                } else {
-                                    LogUtil.error(imageUri, "Удаление", "Не удалось удалить переименованный оригинальный файл")
+                        uriToDelete?.let { uri ->
+                            val deleteResult = FileOperationsUtil.deleteFile(appContext, uri)
+                            
+                            when (deleteResult) {
+                                is Boolean -> {
+                                    if (deleteResult) {
+                                        val fileType = if (uri == imageUri) "оригинальный" else "переименованный оригинальный"
+                                        LogUtil.fileOperation(imageUri, "Удаление", "${fileType.replaceFirstChar { it.uppercase() }} файл успешно удален")
+                                    } else {
+                                        val fileType = if (uri == imageUri) "оригинальный" else "переименованный оригинальный"
+                                        LogUtil.error(imageUri, "Удаление", "Не удалось удалить $fileType файл")
+                                    }
                                 }
-                            }
-                            is android.content.IntentSender -> {
-                                LogUtil.fileOperation(imageUri, "Удаление", "Требуется разрешение пользователя на удаление переименованного оригинала")
-                                // В WorkManager мы не можем запросить разрешение через IntentSender
-                                addPendingDeleteRequest(backupUri, deleteResult)
+                                is android.content.IntentSender -> {
+                                    val fileType = if (uri == imageUri) "оригинального" else "переименованного оригинального"
+                                    LogUtil.fileOperation(imageUri, "Удаление", "Требуется разрешение пользователя на удаление $fileType файла")
+                                    // В WorkManager мы не можем запросить разрешение через IntentSender
+                                    addPendingDeleteRequest(uri, deleteResult)
+                                }
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    LogUtil.error(imageUri, "Удаление", "Ошибка при удалении переименованного оригинального файла", e)
+                    LogUtil.error(imageUri, "Удаление", "Ошибка при удалении оригинального файла", e)
                 }
                 
                 // Получаем размер сжатого файла для уведомления
