@@ -1,1 +1,99 @@
+# Documentation (already exists)
 docs
+
+# Build and generated files
+.gradle/
+build/
+app/build/
+app/debug/
+app/release/
+out/
+bin/
+gen/
+captures/
+.externalNativeBuild/
+.cxx/
+cmake-build-*/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.navigation/
+
+# Gradle wrapper (binary)
+gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+keystore.properties
+signing.properties
+
+# Generated APK/AAB files
+*.apk
+*.aab
+*.so
+output.json
+output-metadata.json
+
+# Security sensitive files
+*.jks
+*.keystore
+*.p12
+*.pepk
+upload-keystore.jks
+secure-keys/
+google-services.json
+firebase_options.dart
+app/google-services.json
+
+# Logs and profiling
+*.log
+*.hprof
+logs/
+proguardMapping.txt
+mapping.txt
+
+# Lint and coverage
+lint/
+coverage/
+*.coverage
+jacoco.exec
+coverage.ec
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Kotlin specific
+*.kts.resolved
+kotlin-profile-*.json
+.kotlin/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Memory bank archive (optional - comment out if you want to index)
+#memory-bank/archive/
+
+# Custom modes (optional - comment out if you want to index)
+# custom_modes/
+
+# Plan directory (optional - comment out if you want to index)
+# plan/
