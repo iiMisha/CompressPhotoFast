@@ -33,9 +33,16 @@ object MediaStoreUtil {
                 put(MediaStore.Images.Media.MIME_TYPE, mimeType)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    // Нормализуем путь, добавляя "Pictures/" если путь не содержит "/"
-                    val relativePath = if (directory.contains("/")) directory 
-                                     else "Pictures/$directory"
+                    val relativePath = if (directory.isEmpty()) {
+                        // Если директория пуста (например, для режима замены в корневой директории)
+                        Environment.DIRECTORY_PICTURES
+                    } else if (directory.contains("/")) {
+                        // Если директория уже содержит полный путь (например, Pictures/MyAlbum)
+                        directory
+                    } else {
+                        // Если указана только поддиректория, добавляем "Pictures/"
+                        "${Environment.DIRECTORY_PICTURES}/$directory"
+                    }
                     
                     LogUtil.processInfo("Использую относительный путь для сохранения: $relativePath")
                     put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
@@ -187,7 +194,14 @@ object MediaStoreUtil {
                 put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/$directory")
+                    val relativePath = if (directory.isEmpty()) {
+                        Environment.DIRECTORY_PICTURES
+                    } else if (directory.contains("/")) {
+                        directory
+                    } else {
+                        "${Environment.DIRECTORY_PICTURES}/$directory"
+                    }
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
@@ -277,14 +291,24 @@ object MediaStoreUtil {
         context: Context,
         inputStream: InputStream,
         fileName: String,
-        directory: String,
         originalUri: Uri,
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
         exifDataMemory: Map<String, Any>? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
+            // Получаем путь к директории для сохранения
+            val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
+                // Если включен режим замены, сохраняем в той же директории
+                UriUtil.getDirectoryFromUri(context, originalUri)
+            } else {
+                // Иначе сохраняем в директории приложения
+                Constants.APP_DIRECTORY
+            }
+
+            LogUtil.debug("FileUtil", "Директория для сохранения: $directoryToSave")
+
             // Централизованное создание записи в MediaStore
-            val uri = createMediaStoreEntry(context, fileName, directory)
+            val uri = createMediaStoreEntry(context, fileName, directoryToSave)
             
             if (uri == null) {
                 LogUtil.error(originalUri, "Сохранение", "Не удалось создать запись в MediaStore")
@@ -387,4 +411,4 @@ object MediaStoreUtil {
         
         return@withContext isAvailable
     }
-} 
+}

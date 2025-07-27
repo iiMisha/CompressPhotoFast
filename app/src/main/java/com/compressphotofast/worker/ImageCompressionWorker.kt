@@ -226,8 +226,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
                     appContext,
                     ByteArrayInputStream(compressedImageStream.toByteArray()),
-                        fileName,
-                    directory,
+                    fileName,
                     backupUri,
                     compressionQuality,
                     exifDataMemory // Передаем заранее загруженные EXIF данные
@@ -434,4 +433,4 @@ class ImageCompressionWorker @AssistedInject constructor(
             return "compressed_image_$timestamp.jpg"
         }
     }
-} 
+}

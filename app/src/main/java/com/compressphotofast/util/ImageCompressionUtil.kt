@@ -262,7 +262,6 @@ object ImageCompressionUtil {
                 context,
                 compressedInputStream, 
                 compressedFileName,
-                directoryToUse,
                 uri,
                 quality,
                 exifData
@@ -410,4 +409,4 @@ object ImageCompressionUtil {
             return@withContext false
         }
     }
-} 
+}
