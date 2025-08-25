@@ -710,6 +710,7 @@ class MainActivity : AppCompatActivity() {
             
             // Создаем интент для обработки конкретного изображения
             val processIntent = Intent(Constants.ACTION_PROCESS_IMAGE)
+            processIntent.setPackage(packageName)
             processIntent.putExtra(Constants.EXTRA_URI, uri)
             sendBroadcast(processIntent)
             

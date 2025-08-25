@@ -236,6 +236,7 @@ class SequentialImageProcessor(private val context: Context) {
             
             // Отправляем broadcast о завершении сжатия
             val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED)
+            intent.setPackage(context.packageName)
             intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
             intent.putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
             intent.putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
@@ -262,6 +263,7 @@ class SequentialImageProcessor(private val context: Context) {
         
         // Отправляем информацию через broadcast для слушателей
         val intent = Intent(Constants.ACTION_COMPRESSION_PROGRESS)
+        intent.setPackage(context.packageName)
         intent.putExtra(Constants.EXTRA_PROGRESS, current)
         intent.putExtra(Constants.EXTRA_TOTAL, total)
         intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)

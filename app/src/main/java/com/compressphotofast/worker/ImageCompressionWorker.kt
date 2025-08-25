@@ -426,6 +426,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         
         // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
         val intent = Intent(Constants.ACTION_REQUEST_DELETE_PERMISSION).apply {
+            setPackage(appContext.packageName)
             putExtra(Constants.EXTRA_URI, uri)
             // Добавляем IntentSender как Parcelable
             putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent)
