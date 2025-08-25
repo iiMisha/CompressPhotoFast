@@ -252,7 +252,7 @@ object ImageCompressionUtil {
             }
             
             // Создание имени для сжатого файла
-            val compressedFileName = FileOperationsUtil.createCompressedFileName(fileName)
+            val compressedFileName = FileOperationsUtil.createCompressedFileName(context, fileName)
             
             // Сохранение сжатого файла
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())

@@ -89,14 +89,17 @@ object MediaStoreUtil {
                     
                     // Если файл существует и включен режим замены, удаляем его
                     if (existingUri != null && FileOperationsUtil.isSaveModeReplace(context)) {
+                        LogUtil.processInfo("[MediaStore] Найден существующий файл с именем '$fileName', включен режим замены - удаляем")
                         try {
                             context.contentResolver.delete(existingUri!!, null, null)
                             LogUtil.debug("MediaStore", "Существующий файл удален (режим замены)")
                         } catch (e: Exception) {
                             LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла", e)
+                            LogUtil.processWarning("[MediaStore] ВНИМАНИЕ: Не удалось удалить существующий файл в режиме замены!")
                         }
                     } else if (existingUri != null) {
                         // Если файл существует, но режим замены выключен, добавляем числовой индекс
+                        LogUtil.processInfo("[MediaStore] Найден существующий файл с именем '$fileName', режим замены выключен - добавляем индекс")
                         val fileNameWithoutExt = fileName.substringBeforeLast(".")
                         val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
                         
@@ -306,6 +309,7 @@ object MediaStoreUtil {
             }
 
             LogUtil.debug("FileUtil", "Директория для сохранения: $directoryToSave")
+            LogUtil.processInfo("[MediaStoreUtil] Создание записи MediaStore для файла: $fileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(context)})")
 
             // Централизованное создание записи в MediaStore
             val uri = createMediaStoreEntry(context, fileName, directoryToSave)

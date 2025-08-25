@@ -1,0 +1,1138 @@
+--------- beginning of crash
+--------- beginning of system
+--------- beginning of main
+17:58:39.308 WiFi_PRO_R...Controller mTopAppName: com.compressphotofast
+17:58:39.314 RmeSchedManager         init Rme, version is: v1.0
+17:58:39.326 LifecycleTransaction    activityCallbacks LaunchActivityItem{intent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10600000 cmp=com.compressphotofast/.ui.MainActivity bnds=[189,625][353,856] (has extras) },ident=237906669,info=ActivityInfo{f7117a3 com.compressphotofast.ui.MainActivity},curConfig={1.0 250mcc11mnc [ru_RU] ldltr sw375dp w375dp h753dp 364dpi nrml long hdr widecg port night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 854, 1890) mAppBounds=Rect(0, 83 - 854, 1797) mMaxBounds=Rect(0, 0 - 854, 1890) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=0} suim:1 extflag:8 s.302 fontWeightAdjustment=0},overrideConfig={1.0 250mcc11mnc [ru_RU] ldltr sw375dp w375dp h753dp 364dpi nrml long hdr widecg port night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 854, 1890) mAppBounds=Rect(0, 83 - 854, 1797) mMaxBounds=Rect(0, 0 - 854, 1890) mWindowingMode=fullscreen mDisplayWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=0} suim:1 extflag:8 s.1 fontWeightAdjustment=0},referrer=com.huawei.android.launcher,procState=16,state=null,persistentState=null,pendingResults=null,pendingNewIntents=null,options=null,profilerInfo=null,assistToken=android.os.BinderProxy@36ceaa0,rotationAdj=null,shareableActivityToken=android.os.BinderProxy@c9cd659}
+17:58:39.326 LifecycleTransaction    lifecycleStateRequest ResumeActivityItem{procState=-1,updateProcState=false,isForward=true}
+17:58:39.326 LifecycleTransaction    activityCallbacks TopResumedActivityChangeItem{onTop=true}
+17:58:39.326 HwViewRootImpl          Add sceneId 2 topId: 14
+17:58:39.326 HwViewRootImpl          Add sceneId 9 topId: 14
+17:58:39.327 LaunchActivityItem      execute start, token = android.os.BinderProxy@9ec921e
+17:58:39.333 ActivityThread          callActivityOnCreate
+17:58:39.337 SmartSlideOverScroller  start init SmartSlideOverScroller and get the overscroller config
+17:58:39.337 SmartSlide...llerConfig get the overscroller config
+17:58:39.338 HwAdaptiveFrameManager  transmitPackageInfo sHardVelocity=10=174
+17:58:39.347 DecorView[]             pkgName:com.compressphotofast old windowMode:0 new windoMode:1, isFixedSize:false, isStackNeedCaptionView:true
+17:58:39.348 SmartSlideOverScroller  start init SmartSlideOverScroller and get the overscroller config
+17:58:39.348 SmartSlide...llerConfig get the overscroller config
+17:58:39.349 HwAdaptiveFrameManager  transmitPackageInfo sHardVelocity=10=174
+17:58:39.353 ActivityThread          add activity client record, r= ActivityRecord{d9889a8 token=android.os.BinderProxy@9ec921e {com.compressphotofast/com.compressphotofast.ui.MainActivity}} token= android.os.BinderProxy@9ec921e
+17:58:39.358 MouseWheelSynthesizer   mMoveStepInDp: 64, mMoveStepInPixel: 146, mUpTimeDelayed: 100
+17:58:39.358 HwViewRootImpl          [onViewRootImplInitial] HotZone Threshold = 168
+17:58:39.359 ViewRootImpl            ViewUI ViewRootImpl mIsInProductivePCDisplay: false
+17:58:39.362 InsetsController        ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][854,83], mVisible=true}
+17:58:39.362 InsetsController        ViewUI_insets updateState new source: InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,1797][854,1890], mVisible=true}
+17:58:39.362 InputEventReceiver      dispatchInputInterval 0
+17:58:39.363 HwSoraManager           SORA is disabled for com.compressphotofast.ui.MainActivity
+17:58:39.363 TopResumed...ChangeItem execute start, ActivityClientRecord = ActivityRecord{d9889a8 token=android.os.BinderProxy@9ec921e {com.compressphotofast/com.compressphotofast.ui.MainActivity}}
+17:58:39.374 DecorView               updateColorViewInt type:1 size: 93 color:fffcfcfc appColor:fffcfcfc
+17:58:39.374 DecorView               updateColorViewInt type:0 size: 83 color:ff000000 appColor:ff000000
+17:58:39.375 HiTouch_HiTouchSensor   depended package hiTouch does n't exist!
+17:58:39.375 HiTouch_HiTouchSensor   HiTouch restricted: system app HiTouch don't exist.
+17:58:39.375 HiTouch_Pr...reDetector onAttached, package=com.compressphotofast, windowType=1, mIsHiTouchRestricted=true
+17:58:39.376 DollieAdapterService    notifyActivityState pkg:com.compressphotofast/com.compressphotofast.ui.MainActivity state:2 fg:true mUid:10695
+17:58:39.381 BufferQueueCore         BufferQueueCore: mDebugHwFlow=0, mIsBufferQueueLogVSupport=0.
+17:58:39.382 InsetsSourceConsumer    ViewUI_insets setControl -> ITYPE_NAVIGATION_BAR on com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.382 InsetsSourceConsumer    ViewUI_insets setControl mType:1, requestedVisible:true, getLeash:null, needAnimation:false, mIsAnimationPending:false, getRootViewTitle:com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.382 InsetsSourceConsumer    ViewUI_insets setControl -> ITYPE_STATUS_BAR on com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.382 InsetsSourceConsumer    ViewUI_insets setControl mType:0, requestedVisible:true, getLeash:null, needAnimation:false, mIsAnimationPending:false, getRootViewTitle:com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.383 OpenGLRenderer          Unable to match the desired swap behavior.
+17:58:39.396 HwViewRootImpl          removeInvalidNode all the node in jank list is out of time
+17:58:39.396 HwViewRootImpl          remove sceneId 2 topId: 14
+17:58:39.396 HwViewRootImpl          remove sceneId 9 topId: 14
+17:58:39.396 HwViewRootImpl          Add sceneId 10 topId: 14
+17:58:39.403 InsetsSourceConsumer    ViewUI_insets setControl -> ITYPE_NAVIGATION_BAR on com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.403 InsetsSourceConsumer    ViewUI_insets setControl mType:1, requestedVisible:true, getLeash:Surface(name=Surface(name=970249d NavigationBar0)/@0x193536 - animation-leash of insets_animation)/@0x10ebf4d, needAnimation:false, mIsAnimationPending:false, getRootViewTitle:com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.403 InsetsSourceConsumer    ViewUI_insets setControl -> ITYPE_STATUS_BAR on com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.403 InsetsSourceConsumer    ViewUI_insets setControl mType:0, requestedVisible:true, getLeash:Surface(name=Surface(name=433da4a StatusBar)/@0xb1fba68 - animation-leash of insets_animation)/@0x41f1a02, needAnimation:false, mIsAnimationPending:false, getRootViewTitle:com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:39.408 HwViewRootImpl          [DetectViewsLocationRunner] current resolutionScale: 0.7
+17:58:39.408 ImeFocusController      ViewUI imeDisplayId:0 contextDisplayId:0
+17:58:39.408 InputMethodManager      set currentRootView to : android.view.ViewRootImpl@ab6df13
+17:58:39.409 InputMethodManager      Starting input: reason=WINDOW_FOCUS_GAIN
+17:58:39.409 HwRemoteIn...hodManager isCasting false because IHwDistributedWindowManager is invalid.
+17:58:39.409 OpenGLRenderer          gpu complete is not signaled
+17:58:39.412 InputMethodManager      Starting input: Bind resultString=SUCCESS_WITH_IME_SESSION
+17:58:39.425 InsetsSourceConsumer    ViewUI_insets setControl -> ITYPE_IME on com.compressphotofast/com.compressphotofast.ui.MainActivity
+17:58:40.912 HwViewRootImpl          [DetectViewsLocationRunner] start to get views' rect, type = SCENE_WINDOW_FOCUS_CHANGE
+17:58:40.914 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+17:58:40.914 HwViewRootImpl          [DetectViewsLocationRunner] displayPoint: Point(854, 1890)
+17:58:40.914 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+17:58:40.914 HwViewRootImpl          [DetectViewsLocationRunner] lazyMode:
+17:58:40.914 HwViewRootImpl          [DetectViewsLocationRunner] current mode is full screen
+17:58:40.914 HwViewRootImpl          [DetectViewsLocationRunner] start to getViewHierarchy
+17:58:40.916 HwViewRootImpl          [DetectViewsLocationRunner] deviceOrientation: 0
+17:58:40.916 HwViewRootImpl          [DetectViewsLocationRunner-ScreenDirection] ROTATION_0
+17:58:40.917 HwViewRootImpl          [DetectViewsLocationRunner] get views' rect = 3, SCENE_WINDOW_FOCUS_CHANGE#51,1409,423,1564#423,1409,796,1564#796,1409,1169,1564
+17:59:01.806 HwViewRootImpl          Add sceneId 11 topId: 14
+17:59:01.807 HwDragEnhancementImpl   handleTimerDrag: false
+17:59:01.812 InputTransport          now=19710075300395, frameTime=19710074895228, sampleTime=19710069895228, firstPointTime=19710070446000, batchSize=1
+17:59:01.812 InputTransport          channel 380a715 com.compressphotofast/com.compressphotofast.ui.MainActivity (client) detect abnormal consume, count is 0
+17:59:01.830 HwDragEnhancementImpl   Start long press for hw drag enhancement.
+17:59:01.880 HwViewRootImpl          [DetectViewsLocationRunner] current resolutionScale: 0.7
+17:59:01.880 HwViewRootImpl          remove sceneId 11 topId: 14
+17:59:01.881 WebViewDragEnhancement  dragReset.
+17:59:01.881 WebViewDragEnhancement  dragReset cacheSize = 0
+17:59:01.887 AudioManager            querySoundEffectsEnabled...
+17:59:01.888 AudioManager            querySoundEffectsEnabled fail id: 0
+17:59:01.911 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:01.935 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:01.943 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|2|null|10695
+17:59:01.982 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:01.997 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:01.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:02.020 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:02.023 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:02.042 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:02.043 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:02.067 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:02.067 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:02.086 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:02.087 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:02.114 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+17:59:02.115 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+17:59:02.132 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+17:59:02.133 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+17:59:02.159 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+17:59:02.159 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+17:59:02.178 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+17:59:02.178 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+17:59:02.201 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+17:59:02.202 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+17:59:02.220 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+17:59:02.221 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+17:59:02.243 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+17:59:02.244 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+17:59:02.262 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+17:59:02.262 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+17:59:02.285 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+17:59:02.285 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+17:59:02.307 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+17:59:02.308 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+17:59:02.337 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+17:59:02.337 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+17:59:02.355 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+17:59:02.355 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+17:59:02.380 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+17:59:02.380 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+17:59:02.400 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+17:59:02.400 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+17:59:02.426 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+17:59:02.426 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+17:59:02.445 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+17:59:02.445 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+17:59:02.471 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+17:59:02.471 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+17:59:02.492 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+17:59:02.492 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+17:59:02.518 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+17:59:02.519 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+17:59:02.538 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+17:59:02.538 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+17:59:02.562 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+17:59:02.567 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+17:59:02.579 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+17:59:02.582 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+17:59:02.607 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+17:59:02.607 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+17:59:02.626 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+17:59:02.627 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+17:59:02.652 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+17:59:02.652 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+17:59:02.672 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+17:59:02.673 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+17:59:02.682 HwViewRootImpl          [DetectViewsLocationRunner] start to get views' rect, type = SCENE_GESTURE_SINGLE_TAP
+17:59:02.683 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+17:59:02.683 HwViewRootImpl          [DetectViewsLocationRunner] displayPoint: Point(854, 1890)
+17:59:02.683 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+17:59:02.683 HwViewRootImpl          [DetectViewsLocationRunner] lazyMode:
+17:59:02.683 HwViewRootImpl          [DetectViewsLocationRunner] current mode is full screen
+17:59:02.683 HwViewRootImpl          [DetectViewsLocationRunner] start to getViewHierarchy
+17:59:02.684 HwViewRootImpl          [DetectViewsLocationRunner] deviceOrientation: 0
+17:59:02.684 HwViewRootImpl          [DetectViewsLocationRunner-ScreenDirection] ROTATION_0
+17:59:02.684 HwViewRootImpl          [DetectViewsLocationRunner] get views' rect = 3, SCENE_GESTURE_SINGLE_TAP#51,2221,423,2377#423,2221,796,2377#796,2221,1169,2377
+17:59:02.702 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+17:59:02.702 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+17:59:02.723 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+17:59:02.723 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+17:59:02.751 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+17:59:02.751 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+17:59:02.770 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+17:59:02.770 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+17:59:02.799 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+17:59:02.799 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+17:59:02.823 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+17:59:02.823 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+17:59:02.852 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+17:59:02.853 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+17:59:02.873 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+17:59:02.873 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+17:59:02.903 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+17:59:02.903 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+17:59:02.924 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+17:59:02.925 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+17:59:02.954 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+17:59:02.955 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+17:59:02.974 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+17:59:02.974 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+17:59:03.002 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+17:59:03.003 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+17:59:03.013 LifecycleTransaction    activityCallbacks TopResumedActivityChangeItem{onTop=false}
+17:59:03.013 TopResumed...ChangeItem execute start, ActivityClientRecord = ActivityRecord{d9889a8 token=android.os.BinderProxy@9ec921e {com.compressphotofast/com.compressphotofast.ui.MainActivity}}
+17:59:03.023 LifecycleTransaction    lifecycleStateRequest PauseActivityItem{finished=false,userLeaving=true,configChanges=0,dontReport=true}
+17:59:03.029 HwViewRootImpl          remove sceneId 10 topId: 14
+17:59:03.035 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+17:59:03.035 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+17:59:03.047 InsetsSourceConsumer    ViewUI_insets mSourceControl is null notifyControlRevoked type: 1
+17:59:03.048 InsetsSourceConsumer    ViewUI_insets mSourceControl is null notifyControlRevoked type: 0
+17:59:03.088 LifecycleTransaction    lifecycleStateRequest StopActivityItem{showWindow=false,configChanges=0}
+17:59:03.103 RtgSchedIpcFile         setCommandByIoctl failed ret:-1, cmdid:22, errno:103
+17:59:03.105 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+17:59:03.109 DollieAdapterService    notifyActivityState pkg:com.compressphotofast/com.compressphotofast.ui.MainActivity state:4 fg:false mUid:10695
+17:59:03.110 RtgSchedIpcFile         setCommandByIoctl failed ret:-1, cmdid:23, errno:103
+17:59:03.110 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+17:59:03.139 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+17:59:03.143 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+17:59:03.159 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+17:59:03.159 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+17:59:03.167 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+17:59:03.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+17:59:03.183 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+17:59:03.184 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+17:59:03.192 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+17:59:03.193 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+17:59:03.207 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+17:59:03.208 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+17:59:03.216 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+17:59:03.217 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+17:59:03.231 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157130
+17:59:03.231 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157130
+17:59:03.234 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157129
+17:59:03.234 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157129
+17:59:03.237 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157128
+17:59:03.238 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157128
+17:59:03.243 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157127
+17:59:03.243 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157127
+17:59:03.248 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157123
+17:59:03.248 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157123
+17:59:03.252 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157124
+17:59:03.252 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157124
+17:59:03.256 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157125
+17:59:03.257 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157125
+17:59:03.257 RmeSchedManager         init Rme, version is: v1.0
+17:59:03.259 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157126
+17:59:03.260 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157126
+17:59:03.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157122
+17:59:03.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157122
+17:59:03.266 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157121
+17:59:03.266 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157121
+17:59:03.270 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+17:59:03.270 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+17:59:03.280 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+17:59:03.281 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+17:59:03.300 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+17:59:03.301 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+17:59:03.310 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+17:59:03.311 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+17:59:03.328 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+17:59:03.328 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+17:59:03.336 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+17:59:03.337 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+17:59:03.352 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+17:59:03.353 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+17:59:03.362 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+17:59:03.362 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+17:59:03.380 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+17:59:03.385 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+17:59:03.397 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+17:59:03.399 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+17:59:03.413 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157109
+17:59:03.413 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157109
+17:59:03.416 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+17:59:03.417 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+17:59:03.425 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+17:59:03.426 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+17:59:03.440 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+17:59:03.440 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+17:59:03.451 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+17:59:03.452 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+17:59:03.469 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+17:59:03.469 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+17:59:03.480 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+17:59:03.480 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+17:59:03.500 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+17:59:03.500 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+17:59:03.512 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+17:59:03.512 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+17:59:03.532 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+17:59:03.532 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+17:59:03.544 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+17:59:03.544 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+17:59:03.565 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+17:59:03.565 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+17:59:03.577 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+17:59:03.577 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+17:59:03.597 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+17:59:03.597 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+17:59:03.608 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+17:59:03.608 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+17:59:03.629 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+17:59:03.630 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+17:59:03.642 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+17:59:03.643 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+17:59:03.663 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+17:59:03.663 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+17:59:03.674 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+17:59:03.675 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+17:59:03.695 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+17:59:03.696 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+17:59:03.708 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+17:59:03.708 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+17:59:03.723 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+17:59:03.723 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+17:59:03.734 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+17:59:03.734 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+17:59:03.752 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+17:59:03.752 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+17:59:03.765 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+17:59:03.765 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+17:59:03.782 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+17:59:03.791 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+17:59:03.797 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+17:59:03.801 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+17:59:03.814 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+17:59:03.815 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+17:59:03.825 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+17:59:03.825 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+17:59:03.842 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157043
+17:59:03.847 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+17:59:03.852 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157043
+17:59:03.856 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+17:59:03.869 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+17:59:03.875 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157028
+17:59:03.879 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+17:59:03.887 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157028
+17:59:03.909 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157002
+17:59:03.915 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+17:59:03.921 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157002
+17:59:03.924 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+17:59:03.944 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157003
+17:59:03.949 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+17:59:03.955 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157003
+17:59:03.960 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+17:59:03.970 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157005
+17:59:03.977 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+17:59:03.981 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157005
+17:59:03.988 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+17:59:03.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156993
+17:59:04.009 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156993
+17:59:04.009 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+17:59:04.022 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+17:59:04.027 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156994
+17:59:04.040 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156994
+17:59:04.042 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+17:59:04.057 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156995
+17:59:04.059 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+17:59:04.069 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156995
+17:59:04.081 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+17:59:04.086 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156996
+17:59:04.093 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+17:59:04.098 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156996
+17:59:04.124 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+17:59:04.125 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156997
+17:59:04.138 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+17:59:04.141 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156997
+17:59:04.158 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+17:59:04.159 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156998
+17:59:04.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156998
+17:59:04.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+17:59:04.183 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156999
+17:59:04.190 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+17:59:04.192 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156999
+17:59:04.199 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+17:59:04.206 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157001
+17:59:04.218 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+17:59:04.220 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157001
+17:59:04.226 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+17:59:04.234 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156990
+17:59:04.242 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157059
+17:59:04.242 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156990
+17:59:04.251 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157059
+17:59:04.255 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156991
+17:59:04.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156991
+17:59:04.267 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157058
+17:59:04.277 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156992
+17:59:04.277 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157058
+17:59:04.287 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156992
+17:59:04.295 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157057
+17:59:04.299 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156987
+17:59:04.303 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157057
+17:59:04.308 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156987
+17:59:04.318 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157056
+17:59:04.319 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156988
+17:59:04.326 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157056
+17:59:04.327 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156988
+17:59:04.340 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156983
+17:59:04.344 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157053
+17:59:04.350 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156983
+17:59:04.353 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157053
+17:59:04.364 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156984
+17:59:04.368 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157052
+17:59:04.373 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156984
+17:59:04.377 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157052
+17:59:04.391 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156985
+17:59:04.397 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157051
+17:59:04.400 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156985
+17:59:04.406 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157051
+17:59:04.416 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156986
+17:59:04.423 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157050
+17:59:04.427 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156986
+17:59:04.432 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157050
+17:59:04.441 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156980
+17:59:04.447 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157049
+17:59:04.450 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156980
+17:59:04.457 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157049
+17:59:04.465 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156981
+17:59:04.476 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157048
+17:59:04.476 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156981
+17:59:04.492 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157048
+17:59:04.492 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156982
+17:59:04.516 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156982
+17:59:04.517 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157047
+17:59:04.532 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157047
+17:59:04.538 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156975
+17:59:04.546 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156975
+17:59:04.552 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157046
+17:59:04.561 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157046
+17:59:04.562 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156976
+17:59:04.574 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156976
+17:59:04.577 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157045
+17:59:04.585 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157045
+17:59:04.588 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156977
+17:59:04.596 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156977
+17:59:04.604 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157044
+17:59:04.610 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156978
+17:59:04.613 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157044
+17:59:04.618 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156978
+17:59:04.628 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157043
+17:59:04.629 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156972
+17:59:04.635 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157043
+17:59:04.636 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156972
+17:59:04.647 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157041
+17:59:04.648 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156973
+17:59:04.654 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157041
+17:59:04.655 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156973
+17:59:04.667 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156974
+17:59:04.671 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157028
+17:59:04.675 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156974
+17:59:04.678 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157028
+17:59:04.689 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156971
+17:59:04.689 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157022
+17:59:04.697 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157022
+17:59:04.698 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156971
+17:59:04.710 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156970
+17:59:04.714 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157023
+17:59:04.718 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156970
+17:59:04.722 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157023
+17:59:04.733 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156968
+17:59:04.738 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157024
+17:59:04.743 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156968
+17:59:04.746 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157024
+17:59:04.757 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156969
+17:59:04.763 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157020
+17:59:04.768 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156969
+17:59:04.775 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157020
+17:59:04.789 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156960
+17:59:04.794 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157021
+17:59:04.798 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156960
+17:59:04.802 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157021
+17:59:04.811 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156961
+17:59:04.818 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157017
+17:59:04.822 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156961
+17:59:04.827 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157017
+17:59:04.836 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156962
+17:59:04.843 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157018
+17:59:04.845 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156962
+17:59:04.851 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157018
+17:59:04.857 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156963
+17:59:04.865 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157019
+17:59:04.866 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156963
+17:59:04.874 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157019
+17:59:04.881 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156964
+17:59:04.891 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156964
+17:59:04.891 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157012
+17:59:04.900 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157012
+17:59:04.905 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156965
+17:59:04.914 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156965
+17:59:04.917 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157006
+17:59:04.928 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157006
+17:59:04.929 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156966
+17:59:04.936 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156966
+17:59:04.942 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157007
+17:59:04.947 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156967
+17:59:04.950 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157007
+17:59:04.956 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156967
+17:59:04.965 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157008
+17:59:04.970 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156945
+17:59:04.974 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157008
+17:59:04.978 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156945
+17:59:04.990 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156946
+17:59:04.990 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157009
+17:59:04.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156946
+17:59:04.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157009
+17:59:05.009 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156947
+17:59:05.013 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157010
+17:59:05.019 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156947
+17:59:05.022 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157010
+17:59:05.032 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156948
+17:59:05.037 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157011
+17:59:05.050 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156948
+17:59:05.053 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157011
+17:59:05.066 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156949
+17:59:05.073 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157002
+17:59:05.083 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156949
+17:59:05.090 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157002
+17:59:05.107 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156950
+17:59:05.115 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157003
+17:59:05.121 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156950
+17:59:05.124 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157003
+17:59:05.135 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157005
+17:59:05.136 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156951
+17:59:05.146 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156951
+17:59:05.146 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157005
+17:59:05.159 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156993
+17:59:05.160 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156952
+17:59:05.168 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156993
+17:59:05.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156952
+17:59:05.184 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156953
+17:59:05.185 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156994
+17:59:05.194 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156953
+17:59:05.194 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156994
+17:59:05.206 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156995
+17:59:05.208 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156954
+17:59:05.213 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156995
+17:59:05.215 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156954
+17:59:05.225 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156996
+17:59:05.228 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156955
+17:59:05.233 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156996
+17:59:05.236 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156955
+17:59:05.245 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156997
+17:59:05.249 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156956
+17:59:05.255 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156997
+17:59:05.257 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156956
+17:59:05.266 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156998
+17:59:05.271 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156957
+17:59:05.276 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156998
+17:59:05.280 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156957
+17:59:05.287 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156999
+17:59:05.293 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156958
+17:59:05.296 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156999
+17:59:05.302 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156958
+17:59:05.309 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157001
+17:59:05.318 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156959
+17:59:05.319 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157001
+17:59:05.326 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156959
+17:59:05.330 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156990
+17:59:05.340 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156932
+17:59:05.341 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156990
+17:59:05.349 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156932
+17:59:05.353 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156991
+17:59:05.363 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156991
+17:59:05.365 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156933
+17:59:05.374 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156933
+17:59:05.375 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156992
+17:59:05.384 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156992
+17:59:05.389 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156934
+17:59:05.397 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156987
+17:59:05.398 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156934
+17:59:05.405 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156987
+17:59:05.411 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156935
+17:59:05.419 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156988
+17:59:05.421 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156935
+17:59:05.427 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156988
+17:59:05.435 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156936
+17:59:05.441 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156983
+17:59:05.446 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156936
+17:59:05.450 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156983
+17:59:05.460 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156937
+17:59:05.467 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156984
+17:59:05.479 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156937
+17:59:05.481 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156984
+17:59:05.492 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156938
+17:59:05.492 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156985
+17:59:05.502 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156985
+17:59:05.502 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156938
+17:59:05.514 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156986
+17:59:05.516 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156939
+17:59:05.524 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156939
+17:59:05.524 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156986
+17:59:05.537 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156980
+17:59:05.537 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156940
+17:59:05.548 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156940
+17:59:05.548 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156980
+17:59:05.562 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156981
+17:59:05.563 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156941
+17:59:05.572 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156941
+17:59:05.573 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156981
+17:59:05.586 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156982
+17:59:05.587 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156942
+17:59:05.595 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156982
+17:59:05.595 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156942
+17:59:05.608 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156975
+17:59:05.611 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156943
+17:59:05.618 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156975
+17:59:05.620 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156943
+17:59:05.630 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156976
+17:59:05.634 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156944
+17:59:05.639 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156976
+17:59:05.642 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156944
+17:59:05.651 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156977
+17:59:05.655 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156931
+17:59:05.660 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156977
+17:59:05.665 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156931
+17:59:05.674 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156978
+17:59:05.694 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156928
+17:59:05.699 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156978
+17:59:05.708 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156928
+17:59:05.721 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156972
+17:59:05.729 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156930
+17:59:05.733 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156972
+17:59:05.740 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156930
+17:59:05.747 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156973
+17:59:05.755 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156925
+17:59:05.759 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156973
+17:59:05.766 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156925
+17:59:05.774 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156974
+17:59:05.781 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156926
+17:59:05.782 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156974
+17:59:05.789 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156926
+17:59:05.796 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156971
+17:59:05.808 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156927
+17:59:05.815 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156971
+17:59:05.824 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156927
+17:59:05.828 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156970
+17:59:05.838 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156970
+17:59:05.839 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156923
+17:59:05.848 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156923
+17:59:05.850 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156968
+17:59:05.858 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156968
+17:59:05.860 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156924
+17:59:05.868 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156924
+17:59:05.868 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156969
+17:59:05.875 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156969
+17:59:05.881 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156920
+17:59:05.887 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156960
+17:59:05.889 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156920
+17:59:05.894 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156960
+17:59:05.900 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156921
+17:59:05.904 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156961
+17:59:05.908 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156921
+17:59:05.913 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156961
+17:59:05.919 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156922
+17:59:05.924 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156962
+17:59:05.927 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156922
+17:59:05.933 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156962
+17:59:05.940 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156918
+17:59:05.945 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156963
+17:59:05.948 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156918
+17:59:05.953 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156963
+17:59:05.960 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156919
+17:59:05.964 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156964
+17:59:05.969 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156919
+17:59:05.972 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156964
+17:59:05.982 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156916
+17:59:05.982 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156965
+17:59:05.990 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156916
+17:59:05.990 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156965
+17:59:06.002 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156966
+17:59:06.003 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156912
+17:59:06.010 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156966
+17:59:06.012 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156912
+17:59:06.023 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156967
+17:59:06.027 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156901
+17:59:06.032 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156967
+17:59:06.035 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156901
+17:59:06.042 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156945
+17:59:06.048 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156902
+17:59:06.051 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156945
+17:59:06.057 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156902
+17:59:06.063 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156946
+17:59:06.075 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156903
+17:59:06.078 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156946
+17:59:06.084 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156903
+17:59:06.088 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156947
+17:59:06.096 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156904
+17:59:06.097 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156947
+17:59:06.104 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156904
+17:59:06.107 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156948
+17:59:06.115 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156948
+17:59:06.117 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156905
+17:59:06.125 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156905
+17:59:06.125 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156949
+17:59:06.133 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156949
+17:59:06.138 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156906
+17:59:06.144 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156950
+17:59:06.146 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156906
+17:59:06.151 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156950
+17:59:06.158 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156907
+17:59:06.163 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156951
+17:59:06.168 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156907
+17:59:06.174 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156951
+17:59:06.189 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156952
+17:59:06.189 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156908
+17:59:06.200 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156908
+17:59:06.200 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156952
+17:59:06.212 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156953
+17:59:06.214 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156909
+17:59:06.220 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156953
+17:59:06.221 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156909
+17:59:06.234 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156910
+17:59:06.235 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156954
+17:59:06.243 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156954
+17:59:06.243 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156910
+17:59:06.255 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156955
+17:59:06.256 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156911
+17:59:06.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156911
+17:59:06.264 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156955
+17:59:06.276 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156956
+17:59:06.277 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156881
+17:59:06.284 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156956
+17:59:06.285 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156881
+17:59:06.296 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156957
+17:59:06.297 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156882
+17:59:06.309 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156957
+17:59:06.310 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156882
+17:59:06.324 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156958
+17:59:06.325 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156883
+17:59:06.334 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156958
+17:59:06.334 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156883
+17:59:06.345 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156959
+17:59:06.347 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156884
+17:59:06.353 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156959
+17:59:06.354 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156884
+17:59:06.363 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156932
+17:59:06.366 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156885
+17:59:06.373 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156932
+17:59:06.376 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156885
+17:59:06.385 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156933
+17:59:06.389 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156886
+17:59:06.395 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156933
+17:59:06.398 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156886
+17:59:06.408 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156934
+17:59:06.411 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156887
+17:59:06.417 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156934
+17:59:06.420 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156887
+17:59:06.429 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156935
+17:59:06.432 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156888
+17:59:06.437 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156935
+17:59:06.441 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156888
+17:59:06.448 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156936
+17:59:06.454 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156889
+17:59:06.458 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156936
+17:59:06.464 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156889
+17:59:06.471 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156937
+17:59:06.477 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156890
+17:59:06.480 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156937
+17:59:06.487 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156890
+17:59:06.494 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156938
+17:59:06.503 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156891
+17:59:06.505 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156938
+17:59:06.512 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156891
+17:59:06.520 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156939
+17:59:06.529 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156892
+17:59:06.532 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156939
+17:59:06.539 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156892
+17:59:06.545 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156940
+17:59:06.551 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156893
+17:59:06.555 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156940
+17:59:06.561 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156893
+17:59:06.572 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156941
+17:59:06.590 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156941
+17:59:06.591 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156894
+17:59:06.621 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156942
+17:59:06.623 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156894
+17:59:06.639 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156895
+17:59:06.639 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156942
+17:59:06.652 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156895
+17:59:06.653 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156943
+17:59:06.665 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156943
+17:59:06.667 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156896
+17:59:06.676 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156896
+17:59:06.678 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156944
+17:59:06.687 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156897
+17:59:06.687 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156944
+17:59:06.695 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156897
+17:59:06.698 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156931
+17:59:06.707 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156898
+17:59:06.708 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156931
+17:59:06.717 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156898
+17:59:06.721 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156928
+17:59:06.729 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156899
+17:59:06.730 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156928
+17:59:06.738 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156899
+17:59:06.741 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156930
+17:59:06.749 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156930
+17:59:06.750 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156900
+17:59:06.758 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156900
+17:59:06.759 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156925
+17:59:06.767 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156925
+17:59:06.767 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156873
+17:59:06.777 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156873
+17:59:06.781 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156926
+17:59:06.790 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156926
+17:59:06.790 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156874
+17:59:06.798 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156874
+17:59:06.802 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156927
+17:59:06.811 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156875
+17:59:06.812 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156927
+17:59:06.820 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156875
+17:59:06.824 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156923
+17:59:06.833 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156876
+17:59:06.834 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156923
+17:59:06.844 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156876
+17:59:06.848 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156924
+17:59:06.856 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156924
+17:59:06.857 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156878
+17:59:06.866 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156878
+17:59:06.868 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156920
+17:59:06.877 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156879
+17:59:06.878 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156920
+17:59:06.884 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156879
+17:59:06.888 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156921
+17:59:06.895 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156880
+17:59:06.896 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156921
+17:59:06.903 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156880
+17:59:06.909 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156922
+17:59:06.916 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156869
+17:59:06.923 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156922
+17:59:06.927 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156869
+17:59:06.935 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156918
+17:59:06.937 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156870
+17:59:06.944 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156918
+17:59:06.944 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156870
+17:59:06.956 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156871
+17:59:06.956 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156919
+17:59:06.964 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156871
+17:59:06.964 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156919
+17:59:06.978 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156872
+17:59:06.978 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156916
+17:59:06.987 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156872
+17:59:06.988 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156916
+17:59:06.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156912
+17:59:06.999 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156865
+17:59:07.007 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156865
+17:59:07.008 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156912
+17:59:07.019 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156866
+17:59:07.019 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156901
+17:59:07.027 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156901
+17:59:07.027 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156866
+17:59:07.038 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156902
+17:59:07.038 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156867
+17:59:07.047 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156902
+17:59:07.047 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156867
+17:59:07.058 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156868
+17:59:07.058 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156903
+17:59:07.068 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156903
+17:59:07.069 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156868
+17:59:07.081 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156904
+17:59:07.082 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156862
+17:59:07.092 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156904
+17:59:07.093 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156862
+17:59:07.105 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156863
+17:59:07.105 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156905
+17:59:07.114 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156863
+17:59:07.114 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156905
+17:59:07.126 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156906
+17:59:07.127 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156864
+17:59:07.136 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156906
+17:59:07.136 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156864
+17:59:07.148 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156859
+17:59:07.148 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156907
+17:59:07.157 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156907
+17:59:07.157 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156859
+17:59:07.168 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156908
+17:59:07.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:07.176 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156908
+17:59:07.177 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:07.187 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156909
+17:59:07.202 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:07.202 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156909
+17:59:07.218 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:07.233 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156910
+17:59:07.243 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156910
+17:59:07.259 WM-Processor            Moving WorkSpec (94803a3d-4cd1-4b2b-ab12-2cc8372e81ca) to the foreground
+17:59:07.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:07.269 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+17:59:07.273 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.273 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.278 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.281 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156911
+17:59:07.286 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:07.286 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:07.295 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156911
+17:59:07.296 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:07.305 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:07.320 WM-Processor            Moving WorkSpec (1d671f20-fb0b-4f5b-9b3d-43e34b56201b) to the foreground
+17:59:07.321 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:07.323 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+17:59:07.325 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.327 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156881
+17:59:07.329 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.330 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.333 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.343 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:07.344 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:07.376 WM-Processor            Moving WorkSpec (e6dfbe31-f7c8-48ff-a383-ece1046a7e0a) to the foreground
+17:59:07.379 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+17:59:07.380 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.388 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.390 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.393 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:07.393 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:07.395 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156881
+17:59:07.399 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:07.400 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:07.404 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:07.405 mpressphotofas          Background concurrent copying GC freed 112275(5633KB) AllocSpace objects, 0(0B) LOS objects, 51% free, 5757KB/11MB, paused 119us,55us total 191.795ms cpu time 72.172ms DisableRefAccess:17.324ms(12.606ms), NotOnTop
+17:59:07.414 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156882
+17:59:07.414 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:07.423 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:07.426 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156882
+17:59:07.450 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156883
+17:59:07.459 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156883
+17:59:07.469 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156884
+17:59:07.482 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156884
+17:59:07.512 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156885
+17:59:07.520 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156885
+17:59:07.548 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156886
+17:59:07.558 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156886
+17:59:07.574 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156887
+17:59:07.583 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156887
+17:59:07.604 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156888
+17:59:07.615 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156888
+17:59:07.632 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156889
+17:59:07.646 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156889
+17:59:07.658 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156890
+17:59:07.666 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156890
+17:59:07.682 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156891
+17:59:07.690 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156891
+17:59:07.711 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156892
+17:59:07.726 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156892
+17:59:07.739 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156893
+17:59:07.749 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156893
+17:59:07.761 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156894
+17:59:07.769 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156894
+17:59:07.781 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156895
+17:59:07.789 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156895
+17:59:07.802 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156896
+17:59:07.814 mpressphotofas          NativeAlloc concurrent copying GC freed 55889(2322KB) AllocSpace objects, 0(0B) LOS objects, 59% free, 4162KB/10MB, paused 208us,58us total 344.477ms cpu time 53.741ms DisableRefAccess:3.011ms(2.819ms), NotOnTop
+17:59:07.821 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156896
+17:59:07.840 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156897
+17:59:07.850 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156897
+17:59:07.862 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156898
+17:59:07.872 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156898
+17:59:07.883 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156899
+17:59:07.891 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156899
+17:59:07.902 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156900
+17:59:07.910 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156900
+17:59:07.921 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156873
+17:59:07.930 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156873
+17:59:07.941 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156874
+17:59:07.949 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156874
+17:59:07.960 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156875
+17:59:07.969 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156875
+17:59:07.980 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156876
+17:59:07.989 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156876
+17:59:08.000 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156878
+17:59:08.008 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156878
+17:59:08.019 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156879
+17:59:08.030 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156879
+17:59:08.041 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156880
+17:59:08.049 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156880
+17:59:08.060 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156869
+17:59:08.069 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156869
+17:59:08.070 AwareBitmapCacher       handleReleaseCache: pid=20104
+17:59:08.070 AwareBitmapCacher       init lrucache size: 4194304 pid=20104
+17:59:08.079 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156870
+17:59:08.088 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156870
+17:59:08.098 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156871
+17:59:08.107 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156871
+17:59:08.117 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156872
+17:59:08.126 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156872
+17:59:08.138 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156865
+17:59:08.146 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156865
+17:59:08.156 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156866
+17:59:08.164 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156866
+17:59:08.179 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156867
+17:59:08.188 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156867
+17:59:08.200 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156868
+17:59:08.210 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156868
+17:59:08.224 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156862
+17:59:08.260 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156862
+17:59:08.285 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156863
+17:59:08.303 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156863
+17:59:08.323 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156864
+17:59:08.334 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156864
+17:59:08.359 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156859
+17:59:08.373 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/156859
+17:59:08.394 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:08.395 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:08.408 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:08.699 mpressphotofas          NativeAlloc concurrent copying GC freed 23864(1234KB) AllocSpace objects, 3(60KB) LOS objects, 60% free, 4012KB/10156KB, paused 135us,53us total 276.340ms cpu time 47.197ms DisableRefAccess:18.888ms(2.855ms), NotOnTop
+17:59:09.925 mpressphotofas          ScopedThresholdTiming[WaitUntilDoneProcessingReferences] duration = 20660364 ns, kind = 2 , is_jank_perceptible = 1 , is_process_on_top = 0
+17:59:10.126 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:10.127 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:10.146 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:10.373 mpressphotofas          Background concurrent copying GC freed 10847(526KB) AllocSpace objects, 6(3640KB) LOS objects, 50% free, 5917KB/11MB, paused 132us,48us total 226.525ms cpu time 58.554ms DisableRefAccess:1.327ms(1.325ms), NotOnTop
+17:59:10.534 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157264
+17:59:10.553 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157264
+17:59:11.732 mpressphotofas          Background young concurrent copying GC freed 983(192KB) AllocSpace objects, 18(3096KB) LOS objects, 7% free, 10MB/11MB, paused 198us,55us total 208.701ms cpu time 37.069ms DisableRefAccess:13.775ms(2.327ms), NotOnTop
+17:59:11.892 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:11.898 WM-Processor            Moving WorkSpec (e6dfbe31-f7c8-48ff-a383-ece1046a7e0a) to the foreground
+17:59:11.906 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:11.911 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:11.913 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=e6dfbe31-f7c8-48ff-a383-ece1046a7e0a, tags={ com.compressphotofast.worker.ImageCompressionWorker, compress_1756133947318_IMG_20250825_175753.jpg } ]
+17:59:11.923 NotificationManager     com.compressphotofast: cancel(1)
+17:59:11.952 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|4|null|10695
+17:59:11.997 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.003 WM-Processor            Moving WorkSpec (94803a3d-4cd1-4b2b-ab12-2cc8372e81ca) to the foreground
+17:59:12.008 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.009 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=94803a3d-4cd1-4b2b-ab12-2cc8372e81ca, tags={ com.compressphotofast.worker.ImageCompressionWorker, compress_1756133947197_IMG_20250825_175756.jpg } ]
+17:59:12.011 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.015 NotificationManager     com.compressphotofast: cancel(1)
+17:59:12.015 NotificationManager     com.compressphotofast: cancel(1)
+17:59:12.017 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.017 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|4|null|10695
+17:59:12.066 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.069 WM-Processor            Moving WorkSpec (1d671f20-fb0b-4f5b-9b3d-43e34b56201b) to the foreground
+17:59:12.074 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=1d671f20-fb0b-4f5b-9b3d-43e34b56201b, tags={ com.compressphotofast.worker.ImageCompressionWorker, compress_1756133947260_IMG_20250825_175755.jpg } ]
+17:59:12.075 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.078 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+17:59:12.082 WM-SystemFgDispatcher   Stopping foreground service
+17:59:12.084 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|4|null|10695
+17:59:12.090 NotificationManager     com.compressphotofast: cancel(1)
+17:59:12.211 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:12.213 ContentResolver         Failed to get type for: content://media/external/images/media/157255 (No item at content://media/external/images/media/157255)
+17:59:12.237 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+17:59:12.239 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+17:59:12.266 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:12.961 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+17:59:12.963 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+17:59:12.980 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:13.725 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+17:59:13.736 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+17:59:13.901 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:14.739 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+17:59:14.741 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+17:59:14.754 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:14.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157264
+17:59:14.949 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157264
+17:59:15.504 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+17:59:15.506 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+17:59:15.531 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:16.370 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+17:59:16.372 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+17:59:16.398 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:16.695 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157265
+17:59:16.718 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157265
+17:59:16.784 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157266
+17:59:16.805 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157266
+17:59:16.882 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157267
+17:59:16.961 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157267
+17:59:16.978 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157255
+17:59:16.981 ContentResolver         Failed to get type for: content://media/external/images/media/157255 (No item at content://media/external/images/media/157255)
+17:59:17.030 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157268
+17:59:17.090 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157268
+17:59:17.141 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+17:59:17.146 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+17:59:17.209 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157261
+17:59:17.210 ContentResolver         Failed to get type for: content://media/external/images/media/157261 (No item at content://media/external/images/media/157261)
+17:59:17.214 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:17.220 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157257
+17:59:17.222 ContentResolver         Failed to get type for: content://media/external/images/media/157257 (No item at content://media/external/images/media/157257)
+17:59:17.962 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+17:59:17.964 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+17:59:17.987 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:18.574 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+17:59:18.576 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+17:59:18.594 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:19.307 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+17:59:19.309 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+17:59:19.328 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:20.209 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+17:59:20.266 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+17:59:20.330 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:21.072 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+17:59:21.074 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+17:59:21.091 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:21.944 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157059
+17:59:22.086 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157059
+17:59:22.251 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:23.107 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157058
+17:59:23.111 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157058
+17:59:23.140 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:23.971 mpressphotofas          Background concurrent copying GC freed 1535(76KB) AllocSpace objects, 6(6936KB) LOS objects, 49% free, 7768KB/15MB, paused 106us,52us total 105.322ms cpu time 42.422ms DisableRefAccess:0.69ms(0.688ms), NotOnTop
+17:59:24.048 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157057
+17:59:24.049 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157057
+17:59:24.061 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:25.018 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157056
+17:59:25.019 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157056
+17:59:25.030 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:25.831 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157053
+17:59:25.832 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157053
+17:59:25.850 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:26.604 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157052
+17:59:26.605 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157052
+17:59:26.617 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:27.163 mpressphotofas          NativeAlloc concurrent copying GC freed 2104(126KB) AllocSpace objects, 5(5668KB) LOS objects, 51% free, 5723KB/11MB, paused 7.655ms,62us total 136.348ms cpu time 41.175ms DisableRefAccess:0.849ms(0.847ms), NotOnTop
+17:59:27.595 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157051
+17:59:27.596 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157051
+17:59:27.608 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:28.392 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157050
+17:59:28.394 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157050
+17:59:28.427 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:29.187 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157049
+17:59:29.188 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157049
+17:59:29.202 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:29.777 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157048
+17:59:29.779 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157048
+17:59:29.797 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:30.454 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157047
+17:59:30.458 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157047
+17:59:30.473 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:31.274 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157046
+17:59:31.275 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157046
+17:59:31.288 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:31.926 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157045
+17:59:31.928 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157045
+17:59:31.940 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:32.635 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157044
+17:59:32.637 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157044
+17:59:32.651 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:33.278 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157041
+17:59:33.279 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157041
+17:59:33.290 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:34.027 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157022
+17:59:34.029 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157022
+17:59:34.041 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:34.733 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157023
+17:59:34.735 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157023
+17:59:34.747 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:35.379 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157024
+17:59:35.380 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157024
+17:59:35.393 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:36.017 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157020
+17:59:36.019 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157020
+17:59:36.031 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:36.852 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157021
+17:59:36.854 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157021
+17:59:36.889 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:37.736 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157017
+17:59:37.738 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157017
+17:59:37.752 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:38.526 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157018
+17:59:38.527 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157018
+17:59:38.617 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+17:59:39.203 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157019
+17:59:39.204 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157019
+17:59:39.213 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=

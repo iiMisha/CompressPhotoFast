@@ -32,17 +32,27 @@ object FileOperationsUtil {
     
     /**
      * Создает имя файла для сжатой версии
-     * Добавляет суффикс _compressed к имени файла
+     * В режиме замены возвращает оригинальное имя, иначе добавляет суффикс _compressed
      */
-    fun createCompressedFileName(originalName: String): String {
+    fun createCompressedFileName(context: Context, originalName: String): String {
+        // В режиме замены используем оригинальное имя файла
+        if (isSaveModeReplace(context)) {
+            LogUtil.processInfo("[FileOperationsUtil] Режим замены включён, используем оригинальное имя: $originalName")
+            return originalName
+        }
+        
+        // В режиме отдельного сохранения добавляем суффикс
         val dotIndex = originalName.lastIndexOf('.')
-        return if (dotIndex > 0) {
+        val compressedName = if (dotIndex > 0) {
             val baseName = originalName.substring(0, dotIndex)
             val extension = originalName.substring(dotIndex) // включая точку
             "${baseName}${Constants.COMPRESSED_FILE_SUFFIX}$extension"
         } else {
             "${originalName}${Constants.COMPRESSED_FILE_SUFFIX}"
         }
+        
+        LogUtil.processInfo("[FileOperationsUtil] Режим отдельного сохранения, добавляем суффикс: $originalName → $compressedName")
+        return compressedName
     }
 
     /**

@@ -174,6 +174,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 LogUtil.uriInfo(imageUri, "Имя файла: $fileName")
                 
+                // Определяем правильное имя файла в зависимости от режима сохранения
+                val finalFileName = FileOperationsUtil.createCompressedFileName(appContext, fileName)
+                LogUtil.processInfo("[ПРОЦЕСС] Итоговое имя файла для сохранения: $finalFileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(appContext)})")
+                
                 // Проверяем, является ли URI из MediaDocumentProvider
                 val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
                 
@@ -227,7 +231,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
                     appContext,
                     ByteArrayInputStream(compressedImageStream.toByteArray()),
-                    fileName,
+                    finalFileName,
                     backupUri,
                     compressionQuality,
                     exifDataMemory // Передаем заранее загруженные EXIF данные
@@ -295,14 +299,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Отправляем уведомление о завершении сжатия
                 sendCompressionStatusNotification(
-                    fileName,
+                    finalFileName,
                     sourceSize,
                     compressedSize,
                     sizeReduction,
                     false
                 )
                 
-                LogUtil.processInfo("[ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=$fileName")
+                LogUtil.processInfo("[ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=$finalFileName")
                 setForeground(createForegroundInfo(appContext.getString(R.string.notification_compression_completed)))
                 
                 // Обновляем статус и возвращаем успех
