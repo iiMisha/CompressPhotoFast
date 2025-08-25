@@ -145,7 +145,24 @@ object ExifUtil {
             
             // Сохраняем изменения
             try {
+                LogUtil.processInfo("Вызываем saveAttributes() для сохранения EXIF данных")
                 destExif.saveAttributes()
+                LogUtil.processInfo("saveAttributes() выполнен успешно")
+                
+                // Верификация GPS данных после сохранения
+                val savedExif = getExifInterface(context, destinationUri)
+                if (savedExif != null) {
+                    val gpsTagsAfterSave = checkGpsTagsAvailability(savedExif)
+                    LogUtil.processInfo("GPS теги после сохранения: $gpsTagsAfterSave")
+                    if (gpsTagsAfterSave.isNotEmpty()) {
+                        LogUtil.processInfo("✓ GPS данные успешно сохранены в файл")
+                    } else {
+                        LogUtil.processWarning("⚠ GPS данные не найдены в сохраненном файле")
+                    }
+                } else {
+                    LogUtil.processWarning("Не удалось открыть сохраненный файл для верификации GPS")
+                }
+                
                 LogUtil.processInfo("EXIF данные успешно скопированы")
             } catch (e: Exception) {
                 LogUtil.error(destinationUri, "Сохранение EXIF", e)
@@ -191,7 +208,7 @@ object ExifUtil {
             }
         }
         
-        LogUtil.processDebug("Скопировано $tagsCopied EXIF-тегов")
+        LogUtil.processInfo("Скопировано $tagsCopied EXIF-тегов")
     }
     
     /**
@@ -201,50 +218,122 @@ object ExifUtil {
      */
     private fun copyGpsData(sourceExif: ExifInterface, destExif: ExifInterface) {
         try {
-            // Пробуем сначала через latLong
-            val latLong = sourceExif.latLong
-            if (latLong != null) {
-                destExif.setLatLong(latLong[0], latLong[1])
-                
-                // Копируем высоту
-                val altitude = sourceExif.getAltitude(0.0)
-                if (!altitude.isNaN()) {
-                    destExif.setAltitude(altitude)
-                }
-                
-                LogUtil.processDebug("GPS данные скопированы: широта=${latLong[0]}, долгота=${latLong[1]}")
-            } else {
-                // Если latLong не сработал, копируем отдельные GPS-теги
-                var gpsTagsCopied = 0
-                for (tag in arrayOf(
-                    ExifInterface.TAG_GPS_LATITUDE,
-                    ExifInterface.TAG_GPS_LATITUDE_REF,
-                    ExifInterface.TAG_GPS_LONGITUDE,
-                    ExifInterface.TAG_GPS_LONGITUDE_REF,
-                    ExifInterface.TAG_GPS_ALTITUDE,
-                    ExifInterface.TAG_GPS_ALTITUDE_REF,
-                    ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                    ExifInterface.TAG_GPS_TIMESTAMP,
-                    ExifInterface.TAG_GPS_DATESTAMP
-                )) {
-                    try {
-                        val value = sourceExif.getAttribute(tag)
-                        if (value != null) {
-                            destExif.setAttribute(tag, value)
-                            gpsTagsCopied++
-                        }
-                    } catch (e: Exception) {
-                        // Пропускаем теги, которые не удалось скопировать
+            LogUtil.processInfo("Начинаем копирование GPS данных")
+            
+            // Сначала проверяем наличие GPS тегов в исходном файле
+            val gpsTagsAvailable = checkGpsTagsAvailability(sourceExif)
+            LogUtil.processInfo("GPS теги в исходном файле: $gpsTagsAvailable")
+            
+            if (gpsTagsAvailable.isEmpty()) {
+                LogUtil.processInfo("GPS данные в исходном файле отсутствуют")
+                return
+            }
+            
+            // Используем приоритетный метод: копирование отдельных GPS-тегов
+            var gpsTagsCopied = 0
+            var detailedGpsInfo = StringBuilder("Копирование GPS тегов:\n")
+            
+            for (tag in arrayOf(
+                ExifInterface.TAG_GPS_LATITUDE,
+                ExifInterface.TAG_GPS_LATITUDE_REF,
+                ExifInterface.TAG_GPS_LONGITUDE,
+                ExifInterface.TAG_GPS_LONGITUDE_REF,
+                ExifInterface.TAG_GPS_ALTITUDE,
+                ExifInterface.TAG_GPS_ALTITUDE_REF,
+                ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                ExifInterface.TAG_GPS_TIMESTAMP,
+                ExifInterface.TAG_GPS_DATESTAMP
+            )) {
+                try {
+                    val value = sourceExif.getAttribute(tag)
+                    if (value != null && value.isNotEmpty()) {
+                        destExif.setAttribute(tag, value)
+                        gpsTagsCopied++
+                        detailedGpsInfo.append("  $tag: $value\n")
+                        LogUtil.processInfo("GPS тег скопирован: $tag = $value")
+                    } else {
+                        detailedGpsInfo.append("  $tag: пусто/null\n")
                     }
+                } catch (e: Exception) {
+                    LogUtil.error(null, "Копирование GPS тега $tag", e)
+                    detailedGpsInfo.append("  $tag: ошибка - ${e.message}\n")
                 }
+            }
+            
+            LogUtil.processInfo(detailedGpsInfo.toString().trimEnd())
+            
+            if (gpsTagsCopied > 0) {
+                LogUtil.processInfo("Успешно скопировано $gpsTagsCopied GPS-тегов через setAttribute")
                 
-                if (gpsTagsCopied > 0) {
-                    LogUtil.processDebug("Скопировано $gpsTagsCopied GPS-тегов")
+                // Дополнительная проверка: пробуем также setLatLong как backup
+                try {
+                    val latLong = sourceExif.latLong
+                    if (latLong != null) {
+                        LogUtil.processInfo("Дополнительно проверяем latLong API: широта=${latLong[0]}, долгота=${latLong[1]}")
+                        // Не перезаписываем уже скопированные теги, только логируем для сравнения
+                    }
+                } catch (e: Exception) {
+                    LogUtil.processInfo("latLong API недоступен для исходного файла: ${e.message}")
+                }
+            } else {
+                LogUtil.processWarning("Не удалось скопировать ни одного GPS тега")
+                
+                // Fallback: пробуем latLong API
+                try {
+                    val latLong = sourceExif.latLong
+                    if (latLong != null) {
+                        destExif.setLatLong(latLong[0], latLong[1])
+                        
+                        // Копируем высоту
+                        val altitude = sourceExif.getAltitude(0.0)
+                        if (!altitude.isNaN()) {
+                            destExif.setAltitude(altitude)
+                        }
+                        
+                        LogUtil.processInfo("GPS данные скопированы через latLong API: широта=${latLong[0]}, долгота=${latLong[1]}")
+                    } else {
+                        LogUtil.processWarning("Не удалось скопировать GPS данные ни одним из методов")
+                    }
+                } catch (e: Exception) {
+                    LogUtil.error(null, "Fallback копирование через latLong API", e)
                 }
             }
         } catch (e: Exception) {
             LogUtil.error(null, "Копирование GPS данных", e)
         }
+    }
+    
+    /**
+     * Проверяет наличие GPS тегов в ExifInterface
+     * @param exif Объект ExifInterface для проверки
+     * @return Список доступных GPS тегов
+     */
+    private fun checkGpsTagsAvailability(exif: ExifInterface): List<String> {
+        val availableTags = mutableListOf<String>()
+        val gpsTagsToCheck = arrayOf(
+            ExifInterface.TAG_GPS_LATITUDE,
+            ExifInterface.TAG_GPS_LATITUDE_REF,
+            ExifInterface.TAG_GPS_LONGITUDE,
+            ExifInterface.TAG_GPS_LONGITUDE_REF,
+            ExifInterface.TAG_GPS_ALTITUDE,
+            ExifInterface.TAG_GPS_ALTITUDE_REF,
+            ExifInterface.TAG_GPS_PROCESSING_METHOD,
+            ExifInterface.TAG_GPS_TIMESTAMP,
+            ExifInterface.TAG_GPS_DATESTAMP
+        )
+        
+        for (tag in gpsTagsToCheck) {
+            try {
+                val value = exif.getAttribute(tag)
+                if (value != null && value.isNotEmpty()) {
+                    availableTags.add(tag)
+                }
+            } catch (e: Exception) {
+                // Игнорируем ошибки при проверке отдельных тегов
+            }
+        }
+        
+        return availableTags
     }
     
     /**
@@ -317,20 +406,35 @@ object ExifUtil {
                 }
             }
             
-            // Сохраняем GPS-данные отдельно
+            // === ДИАГНОСТИКА GPS ДАННЫХ ИЗ ИСХОДНОГО ФАЙЛА ===
+            LogUtil.processInfo("🔍 ДИАГНОСТИКА GPS: Анализ исходного изображения")
+            
+            // Проверяем latLong API
             val latLong = exif.latLong
+            LogUtil.processInfo("🔍 GPS latLong API результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
+            
             if (latLong != null) {
                 exifData["HAS_GPS"] = true
                 exifData["GPS_LAT"] = latLong[0]
                 exifData["GPS_LONG"] = latLong[1]
+                LogUtil.processInfo("✅ GPS данные получены через latLong API: lat=${latLong[0]}, lng=${latLong[1]}")
                 
                 val altitude = exif.getAltitude(0.0)
                 if (!altitude.isNaN()) {
                     exifData["GPS_ALT"] = altitude
+                    LogUtil.processInfo("✅ GPS высота получена: $altitude")
+                } else {
+                    LogUtil.processInfo("ℹ️ GPS высота недоступна")
                 }
             } else {
-                // Проверяем отдельные GPS-теги
-                for (tag in arrayOf(
+                LogUtil.processInfo("⚠️ latLong API вернул null, проверяем отдельные GPS-теги")
+                
+                // Детальная проверка каждого GPS-тега (включая возможные EMUI-специфичные)
+                var foundGpsTags = 0
+                val gpsTagsDetails = StringBuilder("🔍 GPS теги в исходном файле:\n")
+                
+                // Расширенный список GPS тегов для EMUI совместимости
+                val allGpsTags = arrayOf(
                     ExifInterface.TAG_GPS_LATITUDE,
                     ExifInterface.TAG_GPS_LATITUDE_REF,
                     ExifInterface.TAG_GPS_LONGITUDE,
@@ -339,12 +443,41 @@ object ExifUtil {
                     ExifInterface.TAG_GPS_ALTITUDE_REF,
                     ExifInterface.TAG_GPS_PROCESSING_METHOD,
                     ExifInterface.TAG_GPS_TIMESTAMP,
-                    ExifInterface.TAG_GPS_DATESTAMP
-                )) {
+                    ExifInterface.TAG_GPS_DATESTAMP,
+                    ExifInterface.TAG_GPS_SPEED,
+                    ExifInterface.TAG_GPS_SPEED_REF,
+                    ExifInterface.TAG_GPS_TRACK,
+                    ExifInterface.TAG_GPS_TRACK_REF,
+                    ExifInterface.TAG_GPS_IMG_DIRECTION,
+                    ExifInterface.TAG_GPS_IMG_DIRECTION_REF,
+                    ExifInterface.TAG_GPS_DEST_LATITUDE,
+                    ExifInterface.TAG_GPS_DEST_LATITUDE_REF,
+                    ExifInterface.TAG_GPS_DEST_LONGITUDE,
+                    ExifInterface.TAG_GPS_DEST_LONGITUDE_REF,
+                    ExifInterface.TAG_GPS_DEST_BEARING,
+                    ExifInterface.TAG_GPS_DEST_BEARING_REF,
+                    ExifInterface.TAG_GPS_DEST_DISTANCE,
+                    ExifInterface.TAG_GPS_DEST_DISTANCE_REF
+                )
+                
+                for (tag in allGpsTags) {
                     val value = exif.getAttribute(tag)
-                    if (value != null) {
+                    if (value != null && value.isNotEmpty()) {
                         exifData[tag] = value
+                        foundGpsTags++
+                        gpsTagsDetails.append("  ✅ $tag = '$value'\n")
+                    } else {
+                        gpsTagsDetails.append("  ❌ $tag = ${if (value == null) "null" else "пусто"}\n")
                     }
+                }
+                
+                LogUtil.processInfo(gpsTagsDetails.toString().trimEnd())
+                LogUtil.processInfo("📊 Итого найдено GPS тегов в исходном файле: $foundGpsTags из ${allGpsTags.size}")
+                
+                if (foundGpsTags == 0) {
+                    LogUtil.processInfo("❌ В исходном изображении GPS данные отсутствуют")
+                } else {
+                    LogUtil.processInfo("✅ В исходном изображении найдены GPS данные ($foundGpsTags тегов)")
                 }
             }
             
@@ -386,7 +519,11 @@ object ExifUtil {
                 }
                 
                 // Применяем GPS-данные, если они есть
+                var gpsTagsApplied = 0
+                LogUtil.processInfo("Начинаем применение GPS данных из памяти")
+                
                 if (exifData.containsKey("HAS_GPS") && exifData.containsKey("GPS_LAT") && exifData.containsKey("GPS_LONG")) {
+                    // Метод 1: Используем setLatLong API (если latLong работал при чтении)
                     val lat = exifData["GPS_LAT"] as Double
                     val lng = exifData["GPS_LONG"] as Double
                     exif.setLatLong(lat, lng)
@@ -396,7 +533,36 @@ object ExifUtil {
                         exif.setAltitude(alt)
                     }
                     
-                    LogUtil.processDebug("Применены GPS-данные")
+                    LogUtil.processInfo("Применены GPS-данные через setLatLong API: lat=$lat, lng=$lng")
+                    gpsTagsApplied++
+                } else {
+                    // Метод 2: Применяем отдельные GPS теги (для EMUI совместимости)
+                    val gpsTagsToApply = arrayOf(
+                        ExifInterface.TAG_GPS_LATITUDE,
+                        ExifInterface.TAG_GPS_LATITUDE_REF,
+                        ExifInterface.TAG_GPS_LONGITUDE,
+                        ExifInterface.TAG_GPS_LONGITUDE_REF,
+                        ExifInterface.TAG_GPS_ALTITUDE,
+                        ExifInterface.TAG_GPS_ALTITUDE_REF,
+                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                        ExifInterface.TAG_GPS_TIMESTAMP,
+                        ExifInterface.TAG_GPS_DATESTAMP
+                    )
+                    
+                    for (tag in gpsTagsToApply) {
+                        if (exifData.containsKey(tag)) {
+                            val value = exifData[tag] as String
+                            exif.setAttribute(tag, value)
+                            gpsTagsApplied++
+                            LogUtil.processInfo("GPS тег применен: $tag = $value")
+                        }
+                    }
+                    
+                    if (gpsTagsApplied > 0) {
+                        LogUtil.processInfo("Применено $gpsTagsApplied GPS-тегов через setAttribute")
+                    } else {
+                        LogUtil.processInfo("GPS данные отсутствуют в памяти")
+                    }
                 }
                 
                 // Добавляем маркер сжатия, если нужно
@@ -404,12 +570,59 @@ object ExifUtil {
                     val timestamp = System.currentTimeMillis()
                     val compressionInfo = "$EXIF_COMPRESSION_MARKER:$quality:$timestamp"
                     exif.setAttribute(ExifInterface.TAG_USER_COMMENT, compressionInfo)
-                    LogUtil.processDebug("Добавлен маркер сжатия: $compressionInfo")
+                    LogUtil.processInfo("Добавлен маркер сжатия: $compressionInfo")
                 }
                 
                 // Сохраняем изменения
                 exif.saveAttributes()
                 LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
+                
+                // === ДИАГНОСТИКА GPS ДАННЫХ ПОСЛЕ СОХРАНЕНИЯ ===
+                LogUtil.processInfo("🔍 ПРОВЕРКА GPS: Верификация сохраненных данных")
+                
+                // Проверяем, что GPS данные действительно записались
+                try {
+                    val savedGpsLatLong = exif.latLong
+                    LogUtil.processInfo("🔍 GPS latLong после сохранения: ${if (savedGpsLatLong != null) "lat=${savedGpsLatLong[0]}, lng=${savedGpsLatLong[1]}" else "null"}")
+                    
+                    // Проверяем отдельные GPS теги после сохранения
+                    var savedGpsTags = 0
+                    val savedGpsDetails = StringBuilder("🔍 GPS теги после сохранения:\n")
+                    
+                    for (tag in arrayOf(
+                        ExifInterface.TAG_GPS_LATITUDE,
+                        ExifInterface.TAG_GPS_LATITUDE_REF,
+                        ExifInterface.TAG_GPS_LONGITUDE,
+                        ExifInterface.TAG_GPS_LONGITUDE_REF,
+                        ExifInterface.TAG_GPS_ALTITUDE,
+                        ExifInterface.TAG_GPS_ALTITUDE_REF,
+                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                        ExifInterface.TAG_GPS_TIMESTAMP,
+                        ExifInterface.TAG_GPS_DATESTAMP
+                    )) {
+                        val savedValue = exif.getAttribute(tag)
+                        if (savedValue != null && savedValue.isNotEmpty()) {
+                            savedGpsTags++
+                            savedGpsDetails.append("  ✅ $tag = '$savedValue'\n")
+                        } else {
+                            savedGpsDetails.append("  ❌ $tag = ${if (savedValue == null) "null" else "пусто"}\n")
+                        }
+                    }
+                    
+                    LogUtil.processInfo(savedGpsDetails.toString().trimEnd())
+                    LogUtil.processInfo("📊 GPS тегов после сохранения: $savedGpsTags из 9")
+                    
+                    if (savedGpsTags == 0) {
+                        LogUtil.processInfo("❌ GPS данные потеряны при сохранении!")
+                    } else if (gpsTagsApplied > 0 && savedGpsTags != gpsTagsApplied) {
+                        LogUtil.processInfo("⚠️ Количество GPS тегов изменилось: применено $gpsTagsApplied, сохранено $savedGpsTags")
+                    } else {
+                        LogUtil.processInfo("✅ GPS данные успешно сохранены ($savedGpsTags тегов)")
+                    }
+                    
+                } catch (gpsE: Exception) {
+                    LogUtil.processInfo("❌ Ошибка проверки GPS после сохранения: ${gpsE.message}")
+                }
                 
                 return@withContext true
             }
