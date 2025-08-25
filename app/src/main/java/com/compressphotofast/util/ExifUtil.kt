@@ -22,6 +22,7 @@ import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.MediaStoreUtil
+import com.compressphotofast.util.MetadataExtractorUtil
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -406,78 +407,80 @@ object ExifUtil {
                 }
             }
             
-            // === ДИАГНОСТИКА GPS ДАННЫХ ИЗ ИСХОДНОГО ФАЙЛА ===
-            LogUtil.processInfo("🔍 ДИАГНОСТИКА GPS: Анализ исходного изображения")
+            // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ METADATA-EXTRACTOR (ПРИОРИТЕТНЫЙ МЕТОД) ===
+            LogUtil.processInfo("🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод")
             
-            // Проверяем latLong API
-            val latLong = exif.latLong
-            LogUtil.processInfo("🔍 GPS latLong API результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
-            
-            if (latLong != null) {
-                exifData["HAS_GPS"] = true
-                exifData["GPS_LAT"] = latLong[0]
-                exifData["GPS_LONG"] = latLong[1]
-                LogUtil.processInfo("✅ GPS данные получены через latLong API: lat=${latLong[0]}, lng=${latLong[1]}")
-                
-                val altitude = exif.getAltitude(0.0)
-                if (!altitude.isNaN()) {
-                    exifData["GPS_ALT"] = altitude
-                    LogUtil.processInfo("✅ GPS высота получена: $altitude")
+            // ОСНОВНОЙ МЕТОД: используем metadata-extractor для извлечения GPS данных
+            try {
+                val metadataGpsData = MetadataExtractorUtil.extractGpsData(context, uri)
+                if (metadataGpsData != null) {
+                    exifData["HAS_GPS"] = true
+                    exifData["GPS_LAT"] = metadataGpsData.latitude
+                    exifData["GPS_LONG"] = metadataGpsData.longitude
+                    if (metadataGpsData.altitude != null) {
+                        exifData["GPS_ALT"] = metadataGpsData.altitude
+                    }
+                    
+                    // Сохраняем все reference теги для корректной записи
+                    exifData["GPS_LAT_REF"] = metadataGpsData.latitudeRef
+                    exifData["GPS_LONG_REF"] = metadataGpsData.longitudeRef
+                    if (metadataGpsData.altitudeRef != null) {
+                        exifData["GPS_ALT_REF"] = metadataGpsData.altitudeRef.toString()
+                    }
+                    if (metadataGpsData.timestamp != null) {
+                        exifData["GPS_TIMESTAMP"] = metadataGpsData.timestamp
+                    }
+                    if (metadataGpsData.datestamp != null) {
+                        exifData["GPS_DATESTAMP"] = metadataGpsData.datestamp
+                    }
+                    if (metadataGpsData.processingMethod != null) {
+                        exifData["GPS_PROCESSING_METHOD"] = metadataGpsData.processingMethod
+                    }
+                    
+                    LogUtil.processInfo("✅ GPS данные получены через metadata-extractor: lat=${metadataGpsData.latitude}, lng=${metadataGpsData.longitude}")
+                    LogUtil.processInfo("✅ GPS reference теги: latRef='${metadataGpsData.latitudeRef}', lngRef='${metadataGpsData.longitudeRef}'")
+                    
+                    // Для сравнения: логируем что показывает ExifInterface
+                    val latLong = exif.latLong
+                    LogUtil.processInfo("🔍 СРАВНЕНИЕ: ExifInterface.latLong = ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
+                    
                 } else {
-                    LogUtil.processInfo("ℹ️ GPS высота недоступна")
-                }
-            } else {
-                LogUtil.processInfo("⚠️ latLong API вернул null, проверяем отдельные GPS-теги")
-                
-                // Детальная проверка каждого GPS-тега (включая возможные EMUI-специфичные)
-                var foundGpsTags = 0
-                val gpsTagsDetails = StringBuilder("🔍 GPS теги в исходном файле:\n")
-                
-                // Расширенный список GPS тегов для EMUI совместимости
-                val allGpsTags = arrayOf(
-                    ExifInterface.TAG_GPS_LATITUDE,
-                    ExifInterface.TAG_GPS_LATITUDE_REF,
-                    ExifInterface.TAG_GPS_LONGITUDE,
-                    ExifInterface.TAG_GPS_LONGITUDE_REF,
-                    ExifInterface.TAG_GPS_ALTITUDE,
-                    ExifInterface.TAG_GPS_ALTITUDE_REF,
-                    ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                    ExifInterface.TAG_GPS_TIMESTAMP,
-                    ExifInterface.TAG_GPS_DATESTAMP,
-                    ExifInterface.TAG_GPS_SPEED,
-                    ExifInterface.TAG_GPS_SPEED_REF,
-                    ExifInterface.TAG_GPS_TRACK,
-                    ExifInterface.TAG_GPS_TRACK_REF,
-                    ExifInterface.TAG_GPS_IMG_DIRECTION,
-                    ExifInterface.TAG_GPS_IMG_DIRECTION_REF,
-                    ExifInterface.TAG_GPS_DEST_LATITUDE,
-                    ExifInterface.TAG_GPS_DEST_LATITUDE_REF,
-                    ExifInterface.TAG_GPS_DEST_LONGITUDE,
-                    ExifInterface.TAG_GPS_DEST_LONGITUDE_REF,
-                    ExifInterface.TAG_GPS_DEST_BEARING,
-                    ExifInterface.TAG_GPS_DEST_BEARING_REF,
-                    ExifInterface.TAG_GPS_DEST_DISTANCE,
-                    ExifInterface.TAG_GPS_DEST_DISTANCE_REF
-                )
-                
-                for (tag in allGpsTags) {
-                    val value = exif.getAttribute(tag)
-                    if (value != null && value.isNotEmpty()) {
-                        exifData[tag] = value
-                        foundGpsTags++
-                        gpsTagsDetails.append("  ✅ $tag = '$value'\n")
+                    LogUtil.processInfo("⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup")
+                    
+                    // BACKUP: используем ExifInterface только если metadata-extractor не сработал
+                    val latLong = exif.latLong
+                    LogUtil.processInfo("🔍 GPS ExifInterface backup результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
+                    
+                    if (latLong != null) {
+                        exifData["HAS_GPS"] = true
+                        exifData["GPS_LAT"] = latLong[0]
+                        exifData["GPS_LONG"] = latLong[1]
+                        
+                        val altitude = exif.getAltitude(0.0)
+                        if (!altitude.isNaN()) {
+                            exifData["GPS_ALT"] = altitude
+                            LogUtil.processInfo("✅ GPS backup: данные получены через ExifInterface")
+                        }
                     } else {
-                        gpsTagsDetails.append("  ❌ $tag = ${if (value == null) "null" else "пусто"}\n")
+                        LogUtil.processInfo("⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные")
                     }
                 }
+            } catch (e: Exception) {
+                LogUtil.error(uri, "metadata-extractor GPS извлечение", e)
+                LogUtil.processInfo("❌ Ошибка metadata-extractor, используем ExifInterface как backup")
                 
-                LogUtil.processInfo(gpsTagsDetails.toString().trimEnd())
-                LogUtil.processInfo("📊 Итого найдено GPS тегов в исходном файле: $foundGpsTags из ${allGpsTags.size}")
-                
-                if (foundGpsTags == 0) {
-                    LogUtil.processInfo("❌ В исходном изображении GPS данные отсутствуют")
-                } else {
-                    LogUtil.processInfo("✅ В исходном изображении найдены GPS данные ($foundGpsTags тегов)")
+                // FALLBACK: ExifInterface при ошибке metadata-extractor
+                val latLong = exif.latLong
+                if (latLong != null) {
+                    exifData["HAS_GPS"] = true
+                    exifData["GPS_LAT"] = latLong[0]
+                    exifData["GPS_LONG"] = latLong[1]
+                    
+                    val altitude = exif.getAltitude(0.0)
+                    if (!altitude.isNaN()) {
+                        exifData["GPS_ALT"] = altitude
+                    }
+                    LogUtil.processInfo("✅ GPS fallback: данные получены через ExifInterface после ошибки metadata-extractor")
                 }
             }
             
@@ -533,7 +536,39 @@ object ExifUtil {
                         exif.setAltitude(alt)
                     }
                     
-                    LogUtil.processInfo("Применены GPS-данные через setLatLong API: lat=$lat, lng=$lng")
+                    // УЛУЧШЕНИЕ: применяем также reference теги, если они были получены через metadata-extractor
+                    if (exifData.containsKey("GPS_LAT_REF")) {
+                        val latRef = exifData["GPS_LAT_REF"] as String
+                        exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, latRef)
+                        LogUtil.processInfo("Применен GPS latitude reference: $latRef")
+                    }
+                    if (exifData.containsKey("GPS_LONG_REF")) {
+                        val lngRef = exifData["GPS_LONG_REF"] as String
+                        exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, lngRef)
+                        LogUtil.processInfo("Применен GPS longitude reference: $lngRef")
+                    }
+                    if (exifData.containsKey("GPS_ALT_REF")) {
+                        val altRef = exifData["GPS_ALT_REF"] as String
+                        exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE_REF, altRef)
+                        LogUtil.processInfo("Применен GPS altitude reference: $altRef")
+                    }
+                    if (exifData.containsKey("GPS_TIMESTAMP")) {
+                        val timestamp = exifData["GPS_TIMESTAMP"] as String
+                        exif.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, timestamp)
+                        LogUtil.processInfo("Применен GPS timestamp: $timestamp")
+                    }
+                    if (exifData.containsKey("GPS_DATESTAMP")) {
+                        val datestamp = exifData["GPS_DATESTAMP"] as String
+                        exif.setAttribute(ExifInterface.TAG_GPS_DATESTAMP, datestamp)
+                        LogUtil.processInfo("Применен GPS datestamp: $datestamp")
+                    }
+                    if (exifData.containsKey("GPS_PROCESSING_METHOD")) {
+                        val processingMethod = exifData["GPS_PROCESSING_METHOD"] as String
+                        exif.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, processingMethod)
+                        LogUtil.processInfo("Применен GPS processing method: $processingMethod")
+                    }
+                    
+                    LogUtil.processInfo("Применены GPS-данные через setLatLong API + reference теги: lat=$lat, lng=$lng")
                     gpsTagsApplied++
                 } else {
                     // Метод 2: Применяем отдельные GPS теги (для EMUI совместимости)

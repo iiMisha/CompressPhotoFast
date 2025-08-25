@@ -1,27 +1,113 @@
-19:32:15.506 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157338, обработка через 5 сек
-19:32:20.522 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157338 после задержки
-19:32:20.525 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157338
-19:32:20.526 LogUtil                 [URI:7338] URI scheme: content, authority: media, path: /external/images/media/157338
-19:32:20.528 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157338 (всего: 43)
-19:32:20.529 ContentResolver         provider == null. Start to getProviderMimeTypeAsync:content://media/external/images/media/157338
-19:32:20.567 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157338
-19:32:20.629 LogUtil                 [СЖАТИЕ:7338] Запущена работа по сжатию для content://media/external/images/media/157338 с тегом compress_1756139540618_IMG_20250825_193215.jpg
-19:32:20.629 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
-19:32:20.701 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
-19:32:20.702 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
-19:32:20.702 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
-19:32:20.705 WM-Processor            Moving WorkSpec (c0e27849-4731-4a8e-a8f0-f78be7cacce6) to the foreground
-19:32:20.713 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
-19:32:20.715 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
-19:32:20.716 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157338 в память
-19:32:20.719 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-19:32:20.719 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-19:32:20.723 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-19:32:20.739 LogUtil                 [ПРОЦЕСС] 🔍 ДИАГНОСТИКА GPS: Анализ исходного изображения
-19:32:20.741 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
-19:32:20.741 LogUtil                 [ПРОЦЕСС] 🔍 GPS latLong API результат: null
-19:32:20.741 LogUtil                 [ПРОЦЕСС] ⚠️ latLong API вернул null, проверяем отдельные GPS-теги
-19:32:20.743 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги в исходном файле:
+20:11:25.617 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157349, обработка через 5 сек
+20:11:30.657 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157349 после задержки
+20:11:30.659 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157349
+20:11:30.661 LogUtil                 [URI:7349] URI scheme: content, authority: media, path: /external/images/media/157349
+20:11:30.662 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157349 (всего: 43)
+20:11:30.663 ContentResolver         provider == null. Start to getProviderMimeTypeAsync:content://media/external/images/media/157349
+20:11:30.691 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
+20:11:30.733 LogUtil                 [СЖАТИЕ:7349] Запущена работа по сжатию для content://media/external/images/media/157349 с тегом compress_1756141890723_IMG_20250825_201125.jpg
+20:11:30.735 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+20:11:30.803 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
+20:11:30.803 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
+20:11:30.804 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
+20:11:30.807 WM-Processor            Moving WorkSpec (55dfdbef-2b0d-4c54-b300-6e2ac44b7474) to the foreground
+20:11:30.818 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+20:11:30.819 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+20:11:30.819 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157349 в память
+20:11:30.825 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+20:11:30.825 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+20:11:30.829 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+20:11:30.841 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+20:11:30.842 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157349
+20:11:30.875 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|1|null|10701
+20:11:30.883 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+20:11:30.883 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 13 тегами
+20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 38 тегами
+20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Interoperability' с 2 тегами
+20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 10 тегами
+20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 20 тегами
+20:11:30.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+20:11:30.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+20:11:30.885 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 10 тегами
+20:11:30.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+20:11:30.886 LogUtil                 [ПРОЦЕСС]   📍 GPS Version ID = '.000'
+20:11:30.886 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+20:11:30.891 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+20:11:30.892 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+20:11:30.896 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+20:11:30.896 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+20:11:30.898 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+20:11:30.901 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+20:11:30.901 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+20:11:30.901 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+20:11:30.902 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+20:11:30.902 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+20:11:30.902 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+20:11:30.902 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+20:11:30.903 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+20:11:30.903 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+20:11:30.903 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+20:11:30.903 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+20:11:30.903 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+20:11:30.904 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+20:11:30.904 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+20:11:30.905 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+20:11:30.906 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+20:11:30.906 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+20:11:30.907 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+20:11:30.907 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+20:11:30.908 LogUtil                 [URI:7349] [ПРОЦЕСС] Загружены EXIF данные в память: 35 тегов
+20:11:30.908 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
+20:11:30.924 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
+20:11:30.950 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
+20:11:30.959 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/157349
+20:11:30.966 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+20:11:30.966 LogUtil                 [URI:7349] Изображение требует обработки
+20:11:30.966 LogUtil                 [URI:7349] Начало тестового сжатия в RAM
+20:11:30.967 LogUtil                 [URI:7349] Сжатие изображения в поток
+20:11:31.835 LogUtil                 [СЖАТИЕ:7349] 4485KB → 581KB (-87%)
+20:11:31.835 LogUtil                 [СЖАТИЕ:7349] 4485KB → 581KB (-87.02574%)
+20:11:31.836 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 157349 эффективно (экономия 87.02574%), выполняем полное сжатие
+20:11:31.836 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+20:11:31.842 LogUtil                 [URI:7349] Имя файла: IMG_20250825_201125.jpg
+20:11:31.842 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20250825_201125.jpg
+20:11:31.843 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20250825_201125.jpg (режим замены: true)
+20:11:31.848 LogUtil                 [URI:7349] Директория для сохранения: DCIM/Camera
+20:11:31.862 LogUtil                 [URI:7349] Сжатие изображения в поток
+20:11:32.748 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
+20:11:32.772 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
+20:11:32.789 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
+20:11:32.810 LogUtil                 [FileUtil] Файл переименован: IMG_20250825_201125.jpg -> IMG_20250825_201125_original.jpg
+20:11:32.811 LogUtil                 [ФАЙЛ:7349] Переименование: Оригинал → content://media/external/images/media/157349#renamed_original
+20:11:32.815 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
+20:11:32.820 LogUtil                 [FileUtil] Директория для сохранения: DCIM/Camera
+20:11:32.821 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20250825_201125.jpg (режим замены: true)
+20:11:32.823 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: DCIM/Camera
+20:11:32.884 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/157352
+20:11:32.890 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157352, обработка через 5 сек
+20:11:32.897 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/157352
+20:11:32.921 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/157352
+20:11:32.922 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/157352, максимальное время: 2000 мс
+20:11:32.928 LogUtil                 [FileUtil] URI стал доступен через 6 мс, размер: 595873 байт
+20:11:32.932 LogUtil                 [ПРОЦЕСС] Применение 35 EXIF-тегов к content://media/external/images/media/157352
+20:11:32.943 LogUtil                 [ПРОЦЕСС] Начинаем применение GPS данных из памяти
+20:11:32.944 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLatitude = 0/1,0/1,0/1
+20:11:32.944 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLatitudeRef =
+20:11:32.945 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLongitude = 0/1,0/1,0/1
+20:11:32.945 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLongitudeRef =
+20:11:32.946 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSAltitude = 0/1
+20:11:32.946 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSAltitudeRef = 0
+20:11:32.946 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSProcessingMethod =
+20:11:32.947 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSTimeStamp = 00:00:00
+20:11:32.947 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSDateStamp =
+20:11:32.947 LogUtil                 [ПРОЦЕСС] Применено 9 GPS-тегов через setAttribute
+20:11:32.948 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1756141892947
+20:11:32.972 LogUtil                 [ПРОЦЕСС] Применено 35 EXIF-тегов к content://media/external/images/media/157352
+20:11:32.972 LogUtil                 [ПРОЦЕСС] 🔍 ПРОВЕРКА GPS: Верификация сохраненных данных
+20:11:32.974 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+20:11:32.974 LogUtil                 [ПРОЦЕСС] 🔍 GPS latLong после сохранения: null
+20:11:32.976 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги после сохранения:
                                        ✅ GPSLatitude = '0/1,0/1,0/1'
                                        ❌ GPSLatitudeRef = пусто
                                        ✅ GPSLongitude = '0/1,0/1,0/1'
@@ -31,147 +117,61 @@
                                        ❌ GPSProcessingMethod = пусто
                                        ✅ GPSTimeStamp = '00:00:00'
                                        ❌ GPSDateStamp = пусто
-                                       ❌ GPSSpeed = null
-                                       ❌ GPSSpeedRef = null
-                                       ❌ GPSTrack = null
-                                       ❌ GPSTrackRef = null
-                                       ❌ GPSImgDirection = null
-                                       ❌ GPSImgDirectionRef = null
-                                       ❌ GPSDestLatitude = null
-                                       ❌ GPSDestLatitudeRef = null
-                                       ❌ GPSDestLongitude = null
-                                       ❌ GPSDestLongitudeRef = null
-                                       ❌ GPSDestBearing = null
-                                       ❌ GPSDestBearingRef = null
-                                       ❌ GPSDestDistance = null
-                                       ❌ GPSDestDistanceRef = null
-19:32:20.744 LogUtil                 [ПРОЦЕСС] 📊 Итого найдено GPS тегов в исходном файле: 5 из 23
-19:32:20.744 LogUtil                 [ПРОЦЕСС] ✅ В исходном изображении найдены GPS данные (5 тегов)
-19:32:20.744 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
-19:32:20.745 LogUtil                 [URI:7338] [ПРОЦЕСС] Загружены EXIF данные в память: 35 тегов
-19:32:20.747 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157338
-19:32:20.769 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157338
-19:32:20.789 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|1|null|10701
-19:32:20.794 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157338
-19:32:20.800 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/157338
-19:32:20.804 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
-19:32:20.804 LogUtil                 [URI:7338] Изображение требует обработки
-19:32:20.804 LogUtil                 [URI:7338] Начало тестового сжатия в RAM
-19:32:20.804 LogUtil                 [URI:7338] Сжатие изображения в поток
-19:32:21.653 LogUtil                 [СЖАТИЕ:7338] 4668KB → 711KB (-84%)
-19:32:21.653 LogUtil                 [СЖАТИЕ:7338] 4668KB → 711KB (-84.76364%)
-19:32:21.653 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 157338 эффективно (экономия 84.76364%), выполняем полное сжатие
-19:32:21.653 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
-19:32:21.662 LogUtil                 [URI:7338] Имя файла: IMG_20250825_193215.jpg
-19:32:21.662 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20250825_193215.jpg
-19:32:21.663 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20250825_193215.jpg (режим замены: true)
-19:32:21.674 LogUtil                 [URI:7338] Директория для сохранения: DCIM/Camera
-19:32:21.694 LogUtil                 [URI:7338] Сжатие изображения в поток
-19:32:22.559 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_193215_original.jpg
-19:32:22.573 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_193215_original.jpg
-19:32:22.588 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_193215_original.jpg
-19:32:22.601 LogUtil                 [FileUtil] Файл переименован: IMG_20250825_193215.jpg -> IMG_20250825_193215_original.jpg
-19:32:22.601 LogUtil                 [ФАЙЛ:7338] Переименование: Оригинал → content://media/external/images/media/157338#renamed_original
-19:32:22.608 LogUtil                 [FileUtil] Директория для сохранения: DCIM/Camera
-19:32:22.608 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20250825_193215.jpg (режим замены: true)
-19:32:22.609 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: DCIM/Camera
-19:32:22.609 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_193215_original.jpg
-19:32:22.652 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/157341
-19:32:22.656 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157341, обработка через 5 сек
-19:32:22.664 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/157341
-19:32:22.685 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/157341
-19:32:22.685 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/157341, максимальное время: 2000 мс
-19:32:22.693 LogUtil                 [FileUtil] URI стал доступен через 8 мс, размер: 728416 байт
-19:32:22.694 LogUtil                 [ПРОЦЕСС] Применение 35 EXIF-тегов к content://media/external/images/media/157341
-19:32:22.705 LogUtil                 [ПРОЦЕСС] Начинаем применение GPS данных из памяти
-19:32:22.706 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLatitude = 0/1,0/1,0/1
-19:32:22.706 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLatitudeRef =
-19:32:22.707 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLongitude = 0/1,0/1,0/1
-19:32:22.707 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLongitudeRef =
-19:32:22.708 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSAltitude = 0/1
-19:32:22.708 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSAltitudeRef = 0
-19:32:22.709 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSProcessingMethod =
-19:32:22.710 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSTimeStamp = 00:00:00
-19:32:22.710 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSDateStamp =
-19:32:22.710 LogUtil                 [ПРОЦЕСС] Применено 9 GPS-тегов через setAttribute
-19:32:22.711 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1756139542710
-19:32:22.734 LogUtil                 [ПРОЦЕСС] Применено 35 EXIF-тегов к content://media/external/images/media/157341
-19:32:22.735 LogUtil                 [ПРОЦЕСС] 🔍 ПРОВЕРКА GPS: Верификация сохраненных данных
-19:32:22.736 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
-19:32:22.736 LogUtil                 [ПРОЦЕСС] 🔍 GPS latLong после сохранения: null
-19:32:22.738 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги после сохранения:
-                                       ✅ GPSLatitude = '0/1,0/1,0/1'
-                                       ❌ GPSLatitudeRef = пусто
-                                       ✅ GPSLongitude = '0/1,0/1,0/1'
-                                       ❌ GPSLongitudeRef = пусто
-                                       ✅ GPSAltitude = '0/1'
-                                       ✅ GPSAltitudeRef = '0'
-                                       ❌ GPSProcessingMethod = пусто
-                                       ✅ GPSTimeStamp = '00:00:00'
-                                       ❌ GPSDateStamp = пусто
-19:32:22.738 LogUtil                 [ПРОЦЕСС] 📊 GPS тегов после сохранения: 5 из 9
-19:32:22.738 LogUtil                 [ПРОЦЕСС] ⚠️ Количество GPS тегов изменилось: применено 9, сохранено 5
-19:32:22.740 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
-19:32:22.859 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
-19:32:22.860 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
-19:32:22.861 LogUtil                 [ФАЙЛ:7338] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/157341
-19:32:22.861 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Начинаем удаление переименованного файла: content://media/external/images/media/157338#renamed_original
-19:32:22.861 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/157338#renamed_original
-19:32:22.862 LogUtil                 [ПРОЦЕСС] URI содержит маркер #renamed_original, используем очищенный URI: content://media/external/images/media/157338
-19:32:22.862 LogUtil                 [ПРОЦЕСС] Удаляем файл через MediaStore (Android 10+)
-19:32:22.882 LogUtil                 [ПРОЦЕСС] Результат удаления через MediaStore: true
-19:32:22.882 LogUtil                 [ФАЙЛ:7338] Удаление: Переименованный оригинальный файл успешно удален
-19:32:22.892 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157338, обработка через 5 сек
-19:32:22.894 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157338 (осталось: 42)
-19:32:22.894 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157338 (осталось 42 URIs)
-19:32:22.897 LogUtil                 [ПРОЦЕСС] Обработка изображения завершена: IMG_20250825_193215.jpg, сокращение размера: 84,7%
-19:32:22.902 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
-19:32:22.903 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
-19:32:22.903 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
-19:32:22.905 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/157338 до Mon Aug 25 19:32:27 GMT+03:00 2025
-19:32:22.905 LogUtil                 [ПРОЦЕСС] Обработка URI content://media/external/images/media/157338 завершена и будет игнорироваться
-19:32:22.907 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-19:32:22.910 LogUtil                 [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20250825_193215.jpg
-19:32:22.910 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20250825_193215.jpg
-19:32:22.911 LogUtil                 [NotificationUtil] Показан Toast: IMG_20250825_193215.jpg: 4,6 MB → 712,3 KB (-84,7%)
-19:32:22.911 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
-19:32:22.912 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
-19:32:22.912 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
-19:32:22.917 WM-Processor            Moving WorkSpec (c0e27849-4731-4a8e-a8f0-f78be7cacce6) to the foreground
-19:32:22.923 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/157338
-19:32:22.929 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=c0e27849-4731-4a8e-a8f0-f78be7cacce6, tags={ com.compressphotofast.worker.ImageCompressionWorker, compress_1756139540618_IMG_20250825_193215.jpg } ]
-19:32:22.933 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-19:32:22.950 WM-SystemFgDispatcher   Stopping foreground service
-19:32:22.952 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-19:32:22.963 NotificationManager     com.compressphotofast: cancel(1)
-19:32:22.972 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|4|null|10701
-19:32:23.019 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|1|null|10701
-19:32:27.690 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157341 после задержки
-19:32:27.692 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157341
-19:32:27.693 LogUtil                 [URI:7341] URI scheme: content, authority: media, path: /external/images/media/157341
-19:32:27.695 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157341 (всего: 43)
-19:32:27.695 ContentResolver         provider == null. Start to getProviderMimeTypeAsync:content://media/external/images/media/157341
-19:32:27.728 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157341
-19:32:27.746 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756139542710 для URI: content://media/external/images/media/157341
-19:32:27.752 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-19:32:27.752 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157341 (осталось: 42)
-19:32:27.753 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
-19:32:27.924 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157338 после задержки
-19:32:27.926 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157338
-19:32:27.926 LogUtil                 [URI:7338] URI scheme: content, authority: media, path: /external/images/media/157338
-19:32:27.928 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157338 (всего: 43)
-19:32:27.929 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157338
-19:32:27.933 ContentResolver         Failed to get type for: content://media/external/images/media/157338 (No item at content://media/external/images/media/157338)
-19:32:27.947 LogUtil                 [ПРОЦЕСС] URI не существует: content://media/external/images/media/157338
-19:32:27.947 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
-19:32:27.947 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157338 (осталось: 42)
-19:32:27.948 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
-19:32:29.324 LogUtil                 [ПРОЦЕСС] Запуск периодического сканирования галереи
-19:32:29.403 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 1 изображений за последние 5 минут
-19:32:29.404 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157341
-19:32:29.420 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157341
-19:32:29.437 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756139542710 для URI: content://media/external/images/media/157341
-19:32:29.443 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-19:32:29.443 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157341
-19:32:29.444 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 1
-19:32:29.446 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 1
+20:11:32.976 LogUtil                 [ПРОЦЕСС] 📊 GPS тегов после сохранения: 5 из 9
+20:11:32.976 LogUtil                 [ПРОЦЕСС] ⚠️ Количество GPS тегов изменилось: применено 9, сохранено 5
+20:11:32.981 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+20:11:33.103 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+20:11:33.104 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
+20:11:33.104 LogUtil                 [ФАЙЛ:7349] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/157352
+20:11:33.105 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Начинаем удаление переименованного файла: content://media/external/images/media/157349#renamed_original
+20:11:33.105 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/157349#renamed_original
+20:11:33.106 LogUtil                 [ПРОЦЕСС] URI содержит маркер #renamed_original, используем очищенный URI: content://media/external/images/media/157349
+20:11:33.106 LogUtil                 [ПРОЦЕСС] Удаляем файл через MediaStore (Android 10+)
+20:11:33.127 LogUtil                 [ПРОЦЕСС] Результат удаления через MediaStore: true
+20:11:33.127 LogUtil                 [ФАЙЛ:7349] Удаление: Переименованный оригинальный файл успешно удален
+20:11:33.133 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157349, обработка через 5 сек
+20:11:33.137 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157349 (осталось: 42)
+20:11:33.137 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157349 (осталось 42 URIs)
+20:11:33.141 LogUtil                 [ПРОЦЕСС] Обработка изображения завершена: IMG_20250825_201125.jpg, сокращение размера: 87,0%
+20:11:33.147 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
+20:11:33.149 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
+20:11:33.149 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
+20:11:33.154 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+20:11:33.157 LogUtil                 [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20250825_201125.jpg
+20:11:33.158 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20250825_201125.jpg
+20:11:33.161 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
+20:11:33.163 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
+20:11:33.163 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
+20:11:33.167 WM-Processor            Moving WorkSpec (55dfdbef-2b0d-4c54-b300-6e2ac44b7474) to the foreground
+20:11:33.175 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/157349
+20:11:33.178 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=55dfdbef-2b0d-4c54-b300-6e2ac44b7474, tags={ com.compressphotofast.worker.ImageCompressionWorker, compress_1756141890723_IMG_20250825_201125.jpg } ]
+20:11:33.199 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/157349 до Mon Aug 25 20:11:38 GMT+03:00 2025
+20:11:33.199 LogUtil                 [ПРОЦЕСС] Обработка URI content://media/external/images/media/157349 завершена и будет игнорироваться
+20:11:33.200 Compatibil...geReporter Compat change id reported: 147798919; UID 10701; state: ENABLED
+20:11:33.211 LogUtil                 [NotificationUtil] Показан Toast: IMG_20250825_201125.jpg: 4,4 MB → 582,8 KB (-87,0%)
+20:11:33.222 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|4|null|10701
+20:11:33.222 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+20:11:33.225 WM-SystemFgDispatcher   Stopping foreground service
+20:11:33.226 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+20:11:33.231 NotificationManager     com.compressphotofast: cancel(1)
+20:11:33.286 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|1|null|10701
+20:11:37.904 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157352 после задержки
+20:11:37.905 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157352
+20:11:37.906 LogUtil                 [URI:7352] URI scheme: content, authority: media, path: /external/images/media/157352
+20:11:37.907 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157352 (всего: 43)
+20:11:37.908 ContentResolver         provider == null. Start to getProviderMimeTypeAsync:content://media/external/images/media/157352
+20:11:37.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157352
+20:11:37.962 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756141892947 для URI: content://media/external/images/media/157352
+20:11:37.970 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+20:11:37.971 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157352 (осталось: 42)
+20:11:37.972 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+20:11:38.169 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157349 после задержки
+20:11:38.170 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157349
+20:11:38.170 LogUtil                 [URI:7349] URI scheme: content, authority: media, path: /external/images/media/157349
+20:11:38.171 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157349 (всего: 43)
+20:11:38.173 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
+20:11:38.177 ContentResolver         Failed to get type for: content://media/external/images/media/157349 (No item at content://media/external/images/media/157349)
+20:11:38.187 LogUtil                 [ПРОЦЕСС] URI не существует: content://media/external/images/media/157349
+20:11:38.189 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+20:11:38.189 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157349 (осталось: 42)
+20:11:38.190 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
