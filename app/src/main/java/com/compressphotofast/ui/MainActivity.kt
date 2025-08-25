@@ -251,9 +251,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent?.action == Constants.ACTION_STOP_SERVICE) {
+        if (intent.action == Constants.ACTION_STOP_SERVICE) {
             viewModel.stopBatchProcessing()
         }
         handleIntent(intent)

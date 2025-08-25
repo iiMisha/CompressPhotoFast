@@ -1,177 +1,1158 @@
-20:11:25.617 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157349, обработка через 5 сек
-20:11:30.657 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157349 после задержки
-20:11:30.659 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157349
-20:11:30.661 LogUtil                 [URI:7349] URI scheme: content, authority: media, path: /external/images/media/157349
-20:11:30.662 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157349 (всего: 43)
-20:11:30.663 ContentResolver         provider == null. Start to getProviderMimeTypeAsync:content://media/external/images/media/157349
-20:11:30.691 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
-20:11:30.733 LogUtil                 [СЖАТИЕ:7349] Запущена работа по сжатию для content://media/external/images/media/157349 с тегом compress_1756141890723_IMG_20250825_201125.jpg
-20:11:30.735 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
-20:11:30.803 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
-20:11:30.803 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
-20:11:30.804 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
-20:11:30.807 WM-Processor            Moving WorkSpec (55dfdbef-2b0d-4c54-b300-6e2ac44b7474) to the foreground
-20:11:30.818 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
-20:11:30.819 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
-20:11:30.819 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157349 в память
-20:11:30.825 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-20:11:30.825 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-20:11:30.829 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-20:11:30.841 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
-20:11:30.842 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157349
-20:11:30.875 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|1|null|10701
-20:11:30.883 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
-20:11:30.883 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
-20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 13 тегами
-20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 38 тегами
-20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Interoperability' с 2 тегами
-20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 10 тегами
-20:11:30.884 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 20 тегами
-20:11:30.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
-20:11:30.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
-20:11:30.885 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 10 тегами
-20:11:30.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
-20:11:30.886 LogUtil                 [ПРОЦЕСС]   📍 GPS Version ID = '.000'
-20:11:30.886 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
-20:11:30.891 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
-20:11:30.892 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
-20:11:30.896 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
-20:11:30.896 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
-20:11:30.898 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
-20:11:30.901 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
-20:11:30.901 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
-20:11:30.901 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
-20:11:30.902 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
-20:11:30.902 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
-20:11:30.902 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
-20:11:30.902 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
-20:11:30.903 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
-20:11:30.903 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
-20:11:30.903 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
-20:11:30.903 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
-20:11:30.903 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
-20:11:30.904 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
-20:11:30.904 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
-20:11:30.905 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
-20:11:30.906 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
-20:11:30.906 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
-20:11:30.907 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
-20:11:30.907 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
-20:11:30.908 LogUtil                 [URI:7349] [ПРОЦЕСС] Загружены EXIF данные в память: 35 тегов
-20:11:30.908 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
-20:11:30.924 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
-20:11:30.950 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
-20:11:30.959 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/157349
-20:11:30.966 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
-20:11:30.966 LogUtil                 [URI:7349] Изображение требует обработки
-20:11:30.966 LogUtil                 [URI:7349] Начало тестового сжатия в RAM
-20:11:30.967 LogUtil                 [URI:7349] Сжатие изображения в поток
-20:11:31.835 LogUtil                 [СЖАТИЕ:7349] 4485KB → 581KB (-87%)
-20:11:31.835 LogUtil                 [СЖАТИЕ:7349] 4485KB → 581KB (-87.02574%)
-20:11:31.836 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 157349 эффективно (экономия 87.02574%), выполняем полное сжатие
-20:11:31.836 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
-20:11:31.842 LogUtil                 [URI:7349] Имя файла: IMG_20250825_201125.jpg
-20:11:31.842 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20250825_201125.jpg
-20:11:31.843 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20250825_201125.jpg (режим замены: true)
-20:11:31.848 LogUtil                 [URI:7349] Директория для сохранения: DCIM/Camera
-20:11:31.862 LogUtil                 [URI:7349] Сжатие изображения в поток
-20:11:32.748 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
-20:11:32.772 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
-20:11:32.789 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
-20:11:32.810 LogUtil                 [FileUtil] Файл переименован: IMG_20250825_201125.jpg -> IMG_20250825_201125_original.jpg
-20:11:32.811 LogUtil                 [ФАЙЛ:7349] Переименование: Оригинал → content://media/external/images/media/157349#renamed_original
-20:11:32.815 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: пропускаем обработку переименованного оригинала: IMG_20250825_201125_original.jpg
-20:11:32.820 LogUtil                 [FileUtil] Директория для сохранения: DCIM/Camera
-20:11:32.821 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20250825_201125.jpg (режим замены: true)
-20:11:32.823 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: DCIM/Camera
-20:11:32.884 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/157352
-20:11:32.890 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157352, обработка через 5 сек
-20:11:32.897 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/157352
-20:11:32.921 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/157352
-20:11:32.922 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/157352, максимальное время: 2000 мс
-20:11:32.928 LogUtil                 [FileUtil] URI стал доступен через 6 мс, размер: 595873 байт
-20:11:32.932 LogUtil                 [ПРОЦЕСС] Применение 35 EXIF-тегов к content://media/external/images/media/157352
-20:11:32.943 LogUtil                 [ПРОЦЕСС] Начинаем применение GPS данных из памяти
-20:11:32.944 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLatitude = 0/1,0/1,0/1
-20:11:32.944 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLatitudeRef =
-20:11:32.945 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLongitude = 0/1,0/1,0/1
-20:11:32.945 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSLongitudeRef =
-20:11:32.946 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSAltitude = 0/1
-20:11:32.946 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSAltitudeRef = 0
-20:11:32.946 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSProcessingMethod =
-20:11:32.947 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSTimeStamp = 00:00:00
-20:11:32.947 LogUtil                 [ПРОЦЕСС] GPS тег применен: GPSDateStamp =
-20:11:32.947 LogUtil                 [ПРОЦЕСС] Применено 9 GPS-тегов через setAttribute
-20:11:32.948 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1756141892947
-20:11:32.972 LogUtil                 [ПРОЦЕСС] Применено 35 EXIF-тегов к content://media/external/images/media/157352
-20:11:32.972 LogUtil                 [ПРОЦЕСС] 🔍 ПРОВЕРКА GPS: Верификация сохраненных данных
-20:11:32.974 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
-20:11:32.974 LogUtil                 [ПРОЦЕСС] 🔍 GPS latLong после сохранения: null
-20:11:32.976 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги после сохранения:
-                                       ✅ GPSLatitude = '0/1,0/1,0/1'
-                                       ❌ GPSLatitudeRef = пусто
-                                       ✅ GPSLongitude = '0/1,0/1,0/1'
-                                       ❌ GPSLongitudeRef = пусто
-                                       ✅ GPSAltitude = '0/1'
-                                       ✅ GPSAltitudeRef = '0'
-                                       ❌ GPSProcessingMethod = пусто
-                                       ✅ GPSTimeStamp = '00:00:00'
-                                       ❌ GPSDateStamp = пусто
-20:11:32.976 LogUtil                 [ПРОЦЕСС] 📊 GPS тегов после сохранения: 5 из 9
-20:11:32.976 LogUtil                 [ПРОЦЕСС] ⚠️ Количество GPS тегов изменилось: применено 9, сохранено 5
-20:11:32.981 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
-20:11:33.103 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
-20:11:33.104 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
-20:11:33.104 LogUtil                 [ФАЙЛ:7349] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/157352
-20:11:33.105 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Начинаем удаление переименованного файла: content://media/external/images/media/157349#renamed_original
-20:11:33.105 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/157349#renamed_original
-20:11:33.106 LogUtil                 [ПРОЦЕСС] URI содержит маркер #renamed_original, используем очищенный URI: content://media/external/images/media/157349
-20:11:33.106 LogUtil                 [ПРОЦЕСС] Удаляем файл через MediaStore (Android 10+)
-20:11:33.127 LogUtil                 [ПРОЦЕСС] Результат удаления через MediaStore: true
-20:11:33.127 LogUtil                 [ФАЙЛ:7349] Удаление: Переименованный оригинальный файл успешно удален
-20:11:33.133 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/157349, обработка через 5 сек
-20:11:33.137 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157349 (осталось: 42)
-20:11:33.137 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157349 (осталось 42 URIs)
-20:11:33.141 LogUtil                 [ПРОЦЕСС] Обработка изображения завершена: IMG_20250825_201125.jpg, сокращение размера: 87,0%
-20:11:33.147 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
-20:11:33.149 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
-20:11:33.149 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
-20:11:33.154 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-20:11:33.157 LogUtil                 [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20250825_201125.jpg
-20:11:33.158 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20250825_201125.jpg
-20:11:33.161 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
-20:11:33.163 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
-20:11:33.163 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
-20:11:33.167 WM-Processor            Moving WorkSpec (55dfdbef-2b0d-4c54-b300-6e2ac44b7474) to the foreground
-20:11:33.175 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/157349
-20:11:33.178 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=55dfdbef-2b0d-4c54-b300-6e2ac44b7474, tags={ com.compressphotofast.worker.ImageCompressionWorker, compress_1756141890723_IMG_20250825_201125.jpg } ]
-20:11:33.199 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/157349 до Mon Aug 25 20:11:38 GMT+03:00 2025
-20:11:33.199 LogUtil                 [ПРОЦЕСС] Обработка URI content://media/external/images/media/157349 завершена и будет игнорироваться
-20:11:33.200 Compatibil...geReporter Compat change id reported: 147798919; UID 10701; state: ENABLED
-20:11:33.211 LogUtil                 [NotificationUtil] Показан Toast: IMG_20250825_201125.jpg: 4,4 MB → 582,8 KB (-87,0%)
-20:11:33.222 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|4|null|10701
-20:11:33.222 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-20:11:33.225 WM-SystemFgDispatcher   Stopping foreground service
-20:11:33.226 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-20:11:33.231 NotificationManager     com.compressphotofast: cancel(1)
-20:11:33.286 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|1|null|10701
-20:11:37.904 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157352 после задержки
-20:11:37.905 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157352
-20:11:37.906 LogUtil                 [URI:7352] URI scheme: content, authority: media, path: /external/images/media/157352
-20:11:37.907 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157352 (всего: 43)
-20:11:37.908 ContentResolver         provider == null. Start to getProviderMimeTypeAsync:content://media/external/images/media/157352
-20:11:37.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157352
-20:11:37.962 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756141892947 для URI: content://media/external/images/media/157352
-20:11:37.970 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-20:11:37.971 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157352 (осталось: 42)
-20:11:37.972 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
-20:11:38.169 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/157349 после задержки
-20:11:38.170 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/157349
-20:11:38.170 LogUtil                 [URI:7349] URI scheme: content, authority: media, path: /external/images/media/157349
-20:11:38.171 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/157349 (всего: 43)
-20:11:38.173 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157349
-20:11:38.177 ContentResolver         Failed to get type for: content://media/external/images/media/157349 (No item at content://media/external/images/media/157349)
-20:11:38.187 LogUtil                 [ПРОЦЕСС] URI не существует: content://media/external/images/media/157349
-20:11:38.189 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
-20:11:38.189 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/157349 (осталось: 42)
-20:11:38.190 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+22:18:20.883 HwViewRootImpl          Add sceneId 11 topId: 10
+22:18:20.884 HwDragEnhancementImpl   handleTimerDrag: false
+22:18:20.889 HwDragEnhancementImpl   Start long press for hw drag enhancement.
+22:18:20.922 HwViewRootImpl          [DetectViewsLocationRunner] current resolutionScale: 0.7
+22:18:20.923 HwViewRootImpl          remove sceneId 11 topId: 10
+22:18:20.924 WebViewDragEnhancement  dragReset.
+22:18:20.925 WebViewDragEnhancement  dragReset cacheSize = 0
+22:18:20.932 LogUtil                 [ПРОЦЕСС] Автоматическое сжатие: включено
+22:18:20.933 LogUtil                 [ПРОЦЕСС] setupBackgroundService: автоматическое сжатие включено
+22:18:20.933 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
+22:18:20.933 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
+22:18:20.934 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
+22:18:20.934 LogUtil                 [ПРОЦЕСС] setupBackgroundService: JobService запланирован
+22:18:20.934 LogUtil                 [ПРОЦЕСС] setupBackgroundService: запуск как foreground сервис (Android O+)
+22:18:20.937 LogUtil                 [ПРОЦЕСС] Фоновые сервисы запущены успешно
+22:18:20.938 AudioManager            querySoundEffectsEnabled...
+22:18:20.938 AudioManager            querySoundEffectsEnabled fail id: 0
+22:18:20.947 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onCreate
+22:18:20.948 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
+22:18:20.948 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
+22:18:20.948 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
+22:18:20.949 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Сжатие изображений (id=compression_channel)
+22:18:20.950 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: создан канал Результаты сжатия (id=compression_completion_channel)
+22:18:20.950 LogUtil                 [УВЕДОМЛЕНИЕ] Уведомления: каналы уведомлений созданы
+22:18:20.952 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+22:18:20.953 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE
+22:18:20.953 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: состояние автоматического сжатия: включено
+22:18:20.953 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическое сканирование запущено
+22:18:20.953 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическая очистка временных файлов запущена
+22:18:20.953 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onStartCommand(startId=1)
+22:18:20.953 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: запуск первоначального сканирования
+22:18:20.956 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+22:18:20.959 LogUtil                 [ПРОЦЕСС] Запуск периодического сканирования галереи
+22:18:20.959 LogUtil                 [ПРОЦЕСС] Запуск периодической очистки временных файлов
+22:18:20.983 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:20.983 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|2|null|10701
+22:18:21.029 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 69 изображений за последние 1440 минут
+22:18:21.030 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:21.049 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:21.049 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:21.072 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756149430115 для URI: content://media/external/images/media/157362
+22:18:21.072 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756149430115 для URI: content://media/external/images/media/157362
+22:18:21.080 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.080 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.080 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157362
+22:18:21.080 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157357
+22:18:21.080 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157357
+22:18:21.104 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157357
+22:18:21.105 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157357
+22:18:21.129 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756142737356 для URI: content://media/external/images/media/157357
+22:18:21.129 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756142737356 для URI: content://media/external/images/media/157357
+22:18:21.136 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.136 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.137 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157357
+22:18:21.137 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157315
+22:18:21.137 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157315
+22:18:21.161 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157315
+22:18:21.162 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157315
+22:18:21.181 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756137960408 для URI: content://media/external/images/media/157315
+22:18:21.181 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756137960408 для URI: content://media/external/images/media/157315
+22:18:21.191 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.191 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.191 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+22:18:21.191 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157315
+22:18:21.191 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+22:18:21.211 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+22:18:21.211 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157244
+22:18:21.234 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756131592708 для URI: content://media/external/images/media/157244
+22:18:21.234 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756131592708 для URI: content://media/external/images/media/157244
+22:18:21.244 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 20 сек в пределах допустимой погрешности 20 сек)
+22:18:21.244 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 20 сек в пределах допустимой погрешности 20 сек)
+22:18:21.244 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.244 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.244 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157244
+22:18:21.245 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+22:18:21.245 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+22:18:21.269 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+22:18:21.269 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157241
+22:18:21.291 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756131583194 для URI: content://media/external/images/media/157241
+22:18:21.291 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756131583194 для URI: content://media/external/images/media/157241
+22:18:21.299 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.299 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.299 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157241
+22:18:21.300 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+22:18:21.300 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+22:18:21.322 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+22:18:21.323 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157223
+22:18:21.347 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114945729 для URI: content://media/external/images/media/157223
+22:18:21.348 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114945729 для URI: content://media/external/images/media/157223
+22:18:21.355 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.355 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.355 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157223
+22:18:21.356 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+22:18:21.356 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+22:18:21.382 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+22:18:21.382 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157224
+22:18:21.407 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946081 для URI: content://media/external/images/media/157224
+22:18:21.407 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946081 для URI: content://media/external/images/media/157224
+22:18:21.415 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.416 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.416 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157224
+22:18:21.416 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+22:18:21.416 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+22:18:21.441 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+22:18:21.441 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157225
+22:18:21.465 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946460 для URI: content://media/external/images/media/157225
+22:18:21.465 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946460 для URI: content://media/external/images/media/157225
+22:18:21.473 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.473 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.473 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157225
+22:18:21.473 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+22:18:21.473 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+22:18:21.501 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+22:18:21.502 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157226
+22:18:21.531 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946369 для URI: content://media/external/images/media/157226
+22:18:21.531 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946369 для URI: content://media/external/images/media/157226
+22:18:21.539 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.539 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.539 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157226
+22:18:21.540 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+22:18:21.540 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+22:18:21.563 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+22:18:21.563 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157227
+22:18:21.589 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946711 для URI: content://media/external/images/media/157227
+22:18:21.589 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946711 для URI: content://media/external/images/media/157227
+22:18:21.598 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.599 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.599 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157227
+22:18:21.599 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+22:18:21.599 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+22:18:21.622 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+22:18:21.623 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157220
+22:18:21.653 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114945090 для URI: content://media/external/images/media/157220
+22:18:21.653 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114945090 для URI: content://media/external/images/media/157220
+22:18:21.662 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.662 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.663 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157220
+22:18:21.663 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+22:18:21.663 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+22:18:21.689 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+22:18:21.690 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157221
+22:18:21.718 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114945938 для URI: content://media/external/images/media/157221
+22:18:21.718 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114945938 для URI: content://media/external/images/media/157221
+22:18:21.724 HwViewRootImpl          [DetectViewsLocationRunner] start to get views' rect, type = SCENE_GESTURE_SINGLE_TAP
+22:18:21.724 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+22:18:21.725 HwViewRootImpl          [DetectViewsLocationRunner] displayPoint: Point(854, 1890)
+22:18:21.725 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+22:18:21.725 HwViewRootImpl          [DetectViewsLocationRunner] lazyMode:
+22:18:21.725 HwViewRootImpl          [DetectViewsLocationRunner] current mode is full screen
+22:18:21.725 HwViewRootImpl          [DetectViewsLocationRunner] start to getViewHierarchy
+22:18:21.729 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.729 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.729 HwViewRootImpl          [DetectViewsLocationRunner] deviceOrientation: 0
+22:18:21.729 HwViewRootImpl          [DetectViewsLocationRunner-ScreenDirection] ROTATION_0
+22:18:21.729 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157221
+22:18:21.730 HwViewRootImpl          [DetectViewsLocationRunner] get views' rect = 3, SCENE_GESTURE_SINGLE_TAP#51,2221,423,2377#423,2221,796,2377#796,2221,1169,2377
+22:18:21.730 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+22:18:21.731 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+22:18:21.765 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+22:18:21.765 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157222
+22:18:21.796 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946603 для URI: content://media/external/images/media/157222
+22:18:21.796 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114946603 для URI: content://media/external/images/media/157222
+22:18:21.806 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.806 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157222
+22:18:21.806 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.807 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+22:18:21.807 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+22:18:21.841 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+22:18:21.842 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157218
+22:18:21.881 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114942929 для URI: content://media/external/images/media/157218
+22:18:21.881 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114942929 для URI: content://media/external/images/media/157218
+22:18:21.893 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+22:18:21.894 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.894 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+22:18:21.894 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.894 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+22:18:21.894 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157218
+22:18:21.895 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+22:18:21.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+22:18:21.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157219
+22:18:21.971 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114943277 для URI: content://media/external/images/media/157219
+22:18:21.971 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114943277 для URI: content://media/external/images/media/157219
+22:18:21.982 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+22:18:21.982 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+22:18:21.982 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.982 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:21.983 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157219
+22:18:21.983 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+22:18:21.983 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+22:18:22.014 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+22:18:22.014 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157216
+22:18:22.051 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114942857 для URI: content://media/external/images/media/157216
+22:18:22.051 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114942857 для URI: content://media/external/images/media/157216
+22:18:22.064 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 1 сек в пределах допустимой погрешности 20 сек)
+22:18:22.064 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 1 сек в пределах допустимой погрешности 20 сек)
+22:18:22.064 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.064 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.064 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157216
+22:18:22.065 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+22:18:22.065 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+22:18:22.102 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+22:18:22.103 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157214
+22:18:22.140 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114940021 для URI: content://media/external/images/media/157214
+22:18:22.140 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114940021 для URI: content://media/external/images/media/157214
+22:18:22.152 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.152 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157214
+22:18:22.153 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.153 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+22:18:22.154 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+22:18:22.191 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+22:18:22.191 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157213
+22:18:22.227 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114937808 для URI: content://media/external/images/media/157213
+22:18:22.228 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114937808 для URI: content://media/external/images/media/157213
+22:18:22.239 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.239 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.240 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+22:18:22.240 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157213
+22:18:22.240 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+22:18:22.275 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+22:18:22.275 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157211
+22:18:22.310 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114934547 для URI: content://media/external/images/media/157211
+22:18:22.310 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114934547 для URI: content://media/external/images/media/157211
+22:18:22.321 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.321 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.322 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+22:18:22.322 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157211
+22:18:22.322 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+22:18:22.356 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+22:18:22.357 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157210
+22:18:22.395 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114932391 для URI: content://media/external/images/media/157210
+22:18:22.395 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756114932391 для URI: content://media/external/images/media/157210
+22:18:22.406 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.406 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.407 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+22:18:22.407 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157210
+22:18:22.407 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+22:18:22.446 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+22:18:22.446 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157166
+22:18:22.478 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756107018424 для URI: content://media/external/images/media/157166
+22:18:22.478 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756107018424 для URI: content://media/external/images/media/157166
+22:18:22.489 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.489 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157166
+22:18:22.489 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.490 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+22:18:22.490 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+22:18:22.527 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+22:18:22.527 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157165
+22:18:22.558 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756107012411 для URI: content://media/external/images/media/157165
+22:18:22.558 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756107012411 для URI: content://media/external/images/media/157165
+22:18:22.570 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.570 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.571 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157165
+22:18:22.571 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+22:18:22.571 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+22:18:22.604 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+22:18:22.604 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157157
+22:18:22.637 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756105045144 для URI: content://media/external/images/media/157157
+22:18:22.637 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756105045144 для URI: content://media/external/images/media/157157
+22:18:22.647 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.647 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.648 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+22:18:22.648 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157157
+22:18:22.648 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+22:18:22.678 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+22:18:22.678 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157155
+22:18:22.709 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756103222537 для URI: content://media/external/images/media/157155
+22:18:22.710 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756103222537 для URI: content://media/external/images/media/157155
+22:18:22.720 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.721 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.721 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157155
+22:18:22.722 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+22:18:22.722 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+22:18:22.753 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+22:18:22.754 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157151
+22:18:22.784 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756099891422 для URI: content://media/external/images/media/157151
+22:18:22.784 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756099891422 для URI: content://media/external/images/media/157151
+22:18:22.795 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.795 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.795 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157151
+22:18:22.796 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+22:18:22.796 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+22:18:22.828 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+22:18:22.828 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157147
+22:18:22.858 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756099450358 для URI: content://media/external/images/media/157147
+22:18:22.858 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756099450358 для URI: content://media/external/images/media/157147
+22:18:22.867 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.867 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.867 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157147
+22:18:22.868 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+22:18:22.868 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+22:18:22.904 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+22:18:22.904 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157140
+22:18:22.936 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756098553111 для URI: content://media/external/images/media/157140
+22:18:22.936 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756098553111 для URI: content://media/external/images/media/157140
+22:18:22.946 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.946 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:22.946 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157140
+22:18:22.947 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157130
+22:18:22.947 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157130
+22:18:22.958 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157130
+22:18:22.958 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.958 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157130
+22:18:22.958 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.959 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157129
+22:18:22.959 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157130
+22:18:22.959 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157129
+22:18:22.970 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157129
+22:18:22.970 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157129
+22:18:22.970 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.970 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.971 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157129
+22:18:22.971 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157128
+22:18:22.971 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157128
+22:18:22.983 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157128
+22:18:22.983 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.983 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157128
+22:18:22.984 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157127
+22:18:22.984 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.984 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157128
+22:18:22.985 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157127
+22:18:22.997 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157127
+22:18:22.998 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.998 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157127
+22:18:22.998 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:22.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157123
+22:18:22.998 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157127
+22:18:22.999 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157123
+22:18:23.010 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157123
+22:18:23.011 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.011 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157123
+22:18:23.011 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.011 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157124
+22:18:23.012 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157123
+22:18:23.012 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157124
+22:18:23.023 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157124
+22:18:23.023 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.023 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157124
+22:18:23.023 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157125
+22:18:23.024 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.024 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157124
+22:18:23.025 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157125
+22:18:23.034 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157125
+22:18:23.035 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.035 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157125
+22:18:23.035 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157126
+22:18:23.035 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.036 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157125
+22:18:23.036 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157126
+22:18:23.047 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157126
+22:18:23.047 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.047 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157126
+22:18:23.048 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.048 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157122
+22:18:23.048 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157126
+22:18:23.049 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157122
+22:18:23.060 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157122
+22:18:23.061 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.061 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157122
+22:18:23.061 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.062 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157121
+22:18:23.062 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157122
+22:18:23.063 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157121
+22:18:23.074 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157121
+22:18:23.074 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157121
+22:18:23.074 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.074 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.075 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+22:18:23.075 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157121
+22:18:23.075 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+22:18:23.101 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+22:18:23.102 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157115
+22:18:23.131 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095737354 для URI: content://media/external/images/media/157115
+22:18:23.131 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095737354 для URI: content://media/external/images/media/157115
+22:18:23.142 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+22:18:23.142 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+22:18:23.142 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.143 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+22:18:23.143 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.144 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157115
+22:18:23.144 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+22:18:23.182 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+22:18:23.182 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157114
+22:18:23.221 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095733721 для URI: content://media/external/images/media/157114
+22:18:23.221 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095733721 для URI: content://media/external/images/media/157114
+22:18:23.231 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 1 сек в пределах допустимой погрешности 20 сек)
+22:18:23.232 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.232 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 1 сек в пределах допустимой погрешности 20 сек)
+22:18:23.232 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.232 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+22:18:23.233 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157114
+22:18:23.233 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+22:18:23.262 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+22:18:23.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157112
+22:18:23.301 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095724554 для URI: content://media/external/images/media/157112
+22:18:23.301 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095724554 для URI: content://media/external/images/media/157112
+22:18:23.313 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.314 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.314 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+22:18:23.314 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157112
+22:18:23.315 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+22:18:23.351 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+22:18:23.351 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157113
+22:18:23.389 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095724571 для URI: content://media/external/images/media/157113
+22:18:23.389 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095724571 для URI: content://media/external/images/media/157113
+22:18:23.401 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.401 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.402 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+22:18:23.402 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157113
+22:18:23.403 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+22:18:23.438 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+22:18:23.438 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157108
+22:18:23.476 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719587 для URI: content://media/external/images/media/157108
+22:18:23.476 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719587 для URI: content://media/external/images/media/157108
+22:18:23.486 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.487 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.487 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157108
+22:18:23.487 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157109
+22:18:23.488 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157109
+22:18:23.500 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157109
+22:18:23.500 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.500 LogUtil                 [ПРОЦЕСС] Файл является переименованным оригиналом, пропускаем: content://media/external/images/media/157109
+22:18:23.501 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+22:18:23.501 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+22:18:23.501 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157109
+22:18:23.502 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+22:18:23.534 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+22:18:23.535 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157110
+22:18:23.587 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719796 для URI: content://media/external/images/media/157110
+22:18:23.587 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719796 для URI: content://media/external/images/media/157110
+22:18:23.599 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.600 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.600 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+22:18:23.600 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157110
+22:18:23.601 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+22:18:23.636 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+22:18:23.637 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157111
+22:18:23.673 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719862 для URI: content://media/external/images/media/157111
+22:18:23.673 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719862 для URI: content://media/external/images/media/157111
+22:18:23.684 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.684 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.684 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157111
+22:18:23.685 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+22:18:23.685 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+22:18:23.713 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+22:18:23.714 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157107
+22:18:23.750 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719596 для URI: content://media/external/images/media/157107
+22:18:23.750 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756095719596 для URI: content://media/external/images/media/157107
+22:18:23.760 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.760 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.761 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157107
+22:18:23.761 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+22:18:23.761 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+22:18:23.796 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+22:18:23.797 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157101
+22:18:23.837 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077745204 для URI: content://media/external/images/media/157101
+22:18:23.837 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077745204 для URI: content://media/external/images/media/157101
+22:18:23.851 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.851 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.852 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157101
+22:18:23.852 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+22:18:23.852 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+22:18:23.880 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+22:18:23.880 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157100
+22:18:23.918 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077651208 для URI: content://media/external/images/media/157100
+22:18:23.918 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077651208 для URI: content://media/external/images/media/157100
+22:18:23.927 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.927 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:23.927 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157100
+22:18:23.927 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+22:18:23.928 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+22:18:23.956 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+22:18:23.957 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157099
+22:18:23.994 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077650829 для URI: content://media/external/images/media/157099
+22:18:23.995 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077650829 для URI: content://media/external/images/media/157099
+22:18:24.006 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.006 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.007 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157099
+22:18:24.007 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+22:18:24.007 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+22:18:24.040 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+22:18:24.040 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157096
+22:18:24.075 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077594184 для URI: content://media/external/images/media/157096
+22:18:24.076 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077594184 для URI: content://media/external/images/media/157096
+22:18:24.086 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.086 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.086 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157096
+22:18:24.087 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+22:18:24.087 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+22:18:24.123 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+22:18:24.123 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157095
+22:18:24.157 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077594068 для URI: content://media/external/images/media/157095
+22:18:24.157 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077594068 для URI: content://media/external/images/media/157095
+22:18:24.168 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.168 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.168 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157095
+22:18:24.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+22:18:24.169 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+22:18:24.202 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+22:18:24.203 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157094
+22:18:24.233 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077576395 для URI: content://media/external/images/media/157094
+22:18:24.233 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077576395 для URI: content://media/external/images/media/157094
+22:18:24.241 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.242 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.242 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157094
+22:18:24.242 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+22:18:24.242 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+22:18:24.276 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+22:18:24.277 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157093
+22:18:24.311 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077572554 для URI: content://media/external/images/media/157093
+22:18:24.311 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077572554 для URI: content://media/external/images/media/157093
+22:18:24.322 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.322 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.322 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157093
+22:18:24.323 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+22:18:24.323 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+22:18:24.357 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+22:18:24.357 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157092
+22:18:24.390 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077565860 для URI: content://media/external/images/media/157092
+22:18:24.390 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756077565860 для URI: content://media/external/images/media/157092
+22:18:24.399 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.399 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.400 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157092
+22:18:24.400 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+22:18:24.400 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+22:18:24.432 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+22:18:24.432 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157090
+22:18:24.468 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756067302321 для URI: content://media/external/images/media/157090
+22:18:24.468 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756067302321 для URI: content://media/external/images/media/157090
+22:18:24.477 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.477 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157090
+22:18:24.477 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.477 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+22:18:24.477 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+22:18:24.511 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+22:18:24.512 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157081
+22:18:24.548 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756064851680 для URI: content://media/external/images/media/157081
+22:18:24.548 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756064851680 для URI: content://media/external/images/media/157081
+22:18:24.560 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.560 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.560 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157081
+22:18:24.560 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157074 уже в процессе обработки, пропускаем
+22:18:24.561 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+22:18:24.561 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+22:18:24.596 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+22:18:24.596 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+22:18:24.631 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756063896813 для URI: content://media/external/images/media/157073
+22:18:24.634 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057939927 для URI: content://media/external/images/media/157074
+22:18:24.640 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.640 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157073
+22:18:24.641 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157070 уже в процессе обработки, пропускаем
+22:18:24.641 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157069 уже в процессе обработки, пропускаем
+22:18:24.642 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157068 уже в процессе обработки, пропускаем
+22:18:24.642 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157067 уже в процессе обработки, пропускаем
+22:18:24.642 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 6057 сек), требуется повторная обработка
+22:18:24.642 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157066 уже в процессе обработки, пропускаем
+22:18:24.643 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+22:18:24.643 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157065 уже в процессе обработки, пропускаем
+22:18:24.643 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157064 уже в процессе обработки, пропускаем
+22:18:24.644 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157063 уже в процессе обработки, пропускаем
+22:18:24.644 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157062 уже в процессе обработки, пропускаем
+22:18:24.644 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157061 уже в процессе обработки, пропускаем
+22:18:24.645 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/157060 уже в процессе обработки, пропускаем
+22:18:24.645 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 69
+22:18:24.647 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начальное сканирование завершено. Обработано: 0, Пропущено: 69
+22:18:24.721 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 1 изображений за последние 5 минут
+22:18:24.722 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:24.733 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157073
+22:18:24.746 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:24.756 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756063896813 для URI: content://media/external/images/media/157073
+22:18:24.764 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.764 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+22:18:24.770 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756149430115 для URI: content://media/external/images/media/157362
+22:18:24.777 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.777 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157362
+22:18:24.778 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 1
+22:18:24.780 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 1
+22:18:24.829 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 1 изображений за последние 5 минут
+22:18:24.830 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:24.833 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+22:18:24.849 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157362
+22:18:24.856 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057944446 для URI: content://media/external/images/media/157070
+22:18:24.861 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5396 сек), требуется повторная обработка
+22:18:24.861 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+22:18:24.866 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756149430115 для URI: content://media/external/images/media/157362
+22:18:24.872 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+22:18:24.872 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/157362
+22:18:24.872 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 1
+22:18:24.874 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 1
+22:18:24.882 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+22:18:24.912 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057953937 для URI: content://media/external/images/media/157069
+22:18:24.920 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5368 сек), требуется повторная обработка
+22:18:24.921 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+22:18:24.946 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+22:18:24.975 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057947189 для URI: content://media/external/images/media/157068
+22:18:24.984 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5318 сек), требуется повторная обработка
+22:18:24.985 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+22:18:25.010 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+22:18:25.048 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057954692 для URI: content://media/external/images/media/157067
+22:18:25.057 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5279 сек), требуется повторная обработка
+22:18:25.058 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+22:18:25.090 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+22:18:25.130 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057953842 для URI: content://media/external/images/media/157066
+22:18:25.141 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5261 сек), требуется повторная обработка
+22:18:25.142 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+22:18:25.182 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+22:18:25.224 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057953898 для URI: content://media/external/images/media/157065
+22:18:25.235 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5231 сек), требуется повторная обработка
+22:18:25.236 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+22:18:25.273 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+22:18:25.316 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057935138 для URI: content://media/external/images/media/157064
+22:18:25.327 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5238 сек), требуется повторная обработка
+22:18:25.327 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+22:18:25.363 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+22:18:25.400 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057954672 для URI: content://media/external/images/media/157063
+22:18:25.412 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5210 сек), требуется повторная обработка
+22:18:25.413 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+22:18:25.448 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+22:18:25.490 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057953963 для URI: content://media/external/images/media/157062
+22:18:25.503 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5202 сек), требуется повторная обработка
+22:18:25.505 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+22:18:25.541 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+22:18:25.581 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057954450 для URI: content://media/external/images/media/157061
+22:18:25.590 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5193 сек), требуется повторная обработка
+22:18:25.592 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+22:18:25.617 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+22:18:25.648 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756057953522 для URI: content://media/external/images/media/157060
+22:18:25.658 LogUtil                 [ПРОЦЕСС] Файл был модифицирован после сжатия (разница 5157 сек), требуется повторная обработка
+22:18:25.662 LogUtil                 [ПРОЦЕСС] Найдено 12 необработанных изображений
+22:18:25.667 LogUtil                 [ПРОЦЕСС] Завершена обработка всех изображений (0/0)
+22:18:25.671 LogUtil                 [ПРОЦЕСС] Запущена последовательная обработка 12 изображений
+22:18:25.689 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+22:18:25.692 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157074
+22:18:25.712 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157074 в память
+22:18:25.729 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:25.730 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157074
+22:18:25.746 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:25.746 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:25.746 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:25.747 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:25.747 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:25.747 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:25.748 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:25.748 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:25.749 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:25.749 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:25.749 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:25.750 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:25.755 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:25.758 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:25.758 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:25.758 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:25.758 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:25.758 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:25.760 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:25.763 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:25.763 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:25.763 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:25.763 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:25.763 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:25.764 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:25.764 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:25.764 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:25.764 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:25.765 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:25.765 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:25.765 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:25.766 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:25.767 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:25.767 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:25.767 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:25.768 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:25.768 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:25.768 LogUtil                 [URI:7074] Сжатие изображения в поток
+22:18:25.997 LogUtil                 [ПРОЦЕСС:7074] Пропуск: Сжатие не дало значительного результата
+22:18:26.009 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+22:18:26.013 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157070
+22:18:26.035 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157070 в память
+22:18:26.052 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:26.052 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157070
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:26.066 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:26.067 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:26.067 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:26.067 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:26.067 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:26.067 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:26.070 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:26.070 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:26.071 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:26.071 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:26.071 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:26.071 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:26.072 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:26.074 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:26.074 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:26.074 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:26.075 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:26.075 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:26.075 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:26.075 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:26.075 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:26.075 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:26.075 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:26.076 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:26.076 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:26.076 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:26.077 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:26.077 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:26.078 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:26.078 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:26.078 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:26.078 LogUtil                 [URI:7070] Сжатие изображения в поток
+22:18:26.292 LogUtil                 [ПРОЦЕСС:7070] Пропуск: Сжатие не дало значительного результата
+22:18:26.301 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+22:18:26.304 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157069
+22:18:26.318 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157069 в память
+22:18:26.336 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:26.336 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157069
+22:18:26.352 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:26.352 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:26.353 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:26.354 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:26.354 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:26.356 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:26.357 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:26.357 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:26.357 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:26.357 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:26.357 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:26.358 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:26.360 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:26.360 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:26.360 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:26.360 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:26.360 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:26.360 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:26.360 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:26.361 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:26.361 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:26.361 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:26.361 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:26.361 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:26.361 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:26.362 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:26.362 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:26.363 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:26.363 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:26.363 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:26.363 LogUtil                 [URI:7069] Сжатие изображения в поток
+22:18:26.585 LogUtil                 [ПРОЦЕСС:7069] Пропуск: Сжатие не дало значительного результата
+22:18:26.596 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+22:18:26.599 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157068
+22:18:26.619 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157068 в память
+22:18:26.634 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:26.634 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157068
+22:18:26.647 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:26.648 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:26.649 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:26.649 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:26.651 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:26.652 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:26.652 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:26.652 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:26.652 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:26.652 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:26.653 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:26.655 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:26.655 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:26.655 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:26.655 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:26.655 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:26.655 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:26.656 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:26.656 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:26.656 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:26.656 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:26.656 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:26.656 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:26.656 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:26.657 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:26.658 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:26.658 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:26.658 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:26.658 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:26.658 LogUtil                 [URI:7068] Сжатие изображения в поток
+22:18:26.880 LogUtil                 [ПРОЦЕСС:7068] Пропуск: Сжатие не дало значительного результата
+22:18:26.888 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+22:18:26.891 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157067
+22:18:26.906 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157067 в память
+22:18:26.923 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:26.924 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157067
+22:18:26.937 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:26.937 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:26.937 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:26.937 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:26.938 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:26.938 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:26.940 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:26.941 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:26.941 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:26.942 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:26.942 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:26.942 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:26.943 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:26.944 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:26.944 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:26.944 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:26.945 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:26.945 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:26.945 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:26.945 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:26.945 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:26.945 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:26.945 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:26.946 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:26.946 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:26.946 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:26.946 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:26.947 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:26.947 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:26.947 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:26.947 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:26.948 LogUtil                 [URI:7067] Сжатие изображения в поток
+22:18:27.165 LogUtil                 [ПРОЦЕСС:7067] Пропуск: Сжатие не дало значительного результата
+22:18:27.179 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+22:18:27.182 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157066
+22:18:27.204 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157066 в память
+22:18:27.222 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:27.222 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157066
+22:18:27.235 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:27.235 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:27.235 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:27.235 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:27.235 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:27.235 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:27.236 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:27.236 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:27.236 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:27.236 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:27.236 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:27.236 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:27.239 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:27.239 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:27.240 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:27.240 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:27.240 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:27.240 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:27.241 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:27.243 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:27.243 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:27.243 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:27.243 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:27.243 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:27.244 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:27.244 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:27.244 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:27.244 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:27.244 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:27.244 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:27.244 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:27.244 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:27.245 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:27.246 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:27.246 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:27.246 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:27.246 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:27.247 LogUtil                 [URI:7066] Сжатие изображения в поток
+22:18:27.442 LogUtil                 [ПРОЦЕСС:7066] Пропуск: Сжатие не дало значительного результата
+22:18:27.453 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+22:18:27.455 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157065
+22:18:27.472 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157065 в память
+22:18:27.489 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:27.489 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157065
+22:18:27.502 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:27.502 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:27.502 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:27.502 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:27.503 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:27.503 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:27.506 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:27.507 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:27.507 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:27.507 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:27.507 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:27.507 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:27.508 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:27.510 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:27.510 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:27.510 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:27.510 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:27.510 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:27.511 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:27.511 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:27.511 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:27.511 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:27.511 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:27.511 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:27.511 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:27.512 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:27.512 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:27.513 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:27.513 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:27.513 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:27.513 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:27.513 LogUtil                 [URI:7065] Сжатие изображения в поток
+22:18:27.712 LogUtil                 [ПРОЦЕСС:7065] Пропуск: Сжатие не дало значительного результата
+22:18:27.723 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+22:18:27.727 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157064
+22:18:27.750 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157064 в память
+22:18:27.766 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:27.766 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157064
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:27.780 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:27.781 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:27.781 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:27.781 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:27.781 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:27.781 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:27.783 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:27.784 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:27.785 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:27.785 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:27.785 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:27.785 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:27.786 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:27.788 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:27.788 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:27.788 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:27.788 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:27.788 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:27.789 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:27.789 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:27.789 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:27.789 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:27.789 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:27.789 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:27.790 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:27.790 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:27.790 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:27.791 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:27.791 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:27.791 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:27.791 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:27.792 LogUtil                 [URI:7064] Сжатие изображения в поток
+22:18:27.976 LogUtil                 [ПРОЦЕСС:7064] Пропуск: Сжатие не дало значительного результата
+22:18:27.986 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+22:18:27.989 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157063
+22:18:28.008 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157063 в память
+22:18:28.023 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:28.024 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157063
+22:18:28.035 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:28.036 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:28.036 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:28.036 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:28.036 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:28.036 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:28.036 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:28.036 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:28.037 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:28.037 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:28.037 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:28.037 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:28.039 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:28.040 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:28.040 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:28.040 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:28.040 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:28.040 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:28.042 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:28.043 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:28.043 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:28.043 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:28.043 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:28.044 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:28.044 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:28.044 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:28.044 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:28.044 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:28.044 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:28.044 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:28.044 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:28.045 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:28.046 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:28.046 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:28.046 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:28.046 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:28.046 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:28.047 LogUtil                 [URI:7063] Сжатие изображения в поток
+22:18:28.244 LogUtil                 [ПРОЦЕСС:7063] Пропуск: Сжатие не дало значительного результата
+22:18:28.257 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+22:18:28.259 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157062
+22:18:28.278 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157062 в память
+22:18:28.294 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:28.294 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157062
+22:18:28.308 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:28.309 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:28.309 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:28.309 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:28.309 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:28.309 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:28.309 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:28.309 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:28.310 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:28.310 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:28.310 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:28.310 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:28.312 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:28.313 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:28.313 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:28.313 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:28.313 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:28.313 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:28.314 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:28.316 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:28.316 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:28.316 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:28.316 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:28.316 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:28.317 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:28.317 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:28.317 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:28.317 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:28.317 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:28.317 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:28.317 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:28.318 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:28.318 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:28.319 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:28.319 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:28.319 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:28.319 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:28.320 LogUtil                 [URI:7062] Сжатие изображения в поток
+22:18:28.559 LogUtil                 [ПРОЦЕСС:7062] Пропуск: Сжатие не дало значительного результата
+22:18:28.571 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+22:18:28.574 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157061
+22:18:28.588 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157061 в память
+22:18:28.604 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:28.604 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157061
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:28.620 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:28.620 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:28.621 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:28.621 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:28.621 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:28.622 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:28.623 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:28.623 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:28.623 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:28.623 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:28.623 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:28.624 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:28.625 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:28.625 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:28.626 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:28.626 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:28.626 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:28.626 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:28.626 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:28.626 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:28.626 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:28.626 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:28.626 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:28.626 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:28.626 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:28.627 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:28.627 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:28.627 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:28.627 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:28.628 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:28.628 LogUtil                 [URI:7061] Сжатие изображения в поток
+22:18:28.831 LogUtil                 [ПРОЦЕСС:7061] Пропуск: Сжатие не дало значительного результата
+22:18:28.843 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+22:18:28.847 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/157060
+22:18:28.868 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/157060 в память
+22:18:28.885 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод
+22:18:28.885 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Начинаем извлечение GPS данных из content://media/external/images/media/157060
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Найдено 8 директорий метаданных
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JPEG' с 8 тегами
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'JFIF' с 6 тегами
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif IFD0' с 7 тегами
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Exif SubIFD' с 22 тегами
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'GPS' с 9 тегами
+22:18:28.898 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'ICC Profile' с 18 тегами
+22:18:28.899 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: Ошибка в ICC Profile: ICC data describes an invalid date/time: year=0 month=0 day=0 hour=0 minute=0 second=0
+22:18:28.899 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'Huffman' с 1 тегами
+22:18:28.899 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Директория 'File Type' с 4 тегами
+22:18:28.899 LogUtil                 [ПРОЦЕСС] ✅ MetadataExtractor: GPS директория найдена с 9 тегами
+22:18:28.899 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: Детальный анализ GPS тегов:
+22:18:28.902 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude = '0° 0' 0"'
+22:18:28.902 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude = '0 metres'
+22:18:28.903 LogUtil                 [ПРОЦЕСС]   📍 GPS Latitude Ref = ''
+22:18:28.903 LogUtil                 [ПРОЦЕСС]   📍 GPS Altitude Ref = 'Sea level'
+22:18:28.903 LogUtil                 [ПРОЦЕСС]   📍 GPS Processing Method = ''
+22:18:28.903 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude Ref = ''
+22:18:28.904 LogUtil                 [ПРОЦЕСС]   📍 GPS Time-Stamp = '00:00:00,000 UTC'
+22:18:28.906 LogUtil                 [ПРОЦЕСС]   📍 GPS Longitude = '0° 0' 0"'
+22:18:28.906 LogUtil                 [ПРОЦЕСС]   📍 GPS Date Stamp = ''
+22:18:28.906 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: GeoLocation результат = lat=0.0, lng=0.0, isZero=true
+22:18:28.906 LogUtil                 [ПРОЦЕСС] ⚠️ MetadataExtractor: GeoLocation пуст или нулевой, пробуем EMUI-совместимое извлечение из отдельных тегов
+22:18:28.906 LogUtil                 [ПРОЦЕСС] 🔍 MetadataExtractor: EMUI-совместимое извлечение GPS из отдельных тегов
+22:18:28.907 LogUtil                 [ПРОЦЕСС] 🔍 GPS теги: latArray=3, lngArray=3
+22:18:28.907 LogUtil                 [ПРОЦЕСС] 🔍 GPS refs: latRef='', lngRef=''
+22:18:28.907 LogUtil                 [ПРОЦЕСС] 🔍 GPS arrays детали:
+22:18:28.907 LogUtil                 [ПРОЦЕСС]   Latitude: [0/0, 0/0, 0/0]
+22:18:28.907 LogUtil                 [ПРОЦЕСС]   Longitude: [0/0, 0/0, 0/0]
+22:18:28.907 LogUtil                 [ПРОЦЕСС] 🔍 Конвертированные координаты: lat=0.0, lng=0.0
+22:18:28.907 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: Координаты нулевые (lat=0.0, lng=0.0)
+22:18:28.907 LogUtil                 [ПРОЦЕСС] ❌ MetadataExtractor: GPS теги найдены, но координаты извлечь не удалось
+22:18:28.908 LogUtil                 [ПРОЦЕСС] ⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup
+22:18:28.909 ExifInterface           Latitude/longitude values are not parsable. latValue=0/1,0/1,0/1, latRef=, lngValue=0/1,0/1,0/1, lngRef=
+22:18:28.909 LogUtil                 [ПРОЦЕСС] 🔍 GPS ExifInterface backup результат: null
+22:18:28.909 LogUtil                 [ПРОЦЕСС] ⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные
+22:18:28.909 LogUtil                 [ПРОЦЕСС] Прочитано 35 EXIF-тегов
+22:18:28.910 LogUtil                 [URI:7060] Сжатие изображения в поток
+22:18:29.117 LogUtil                 [ПРОЦЕСС:7060] Пропуск: Сжатие не дало значительного результата
