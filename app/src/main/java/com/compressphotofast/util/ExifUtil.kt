@@ -23,7 +23,6 @@ import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.MediaStoreUtil
-import com.compressphotofast.util.MetadataExtractorUtil
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -444,81 +443,25 @@ object ExifUtil {
                 LogUtil.permissionsError("Ошибка проверки разрешений", e)
             }
             
-            // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ METADATA-EXTRACTOR (ПРИОРИТЕТНЫЙ МЕТОД) ===
-            LogUtil.processInfo("🔍 GPS ИЗВЛЕЧЕНИЕ: Используем metadata-extractor как основной метод")
+            // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ EXIFINTERFACE ===
+            LogUtil.processInfo("🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()")
             
-            // ОСНОВНОЙ МЕТОД: используем metadata-extractor для извлечения GPS данных
-            try {
-                val metadataGpsData = MetadataExtractorUtil.extractGpsData(context, uri)
-                if (metadataGpsData != null) {
-                    exifData["HAS_GPS"] = true
-                    exifData["GPS_LAT"] = metadataGpsData.latitude
-                    exifData["GPS_LONG"] = metadataGpsData.longitude
-                    if (metadataGpsData.altitude != null) {
-                        exifData["GPS_ALT"] = metadataGpsData.altitude
-                    }
-                    
-                    // Сохраняем все reference теги для корректной записи
-                    exifData["GPS_LAT_REF"] = metadataGpsData.latitudeRef
-                    exifData["GPS_LONG_REF"] = metadataGpsData.longitudeRef
-                    if (metadataGpsData.altitudeRef != null) {
-                        exifData["GPS_ALT_REF"] = metadataGpsData.altitudeRef.toString()
-                    }
-                    if (metadataGpsData.timestamp != null) {
-                        exifData["GPS_TIMESTAMP"] = metadataGpsData.timestamp
-                    }
-                    if (metadataGpsData.datestamp != null) {
-                        exifData["GPS_DATESTAMP"] = metadataGpsData.datestamp
-                    }
-                    if (metadataGpsData.processingMethod != null) {
-                        exifData["GPS_PROCESSING_METHOD"] = metadataGpsData.processingMethod
-                    }
-                    
-                    LogUtil.processInfo("✅ GPS данные получены через metadata-extractor: lat=${metadataGpsData.latitude}, lng=${metadataGpsData.longitude}")
-                    LogUtil.processInfo("✅ GPS reference теги: latRef='${metadataGpsData.latitudeRef}', lngRef='${metadataGpsData.longitudeRef}'")
-                    
-                    // Для сравнения: логируем что показывает ExifInterface
-                    val latLong = exif.latLong
-                    LogUtil.processInfo("🔍 СРАВНЕНИЕ: ExifInterface.latLong = ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
-                    
-                } else {
-                    LogUtil.processInfo("⚠️ metadata-extractor не нашел GPS данные, пробуем ExifInterface как backup")
-                    
-                    // BACKUP: используем ExifInterface только если metadata-extractor не сработал
-                    val latLong = exif.latLong
-                    LogUtil.processInfo("🔍 GPS ExifInterface backup результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
-                    
-                    if (latLong != null) {
-                        exifData["HAS_GPS"] = true
-                        exifData["GPS_LAT"] = latLong[0]
-                        exifData["GPS_LONG"] = latLong[1]
-                        
-                        val altitude = exif.getAltitude(0.0)
-                        if (!altitude.isNaN()) {
-                            exifData["GPS_ALT"] = altitude
-                            LogUtil.processInfo("✅ GPS backup: данные получены через ExifInterface")
-                        }
-                    } else {
-                        LogUtil.processInfo("⚠️ Ни metadata-extractor, ни ExifInterface не нашли GPS данные")
-                    }
-                }
-            } catch (e: Exception) {
-                LogUtil.error(uri, "metadata-extractor GPS извлечение", e)
-                LogUtil.processInfo("❌ Ошибка metadata-extractor, используем ExifInterface как backup")
+            val latLong = exif.latLong
+            LogUtil.processInfo("🔍 GPS результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
+            
+            if (latLong != null) {
+                exifData["HAS_GPS"] = true
+                exifData["GPS_LAT"] = latLong[0]
+                exifData["GPS_LONG"] = latLong[1]
                 
-                // FALLBACK: ExifInterface при ошибке metadata-extractor
-                val latLong = exif.latLong
-                if (latLong != null) {
-                    exifData["HAS_GPS"] = true
-                    exifData["GPS_LAT"] = latLong[0]
-                    exifData["GPS_LONG"] = latLong[1]
-                    
-                    val altitude = exif.getAltitude(0.0)
-                    if (!altitude.isNaN()) {
-                        exifData["GPS_ALT"] = altitude
-                    }
-                    LogUtil.processInfo("✅ GPS fallback: данные получены через ExifInterface после ошибки metadata-extractor")
+                val altitude = exif.getAltitude(0.0)
+                if (!altitude.isNaN()) {
+                    exifData["GPS_ALT"] = altitude
                 }
+                
+                LogUtil.processInfo("✅ GPS данные получены через ExifInterface: lat=${latLong[0]}, lng=${latLong[1]}")
+            } else {
+                LogUtil.processInfo("⚠️ GPS данные не найдены в EXIF")
             }
             
             LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов")

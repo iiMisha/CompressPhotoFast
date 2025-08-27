@@ -86,9 +86,6 @@ dependencies {
     // ExifInterface для работы с метаданными
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     
-    // metadata-extractor для расширенной работы с EXIF/GPS данными
-    implementation("com.drewnoakes:metadata-extractor:2.19.0")
-    
     // DataStore для хранения настроек
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     
