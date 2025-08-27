@@ -2,6 +2,7 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
+import android.provider.MediaStore
 import com.drew.imaging.ImageMetadataReader
 import com.drew.lang.GeoLocation
 import com.drew.metadata.Metadata
@@ -41,7 +42,25 @@ object MetadataExtractorUtil {
         try {
             LogUtil.processInfo("🔍 MetadataExtractor: Начинаем извлечение GPS данных из $uri")
             
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            // ANDROID 10+ FIX: используем MediaStore.setRequireOriginal() для получения оригинальных EXIF данных
+            val finalUri = try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q && 
+                    uri.toString().startsWith("content://media/")) {
+                    val originalUri = MediaStore.setRequireOriginal(uri)
+                    LogUtil.processInfo("🔧 ANDROID 10+ FIX: Использую MediaStore.setRequireOriginal() для доступа к исходным GPS данным")
+                    LogUtil.processInfo("🔧 Оригинальный URI: $uri")
+                    LogUtil.processInfo("🔧 RequireOriginal URI: $originalUri")
+                    originalUri
+                } else {
+                    LogUtil.processInfo("🔍 Используется исходный URI (Android < 10 или не MediaStore URI)")
+                    uri
+                }
+            } catch (e: Exception) {
+                LogUtil.processWarning("⚠️ Ошибка при получении оригинального URI, используем исходный: ${e.message}")
+                uri
+            }
+            
+            context.contentResolver.openInputStream(finalUri)?.use { inputStream ->
                 val metadata = ImageMetadataReader.readMetadata(inputStream)
                 
                 // ДИАГНОСТИКА EMUI: логируем все найденные директории

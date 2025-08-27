@@ -175,6 +175,12 @@ class PermissionsManager(
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
             LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
         }
+        
+        // Добавляем разрешение ACCESS_MEDIA_LOCATION для доступа к GPS данным в EXIF (Android 10+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasMediaLocationPermission()) {
+            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+            LogUtil.processDebug("Запрашиваем разрешение ACCESS_MEDIA_LOCATION для GPS данных в EXIF")
+        }
 
         if (permissions.isEmpty()) {
             LogUtil.processDebug("Все необходимые разрешения уже предоставлены")
@@ -202,6 +208,17 @@ class PermissionsManager(
     override fun hasNotificationPermission(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == 
+                    PackageManager.PERMISSION_GRANTED
+        }
+        return true // На более старых версиях Android разрешение не требуется
+    }
+
+    /**
+     * Проверка разрешения ACCESS_MEDIA_LOCATION для доступа к GPS данным в EXIF
+     */
+    override fun hasMediaLocationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_MEDIA_LOCATION) == 
                     PackageManager.PERMISSION_GRANTED
         }
         return true // На более старых версиях Android разрешение не требуется

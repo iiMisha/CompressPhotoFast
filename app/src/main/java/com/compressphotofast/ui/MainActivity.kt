@@ -69,10 +69,30 @@ class MainActivity : AppCompatActivity() {
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
             LogUtil.processDebug("Все разрешения получены")
+            
+            // Проверяем, было ли предоставлено разрешение ACCESS_MEDIA_LOCATION
+            if (permissions.containsKey(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
+                if (permissions[Manifest.permission.ACCESS_MEDIA_LOCATION] == true) {
+                    LogUtil.processInfo("✅ Разрешение ACCESS_MEDIA_LOCATION предоставлено - GPS координаты будут сохраняться")
+                    showToast("GPS координаты в фото будут сохраняться при сжатии")
+                } else {
+                    LogUtil.processWarning("❌ Разрешение ACCESS_MEDIA_LOCATION отклонено - GPS координаты будут потеряны")
+                    showToast("GPS координаты не будут сохраняться в сжатых фото")
+                }
+            }
+            
             initializeBackgroundServices()
         } else {
             LogUtil.processDebug("Не все разрешения получены")
-            showPermissionExplanationDialog()
+            
+            // Если отклонено только ACCESS_MEDIA_LOCATION - продолжаем работу
+            if (permissions.size == 1 && permissions.containsKey(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
+                LogUtil.processWarning("Разрешение ACCESS_MEDIA_LOCATION отклонено, продолжаем без сохранения GPS")
+                showToast("GPS координаты не будут сохраняться в сжатых фото")
+                initializeBackgroundServices()
+            } else {
+                showPermissionExplanationDialog()
+            }
         }
     }
 
@@ -508,7 +528,40 @@ class MainActivity : AppCompatActivity() {
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
-        permissionsManager.checkAndRequestAllPermissions { initializeBackgroundServices() }
+        permissionsManager.checkAndRequestAllPermissions { 
+            checkMediaLocationPermission() 
+        }
+    }
+    
+    /**
+     * Проверка разрешения ACCESS_MEDIA_LOCATION для GPS данных
+     */
+    private fun checkMediaLocationPermission() {
+        if (!permissionsManager.hasMediaLocationPermission() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            showMediaLocationPermissionDialog()
+        } else {
+            initializeBackgroundServices()
+        }
+    }
+    
+    /**
+     * Показать диалог с объяснением разрешения ACCESS_MEDIA_LOCATION
+     */
+    private fun showMediaLocationPermissionDialog() {
+        AlertDialog.Builder(this, R.style.Theme_CompressPhotoFast_AlertDialog)
+            .setTitle("Сохранение геолокации")
+            .setMessage("Для сохранения GPS координат в сжатых фото требуется разрешение доступа к местоположению в медиафайлах.\n\nБез этого разрешения координаты будут потеряны при сжатии фото.")
+            .setPositiveButton("Предоставить") { _, _ ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    requestPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_MEDIA_LOCATION))
+                }
+            }
+            .setNegativeButton("Пропустить") { _, _ ->
+                showToast("GPS координаты не будут сохраняться в сжатых фото")
+                initializeBackgroundServices()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     /**

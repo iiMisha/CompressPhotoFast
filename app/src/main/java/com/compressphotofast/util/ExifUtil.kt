@@ -2,6 +2,8 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +16,6 @@ import java.io.FileInputStream
 import java.util.Collections
 import java.util.Date
 import java.util.HashMap
-import android.provider.MediaStore
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import com.compressphotofast.util.LogUtil
@@ -108,7 +109,22 @@ object ExifUtil {
      */
     fun getExifInterface(context: Context, uri: Uri): ExifInterface? {
         try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            // ANDROID 10+ FIX: используем MediaStore.setRequireOriginal() для получения оригинальных EXIF данных
+            val finalUri = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
+                    uri.toString().startsWith("content://media/")) {
+                    val originalUri = MediaStore.setRequireOriginal(uri)
+                    LogUtil.processDebug("🔧 ExifInterface: Использую MediaStore.setRequireOriginal() для $uri")
+                    originalUri
+                } else {
+                    uri
+                }
+            } catch (e: Exception) {
+                LogUtil.processWarning("⚠️ Ошибка при получении оригинального URI для EXIF, используем исходный: ${e.message}")
+                uri
+            }
+            
+            context.contentResolver.openInputStream(finalUri)?.use { inputStream ->
                 return ExifInterface(inputStream)
             }
         } catch (e: Exception) {
@@ -405,6 +421,27 @@ object ExifUtil {
                 if (value != null) {
                     exifData[tag] = value
                 }
+            }
+            
+            // === ДИАГНОСТИКА РАЗРЕШЕНИЙ ===
+            try {
+                val hasMediaLocationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) == 
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+                } else {
+                    true
+                }
+                
+                LogUtil.permissionsInfo("📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для $uri:")
+                LogUtil.permissionsInfo("  - Android версия: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
+                LogUtil.permissionsInfo("  - ACCESS_MEDIA_LOCATION: ${if (hasMediaLocationPermission) "✅ ПРЕДОСТАВЛЕНО" else "❌ ОТСУТСТВУЕТ"}")
+                LogUtil.permissionsInfo("  - URI тип: ${if (uri.toString().startsWith("content://media/")) "MediaStore" else "Другой"}")
+                
+                if (!hasMediaLocationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    LogUtil.permissionsWarning("⚠️ КРИТИЧНО: Разрешение ACCESS_MEDIA_LOCATION отсутствует - GPS данные будут скрыты системой!")
+                }
+            } catch (e: Exception) {
+                LogUtil.permissionsError("Ошибка проверки разрешений", e)
             }
             
             // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ METADATA-EXTRACTOR (ПРИОРИТЕТНЫЙ МЕТОД) ===

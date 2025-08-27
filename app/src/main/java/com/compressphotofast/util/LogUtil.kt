@@ -17,6 +17,7 @@ object LogUtil {
     private const val CATEGORY_ERROR = "ОШИБКА"
     private const val CATEGORY_NOTIFICATION = "УВЕДОМЛЕНИЕ"
     private const val CATEGORY_URI = "URI"
+    private const val CATEGORY_PERMISSIONS = "РАЗРЕШЕНИЯ"
     private const val TAG = "LogUtil"
     
     /**
@@ -173,6 +174,31 @@ object LogUtil {
     fun imageCompression(uri: Uri, message: String) {
         val fileId = getFileId(uri)
         Timber.i("[$CATEGORY_COMPRESSION:$fileId] $message")
+    }
+    
+    /**
+     * Логирование информации о разрешениях
+     */
+    fun permissionsInfo(message: String) {
+        Timber.i("[$CATEGORY_PERMISSIONS] $message")
+    }
+    
+    /**
+     * Логирование предупреждений о разрешениях  
+     */
+    fun permissionsWarning(message: String) {
+        Timber.w("[$CATEGORY_PERMISSIONS] $message")
+    }
+    
+    /**
+     * Логирование ошибок разрешений
+     */
+    fun permissionsError(message: String, exception: Exception? = null) {
+        if (exception != null) {
+            Timber.e(exception, "[$CATEGORY_PERMISSIONS] $message")
+        } else {
+            Timber.e("[$CATEGORY_PERMISSIONS] $message")
+        }
     }
     
     /**

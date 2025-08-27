@@ -50,6 +50,11 @@ interface IPermissionsManager {
     fun hasStoragePermissions(): Boolean
     
     /**
+     * Проверка разрешения ACCESS_MEDIA_LOCATION для доступа к GPS данным в EXIF
+     */
+    fun hasMediaLocationPermission(): Boolean
+    
+    /**
      * Показывает диалог с объяснением необходимости полного доступа к файловой системе
      */
     fun showStoragePermissionDialog(onSkip: () -> Unit)
