@@ -38,7 +38,7 @@ import com.compressphotofast.util.FileOperationsUtil
  */
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val sharedPreferences: SharedPreferences,
     private val workManager: WorkManager,
     private val settingsManager: SettingsManager
