@@ -16,6 +16,8 @@ import java.io.FileInputStream
 import java.util.Collections
 import java.util.Date
 import java.util.HashMap
+import java.text.SimpleDateFormat
+import java.util.Locale
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import com.compressphotofast.util.LogUtil
@@ -464,6 +466,10 @@ object ExifUtil {
                 LogUtil.processInfo("⚠️ GPS данные не найдены в EXIF")
             }
             
+            // === ДОБАВЛЕНИЕ ДАТЫ ОЦИФРОВКИ ИЗ МЕТАДАННЫХ ФАЙЛА ===
+            LogUtil.processInfo("🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости")
+            addDigitizedDateFromFileMetadata(context, uri, exif, exifData)
+            
             LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов")
         } catch (e: Exception) {
             LogUtil.error(uri, "Чтение EXIF в память", e)
@@ -551,7 +557,7 @@ object ExifUtil {
                     LogUtil.processInfo("Применены GPS-данные через setLatLong API + reference теги: lat=$lat, lng=$lng")
                     gpsTagsApplied++
                 } else {
-                    // Метод 2: Применяем отдельные GPS теги (для EMUI совместимости)
+                    // Метод 2: Применяем отдельные GPS теги
                     val gpsTagsToApply = arrayOf(
                         ExifInterface.TAG_GPS_LATITUDE,
                         ExifInterface.TAG_GPS_LATITUDE_REF,
@@ -850,5 +856,81 @@ object ExifUtil {
         exifData: Map<String, Any>
     ): Boolean = withContext(Dispatchers.IO) {
         return@withContext applyExifFromMemory(context, uri, exifData)
+    }
+    
+    /**
+     * Проверяет наличие любых дат в EXIF данных
+     * @param exif Объект ExifInterface для проверки
+     * @return true если найдена хотя бы одна дата (съемки, редактирования, GPS или оцифровки)
+     */
+    private fun checkDateAvailability(exif: ExifInterface): Boolean {
+        val dateTags = arrayOf(
+            ExifInterface.TAG_DATETIME_ORIGINAL,  // Дата съемки
+            ExifInterface.TAG_DATETIME,           // Дата редактирования  
+            ExifInterface.TAG_GPS_DATESTAMP,      // Дата GPS
+            ExifInterface.TAG_DATETIME_DIGITIZED  // Дата оцифровки
+        )
+        
+        for (tag in dateTags) {
+            val value = exif.getAttribute(tag)
+            if (!value.isNullOrEmpty()) {
+                LogUtil.processInfo("Найдена дата в теге $tag: $value")
+                return true
+            }
+        }
+        
+        LogUtil.processInfo("Даты съемки, редактирования, GPS и оцифровки отсутствуют в EXIF")
+        return false
+    }
+    
+    /**
+     * Форматирует дату в формат EXIF (yyyy:MM:dd HH:mm:ss)
+     * @param timestamp Временная метка в миллисекундах
+     * @return Строка даты в формате EXIF
+     */
+    private fun formatDateForExif(timestamp: Long): String {
+        val formatter = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault())
+        return formatter.format(Date(timestamp))
+    }
+    
+    /**
+     * Добавляет даты оцифровки и редактирования из метаданных файла, если все даты в EXIF отсутствуют
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @param exif Объект ExifInterface
+     * @param exifData Карта EXIF данных для добавления дат
+     */
+    private suspend fun addDigitizedDateFromFileMetadata(
+        context: Context,
+        uri: Uri,
+        exif: ExifInterface,
+        exifData: MutableMap<String, Any>
+    ) {
+        try {
+            // Проверяем, есть ли уже какие-то даты в EXIF
+            if (checkDateAvailability(exif)) {
+                LogUtil.processInfo("Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки")
+                return
+            }
+            
+            LogUtil.processInfo("Получаем дату модификации файла для установки как дату оцифровки")
+            
+            // Получаем дату модификации файла
+            val fileModificationDate = UriUtil.getFileLastModified(context, uri)
+            
+            if (fileModificationDate > 0) {
+                val formattedDate = formatDateForExif(fileModificationDate)
+                
+                // Добавляем даты оцифровки и редактирования в карту EXIF данных
+                exifData[ExifInterface.TAG_DATETIME_DIGITIZED] = formattedDate
+                exifData[ExifInterface.TAG_DATETIME] = formattedDate
+                
+                LogUtil.processInfo("Добавлены даты из метаданных файла: оцифровки и редактирования = $formattedDate (исходная метка: ${Date(fileModificationDate)})")
+            } else {
+                LogUtil.processWarning("Не удалось получить дату модификации файла для URI: $uri")
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Добавление даты оцифровки из метаданных файла", e)
+        }
     }
 } 
