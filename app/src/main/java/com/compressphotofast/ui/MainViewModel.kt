@@ -304,6 +304,20 @@ class MainViewModel @Inject constructor(
     }
 
     /**
+     * Проверяет, нужно ли игнорировать изображения из мессенджеров.
+     */
+    fun shouldIgnoreMessengerPhotos(): Boolean {
+        return settingsManager.shouldIgnoreMessengerPhotos()
+    }
+
+    /**
+     * Устанавливает настройку игнорирования изображений из мессенджеров.
+     */
+    fun setIgnoreMessengerPhotos(ignore: Boolean) {
+        settingsManager.setIgnoreMessengerPhotos(ignore)
+    }
+
+    /**
      * Останавливает текущую обработку изображений
      */
     fun stopBatchProcessing() {

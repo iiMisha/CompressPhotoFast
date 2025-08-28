@@ -85,8 +85,14 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
-            // Проверяем, не находится ли файл в директории приложения
             val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
+            // Проверяем, не находится ли файл в директории мессенджера
+            if (settingsManager.shouldIgnoreMessengerPhotos() && isMessengerImage(path)) {
+                LogUtil.processDebug("Файл находится в директории мессенджера, обработка пропущена: $uri")
+                return@withContext false
+            }
+            
+            // Проверяем, не находится ли файл в директории приложения
             if (isInAppDirectory(path)) {
                 LogUtil.processDebug("Файл находится в директории приложения: $path")
                 return@withContext false
@@ -258,6 +264,23 @@ object ImageProcessingChecker {
         return path.contains("/${Constants.APP_DIRECTORY}/") || 
                (path.contains("content://media/external/images/media") && 
                 path.contains(Constants.APP_DIRECTORY))
+    }
+
+    /**
+     * Проверяет, является ли изображение файлом из мессенджера.
+     * @param path Путь к файлу
+     * @return true, если файл из мессенджера, иначе false
+     */
+    private fun isMessengerImage(path: String): Boolean {
+        val lowercasedPath = path.lowercase()
+        // Исключаем документы, которые могут быть переданы в высоком качестве
+        if (lowercasedPath.contains("/documents/")) {
+            return false
+        }
+        // Проверяем на наличие папок с изображениями от мессенджеров
+        return lowercasedPath.contains("/whatsapp images/") ||
+               lowercasedPath.contains("/telegram images/") ||
+               lowercasedPath.contains("/viber/media/viber images")
     }
 
     /**

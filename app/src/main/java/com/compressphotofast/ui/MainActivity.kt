@@ -471,6 +471,12 @@ class MainActivity : AppCompatActivity() {
         
         // Установка начального состояния для переключателей качества
         setupCompressionQualityRadioButtons()
+
+        // Переключатель игнорирования фото из мессенджеров
+        binding.switchIgnoreMessengerPhotos.isChecked = viewModel.shouldIgnoreMessengerPhotos()
+        binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setIgnoreMessengerPhotos(isChecked)
+        }
     }
 
     /**

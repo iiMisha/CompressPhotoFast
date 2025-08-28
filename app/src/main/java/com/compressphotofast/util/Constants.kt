@@ -17,6 +17,7 @@ object Constants {
     const val PREF_NOTIFICATION_PERMISSION_SKIPPED = "notification_permission_skipped"
     const val PREF_PERMISSION_REQUEST_COUNT = "permission_request_count"
     const val PREF_PROCESS_SCREENSHOTS = "process_screenshots"
+    const val PREF_IGNORE_MESSENGER_PHOTOS = "ignore_messenger_photos"
     
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1

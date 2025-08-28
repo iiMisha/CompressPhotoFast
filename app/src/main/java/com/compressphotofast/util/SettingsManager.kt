@@ -172,6 +172,22 @@ class SettingsManager @Inject constructor(
         sharedPreferences.edit().putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, processScreenshots).apply()
     }
     
+    /**
+     * Проверяет, нужно ли игнорировать изображения из мессенджеров
+     * @return true если нужно игнорировать, false в противном случае
+     */
+    fun shouldIgnoreMessengerPhotos(): Boolean {
+        return sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true)
+    }
+    
+    /**
+     * Устанавливает настройку игнорирования изображений из мессенджеров
+     * @param ignore true если нужно игнорировать, false в противном случае
+     */
+    fun setIgnoreMessengerPhotos(ignore: Boolean) {
+        sharedPreferences.edit().putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, ignore).apply()
+    }
+    
     companion object {
         /**
          * Создает экземпляр SettingsManager без внедрения зависимостей (для классов без Hilt)
