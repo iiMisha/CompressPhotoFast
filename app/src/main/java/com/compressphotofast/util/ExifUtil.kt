@@ -25,6 +25,7 @@ import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.MediaStoreUtil
+import android.content.ContentValues
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
@@ -494,6 +495,10 @@ object ExifUtil {
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             LogUtil.processInfo("Применение ${exifData.size} EXIF-тегов к $uri")
+
+            // 1. Сохраняем исходную дату модификации
+            val originalLastModified = UriUtil.getFileLastModified(context, uri)
+            LogUtil.processInfo("Сохранена исходная дата модификации: $originalLastModified")
             
             context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 val exif = ExifInterface(pfd.fileDescriptor)
@@ -594,10 +599,27 @@ object ExifUtil {
                     LogUtil.processInfo("Добавлен маркер сжатия: $compressionInfo")
                 }
                 
-                // Сохраняем изменения
+                // 2. Сохраняем изменения в EXIF
                 exif.saveAttributes()
                 LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
                 
+                // 3. Восстанавливаем исходную дату модификации
+                if (originalLastModified > 0) {
+                    try {
+                        val values = android.content.ContentValues()
+                        // MediaStore ожидает время в секундах
+                        values.put(MediaStore.MediaColumns.DATE_MODIFIED, originalLastModified / 1000)
+                        val updatedRows = context.contentResolver.update(uri, values, null, null)
+                        if (updatedRows > 0) {
+                            LogUtil.processInfo("Исходная дата модификации успешно восстановлена.")
+                        } else {
+                            LogUtil.processWarning("Не удалось восстановить исходную дату модификации через ContentResolver.")
+                        }
+                    } catch (e: Exception) {
+                        LogUtil.error(uri, "Восстановление даты модификации", e)
+                    }
+                }
+
                 // === ДИАГНОСТИКА GPS ДАННЫХ ПОСЛЕ СОХРАНЕНИЯ ===
                 LogUtil.processInfo("🔍 ПРОВЕРКА GPS: Верификация сохраненных данных")
                 
