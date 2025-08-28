@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Основная тема приложения (светлая) -->
-    <style name="Theme.CompressPhotoFast" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    <style name="Theme.CompressPhotoFast" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Цвета -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
