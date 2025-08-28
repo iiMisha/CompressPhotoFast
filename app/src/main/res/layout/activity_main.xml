@@ -16,26 +16,13 @@
         tools:context=".ui.MainActivity">
 
         <!-- Переключатель автоматического сжатия -->
-        <TextView
-            android:id="@+id/tvAutoCompressionTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/auto_compression_title"
-            android:textSize="16sp"
-            android:textColor="@color/primary_text"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <!-- Переключатель автоматического сжатия -->
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/switchAutoCompression"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="@string/auto_compression_toggle"
             android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionTitle"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             style="@style/Widget.CompressPhotoFast.Switch" />
@@ -211,7 +198,7 @@
             android:background="@drawable/progress_background"
             android:padding="8dp"
             android:layout_marginTop="16dp"
-            app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionTitle"
+            app:layout_constraintTop_toBottomOf="@id/switchAutoCompression"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 

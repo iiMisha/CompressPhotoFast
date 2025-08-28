@@ -2,7 +2,6 @@
     <string name="app_name">Сжатие фото</string>
     
     <!-- Основной экран -->
-    <string name="auto_compression_title">Автоматическая обработка</string>
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
     <string name="background_mode_warning"><![CDATA[<font size="16">⚠️</font> При проблемах работы автоматического сжатия на некоторых устройствах: <br><br>
