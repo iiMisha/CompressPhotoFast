@@ -17,4 +17,5 @@
     <color name="warning_text">#FF6D00</color>
     <color name="dialog_positive_button">#2196F3</color>
     <color name="dialog_negative_button">#FF5722</color>
+<color name="warning_background_light">#1AFFFF00</color>
 </resources> 

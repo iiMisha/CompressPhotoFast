@@ -488,6 +488,8 @@ class MainActivity : AppCompatActivity() {
                     TransitionManager.beginDelayedTransition(binding.mainContainer)
                     binding.tvBackgroundModeWarning.visibility = if (isExpanded) View.VISIBLE else View.GONE
                     binding.ivExpandArrow.rotation = if (isExpanded) 180f else 0f
+                    // Эта строка будет менять фон в зависимости от состояния (свернуто/развернуто)
+                    binding.autoCompressionHeader.isActivated = isExpanded
                 }
             }
         }
