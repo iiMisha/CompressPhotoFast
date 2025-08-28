@@ -315,6 +315,11 @@ class ImageCompressionWorker @AssistedInject constructor(
             } else {
                 // Если сжатие неэффективно, пропускаем
                 LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent%), пропускаем")
+                
+                // Сохраняем обновленные EXIF-данные (например, добавленные даты) обратно в исходный файл
+                LogUtil.processInfo("[ПРОЦЕСС] Сжатие неэффективно, но сохраняем обновленные EXIF-данные (если были изменения)")
+                ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory)
+                
                 setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_inefficient)))
                 
                 // Получаем имя файла для уведомления
