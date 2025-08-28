@@ -93,7 +93,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.uriInfo(imageUri, "[ПРОЦЕСС] Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
             
             // Используем централизованную логику для проверки необходимости обработки
-            val processingCheckResult = ImageProcessingChecker.isProcessingRequired(appContext, imageUri)
+            val processingCheckResult = ImageProcessingChecker.isProcessingRequired(appContext, imageUri, forceProcess = true)
             
             // Если файл уже обработан и не требует повторной обработки, пропускаем его
             if (!processingCheckResult.processingRequired && 
@@ -156,9 +156,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             val compressionSavingPercent = testCompressionResult.sizeReduction
             
             LogUtil.imageCompression(imageUri, "${sourceSizeKB}KB → ${compressedSizeKB}KB (-${compressionSavingPercent}%)")
-            
-            // Если сжатие эффективно, продолжаем с полным сжатием и сохранением
-            if (testCompressionResult.isEfficient()) {
+
+            // Определяем, нужно ли пропускать сжатие
+            val shouldSkipCompression = !testCompressionResult.isEfficient() ||
+                    processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO
+
+            // Если сжатие эффективно и это не фото из мессенджера, продолжаем
+            if (!shouldSkipCompression) {
                 LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} эффективно (экономия $compressionSavingPercent%), выполняем полное сжатие")
                 LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие")
                 
@@ -313,11 +317,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
                 return@withContext Result.success()
             } else {
-                // Если сжатие неэффективно, пропускаем
-                LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent%), пропускаем")
+                // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
+                if (processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO) {
+                    LogUtil.processInfo("[ПРОЦЕСС] Изображение из мессенджера, сжатие пропущено, но EXIF будет обновлен")
+                } else {
+                    LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent%), пропускаем")
+                }
                 
                 // Сохраняем обновленные EXIF-данные (например, добавленные даты) обратно в исходный файл
-                LogUtil.processInfo("[ПРОЦЕСС] Сжатие неэффективно, но сохраняем обновленные EXIF-данные (если были изменения)")
+                LogUtil.processInfo("[ПРОЦЕСС] Сохраняем обновленные EXIF-данные (если были изменения)")
                 ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory)
                 
                 setForeground(createForegroundInfo(appContext.getString(R.string.notification_skipping_inefficient)))

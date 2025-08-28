@@ -41,6 +41,12 @@ object ImageProcessingChecker {
         try {
             val result = isProcessingRequired(context, uri, forceProcess)
             if (!result.processingRequired) {
+                // Если причина пропуска - фото из мессенджера, мы все равно должны запустить воркер,
+                // чтобы он мог записать EXIF-теги. Воркер сам пропустит сжатие.
+                if (result.reason == ProcessingSkipReason.MESSENGER_PHOTO) {
+                    LogUtil.processDebug("Изображение из мессенджера, разрешаем запуск воркера для записи EXIF.")
+                    return@withContext true
+                }
                 LogUtil.processDebug("Изображение не требует обработки: ${result.reason}")
             }
             return@withContext result.processingRequired
@@ -85,14 +91,8 @@ object ImageProcessingChecker {
                 return@withContext false
             }
             
-            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
-            // Проверяем, не находится ли файл в директории мессенджера
-            if (settingsManager.shouldIgnoreMessengerPhotos() && isMessengerImage(path)) {
-                LogUtil.processDebug("Файл находится в директории мессенджера, обработка пропущена: $uri")
-                return@withContext false
-            }
-            
             // Проверяем, не находится ли файл в директории приложения
+            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
             if (isInAppDirectory(path)) {
                 LogUtil.processDebug("Файл находится в директории приложения: $path")
                 return@withContext false
@@ -155,9 +155,17 @@ object ImageProcessingChecker {
                 result.reason = ProcessingSkipReason.BASIC_CHECK_FAILED
                 return@withContext result
             }
+
+            val settingsManager = SettingsManager.getInstance(context)
+            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
+            // Проверяем, не является ли изображение файлом из мессенджера
+            if (settingsManager.shouldIgnoreMessengerPhotos() && isMessengerImage(path)) {
+                result.processingRequired = false // Обработка (сжатие) не требуется
+                result.reason = ProcessingSkipReason.MESSENGER_PHOTO
+                return@withContext result
+            }
             
             // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
-            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
             if (isInAppDirectory(path)) {
                 result.processingRequired = false
                 result.reason = ProcessingSkipReason.IN_APP_DIRECTORY
@@ -277,10 +285,12 @@ object ImageProcessingChecker {
         if (lowercasedPath.contains("/documents/")) {
             return false
         }
-        // Проверяем на наличие папок с изображениями от мессенджеров
-        return lowercasedPath.contains("/whatsapp images/") ||
-               lowercasedPath.contains("/telegram images/") ||
-               lowercasedPath.contains("/viber/media/viber images")
+        // Проверяем на наличие папок, содержащих названия мессенджеров
+        return lowercasedPath.contains("/whatsapp/") ||
+               lowercasedPath.contains("/telegram/") ||
+               lowercasedPath.contains("/viber/") ||
+               lowercasedPath.contains("/messenger/") ||
+               lowercasedPath.contains("/messages/")
     }
 
     /**
@@ -306,5 +316,6 @@ object ImageProcessingChecker {
         COMPRESSED_VERSION_EXISTS, // Существует сжатая версия в директории приложения
         ALREADY_COMPRESSED,      // Файл уже сжат и не модифицирован
         ALREADY_SMALL,           // Файл уже имеет достаточно малый размер
+        MESSENGER_PHOTO,         // Изображение из мессенджера, сжатие пропущено
     }
 } 
