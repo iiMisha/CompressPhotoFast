@@ -23,42 +23,61 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:padding="8dp"
-            android:background="@drawable/auto_compression_header_background"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- Новый TextView для текста "Автоматическое сжатие" -->
+            <TextView
+                android:id="@+id/tvAutoCompressionLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/auto_compression_toggle"
+                android:textSize="16sp"
+                android:gravity="center_vertical"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHorizontal_chainStyle="packed"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintEnd_toStartOf="@+id/warning_icon"/>
+
+            <!-- Иконка предупреждения -->
             <TextView
                 android:id="@+id/warning_icon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="⚠️"
-                android:textSize="24sp"
-                app:layout_constraintStart_toStartOf="parent"
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                app:layout_constraintStart_toEndOf="@id/tvAutoCompressionLabel"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/ivExpandArrow"/>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchAutoCompression"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="@string/auto_compression_toggle"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/warning_icon"
-                app:layout_constraintEnd_toStartOf="@+id/ivExpandArrow"
-                style="@style/Widget.CompressPhotoFast.Switch" />
-
+            <!-- Иконка раскрытия -->
             <ImageView
                 android:id="@+id/ivExpandArrow"
                 android:layout_width="wrap_content"
-                android:layout_height="0dp"
+                android:layout_height="wrap_content"
                 android:src="@drawable/ic_expand_more"
                 android:contentDescription="@string/auto_compression_description"
-                app:layout_constraintTop_toTopOf="@+id/switchAutoCompression"
-                app:layout_constraintBottom_toBottomOf="@+id/switchAutoCompression"
-                app:layout_constraintEnd_toEndOf="parent"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless" />
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="4dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/warning_icon"
+                app:layout_constraintEnd_toStartOf="@+id/switchAutoCompression"/>
+
+            <!-- Переключатель, выровненный по правому краю -->
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchAutoCompression"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="@style/Widget.CompressPhotoFast.Switch"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
