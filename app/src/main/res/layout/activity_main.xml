@@ -7,6 +7,7 @@
     android:fillViewport="true">
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/mainContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingStart="@dimen/screen_horizontal_margin"
@@ -15,17 +16,39 @@
         android:paddingBottom="12dp"
         tools:context=".ui.MainActivity">
 
-        <!-- Переключатель автоматического сжатия -->
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchAutoCompression"
+        <!-- Контейнер для секции автоматического сжатия -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/autoCompressionHeader"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/auto_compression_toggle"
             android:layout_marginTop="12dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            style="@style/Widget.CompressPhotoFast.Switch" />
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchAutoCompression"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/auto_compression_toggle"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/ivExpandArrow"
+                style="@style/Widget.CompressPhotoFast.Switch" />
+
+            <ImageView
+                android:id="@+id/ivExpandArrow"
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:src="@drawable/ic_expand_more"
+                android:contentDescription="@string/auto_compression_description"
+                app:layout_constraintTop_toTopOf="@+id/switchAutoCompression"
+                app:layout_constraintBottom_toBottomOf="@+id/switchAutoCompression"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:padding="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- Описание автоматического сжатия -->
         <TextView
@@ -36,7 +59,7 @@
             android:textSize="14sp"
             android:textColor="@color/secondary_text"
             android:layout_marginTop="2dp"
-            app:layout_constraintTop_toBottomOf="@id/switchAutoCompression"
+            app:layout_constraintTop_toBottomOf="@id/autoCompressionHeader"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
         
@@ -48,9 +71,8 @@
             android:text="@string/background_mode_warning"
             android:textSize="13sp"
             android:textColor="@color/warning_text"
-            android:layout_marginTop="2dp"
-            android:minHeight="80dp"
-            android:padding="6dp"
+            android:layout_marginTop="8dp"
+            android:padding="8dp"
             android:visibility="gone"
             android:clickable="true"
             android:focusable="true"

@@ -19,6 +19,7 @@ import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.Html
+import android.transition.TransitionManager
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
@@ -31,6 +32,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.work.WorkInfo
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
@@ -423,15 +425,13 @@ class MainActivity : AppCompatActivity() {
             viewModel.setAutoCompression(isChecked)
             if (isChecked) {
                 setupBackgroundService()
-                // Показываем предупреждение о необходимости разрешения фонового режима
-                binding.tvBackgroundModeWarning.visibility = View.VISIBLE
-            } else {
-                binding.tvBackgroundModeWarning.visibility = View.GONE
             }
         }
-        
-        // Обновляем видимость предупреждения при запуске
-        binding.tvBackgroundModeWarning.visibility = if (viewModel.isAutoCompressionEnabled()) View.VISIBLE else View.GONE
+
+        // Кнопка раскрытия предупреждения
+        binding.autoCompressionHeader.setOnClickListener {
+            viewModel.toggleWarningExpanded()
+        }
         
         // Настраиваем HTML-форматирование для предупреждения
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -441,10 +441,9 @@ class MainActivity : AppCompatActivity() {
             binding.tvBackgroundModeWarning.text = Html.fromHtml(getString(R.string.background_mode_warning))
         }
         
-        // Добавляем обработчик нажатия на предупреждение
+        // Добавляем обработчик нажатия на предупреждение для перехода в настройки
         binding.tvBackgroundModeWarning.setOnClickListener {
             try {
-                // Пробуем открыть настройки батареи для приложения напрямую
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 val uri = Uri.fromParts("package", packageName, null)
                 intent.data = uri
@@ -453,7 +452,6 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 LogUtil.errorWithMessageAndException("APP_SETTINGS", "Ошибка при открытии настроек приложения", e)
                 try {
-                    // Если прямой метод не сработал, открываем общие настройки приложения
                     val intent = Intent(Settings.ACTION_APPLICATION_SETTINGS)
                     startActivity(intent)
                 } catch (e: Exception) {
@@ -483,6 +481,17 @@ class MainActivity : AppCompatActivity() {
      * Наблюдение за ViewModel
      */
     private fun observeViewModel() {
+        // Наблюдение за состоянием раскрывающегося предупреждения
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.isWarningExpanded.collect { isExpanded ->
+                    TransitionManager.beginDelayedTransition(binding.mainContainer)
+                    binding.tvBackgroundModeWarning.visibility = if (isExpanded) View.VISIBLE else View.GONE
+                    binding.ivExpandArrow.rotation = if (isExpanded) 180f else 0f
+                }
+            }
+        }
+
         // Наблюдение за состоянием загрузки
         viewModel.isLoading.observe(this) { isLoading ->
             if (isLoading) {

@@ -32,6 +32,8 @@ import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Модель представления для главного экрана
@@ -64,6 +66,10 @@ class MainViewModel @Inject constructor(
     private val _multipleImagesProgress = MutableLiveData<MultipleImagesProgress>()
     val multipleImagesProgress: LiveData<MultipleImagesProgress> = _multipleImagesProgress
     
+    // StateFlow для управления видимостью предупреждения
+    private val _isWarningExpanded = MutableStateFlow(false)
+    val isWarningExpanded = _isWarningExpanded.asStateFlow()
+
     // Объект для последовательной обработки изображений
     private val sequentialImageProcessor = SequentialImageProcessor(context)
     
@@ -322,6 +328,13 @@ class MainViewModel @Inject constructor(
      */
     fun stopBatchProcessing() {
         sequentialImageProcessor.cancelProcessing()
+    }
+
+    /**
+     * Переключает состояние видимости предупреждения
+     */
+    fun toggleWarningExpanded() {
+        _isWarningExpanded.value = !_isWarningExpanded.value
     }
 
     /**
