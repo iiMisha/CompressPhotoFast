@@ -2,22 +2,22 @@
     <string name="app_name">Сжатие фото</string>
     
     <!-- Основной экран -->
-    <string name="auto_compression_toggle">Автоматическое сжатие</string>
+    <string name="auto_compression_toggle">⚡ Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
     <string name="background_mode_warning"><![CDATA[<font size="16">⚠️</font> При проблемах работы автоматического сжатия на некоторых устройствах: <br><br>
 1️⃣ Зайдите в Настройки → Приложения → CompressPhotoFast → Батарея → выберите \"Без ограничений\"<br><br>
 <i>или в зависимости от модели телефона:</i><br><br>
 2️⃣ Настройки → Батарея → Оптимизация расхода батареи (или \"Управление энергопотреблением\") → найдите CompressPhotoFast и отключите оптимизацию<br><br>
 (Нажмите <font color="#FF9800"><b><u>ЗДЕСЬ</u></b></font> для перехода в настройки <font size="16">👆</font>)]]></string>
-    <string name="save_mode_toggle">Заменять оригинальные файлы</string>
+    <string name="save_mode_toggle">💾 Заменять оригинальные файлы</string>
     <string name="save_mode_description">При включенном переключателе сжатые файлы записываются в исходную папку, а оригиналы удаляются. При выключенном - сохраняются в отдельной папке</string>
-    <string name="ignore_messenger_photos_toggle">Игнорировать фото из мессенджеров</string>
+    <string name="ignore_messenger_photos_toggle">💬 Игнорировать фото из мессенджеров</string>
     <string name="ignore_messenger_photos_description">Не сжимать изображения, сохраненные из WhatsApp, Telegram и других мессенджеров.</string>
-    <string name="compression_quality_title">Качество сжатия</string>
+    <string name="compression_quality_title">⚙️ Качество сжатия</string>
     <string name="compression_quality_description">Выберите качество сжатия (ниже = меньший размер, выше = лучшее качество)</string>
-    <string name="compression_quality_low">Низкое</string>
-    <string name="compression_quality_medium">Среднее</string>
-    <string name="compression_quality_high">Высокое</string>
+    <string name="compression_quality_low">🔥 Низкое</string>
+    <string name="compression_quality_medium">⚖️ Среднее</string>
+    <string name="compression_quality_high">💎 Высокое</string>
     
     <!-- Уведомления -->
     <string name="notification_title">CompressPhotoFast</string>
@@ -50,18 +50,18 @@
     <string name="notification_compression_result">Результат сжатия</string>
     
     <!-- Сообщения -->
-    <string name="compression_success">Обработка завершена</string>
-    <string name="compression_error">Ошибка при сжатии фото</string>
+    <string name="compression_success">✅ Обработка завершена</string>
+    <string name="compression_error">❌ Ошибка при сжатии фото</string>
     <string name="compression_skipped">Файл %1$s пропущен: экономия мала (%2$.1f%% &lt; %3$s%%)</string>
     <string name="compression_skipped_size_limit">Все файлы уже обработаны</string>
     <string name="no_images_selected">Не выбрано ни одного изображения</string>
     <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
     <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
-    <string name="image_already_compressed">Изображение уже сжато</string>
+    <string name="image_already_compressed">ℹ️ Изображение уже сжато</string>
     <string name="image_already_optimized">Изображения уже сжаты</string>
-    <string name="all_images_already_compressed">Все изображения уже сжаты</string>
-    <string name="file_deleted_successfully">Оригинальный файл успешно удален</string>
-    <string name="batch_processing_stopped">Обработка остановлена</string>
+    <string name="all_images_already_compressed">ℹ️ Все изображения уже сжаты</string>
+    <string name="file_deleted_successfully">✅ Оригинальный файл успешно удален</string>
+    <string name="batch_processing_stopped">⏹️ Обработка остановлена</string>
     <string name="notification_toast_battery_settings">Найдите настройки оптимизации батареи и отключите ограничения для приложения</string>
     
     <!-- Сообщения для нескольких изображений -->
