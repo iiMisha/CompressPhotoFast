@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                 val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
                 val reason = intent.getStringExtra(Constants.EXTRA_SKIP_REASON) ?: getString(R.string.notification_skipping_inefficient)
                 
-                showToast("$fileName: пропущено ($reason)")
+                showToast("$fileName: $reason")
             }
         }
     }

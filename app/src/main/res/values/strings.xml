@@ -42,7 +42,7 @@
     <string name="notification_skipping_compressed">Изображение уже сжато, пропускаем</string>
     <string name="notification_skipping_invalid_size">Размер файла невалидный, пропускаем</string>
     <string name="notification_skipping_inefficient">Сжатие неэффективно, пропускаем</string>
-    <string name="notification_skipping_messenger_photo">Пропущено (фото из мессенджера), метаданные обновлены</string>
+    <string name="notification_skipping_messenger_photo">Пропущено: фото из мессенджера</string>
     <string name="notification_compression_completed">Сжатие завершено</string>
     <string name="notification_compression_completed_title">Сжатие фото завершено</string>
     <string name="notification_compression_completed_text">%1$s: %2$s → %3$s (-%4$s%%)</string>
