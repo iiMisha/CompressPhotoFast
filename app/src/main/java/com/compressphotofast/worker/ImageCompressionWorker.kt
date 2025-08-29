@@ -318,10 +318,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.success()
             } else {
                 // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
-                if (processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO) {
+                val skipReason = if (processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO) {
                     LogUtil.processInfo("[ПРОЦЕСС] Изображение из мессенджера, сжатие пропущено, но EXIF будет обновлен")
+                    appContext.getString(R.string.notification_skipping_messenger_photo)
                 } else {
                     LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent%), пропускаем")
+                    null
                 }
                 
                 // Сохраняем обновленные EXIF-данные (например, добавленные даты) обратно в исходный файл
@@ -360,7 +362,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                     sourceSize,
                     estimatedCompressedSize,
                     estimatedSizeReduction,
-                    true
+                    true,
+                    skipReason
                 )
                 
                 // Обновляем статус и возвращаем успех с пропуском
@@ -400,7 +403,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         originalSize: Long, 
         compressedSize: Long, 
         sizeReduction: Float,
-        skipped: Boolean
+        skipped: Boolean,
+        skipReason: String? = null
     ) {
         try {
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
@@ -413,7 +417,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                     originalSize = originalSize,
                     compressedSize = compressedSize,
                     sizeReduction = sizeReduction,
-                    skipped = skipped
+                    skipped = skipped,
+                    skipReason = skipReason
                 )
             }
         } catch (e: Exception) {

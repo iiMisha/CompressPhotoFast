@@ -543,7 +543,8 @@ object NotificationUtil {
         originalSize: Long,
         compressedSize: Long,
         sizeReduction: Float,
-        skipped: Boolean
+        skipped: Boolean,
+        skipReason: String? = null
     ) {
         try {
             // Определяем тип уведомления: о завершении или о пропуске
@@ -559,6 +560,9 @@ object NotificationUtil {
                 putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
                 putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
                 putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
+                if (skipReason != null) {
+                    putExtra(Constants.EXTRA_SKIP_REASON, skipReason)
+                }
                 flags = Intent.FLAG_RECEIVER_FOREGROUND
             }
             context.sendBroadcast(intent)
