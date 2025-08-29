@@ -290,7 +290,8 @@ object ImageProcessingChecker {
                lowercasedPath.contains("/telegram/") ||
                lowercasedPath.contains("/viber/") ||
                lowercasedPath.contains("/messenger/") ||
-               lowercasedPath.contains("/messages/")
+               lowercasedPath.contains("/messages/") ||
+               lowercasedPath.contains("pictures/messages/")
     }
 
     /**
