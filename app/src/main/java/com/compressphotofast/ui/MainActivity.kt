@@ -121,8 +121,13 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // Обработка результата
+            LogUtil.processDebug("Файл успешно удален")
+            showToast(getString(R.string.file_deleted_successfully))
+        } else {
+            LogUtil.processDebug("Пользователь отклонил запрос на удаление файла")
         }
+        // Проверяем, есть ли еще отложенные запросы на удаление
+        checkPendingDeleteRequests()
     }
 
     /**
@@ -740,33 +745,7 @@ class MainActivity : AppCompatActivity() {
             onSuccess = { initializeBackgroundServices() }
         )
         
-        when (requestCode) {
-            Constants.REQUEST_CODE_DELETE_FILE -> {
-                if (resultCode == android.app.Activity.RESULT_OK) {
-                    LogUtil.processDebug("Файл успешно удален")
-                    showToast(getString(R.string.file_deleted_successfully))
-                } else {
-                    LogUtil.processDebug("Пользователь отклонил запрос на удаление файла")
-                }
-                
-                // Проверяем, есть ли еще отложенные запросы на удаление
-                checkPendingDeleteRequests()
-            }
-            
-            Constants.REQUEST_CODE_DELETE_PERMISSION -> {
-                // Устанавливаем флаг, что разрешение было запрошено
-                prefs.edit().putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true).apply()
-                    
-                if (resultCode == android.app.Activity.RESULT_OK) {
-                    LogUtil.processDebug("Тестовый файл успешно удален, разрешение получено")
-                } else {
-                    LogUtil.processDebug("Пользователь отклонил запрос на удаление тестового файла")
-                }
-                
-                // Продолжаем инициализацию
-                initializeBackgroundServices()
-            }
-        }
+        
     }
 
     /**

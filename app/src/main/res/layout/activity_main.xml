@@ -254,19 +254,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Статус операции -->
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAlignment="center"
-            android:textColor="@color/primary_text"
-            android:textSize="16sp"
-            android:layout_marginTop="12dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/radioGroupQuality"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+        
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView> 
