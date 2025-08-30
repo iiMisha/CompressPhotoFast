@@ -201,4 +201,11 @@ object UriProcessingTracker {
     fun isImageBeingProcessed(uri: Uri): Boolean {
         return isProcessing(uri) || shouldIgnore(uri) || wasRecentlyProcessed(uri)
     }
+    
+    /**
+     * Получает статистику кэшей для мониторинга производительности
+     */
+    fun getCacheStats(): String {
+        return "UriTracker: обрабатывается ${processingUris.size}, недавно обработано ${recentlyProcessedUris.size}, игнорируется ${ignoreUrisUntil.size}"
+    }
 } 

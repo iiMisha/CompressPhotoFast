@@ -22,6 +22,10 @@ import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.BatchMediaStoreUtil
+import com.compressphotofast.util.OptimizedCacheUtil
+import kotlinx.coroutines.delay
+import java.util.concurrent.atomic.AtomicReference
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -29,12 +33,19 @@ class ImageDetectionJobService : JobService() {
     // Scope для корутин JobService с SupervisorJob для изоляции ошибок
     private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Максимальное количество одновременно обрабатываемых URI
-    private val maxConcurrentUris = 10
+    private val maxConcurrentUris = 20
+    
+    // Атомарная ссылка на текущий накапливающийся батч
+    private val pendingBatch = AtomicReference<MutableSet<Uri>>(mutableSetOf())
     
     companion object {
         private const val JOB_ID = 1000
         private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
         private const val OVERRIDE_DEADLINE_MILLIS = 15000L // Максимальная задержка
+        
+        // Дебаундинг параметры для группировки событий
+        private const val DEBOUNCE_DELAY_MS = 2000L // 2 секунды для группировки событий
+        private const val MAX_BATCH_WAIT_TIME_MS = 10000L // Максимальное время ожидания батча
 
         /**
          * Настройка и планирование задания для отслеживания новых изображений
@@ -109,10 +120,10 @@ class ImageDetectionJobService : JobService() {
             return false
         }
 
-        // Запускаем асинхронную обработку URI
+        // Запускаем оптимизированную асинхронную обработку URI с дебаундингом
         jobScope.launch {
             try {
-                processUrisAsync(triggerUris.toList(), params)
+                processUrisWithDebouncing(triggerUris.toList(), params)
             } catch (e: Exception) {
                 LogUtil.error(null, "JOB_PROCESSING", "Критическая ошибка при обработке URI в JobService", e)
                 // В случае критической ошибки все равно завершаем задание
@@ -126,24 +137,75 @@ class ImageDetectionJobService : JobService() {
     }
 
     /**
-     * Асинхронная обработка списка URI с ограничением параллельности
+     * Оптимизированная обработка URI с дебаундингом и пакетными запросами
+     * Группирует события для избежания избыточной обработки промежуточных состояний
      */
-    private suspend fun processUrisAsync(triggerUris: List<Uri>, params: JobParameters?) = withContext(Dispatchers.IO) {
+    private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>, params: JobParameters?) = withContext(Dispatchers.IO) {
+        try {
+            // Добавляем URI к накапливающемуся батчу
+            val currentBatch = pendingBatch.get()
+            synchronized(currentBatch) {
+                currentBatch.addAll(triggerUris)
+            }
+            
+            LogUtil.processDebug("ImageDetectionJobService: добавлены ${triggerUris.size} URI к батчу, общий размер: ${currentBatch.size}")
+            
+            // Ждем дебаунс-период для накопления событий
+            delay(DEBOUNCE_DELAY_MS)
+            
+            // Атомарно извлекаем накопленный батч
+            val batchToProcess = pendingBatch.getAndSet(mutableSetOf())
+            
+            if (batchToProcess.isNotEmpty()) {
+                LogUtil.processDebug("ImageDetectionJobService: начинаем обработку дебаунсного батча из ${batchToProcess.size} URI")
+                processOptimizedBatch(batchToProcess.toList(), params)
+            }
+        } catch (e: Exception) {
+            LogUtil.error(null, "DEBOUNCING", "Ошибка при дебаунсной обработке", e)
+            // Fallback к оригинальной логике
+            processOptimizedBatch(triggerUris, params)
+        }
+    }
+
+    /**
+     * Оптимизированная пакетная обработка URI с использованием новых утилит
+     */
+    private suspend fun processOptimizedBatch(uriList: List<Uri>, params: JobParameters?) = withContext(Dispatchers.IO) {
         try {
             var processedCount = 0
             var skippedCount = 0
             
-            // Создаем кэш для проверок путей в рамках этого Job
-            val pathCheckCache = mutableMapOf<String, Boolean>()
+            // Получаем пакетные метаданные для всех URI сразу для оптимизации
+            val startTime = System.currentTimeMillis()
+            val batchMetadata = BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, uriList)
+            val metadataTime = System.currentTimeMillis() - startTime
+            LogUtil.processDebug("ImageDetectionJobService: пакетное получение метаданных заняло ${metadataTime}ms для ${uriList.size} URI")
             
-            // Разбиваем URI на батчи для предотвращения перегрузки системы
-            val batches = triggerUris.chunked(maxConcurrentUris)
+            // Предзагружаем кэш директорий для быстрых проверок
+            val filePaths = batchMetadata.mapNotNull { (uri, metadata) ->
+                UriUtil.getFilePathFromUri(applicationContext, uri)
+            }
+            OptimizedCacheUtil.preloadDirectoryCache(filePaths, Constants.APP_DIRECTORY)
+            
+            // Фильтруем URI, оставляя только те, которые требуют обработки
+            val validUris = batchMetadata.filter { (_, metadata) ->
+                metadata != null && 
+                !metadata.isPending && 
+                metadata.size > 0 && 
+                OptimizedCacheUtil.isProcessableMimeType(metadata.mimeType)
+            }.keys.toList()
+            
+            LogUtil.processDebug("ImageDetectionJobService: после быстрой фильтрации осталось ${validUris.size} из ${uriList.size} URI")
+            
+            // Разбиваем валидные URI на батчи для предотвращения перегрузки системы
+            val batches = validUris.chunked(maxConcurrentUris)
             
             for (batch in batches) {
                 // Обрабатываем каждый батч параллельно с использованием async для возврата результатов
                 val deferredResults = batch.map { uri ->
                     async {
-                        processUriWithOptimizations(uri, pathCheckCache)
+                        val metadata = batchMetadata[uri]
+                        processUriWithOptimizations(uri, metadata)
                     }
                 }
                 
@@ -162,6 +224,9 @@ class ImageDetectionJobService : JobService() {
                     if (result.skipped) skippedCount++
                 }
             }
+            
+            // Добавляем пропущенные URI (невалидные по метаданным)
+            skippedCount += (uriList.size - validUris.size)
             
             LogUtil.processDebug("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
             
@@ -183,16 +248,18 @@ class ImageDetectionJobService : JobService() {
     )
 
     /**
-     * Оптимизированная обработка одного URI с использованием кэширования
+     * Оптимизированная обработка одного URI с использованием предварительно полученных метаданных
      */
-    private suspend fun processUriWithOptimizations(uri: Uri, pathCheckCache: MutableMap<String, Boolean>): ProcessingResult = withContext(Dispatchers.IO) {
+    private suspend fun processUriWithOptimizations(uri: Uri, metadata: BatchMediaStoreUtil.FileMetadata?): ProcessingResult = withContext(Dispatchers.IO) {
         try {
             LogUtil.processDebug("ImageDetectionJobService: обработка URI: $uri")
             
-            // Получаем все метаданные за один запрос
-            val metadata = getFileMetadata(uri)
+            // Проверяем предварительно полученные метаданные
+            if (metadata == null) {
+                LogUtil.processDebug("ImageDetectionJobService: метаданные недоступны для URI: $uri")
+                return@withContext ProcessingResult(skipped = true)
+            }
             
-            // Проверяем метаданные
             if (metadata.isPending) {
                 LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
                 return@withContext ProcessingResult(skipped = true)
@@ -203,8 +270,8 @@ class ImageDetectionJobService : JobService() {
                 return@withContext ProcessingResult(skipped = true)
             }
             
-            // Проверяем MIME тип
-            if (metadata.mimeType?.startsWith("image/") != true) {
+            // Проверяем MIME тип используя оптимизированный кэш
+            if (!OptimizedCacheUtil.isProcessableMimeType(metadata.mimeType)) {
                 LogUtil.processDebug("ImageDetectionJobService: неподдерживаемый MIME тип: ${metadata.mimeType}")
                 return@withContext ProcessingResult(skipped = true)
             }
@@ -221,8 +288,8 @@ class ImageDetectionJobService : JobService() {
                 return@withContext ProcessingResult(skipped = true)
             }
             
-            // Проверяем необходимость обработки с кэшированием
-            if (shouldProcessImageWithCache(uri, pathCheckCache)) {
+            // Проверяем необходимость обработки с оптимизированным кэшированием
+            if (shouldProcessImageOptimized(uri, metadata)) {
                 // Регистрируем URI как обрабатываемый
                 UriProcessingTracker.addProcessingUri(uri)
                 
@@ -247,29 +314,19 @@ class ImageDetectionJobService : JobService() {
     }
 
     /**
-     * Проверка необходимости обработки с кэшированием результатов проверок путей
+     * Оптимизированная проверка необходимости обработки с использованием новых кэшей
      */
-    private suspend fun shouldProcessImageWithCache(uri: Uri, pathCheckCache: MutableMap<String, Boolean>): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun shouldProcessImageOptimized(uri: Uri, metadata: BatchMediaStoreUtil.FileMetadata): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Получаем путь к файлу для кэширования
+            // Получаем путь к файлу
             val filePath = UriUtil.getFilePathFromUri(applicationContext, uri) ?: uri.toString()
             
-            // Извлекаем директорию для кэширования
-            val directory = extractDirectory(filePath)
-            
-            // Проверяем кэш для директории приложения
-            val isInAppDir = pathCheckCache.getOrPut("isInAppDirectory:$directory") {
-                isInAppDirectory(filePath)
-            }
+            // Используем оптимизированный кэш для проверки директории
+            val (isInAppDir, isMessengerPhoto) = OptimizedCacheUtil.checkDirectoryStatus(filePath, Constants.APP_DIRECTORY)
             
             if (isInAppDir) {
-                LogUtil.processDebug("Файл находится в директории приложения (кэшировано): $filePath")
+                LogUtil.processDebug("Файл находится в директории приложения (оптимизированный кэш): $filePath")
                 return@withContext false
-            }
-            
-            // Проверяем кэш для мессенджера
-            val isMessengerPhoto = pathCheckCache.getOrPut("isMessengerImage:$directory") {
-                isMessengerImage(filePath)
             }
             
             // Получаем настройки один раз
@@ -277,15 +334,34 @@ class ImageDetectionJobService : JobService() {
             val shouldIgnoreMessenger = settingsManager.shouldIgnoreMessengerPhotos()
             
             if (shouldIgnoreMessenger && isMessengerPhoto) {
-                LogUtil.processDebug("Изображение из мессенджера игнорируется (кэшировано): $filePath")
+                LogUtil.processDebug("Изображение из мессенджера игнорируется (оптимизированный кэш): $filePath")
                 return@withContext false
             }
             
-            // Для более сложных проверок используем основную логику без дублирования
+            // Проверяем размер файла - если он слишком мал, пропускаем
+            if (metadata.size < Constants.OPTIMUM_FILE_SIZE) {
+                LogUtil.processDebug("Файл слишком мал для сжатия: ${metadata.size} байт")
+                return@withContext false
+            }
+            
+            // Проверяем EXIF-маркеры сжатия с оптимизированным кэшем
+            val cachedExif = OptimizedCacheUtil.getCachedExifData(uri, metadata.lastModified)
+            if (cachedExif != null) {
+                if (cachedExif.isCompressed) {
+                    // Проверяем, был ли файл изменен после сжатия
+                    val timeDiff = metadata.lastModified - cachedExif.compressionTimestamp
+                    if (timeDiff <= 20000) { // 20 секунд допустимая погрешность
+                        LogUtil.processDebug("Файл уже сжат согласно кэшированным EXIF-данным")
+                        return@withContext false
+                    }
+                }
+            }
+            
+            // Для более сложных проверок используем основную логику
             return@withContext ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
             
         } catch (e: Exception) {
-            LogUtil.error(uri, "CACHED_CHECK", "Ошибка при проверке с кэшированием", e)
+            LogUtil.error(uri, "OPTIMIZED_CHECK", "Ошибка при оптимизированной проверке", e)
             return@withContext false
         }
     }
