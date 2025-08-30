@@ -12,14 +12,25 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.SupervisorJob
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.Constants
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
 
+    // Scope для корутин JobService с SupervisorJob для изоляции ошибок
+    private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Максимальное количество одновременно обрабатываемых URI
+    private val maxConcurrentUris = 10
+    
     companion object {
         private const val JOB_ID = 1000
         private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
@@ -91,80 +102,269 @@ class ImageDetectionJobService : JobService() {
         val triggerUris = params?.triggeredContentUris
         LogUtil.processDebug("ImageDetectionJobService: получено ${triggerUris?.size ?: 0} URI для обработки")
         
-        if (!triggerUris.isNullOrEmpty()) {
-            kotlinx.coroutines.runBlocking {
-                var processedCount = 0
-                var skippedCount = 0
-                
-                triggerUris.forEach { uri ->
-                    LogUtil.processDebug("ImageDetectionJobService: обработка URI: $uri")
-                    
-                    // Проверяем, не является ли файл временным
-                    if (UriUtil.isFilePendingSuspend(applicationContext, uri)) {
-                        LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
-                        skippedCount++
-                        return@forEach
-                    }
-                    
-                    // Проверяем размер файла
-                    val fileSize = getFileSize(uri)
-                    if (fileSize <= 0) {
-                        LogUtil.processDebug("ImageDetectionJobService: файл пуст или недоступен: $uri")
-                        skippedCount++
-                        return@forEach
-                    }
-                    
-                    // Проверяем, не обрабатывается ли URI уже
-                    if (UriProcessingTracker.isImageBeingProcessed(uri)) {
-                        LogUtil.processDebug("ImageDetectionJobService: URI $uri уже в процессе обработки, пропускаем")
-                        skippedCount++
-                        return@forEach
-                    }
-                    
-                    // Проверяем, не должен ли URI игнорироваться
-                    if (UriProcessingTracker.shouldIgnore(uri)) {
-                        LogUtil.processDebug("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
-                        skippedCount++
-                        return@forEach
-                    }
-                    
-                    if (ImageProcessingUtil.shouldProcessImage(applicationContext, uri)) {
-                        withContext(Dispatchers.IO) {
-                            // Регистрируем URI как обрабатываемый
-                            UriProcessingTracker.addProcessingUri(uri)
-                            
-                            // Обрабатываем изображение
-                            if (ImageProcessingUtil.processImage(applicationContext, uri)) {
-                                LogUtil.processDebug("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
-                                processedCount++
-                            } else {
-                                LogUtil.processDebug("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                                UriProcessingTracker.removeProcessingUri(uri)
-                                skippedCount++
-                            }
-                        }
-                    } else {
-                        LogUtil.processDebug("ImageDetectionJobService: URI пропущен: $uri")
-                        skippedCount++
-                    }
-                }
-                
-                LogUtil.processDebug("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
-            }
+        if (triggerUris.isNullOrEmpty()) {
+            // Нет URI для обработки, завершаем задание
+            scheduleJob(applicationContext)
+            jobFinished(params, false)
+            return false
         }
 
-        // Перепланируем задание для следующего обнаружения
-        scheduleJob(applicationContext)
-        jobFinished(params, false)
-        return false
+        // Запускаем асинхронную обработку URI
+        jobScope.launch {
+            try {
+                processUrisAsync(triggerUris.toList(), params)
+            } catch (e: Exception) {
+                LogUtil.error(null, "JOB_PROCESSING", "Критическая ошибка при обработке URI в JobService", e)
+                // В случае критической ошибки все равно завершаем задание
+                scheduleJob(applicationContext)
+                jobFinished(params, false)
+            }
+        }
+        
+        // Возвращаем true, так как обработка продолжается в фоне
+        return true
     }
 
     /**
-     * Получение размера файла
+     * Асинхронная обработка списка URI с ограничением параллельности
      */
-    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
+    private suspend fun processUrisAsync(triggerUris: List<Uri>, params: JobParameters?) = withContext(Dispatchers.IO) {
         try {
-            val projection = arrayOf(MediaStore.MediaColumns.SIZE)
+            var processedCount = 0
+            var skippedCount = 0
+            
+            // Создаем кэш для проверок путей в рамках этого Job
+            val pathCheckCache = mutableMapOf<String, Boolean>()
+            
+            // Разбиваем URI на батчи для предотвращения перегрузки системы
+            val batches = triggerUris.chunked(maxConcurrentUris)
+            
+            for (batch in batches) {
+                // Обрабатываем каждый батч параллельно с использованием async для возврата результатов
+                val deferredResults = batch.map { uri ->
+                    async {
+                        processUriWithOptimizations(uri, pathCheckCache)
+                    }
+                }
+                
+                val results = deferredResults.map { deferred ->
+                    try {
+                        deferred.await()
+                    } catch (e: Exception) {
+                        LogUtil.error(null, "URI_PROCESSING", "Ошибка при обработке URI", e)
+                        ProcessingResult(false, true) // Ошибка считается как пропуск
+                    }
+                }
+                
+                // Подсчитываем результаты батча
+                results.forEach { result ->
+                    if (result.processed) processedCount++
+                    if (result.skipped) skippedCount++
+                }
+            }
+            
+            LogUtil.processDebug("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
+            
+        } catch (e: Exception) {
+            LogUtil.error(null, "BATCH_PROCESSING", "Ошибка при батчевой обработке URI", e)
+        } finally {
+            // Всегда перепланируем задание и завершаем текущее
+            scheduleJob(applicationContext)
+            jobFinished(params, false)
+        }
+    }
+
+    /**
+     * Класс для хранения результата обработки URI
+     */
+    private data class ProcessingResult(
+        val processed: Boolean = false,
+        val skipped: Boolean = false
+    )
+
+    /**
+     * Оптимизированная обработка одного URI с использованием кэширования
+     */
+    private suspend fun processUriWithOptimizations(uri: Uri, pathCheckCache: MutableMap<String, Boolean>): ProcessingResult = withContext(Dispatchers.IO) {
+        try {
+            LogUtil.processDebug("ImageDetectionJobService: обработка URI: $uri")
+            
+            // Получаем все метаданные за один запрос
+            val metadata = getFileMetadata(uri)
+            
+            // Проверяем метаданные
+            if (metadata.isPending) {
+                LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
+                return@withContext ProcessingResult(skipped = true)
+            }
+            
+            if (metadata.size <= 0) {
+                LogUtil.processDebug("ImageDetectionJobService: файл пуст или недоступен: $uri")
+                return@withContext ProcessingResult(skipped = true)
+            }
+            
+            // Проверяем MIME тип
+            if (metadata.mimeType?.startsWith("image/") != true) {
+                LogUtil.processDebug("ImageDetectionJobService: неподдерживаемый MIME тип: ${metadata.mimeType}")
+                return@withContext ProcessingResult(skipped = true)
+            }
+            
+            // Проверяем, не обрабатывается ли URI уже
+            if (UriProcessingTracker.isImageBeingProcessed(uri)) {
+                LogUtil.processDebug("ImageDetectionJobService: URI $uri уже в процессе обработки, пропускаем")
+                return@withContext ProcessingResult(skipped = true)
+            }
+            
+            // Проверяем, не должен ли URI игнорироваться
+            if (UriProcessingTracker.shouldIgnore(uri)) {
+                LogUtil.processDebug("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
+                return@withContext ProcessingResult(skipped = true)
+            }
+            
+            // Проверяем необходимость обработки с кэшированием
+            if (shouldProcessImageWithCache(uri, pathCheckCache)) {
+                // Регистрируем URI как обрабатываемый
+                UriProcessingTracker.addProcessingUri(uri)
+                
+                // Обрабатываем изображение
+                if (ImageProcessingUtil.processImage(applicationContext, uri)) {
+                    LogUtil.processDebug("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
+                    return@withContext ProcessingResult(processed = true)
+                } else {
+                    LogUtil.processDebug("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
+                    UriProcessingTracker.removeProcessingUri(uri)
+                    return@withContext ProcessingResult(skipped = true)
+                }
+            } else {
+                LogUtil.processDebug("ImageDetectionJobService: URI пропущен: $uri")
+                return@withContext ProcessingResult(skipped = true)
+            }
+            
+        } catch (e: Exception) {
+            LogUtil.error(uri, "URI_PROCESSING", "Ошибка при обработке URI", e)
+            return@withContext ProcessingResult(skipped = true)
+        }
+    }
+
+    /**
+     * Проверка необходимости обработки с кэшированием результатов проверок путей
+     */
+    private suspend fun shouldProcessImageWithCache(uri: Uri, pathCheckCache: MutableMap<String, Boolean>): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Получаем путь к файлу для кэширования
+            val filePath = UriUtil.getFilePathFromUri(applicationContext, uri) ?: uri.toString()
+            
+            // Извлекаем директорию для кэширования
+            val directory = extractDirectory(filePath)
+            
+            // Проверяем кэш для директории приложения
+            val isInAppDir = pathCheckCache.getOrPut("isInAppDirectory:$directory") {
+                isInAppDirectory(filePath)
+            }
+            
+            if (isInAppDir) {
+                LogUtil.processDebug("Файл находится в директории приложения (кэшировано): $filePath")
+                return@withContext false
+            }
+            
+            // Проверяем кэш для мессенджера
+            val isMessengerPhoto = pathCheckCache.getOrPut("isMessengerImage:$directory") {
+                isMessengerImage(filePath)
+            }
+            
+            // Получаем настройки один раз
+            val settingsManager = SettingsManager.getInstance(applicationContext)
+            val shouldIgnoreMessenger = settingsManager.shouldIgnoreMessengerPhotos()
+            
+            if (shouldIgnoreMessenger && isMessengerPhoto) {
+                LogUtil.processDebug("Изображение из мессенджера игнорируется (кэшировано): $filePath")
+                return@withContext false
+            }
+            
+            // Для более сложных проверок используем основную логику без дублирования
+            return@withContext ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
+            
+        } catch (e: Exception) {
+            LogUtil.error(uri, "CACHED_CHECK", "Ошибка при проверке с кэшированием", e)
+            return@withContext false
+        }
+    }
+
+    /**
+     * Извлекает директорию из полного пути к файлу для кэширования
+     */
+    private fun extractDirectory(filePath: String): String {
+        return try {
+            val lastSlashIndex = filePath.lastIndexOf('/')
+            if (lastSlashIndex > 0) {
+                filePath.substring(0, lastSlashIndex)
+            } else {
+                filePath
+            }
+        } catch (e: Exception) {
+            filePath
+        }
+    }
+
+    /**
+     * Проверка, находится ли файл в директории приложения (локальная копия для кэширования)
+     */
+    private fun isInAppDirectory(path: String): Boolean {
+        return path.contains("/${Constants.APP_DIRECTORY}/") || 
+               (path.contains("content://media/external/images/media") && 
+                path.contains(Constants.APP_DIRECTORY))
+    }
+
+    /**
+     * Проверка, является ли изображение файлом из мессенджера (локальная копия для кэширования)
+     */
+    private fun isMessengerImage(path: String): Boolean {
+        val lowercasedPath = path.lowercase()
+        // Исключаем документы, которые могут быть переданы в высоком качестве
+        if (lowercasedPath.contains("/documents/")) {
+            return false
+        }
+        // Проверяем на наличие папок, содержащих названия мессенджеров
+        return lowercasedPath.contains("/whatsapp/") ||
+               lowercasedPath.contains("/telegram/") ||
+               lowercasedPath.contains("/viber/") ||
+               lowercasedPath.contains("/messenger/") ||
+               lowercasedPath.contains("/messages/") ||
+               lowercasedPath.contains("pictures/messages/")
+    }
+
+    /**
+     * Класс для хранения метаданных файла
+     */
+    private data class FileMetadata(
+        val size: Long = -1,
+        val isPending: Boolean = false,
+        val displayName: String? = null,
+        val mimeType: String? = null
+    )
+
+    /**
+     * Получение всех необходимых метаданных файла за один запрос
+     * Оптимизированная версия, объединяющая несколько отдельных запросов
+     */
+    private suspend fun getFileMetadata(uri: Uri): FileMetadata = withContext(Dispatchers.IO) {
+        try {
+            // Определяем необходимые колонки в зависимости от версии Android
+            val projection = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                arrayOf(
+                    MediaStore.MediaColumns.SIZE,
+                    MediaStore.Images.Media.IS_PENDING,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.MIME_TYPE
+                )
+            } else {
+                arrayOf(
+                    MediaStore.MediaColumns.SIZE,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.MIME_TYPE
+                )
+            }
+            
             contentResolver.query(
                 uri,
                 projection,
@@ -173,20 +373,72 @@ class ImageDetectionJobService : JobService() {
                 null
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val sizeIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
-                    return@withContext cursor.getLong(sizeIndex)
+                    val sizeIndex = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
+                    val displayNameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                    val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
+                    
+                    val size = if (sizeIndex != -1 && !cursor.isNull(sizeIndex)) {
+                        cursor.getLong(sizeIndex)
+                    } else -1
+                    
+                    val displayName = if (displayNameIndex != -1 && !cursor.isNull(displayNameIndex)) {
+                        cursor.getString(displayNameIndex)
+                    } else null
+                    
+                    val mimeType = if (mimeTypeIndex != -1 && !cursor.isNull(mimeTypeIndex)) {
+                        cursor.getString(mimeTypeIndex)
+                    } else null
+                    
+                    // Проверяем IS_PENDING только для Android 10+
+                    val isPending = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        val pendingIndex = cursor.getColumnIndex(MediaStore.Images.Media.IS_PENDING)
+                        pendingIndex != -1 && !cursor.isNull(pendingIndex) && cursor.getInt(pendingIndex) == 1
+                    } else false
+                    
+                    return@withContext FileMetadata(size, isPending, displayName, mimeType)
                 }
             }
-            -1
+            
+            // Если основной запрос не сработал, пытаемся получить размер через альтернативный способ
+            val alternativeSize = try {
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    inputStream.available().toLong()
+                }
+            } catch (e: Exception) {
+                null
+            }
+            
+            return@withContext FileMetadata(
+                size = alternativeSize ?: -1
+            )
         } catch (e: Exception) {
-            LogUtil.error(uri, "GET_FILE_SIZE", "Ошибка при получении размера файла", e)
-            -1
+            LogUtil.error(uri, "GET_FILE_METADATA", "Ошибка при получении метаданных файла", e)
+            return@withContext FileMetadata()
         }
     }
 
+    /**
+     * Получение размера файла (устаревший метод, оставлен для совместимости)
+     */
+    @Deprecated("Используйте getFileMetadata() для получения всех данных за один запрос")
+    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
+        val metadata = getFileMetadata(uri)
+        return@withContext metadata.size
+    }
+
     override fun onStopJob(params: JobParameters?): Boolean {
-        LogUtil.processDebug("onStopJob: задание остановлено")
+        LogUtil.processDebug("onStopJob: задание остановлено, отменяем корутины")
+        
+        // Отменяем все запущенные корутины
+        jobScope.coroutineContext[Job]?.cancel()
+        
         // Возвращаем true, чтобы перепланировать задание
         return true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Очищаем scope при уничтожении сервиса
+        jobScope.coroutineContext[Job]?.cancel()
     }
 } 
