@@ -187,19 +187,22 @@ object CompressionBatchTracker {
      * Показывает индивидуальный результат (как было раньше)
      */
     private fun showIndividualResult(context: Context, result: CompressionResult) {
+        // Показываем Toast для 1 файла
         if (result.skipped) {
             // Для пропущенных файлов не показываем Toast в индивидуальном режиме
             LogUtil.processDebug("Индивидуальный результат пропущен (файл был пропущен): ${result.fileName}")
-            return
+        } else {
+            NotificationUtil.showCompressionResultToast(
+                context = context,
+                fileName = FileOperationsUtil.truncateFileName(result.fileName),
+                originalSize = result.originalSize,
+                compressedSize = result.compressedSize,
+                reduction = result.sizeReduction
+            )
         }
         
-        NotificationUtil.showCompressionResultToast(
-            context = context,
-            fileName = FileOperationsUtil.truncateFileName(result.fileName),
-            originalSize = result.originalSize,
-            compressedSize = result.compressedSize,
-            reduction = result.sizeReduction
-        )
+        // Показываем индивидуальное уведомление для 1 файла
+        showIndividualNotification(context, result)
     }
 
     /**
@@ -213,8 +216,21 @@ object CompressionBatchTracker {
             return // Нет результатов для показа
         }
         
+        // Показываем групповой Toast
+        showBatchToast(context, successfulResults, skippedCount)
+        
+        // Показываем групповые уведомления
+        showBatchNotifications(context, results, successfulResults, skippedCount)
+        
+        LogUtil.processDebug("Показан групповой результат: ${results.size} файлов (${successfulResults.size} успешно, $skippedCount пропущено)")
+    }
+    
+    /**
+     * Показывает групповой Toast для нескольких файлов
+     */
+    private fun showBatchToast(context: Context, successfulResults: List<CompressionResult>, skippedCount: Int) {
         val message = if (successfulResults.isNotEmpty()) {
-            // Считаем общую статистику
+            // Считаем общую статистику для Toast
             val totalOriginalSize = successfulResults.sumOf { it.originalSize }
             val totalCompressedSize = successfulResults.sumOf { it.compressedSize }
             val totalReduction = if (totalOriginalSize > 0) {
@@ -238,7 +254,55 @@ object CompressionBatchTracker {
         }
         
         NotificationUtil.showToast(context, message, android.widget.Toast.LENGTH_LONG)
-        LogUtil.processDebug("Показан групповой результат: ${results.size} файлов (${successfulResults.size} успешно, $skippedCount пропущено)")
+    }
+    
+    /**
+     * Показывает групповые уведомления для нескольких файлов
+     */
+    private fun showBatchNotifications(context: Context, allResults: List<CompressionResult>, successfulResults: List<CompressionResult>, skippedCount: Int) {
+        // Считаем общую статистику для уведомлений
+        val totalOriginalSize = successfulResults.sumOf { it.originalSize }
+        val totalCompressedSize = successfulResults.sumOf { it.compressedSize }
+        val totalReduction = if (totalOriginalSize > 0) {
+            ((totalOriginalSize - totalCompressedSize).toFloat() / totalOriginalSize) * 100
+        } else 0f
+        
+        // Конвертируем результаты в формат для уведомлений
+        val notificationItems = allResults.map { result ->
+            NotificationUtil.BatchNotificationItem(
+                fileName = FileOperationsUtil.truncateFileName(result.fileName),
+                originalSize = result.originalSize,
+                compressedSize = result.compressedSize,
+                sizeReduction = result.sizeReduction,
+                skipped = result.skipped,
+                skipReason = result.skipReason
+            )
+        }
+        
+        // Показываем групповое уведомление
+        NotificationUtil.showBatchCompressionNotification(
+            context = context,
+            successfulCount = successfulResults.size,
+            skippedCount = skippedCount,
+            totalOriginalSize = totalOriginalSize,
+            totalCompressedSize = totalCompressedSize,
+            totalSizeReduction = totalReduction,
+            individualResults = notificationItems
+        )
+    }
+    
+    /**
+     * Показывает индивидуальное уведомление для одного файла
+     */
+    private fun showIndividualNotification(context: Context, result: CompressionResult) {
+        NotificationUtil.showCompressionResultNotification(
+            context = context,
+            fileName = result.fileName,
+            originalSize = result.originalSize,
+            compressedSize = result.compressedSize,
+            sizeReduction = result.sizeReduction,
+            skipped = result.skipped
+        )
     }
 
     /**

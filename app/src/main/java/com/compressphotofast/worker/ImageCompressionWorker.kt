@@ -437,17 +437,19 @@ class ImageCompressionWorker @AssistedInject constructor(
                         skipReason = skipReason,
                         batchId = null // Явно указываем null для старого поведения
                     )
+                    
+                    // Показываем индивидуальное уведомление только для задач без batch ID
+                    NotificationUtil.showCompressionResultNotification(
+                        context = appContext,
+                        fileName = fileName,
+                        originalSize = originalSize,
+                        compressedSize = compressedSize,
+                        sizeReduction = sizeReduction,
+                        skipped = skipped
+                    )
                 }
                 
-                // Уведомления в статус-баре показываем всегда
-                NotificationUtil.showCompressionResultNotification(
-                    context = appContext,
-                    fileName = fileName,
-                    originalSize = originalSize,
-                    compressedSize = compressedSize,
-                    sizeReduction = sizeReduction,
-                    skipped = skipped
-                )
+                // Для задач с batch ID уведомления будут показаны через CompressionBatchTracker
             }
         } catch (e: Exception) {
             LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления", e)

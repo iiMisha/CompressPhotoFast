@@ -534,6 +534,166 @@ object NotificationUtil {
     }
     
     /**
+     * Показывает групповое уведомление для нескольких результатов сжатия
+     */
+    fun showBatchCompressionNotification(
+        context: Context,
+        successfulCount: Int,
+        skippedCount: Int,
+        totalOriginalSize: Long,
+        totalCompressedSize: Long,
+        totalSizeReduction: Float,
+        individualResults: List<BatchNotificationItem>
+    ) {
+        // Создаем индивидуальные уведомления в группе
+        individualResults.forEachIndexed { index, result ->
+            showIndividualNotificationInGroup(context, result, index)
+        }
+        
+        // Создаем summary уведомление
+        showSummaryNotification(
+            context = context,
+            successfulCount = successfulCount,
+            skippedCount = skippedCount,
+            totalOriginalSize = totalOriginalSize,
+            totalCompressedSize = totalCompressedSize,
+            totalSizeReduction = totalSizeReduction,
+            totalCount = individualResults.size
+        )
+    }
+    
+    /**
+     * Показывает summary уведомление для группы
+     */
+    private fun showSummaryNotification(
+        context: Context,
+        successfulCount: Int,
+        skippedCount: Int,
+        totalOriginalSize: Long,
+        totalCompressedSize: Long,
+        totalSizeReduction: Float,
+        totalCount: Int
+    ) {
+        val pendingIntent = createMainActivityPendingIntent(context)
+        
+        // Формируем заголовок
+        val title = if (successfulCount > 0) {
+            "📦 Сжато $successfulCount фото"
+        } else {
+            "⏭️ Обработано $totalCount фото"
+        }
+        
+        // Формируем текст
+        val message = buildString {
+            if (successfulCount > 0) {
+                val originalSizeStr = FileOperationsUtil.formatFileSize(totalOriginalSize)
+                val compressedSizeStr = FileOperationsUtil.formatFileSize(totalCompressedSize)
+                val reductionStr = String.format("%.1f", totalSizeReduction)
+                append("$originalSizeStr → $compressedSizeStr (-$reductionStr%)")
+                
+                if (skippedCount > 0) {
+                    append("\nПропущено: $skippedCount фото")
+                }
+            } else {
+                append("Все файлы пропущены (уже сжаты или малый размер)")
+            }
+        }
+        
+        // Создаем summary уведомление
+        val notification = createNotification(
+            context = context,
+            channelId = "compression_completion_channel",
+            title = title,
+            content = message,
+            priority = NotificationCompat.PRIORITY_DEFAULT,
+            contentIntent = pendingIntent,
+            autoCancel = true
+        ).apply {
+            // Устанавливаем как summary для группы
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                // Для Android N+ используем setGroupSummary
+                val builder = NotificationCompat.Builder(context, "compression_completion_channel")
+                    .setContentTitle(title)
+                    .setContentText(message)
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent)
+                    .setGroup(Constants.NOTIFICATION_GROUP_COMPRESSION)
+                    .setGroupSummary(true)
+                
+                getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, builder.build())
+                return
+            }
+        }
+        
+        // Для старых версий Android просто показываем обычное уведомление
+        getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, notification)
+    }
+    
+    /**
+     * Показывает индивидуальное уведомление внутри группы
+     */
+    private fun showIndividualNotificationInGroup(
+        context: Context,
+        result: BatchNotificationItem,
+        index: Int
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            // Для старых версий Android не показываем индивидуальные уведомления в группе
+            return
+        }
+        
+        val title = if (result.skipped) "⏭️ ${result.fileName}" else "✅ ${result.fileName}"
+        
+        val message = if (result.skipped) {
+            result.skipReason ?: "Пропущен"
+        } else {
+            val originalSizeStr = FileOperationsUtil.formatFileSize(result.originalSize)
+            val compressedSizeStr = FileOperationsUtil.formatFileSize(result.compressedSize)
+            val reductionStr = String.format("%.1f", result.sizeReduction)
+            "$originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+        }
+        
+        val builder = NotificationCompat.Builder(context, "compression_completion_channel")
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(if (result.skipped) android.R.drawable.ic_menu_close_clear_cancel else android.R.drawable.ic_menu_save)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(true)
+            .setGroup(Constants.NOTIFICATION_GROUP_COMPRESSION)
+            .setGroupSummary(false)
+        
+        val notificationId = Constants.NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE + index
+        getNotificationManager(context).notify(notificationId, builder.build())
+    }
+    
+    /**
+     * Очищает все уведомления группы сжатия
+     */
+    fun clearCompressionNotificationGroup(context: Context) {
+        // Отменяем summary уведомление
+        cancelNotification(context, Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY)
+        
+        // Отменяем индивидуальные уведомления (максимум 50)
+        for (i in 0..50) {
+            cancelNotification(context, Constants.NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE + i)
+        }
+    }
+    
+    /**
+     * Данные для индивидуального уведомления в батче
+     */
+    data class BatchNotificationItem(
+        val fileName: String,
+        val originalSize: Long,
+        val compressedSize: Long,
+        val sizeReduction: Float,
+        val skipped: Boolean,
+        val skipReason: String? = null
+    )
+    
+    /**
      * Отправляет Broadcast о результате сжатия
      */
     fun sendCompressionResultBroadcast(
