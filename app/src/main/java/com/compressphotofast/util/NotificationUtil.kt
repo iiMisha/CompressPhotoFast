@@ -217,7 +217,7 @@ object NotificationUtil {
                 enableVibration = true
             )
             
-            LogUtil.notification("Уведомления: каналы уведомлений созданы")
+            // LogUtil.notification("Уведомления: каналы уведомлений созданы")
         }
     }
     
@@ -248,7 +248,7 @@ object NotificationUtil {
             }
             
             getNotificationManager(context).createNotificationChannel(channel)
-            LogUtil.notification("Уведомления: создан канал $channelName (id=$channelId)")
+            // LogUtil.notification("Уведомления: создан канал $channelName (id=$channelId)")
         }
     }
     

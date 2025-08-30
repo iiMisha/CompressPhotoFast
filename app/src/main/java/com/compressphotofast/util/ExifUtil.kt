@@ -116,7 +116,7 @@ object ExifUtil {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
                     uri.toString().startsWith("content://media/")) {
                     val originalUri = MediaStore.setRequireOriginal(uri)
-                    LogUtil.processDebug("🔧 ExifInterface: Использую MediaStore.setRequireOriginal() для $uri")
+                    // LogUtil.processDebug("🔧 ExifInterface: Использую MediaStore.setRequireOriginal() для $uri")
                     originalUri
                 } else {
                     uri
@@ -494,7 +494,7 @@ object ExifUtil {
         quality: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            LogUtil.processInfo("Применение ${exifData.size} EXIF-тегов к $uri")
+            // LogUtil.processInfo("Применение ${exifData.size} EXIF-тегов к $uri")
 
             // 1. Сохраняем исходную дату модификации
             val originalLastModified = UriUtil.getFileLastModified(context, uri)
@@ -514,7 +514,7 @@ object ExifUtil {
                 
                 // Применяем GPS-данные, если они есть
                 var gpsTagsApplied = 0
-                LogUtil.processInfo("Начинаем применение GPS данных из памяти")
+                // LogUtil.processInfo("Начинаем применение GPS данных из памяти")
                 
                 if (exifData.containsKey("HAS_GPS") && exifData.containsKey("GPS_LAT") && exifData.containsKey("GPS_LONG")) {
                     // Метод 1: Используем setLatLong API (если latLong работал при чтении)
@@ -587,7 +587,7 @@ object ExifUtil {
                     if (gpsTagsApplied > 0) {
                         LogUtil.processInfo("Применено $gpsTagsApplied GPS-тегов через setAttribute")
                     } else {
-                        LogUtil.processInfo("GPS данные отсутствуют в памяти")
+                        // LogUtil.processInfo("GPS данные отсутствуют в памяти")
                     }
                 }
                 
@@ -621,10 +621,10 @@ object ExifUtil {
                 }
 
                 // === ДИАГНОСТИКА GPS ДАННЫХ ПОСЛЕ СОХРАНЕНИЯ ===
-                LogUtil.processInfo("🔍 ПРОВЕРКА GPS: Верификация сохраненных данных")
+                // LogUtil.processInfo("🔍 ПРОВЕРКА GPS: Верификация сохраненных данных")
                 
                 // Проверяем, что GPS данные действительно записались
-                try {
+                /* try {
                     val savedGpsLatLong = exif.latLong
                     LogUtil.processInfo("🔍 GPS latLong после сохранения: ${if (savedGpsLatLong != null) "lat=${savedGpsLatLong[0]}, lng=${savedGpsLatLong[1]}" else "null"}")
                     
@@ -665,7 +665,7 @@ object ExifUtil {
                     
                 } catch (gpsE: Exception) {
                     LogUtil.processInfo("❌ Ошибка проверки GPS после сохранения: ${gpsE.message}")
-                }
+                } */
                 
                 return@withContext true
             }
