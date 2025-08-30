@@ -31,6 +31,7 @@ object Constants {
     // Теги для WorkManager
     const val WORK_INPUT_IMAGE_URI = "image_uri"
     const val WORK_COMPRESSION_QUALITY = "compression_quality"
+    const val WORK_BATCH_ID = "batch_id"
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
@@ -78,6 +79,7 @@ object Constants {
     const val EXTRA_SKIP_REASON = "skip_reason"
     const val EXTRA_PROGRESS = "progress"
     const val EXTRA_TOTAL = "total"
+    const val EXTRA_BATCH_ID = "batch_id"
     
     // Временные файлы
     const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут

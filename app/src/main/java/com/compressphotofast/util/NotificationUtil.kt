@@ -544,7 +544,8 @@ object NotificationUtil {
         compressedSize: Long,
         sizeReduction: Float,
         skipped: Boolean,
-        skipReason: String? = null
+        skipReason: String? = null,
+        batchId: String? = null
     ) {
         try {
             // Определяем тип уведомления: о завершении или о пропуске
@@ -562,6 +563,9 @@ object NotificationUtil {
                 putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
                 if (skipReason != null) {
                     putExtra(Constants.EXTRA_SKIP_REASON, skipReason)
+                }
+                if (batchId != null) {
+                    putExtra(Constants.EXTRA_BATCH_ID, batchId)
                 }
                 flags = Intent.FLAG_RECEIVER_FOREGROUND
             }

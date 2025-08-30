@@ -37,6 +37,7 @@ import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.FileOperationsUtil
+import com.compressphotofast.util.CompressionBatchTracker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -71,6 +72,9 @@ class ImageCompressionWorker @AssistedInject constructor(
 
     // Качество сжатия (получаем из входных данных)
     private val compressionQuality = inputData.getInt(Constants.WORK_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
+    
+    // ID батча для группировки результатов (может быть null для старых задач)
+    private val batchId = inputData.getString(Constants.WORK_BATCH_ID)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
@@ -409,16 +413,40 @@ class ImageCompressionWorker @AssistedInject constructor(
         try {
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString != null) {
-                // Используем централизованный метод для отправки broadcast и показа уведомления
-                NotificationUtil.sendCompressionResultBroadcast(
+                // Если есть batch ID, добавляем результат в батч-трекер вместо показа индивидуального Toast
+                if (!batchId.isNullOrEmpty()) {
+                    CompressionBatchTracker.addResult(
+                        batchId = batchId,
+                        fileName = fileName,
+                        originalSize = originalSize,
+                        compressedSize = compressedSize,
+                        sizeReduction = sizeReduction,
+                        skipped = skipped,
+                        skipReason = skipReason
+                    )
+                } else {
+                    // Старое поведение для задач без batch ID - показываем индивидуальный результат
+                    NotificationUtil.sendCompressionResultBroadcast(
+                        context = appContext,
+                        uriString = uriString,
+                        fileName = fileName,
+                        originalSize = originalSize,
+                        compressedSize = compressedSize,
+                        sizeReduction = sizeReduction,
+                        skipped = skipped,
+                        skipReason = skipReason,
+                        batchId = null // Явно указываем null для старого поведения
+                    )
+                }
+                
+                // Уведомления в статус-баре показываем всегда
+                NotificationUtil.showCompressionResultNotification(
                     context = appContext,
-                    uriString = uriString,
                     fileName = fileName,
                     originalSize = originalSize,
                     compressedSize = compressedSize,
                     sizeReduction = sizeReduction,
-                    skipped = skipped,
-                    skipReason = skipReason
+                    skipped = skipped
                 )
             }
         } catch (e: Exception) {

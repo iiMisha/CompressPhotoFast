@@ -26,12 +26,13 @@ object ImageProcessingUtil {
      * @param context Контекст приложения
      * @param uri URI изображения
      * @param forceProcess Принудительная обработка, даже если автосжатие отключено
+     * @param batchId ID батча для группировки результатов (опционально)
      * @return Triple<Boolean, Boolean, String>: 
      *         - first: успешно ли запущена обработка
      *         - second: было ли изображение добавлено в очередь
      *         - third: сообщение о результате
      */
-    suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
+    suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false, batchId: String? = null): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
         try {
             // Добавляем URI в список обрабатываемых
             UriProcessingTracker.addProcessingUri(uri)
@@ -68,15 +69,29 @@ object ImageProcessingUtil {
                 // Получаем размер исходного файла для логирования
                 val originalSize = UriUtil.getFileSize(context, uri)
                 
+                // Создаем данные для работы
+                val inputData = mutableMapOf<String, Any?>(
+                    Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
+                    Constants.WORK_COMPRESSION_QUALITY to quality,
+                    "original_size" to originalSize
+                )
+                
+                // Добавляем batch ID если он предоставлен, или создаем автобатч
+                val finalBatchId = batchId ?: if (forceProcess) {
+                    // Для Intent-сжатий batch ID уже передан, для автосжатий создаем его
+                    null
+                } else {
+                    // Для автоматического сжатия создаем или используем существующий автобатч
+                    CompressionBatchTracker.getOrCreateAutoBatch(context)
+                }
+                
+                if (finalBatchId != null) {
+                    inputData[Constants.WORK_BATCH_ID] = finalBatchId
+                }
+                
                 // Создаем и запускаем работу по сжатию
                 val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                    .setInputData(
-                        workDataOf(
-                            Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                            Constants.WORK_COMPRESSION_QUALITY to quality,
-                            "original_size" to originalSize
-                        )
-                    )
+                    .setInputData(workDataOf(*inputData.toList().toTypedArray()))
                     .addTag(workTag)
                     .build()
                 
@@ -87,7 +102,7 @@ object ImageProcessingUtil {
                         compressionWorkRequest
                     )
                 
-                LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri с тегом $workTag")
+                LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri с тегом $workTag${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки

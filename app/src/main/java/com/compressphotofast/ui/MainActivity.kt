@@ -51,6 +51,7 @@ import com.compressphotofast.worker.ImageCompressionWorker
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.CompressionBatchTracker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -147,6 +148,7 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * BroadcastReceiver для получения уведомлений о завершении сжатия одного изображения
+     * Теперь используется только для задач без batch ID (обратная совместимость)
      */
     private val compressionCompletedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -154,9 +156,13 @@ class MainActivity : AppCompatActivity() {
                 val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
                 val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0L)
                 val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0L)
+                val batchId = intent.getStringExtra(Constants.EXTRA_BATCH_ID)
                 
-                // Показываем результаты сжатия
-                showCompressionResult(fileName, originalSize, compressedSize)
+                // Показываем результаты сжатия только для задач без batch ID (старое поведение)
+                if (batchId.isNullOrEmpty()) {
+                    showCompressionResult(fileName, originalSize, compressedSize)
+                }
+                // Для задач с batch ID результат будет показан через CompressionBatchTracker
             }
         }
     }
@@ -341,6 +347,10 @@ class MainActivity : AppCompatActivity() {
         // Сбрасываем счетчики перед началом новой пакетной обработки
         viewModel.resetBatchCounters()
         
+        // Создаем batch ID для Intent-сжатий
+        val batchId = CompressionBatchTracker.createIntentBatch(this, uris.size)
+        LogUtil.processDebug("Создан Intent батч для ${uris.size} изображений: $batchId")
+        
         // Обрабатываем изображения
         lifecycleScope.launch {
             // Если есть хотя бы одно изображение, показываем первое в UI
@@ -353,8 +363,8 @@ class MainActivity : AppCompatActivity() {
                 LogUtil.processDebug("handleIntent: Обработка URI: $uri")
                 logFileDetails(uri)
                 
-                // Принудительно обрабатываем изображения, полученные через Share
-                val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true)
+                // Принудительно обрабатываем изображения, полученные через Share, передаем batch ID
+                val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true, batchId = batchId)
                 
                 // Считаем обработанные изображения
                 if (result.first && result.second) {
@@ -369,9 +379,10 @@ class MainActivity : AppCompatActivity() {
             if (processedCount > 0) {
                 // Не показываем уведомление о запуске сжатия для Share
                 // Сохраняем только логирование
-                LogUtil.processDebug("Запущено сжатие для $processedCount изображений")
+                LogUtil.processDebug("Запущено сжатие для $processedCount изображений в батче $batchId")
             } else {
-                // Если все изображения уже обработаны, показываем сообщение
+                // Если все изображения уже обработаны, завершаем батч и показываем сообщение
+                CompressionBatchTracker.finalizeBatch(batchId)
                 showToast(getString(R.string.all_images_already_compressed))
             }
         }
