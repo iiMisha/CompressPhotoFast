@@ -27,6 +27,7 @@ import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.MediaStoreObserver
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.PerformanceMonitor
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -286,6 +287,9 @@ class BackgroundMonitoringService : Service() {
                 }
                 
                 LogUtil.processDebug("BackgroundMonitoringService: сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
+                
+                // Выводим автоматический отчет о производительности
+                PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
             }
         }
     }
@@ -347,6 +351,9 @@ class BackgroundMonitoringService : Service() {
         }
         
         LogUtil.processDebug("BackgroundMonitoringService: начальное сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
+        
+        // Выводим автоматический отчет о производительности
+        PerformanceMonitor.autoReportIfNeeded(applicationContext)
     }
 
     /**

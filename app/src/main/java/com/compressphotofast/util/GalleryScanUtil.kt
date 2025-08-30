@@ -7,6 +7,8 @@ import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.BatchMediaStoreUtil
+import com.compressphotofast.util.PerformanceMonitor
 
 /**
  * Класс для централизованной работы со сканированием галереи
@@ -76,6 +78,11 @@ object GalleryScanUtil {
                 val totalImages = cursor.count
                 LogUtil.processDebug("GalleryScanUtil: найдено $totalImages изображений за последние ${timeWindowSeconds / 60} минут")
                 
+                // Сначала собираем все URI для пакетной обработки
+                val allUris = mutableListOf<Uri>()
+                val uriSizeMap = mutableMapOf<Uri, Long>()
+                val uriNameMap = mutableMapOf<Uri, String>()
+                
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
                     val name = if (nameColumn != -1) cursor.getString(nameColumn) else "unknown"
@@ -106,16 +113,34 @@ object GalleryScanUtil {
                         continue
                     }
                     
-                    // Проверяем, не было ли изображение уже обработано (по EXIF)
-                    if (checkProcessable && !StatsTracker.shouldProcessImage(context, contentUri)) {
-                        LogUtil.processDebug("GalleryScanUtil: изображение не требует обработки: $contentUri")
-                        skippedCount++
-                        continue
+                    allUris.add(contentUri)
+                    uriSizeMap[contentUri] = size
+                    uriNameMap[contentUri] = name
+                }
+                
+                // Используем пакетную предзагрузку метаданных для оптимизации
+                if (checkProcessable && allUris.isNotEmpty()) {
+                    LogUtil.processDebug("GalleryScanUtil: пакетная предзагрузка метаданных для ${allUris.size} URI")
+                    
+                    // Предзагружаем метаданные пакетом для кэширования
+                    PerformanceMonitor.measureBatchMetadata {
+                        BatchMediaStoreUtil.getBatchFileMetadata(context, allUris)
                     }
                     
-                    // Добавляем URI в список найденных
-                    foundUris.add(contentUri)
-                    processedCount++
+                    // Теперь проверяем каждый URI, используя кэшированные данные
+                    for (uri in allUris) {
+                        if (StatsTracker.shouldProcessImage(context, uri)) {
+                            foundUris.add(uri)
+                            processedCount++
+                        } else {
+                            LogUtil.processDebug("GalleryScanUtil: изображение не требует обработки: $uri")
+                            skippedCount++
+                        }
+                    }
+                } else if (!checkProcessable) {
+                    // Если проверка не нужна, добавляем все URI
+                    foundUris.addAll(allUris)
+                    processedCount = allUris.size
                 }
                 
                 LogUtil.processDebug("GalleryScanUtil: сканирование завершено. Найдено: $processedCount, Пропущено: $skippedCount")

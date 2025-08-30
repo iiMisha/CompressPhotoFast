@@ -18,6 +18,7 @@ import java.io.OutputStream
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
+import com.compressphotofast.util.PerformanceMonitor
 
 /**
  * Централизованная утилита для сжатия изображений
@@ -217,6 +218,7 @@ object ImageCompressionUtil {
         uri: Uri,
         quality: Int
     ): Triple<Boolean, Uri?, String> = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
         try {
             // Проверка URI
             if (!isValidUri(context, uri)) {
@@ -274,6 +276,10 @@ object ImageCompressionUtil {
             
             // Расчет сокращения размера в процентах
             val sizeReduction = ((fileSize - compressedSize).toFloat() / fileSize) * 100
+            
+            // Записываем время обработки для статистики
+            val processingTime = System.currentTimeMillis() - startTime
+            PerformanceMonitor.recordProcessingTime(fileSize, processingTime)
             
             return@withContext Triple(
                 true, 

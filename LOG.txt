@@ -1,561 +1,655 @@
-21:27:05.300 HwViewRootImpl          Add sceneId 11 topId: 10
-21:27:05.301 HwDragEnhancementImpl   handleTimerDrag: false
-21:27:05.319 HwDragEnhancementImpl   Start long press for hw drag enhancement.
-21:27:05.355 HwViewRootImpl          [DetectViewsLocationRunner] current resolutionScale: 0.7
-21:27:05.355 HwViewRootImpl          remove sceneId 11 topId: 10
-21:27:05.356 WebViewDragEnhancement  dragReset.
-21:27:05.356 WebViewDragEnhancement  dragReset cacheSize = 0
-21:27:05.372 LogUtil                 [ПРОЦЕСС] Автоматическое сжатие: включено
-21:27:05.372 LogUtil                 [ПРОЦЕСС] setupBackgroundService: автоматическое сжатие включено
-21:27:05.372 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
-21:27:05.372 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
-21:27:05.373 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: создан триггер для MediaStore
-21:27:05.374 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: создан JobInfo с параметрами: maxDelay=15000, updateDelay=0
-21:27:05.375 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание успешно запланировано
-21:27:05.375 LogUtil                 [ПРОЦЕСС] setupBackgroundService: JobService запланирован
-21:27:05.375 LogUtil                 [ПРОЦЕСС] setupBackgroundService: запуск как foreground сервис (Android O+)
-21:27:05.377 LogUtil                 [ПРОЦЕСС] Фоновые сервисы запущены успешно
-21:27:05.377 AudioManager            querySoundEffectsEnabled...
-21:27:05.377 AudioManager            querySoundEffectsEnabled fail id: 0
-21:27:05.387 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onCreate
-21:27:05.392 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-21:27:05.393 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE
-21:27:05.394 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: состояние автоматического сжатия: включено
-21:27:05.394 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическое сканирование запущено
-21:27:05.394 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическая очистка временных файлов запущена
-21:27:05.394 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onStartCommand(startId=1)
-21:27:05.394 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: запуск первоначального сканирования
-21:27:05.396 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
-21:27:05.403 LogUtil                 [ПРОЦЕСС] Запуск периодического сканирования галереи
-21:27:05.403 LogUtil                 [ПРОЦЕСС] Запуск периодической очистки временных файлов
-21:27:05.418 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:05.463 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 43 изображений за последние 1440 минут
-21:27:05.463 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:05.469 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|2|null|10703
-21:27:05.483 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:05.489 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:05.503 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578372663 для URI: content://media/external/images/media/158712
-21:27:05.510 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578372663 для URI: content://media/external/images/media/158712
-21:27:05.510 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.511 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:05.518 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.518 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158712
-21:27:05.519 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:05.535 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:05.541 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:05.554 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578353639 для URI: content://media/external/images/media/158708
-21:27:05.560 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578353639 для URI: content://media/external/images/media/158708
-21:27:05.561 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.561 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
-21:27:05.566 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.566 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158708
-21:27:05.566 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
-21:27:05.586 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
-21:27:05.594 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
-21:27:05.608 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756576814255 для URI: content://media/external/images/media/158706
-21:27:05.615 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.616 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
-21:27:05.621 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756576814255 для URI: content://media/external/images/media/158706
-21:27:05.626 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.627 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158706
-21:27:05.627 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
-21:27:05.635 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
-21:27:05.646 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
-21:27:05.654 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756576010956 для URI: content://media/external/images/media/158693
-21:27:05.662 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.662 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
-21:27:05.668 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756576010956 для URI: content://media/external/images/media/158693
-21:27:05.673 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.673 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158693
-21:27:05.673 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158652 уже в процессе обработки, пропускаем
-21:27:05.674 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
-21:27:05.684 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
-21:27:05.692 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
-21:27:05.707 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
-21:27:05.712 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756548716384 для URI: content://media/external/images/media/158609
-21:27:05.719 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.719 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158609
-21:27:05.719 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
-21:27:05.726 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
-21:27:05.741 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
-21:27:05.746 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756548716384 для URI: content://media/external/images/media/158609
-21:27:05.752 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.752 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
-21:27:05.762 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756547609160 для URI: content://media/external/images/media/158605
-21:27:05.767 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.767 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158605
-21:27:05.768 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
-21:27:05.773 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
-21:27:05.789 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
-21:27:05.794 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756547609160 для URI: content://media/external/images/media/158605
-21:27:05.800 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.801 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
-21:27:05.814 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756547225982 для URI: content://media/external/images/media/158598
-21:27:05.821 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.821 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158598
-21:27:05.821 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
-21:27:05.821 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
-21:27:05.840 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756547225982 для URI: content://media/external/images/media/158598
-21:27:05.842 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
-21:27:05.846 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.847 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
-21:27:05.863 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756539613577 для URI: content://media/external/images/media/158574
-21:27:05.868 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
-21:27:05.868 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.868 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158574
-21:27:05.869 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
-21:27:05.889 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756539613577 для URI: content://media/external/images/media/158574
-21:27:05.889 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
-21:27:05.895 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.896 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
-21:27:05.909 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756539601985 для URI: content://media/external/images/media/158572
-21:27:05.916 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
-21:27:05.916 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.916 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
-21:27:05.916 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158572
-21:27:05.917 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
-21:27:05.936 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756539601985 для URI: content://media/external/images/media/158572
-21:27:05.943 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
-21:27:05.943 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.943 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
-21:27:05.943 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
-21:27:05.963 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
-21:27:05.964 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756538615895 для URI: content://media/external/images/media/158564
-21:27:05.977 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.977 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158564
-21:27:05.977 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
-21:27:05.990 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756538615895 для URI: content://media/external/images/media/158564
-21:27:05.996 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:05.996 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
-21:27:05.998 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
-21:27:06.016 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
-21:27:06.020 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756538584316 для URI: content://media/external/images/media/158562
-21:27:06.025 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.025 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158562
-21:27:06.026 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
-21:27:06.036 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756538584316 для URI: content://media/external/images/media/158562
-21:27:06.041 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.041 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
-21:27:06.047 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
-21:27:06.061 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
-21:27:06.068 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756534961310 для URI: content://media/external/images/media/158541
-21:27:06.074 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.075 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158541
-21:27:06.075 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158536 уже в процессе обработки, пропускаем
-21:27:06.075 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158537 уже в процессе обработки, пропускаем
-21:27:06.075 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158538 уже в процессе обработки, пропускаем
-21:27:06.075 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158539 уже в процессе обработки, пропускаем
-21:27:06.075 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
-21:27:06.081 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756534961310 для URI: content://media/external/images/media/158541
-21:27:06.087 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.087 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
-21:27:06.096 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
-21:27:06.109 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
-21:27:06.117 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756532265845 для URI: content://media/external/images/media/158534
-21:27:06.124 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.124 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158534
-21:27:06.124 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
-21:27:06.131 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
-21:27:06.146 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
-21:27:06.153 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
-21:27:06.155 HwViewRootImpl          [DetectViewsLocationRunner] start to get views' rect, type = SCENE_GESTURE_SINGLE_TAP
-21:27:06.156 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
-21:27:06.156 HwViewRootImpl          [DetectViewsLocationRunner] displayPoint: Point(854, 1890)
-21:27:06.156 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
-21:27:06.156 HwViewRootImpl          [DetectViewsLocationRunner] lazyMode:
-21:27:06.156 HwViewRootImpl          [DetectViewsLocationRunner] current mode is full screen
-21:27:06.156 HwViewRootImpl          [DetectViewsLocationRunner] start to getViewHierarchy
-21:27:06.158 HwViewRootImpl          [DetectViewsLocationRunner] deviceOrientation: 0
-21:27:06.158 HwViewRootImpl          [DetectViewsLocationRunner-ScreenDirection] ROTATION_0
-21:27:06.158 HwViewRootImpl          [DetectViewsLocationRunner] get views' rect = 4, SCENE_GESTURE_SINGLE_TAP#1013,196,1169,351#51,1436,423,1591#423,1436,796,1591#796,1436,1169,1591
-21:27:06.167 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756531396563 для URI: content://media/external/images/media/158487
-21:27:06.173 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.173 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158487
-21:27:06.173 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
-21:27:06.173 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158485
-21:27:06.190 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082218.jpg
-21:27:06.190 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
-21:27:06.190 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158485
-21:27:06.191 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158481
-21:27:06.196 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
-21:27:06.206 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082220.jpg
-21:27:06.206 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
-21:27:06.206 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158481
-21:27:06.206 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44593 уже в процессе обработки, пропускаем
-21:27:06.206 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44590 уже в процессе обработки, пропускаем
-21:27:06.206 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44591 уже в процессе обработки, пропускаем
-21:27:06.206 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44592 уже в процессе обработки, пропускаем
-21:27:06.207 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
-21:27:06.218 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
-21:27:06.228 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
-21:27:06.241 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
-21:27:06.250 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196187 для URI: content://media/external/images/media/158340
-21:27:06.257 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.258 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158340
-21:27:06.258 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
-21:27:06.267 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
-21:27:06.293 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
-21:27:06.298 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
-21:27:06.314 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196697 для URI: content://media/external/images/media/158341
-21:27:06.322 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.322 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158341
-21:27:06.323 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
-21:27:06.326 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756532265845 для URI: content://media/external/images/media/158534
-21:27:06.333 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.334 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
-21:27:06.352 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
-21:27:06.360 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
-21:27:06.389 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756531396563 для URI: content://media/external/images/media/158487
-21:27:06.390 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196824 для URI: content://media/external/images/media/158342
-21:27:06.396 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.396 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.396 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158342
-21:27:06.396 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158485
-21:27:06.396 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
-21:27:06.414 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082218.jpg
-21:27:06.414 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
-21:27:06.414 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158481
-21:27:06.421 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
-21:27:06.430 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082220.jpg
-21:27:06.430 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
-21:27:06.431 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
-21:27:06.444 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196880 для URI: content://media/external/images/media/158343
-21:27:06.451 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.451 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158343
-21:27:06.451 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
-21:27:06.457 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
-21:27:06.479 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
-21:27:06.485 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
-21:27:06.502 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195340 для URI: content://media/external/images/media/158332
-21:27:06.509 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.509 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
-21:27:06.509 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158332
-21:27:06.510 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
-21:27:06.533 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
-21:27:06.536 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
-21:27:06.559 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
-21:27:06.560 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195410 для URI: content://media/external/images/media/158333
-21:27:06.568 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.568 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158333
-21:27:06.569 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
-21:27:06.584 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
-21:27:06.589 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
-21:27:06.607 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
-21:27:06.608 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195431 для URI: content://media/external/images/media/158334
-21:27:06.616 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.616 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158334
-21:27:06.616 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
-21:27:06.631 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
-21:27:06.638 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
-21:27:06.653 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
-21:27:06.661 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195563 для URI: content://media/external/images/media/158335
-21:27:06.668 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.668 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158335
-21:27:06.669 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
-21:27:06.675 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196187 для URI: content://media/external/images/media/158340
-21:27:06.682 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.682 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
-21:27:06.691 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
-21:27:06.705 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
-21:27:06.714 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195647 для URI: content://media/external/images/media/158336
-21:27:06.721 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.721 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158336
-21:27:06.721 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
-21:27:06.728 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196697 для URI: content://media/external/images/media/158341
-21:27:06.738 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.738 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
-21:27:06.745 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
-21:27:06.761 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
-21:27:06.768 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195752 для URI: content://media/external/images/media/158337
-21:27:06.775 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.776 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158337
-21:27:06.776 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
-21:27:06.782 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196824 для URI: content://media/external/images/media/158342
-21:27:06.789 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.789 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
-21:27:06.799 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
-21:27:06.812 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
-21:27:06.820 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195965 для URI: content://media/external/images/media/158338
-21:27:06.827 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.828 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158338
-21:27:06.828 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
-21:27:06.834 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196880 для URI: content://media/external/images/media/158343
-21:27:06.842 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.842 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
-21:27:06.850 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
-21:27:06.866 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
-21:27:06.874 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196005 для URI: content://media/external/images/media/158339
-21:27:06.882 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.882 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158339
-21:27:06.883 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
-21:27:06.890 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195340 для URI: content://media/external/images/media/158332
-21:27:06.897 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.897 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
-21:27:06.907 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
-21:27:06.921 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
-21:27:06.929 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521194746 для URI: content://media/external/images/media/158329
-21:27:06.938 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.938 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158329
-21:27:06.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
-21:27:06.944 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195410 для URI: content://media/external/images/media/158333
-21:27:06.950 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.950 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
-21:27:06.963 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
-21:27:06.972 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
-21:27:06.989 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195077 для URI: content://media/external/images/media/158330
-21:27:06.994 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195431 для URI: content://media/external/images/media/158334
-21:27:06.995 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:06.995 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158330
-21:27:06.996 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
-21:27:07.001 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.002 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
-21:27:07.018 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
-21:27:07.026 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
-21:27:07.041 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195289 для URI: content://media/external/images/media/158331
-21:27:07.047 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195563 для URI: content://media/external/images/media/158335
-21:27:07.048 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.048 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158331
-21:27:07.048 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
-21:27:07.054 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.054 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
-21:27:07.068 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
-21:27:07.076 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
-21:27:07.091 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521164847 для URI: content://media/external/images/media/158328
-21:27:07.097 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195647 для URI: content://media/external/images/media/158336
-21:27:07.098 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.098 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158328
-21:27:07.098 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
-21:27:07.109 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.110 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
-21:27:07.128 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
-21:27:07.137 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
-21:27:07.156 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521029257 для URI: content://media/external/images/media/158327
-21:27:07.159 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195752 для URI: content://media/external/images/media/158337
-21:27:07.162 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.162 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158327
-21:27:07.162 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158233 уже в процессе обработки, пропускаем
-21:27:07.163 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 43
-21:27:07.164 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начальное сканирование завершено. Обработано: 0, Пропущено: 43
-21:27:07.166 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.166 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
-21:27:07.209 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 2 изображений за последние 5 минут
-21:27:07.210 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:07.227 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
-21:27:07.235 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:07.249 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195965 для URI: content://media/external/images/media/158338
-21:27:07.256 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578372663 для URI: content://media/external/images/media/158712
-21:27:07.257 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.257 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
-21:27:07.263 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.263 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158712
-21:27:07.263 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:07.280 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
-21:27:07.287 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:07.301 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521196005 для URI: content://media/external/images/media/158339
-21:27:07.308 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.309 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
-21:27:07.310 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578353639 для URI: content://media/external/images/media/158708
-21:27:07.317 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.317 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158708
-21:27:07.317 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 2
-21:27:07.319 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 2
-21:27:07.352 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 2 изображений за последние 5 минут
-21:27:07.353 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:07.356 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
-21:27:07.380 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521194746 для URI: content://media/external/images/media/158329
-21:27:07.383 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
-21:27:07.388 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.388 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
-21:27:07.404 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578372663 для URI: content://media/external/images/media/158712
-21:27:07.411 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.411 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158712
-21:27:07.411 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
-21:27:07.412 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:07.435 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195077 для URI: content://media/external/images/media/158330
-21:27:07.436 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
-21:27:07.442 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.443 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
-21:27:07.457 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756578353639 для URI: content://media/external/images/media/158708
-21:27:07.466 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.466 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158708
-21:27:07.466 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
-21:27:07.466 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 2
-21:27:07.467 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 2
-21:27:07.488 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521195289 для URI: content://media/external/images/media/158331
-21:27:07.496 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.496 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
-21:27:07.522 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
-21:27:07.548 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521164847 для URI: content://media/external/images/media/158328
-21:27:07.556 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.557 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
-21:27:07.583 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
-21:27:07.604 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1756521029257 для URI: content://media/external/images/media/158327
-21:27:07.612 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-21:27:07.612 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
-21:27:07.637 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
-21:27:07.666 LogUtil                 [ПРОЦЕСС] Найдено 10 необработанных изображений
-21:27:07.669 LogUtil                 [ПРОЦЕСС] Завершена обработка всех изображений (0/0)
-21:27:07.669 LogUtil                 [ПРОЦЕСС] Счетчики пакетной обработки сброшены
-21:27:07.672 LogUtil                 [ПРОЦЕСС] Запущена последовательная обработка 10 изображений
-21:27:07.683 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
-21:27:07.685 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
-21:27:07.702 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158652 в память
-21:27:07.711 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158652:
-21:27:07.711 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:07.711 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:07.711 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:07.711 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:07.711 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:07.711 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:07.711 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:07.711 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 13:51:01
-21:27:07.711 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:07.711 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
-21:27:07.712 LogUtil                 [URI:8652] Сжатие изображения в поток
-21:27:07.922 LogUtil                 [ПРОЦЕСС:8652] Пропуск: Сжатие не дало значительного результата
-21:27:07.933 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
-21:27:07.935 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
-21:27:07.950 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158536 в память
-21:27:07.959 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158536:
-21:27:07.959 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:07.959 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:07.959 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:07.959 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:07.959 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:07.960 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:07.960 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:07.960 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
-21:27:07.960 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:07.960 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
-21:27:07.960 LogUtil                 [URI:8536] Сжатие изображения в поток
-21:27:07.996 LogUtil                 [ПРОЦЕСС:8536] Пропуск: Сжатие не дало значительного результата
-21:27:08.004 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
-21:27:08.007 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
-21:27:08.023 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158537 в память
-21:27:08.031 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158537:
-21:27:08.031 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:08.031 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:08.031 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:08.031 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:08.031 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:08.031 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:08.032 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:08.032 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
-21:27:08.032 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:08.032 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
-21:27:08.032 LogUtil                 [URI:8537] Сжатие изображения в поток
-21:27:08.066 LogUtil                 [ПРОЦЕСС:8537] Пропуск: Сжатие не дало значительного результата
-21:27:08.077 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
-21:27:08.080 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
-21:27:08.098 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158538 в память
-21:27:08.107 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158538:
-21:27:08.107 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:08.107 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:08.107 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:08.107 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:08.107 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:08.107 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:08.107 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:08.107 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
-21:27:08.108 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:08.108 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
-21:27:08.108 LogUtil                 [URI:8538] Сжатие изображения в поток
-21:27:08.141 LogUtil                 [ПРОЦЕСС:8538] Пропуск: Сжатие не дало значительного результата
-21:27:08.154 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
-21:27:08.160 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
-21:27:08.175 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158539 в память
-21:27:08.183 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158539:
-21:27:08.183 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:08.183 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:08.184 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:08.184 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:08.184 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:08.184 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:08.184 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:08.184 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
-21:27:08.184 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:08.184 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
-21:27:08.184 LogUtil                 [URI:8539] Сжатие изображения в поток
-21:27:08.214 LogUtil                 [ПРОЦЕСС:8539] Пропуск: Сжатие не дало значительного результата
-21:27:08.226 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
-21:27:08.229 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
-21:27:08.245 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44593 в память
-21:27:08.254 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44593:
-21:27:08.254 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:08.254 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:08.254 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:08.254 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:08.255 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:08.255 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:08.255 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:08.255 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
-21:27:08.255 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:08.255 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
-21:27:08.255 LogUtil                 [URI:4593] Сжатие изображения в поток
-21:27:08.572 LogUtil                 [ПРОЦЕСС:4593] Пропуск: Сжатие не дало значительного результата
-21:27:08.587 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
-21:27:08.591 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
-21:27:08.610 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44590 в память
-21:27:08.624 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44590:
-21:27:08.624 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:08.624 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:08.624 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:08.624 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:08.624 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:08.624 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:08.624 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:08.624 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
-21:27:08.625 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:08.625 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
-21:27:08.625 LogUtil                 [URI:4590] Сжатие изображения в поток
-21:27:08.952 LogUtil                 [ПРОЦЕСС:4590] Пропуск: Сжатие не дало значительного результата
-21:27:08.964 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
-21:27:08.967 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
-21:27:08.985 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44591 в память
-21:27:08.998 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44591:
-21:27:08.998 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:08.998 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:08.998 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:08.998 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:08.998 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:08.998 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:08.998 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:08.999 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
-21:27:08.999 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:08.999 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
-21:27:08.999 LogUtil                 [URI:4591] Сжатие изображения в поток
-21:27:09.324 LogUtil                 [ПРОЦЕСС:4591] Пропуск: Сжатие не дало значительного результата
-21:27:09.336 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
-21:27:09.338 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
-21:27:09.353 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44592 в память
-21:27:09.366 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44592:
-21:27:09.366 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:09.366 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:09.366 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:09.366 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:09.366 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:09.366 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:09.366 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:09.366 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
-21:27:09.366 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:09.366 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
-21:27:09.367 LogUtil                 [URI:4592] Сжатие изображения в поток
-21:27:09.653 LogUtil                 [ПРОЦЕСС:4592] Пропуск: Сжатие не дало значительного результата
-21:27:09.662 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
-21:27:09.666 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
-21:27:09.682 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158233 в память
-21:27:09.694 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158233:
-21:27:09.695 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
-21:27:09.695 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-21:27:09.695 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-21:27:09.695 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-21:27:09.695 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
-21:27:09.695 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
-21:27:09.695 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-21:27:09.695 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2024:11:13 19:08:41
-21:27:09.695 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-21:27:09.695 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
-21:27:09.696 LogUtil                 [URI:8233] Сжатие изображения в поток
-21:27:09.726 LogUtil                 [ПРОЦЕСС:8233] Пропуск: Сжатие не дало значительного результата
-21:27:15.279 WindowManager           trimMemory level: 5
-21:27:25.274 WindowManager           trimMemory level: 10
+21:45:02.636 HwViewRootImpl          Add sceneId 11 topId: 10
+21:45:02.638 HwDragEnhancementImpl   handleTimerDrag: false
+21:45:02.656 HwDragEnhancementImpl   Start long press for hw drag enhancement.
+21:45:02.690 HwViewRootImpl          [DetectViewsLocationRunner] current resolutionScale: 0.7
+21:45:02.690 HwViewRootImpl          remove sceneId 11 topId: 10
+21:45:02.691 WebViewDragEnhancement  dragReset.
+21:45:02.691 WebViewDragEnhancement  dragReset cacheSize = 0
+21:45:02.710 LogUtil                 [ПРОЦЕСС] Автоматическое сжатие: включено
+21:45:02.710 LogUtil                 [ПРОЦЕСС] setupBackgroundService: автоматическое сжатие включено
+21:45:02.710 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
+21:45:02.710 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
+21:45:02.712 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: создан триггер для MediaStore
+21:45:02.712 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: создан JobInfo с параметрами: maxDelay=15000, updateDelay=0
+21:45:02.713 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание успешно запланировано
+21:45:02.713 LogUtil                 [ПРОЦЕСС] setupBackgroundService: JobService запланирован
+21:45:02.713 LogUtil                 [ПРОЦЕСС] setupBackgroundService: запуск как foreground сервис (Android O+)
+21:45:02.715 LogUtil                 [ПРОЦЕСС] Фоновые сервисы запущены успешно
+21:45:02.716 AudioManager            querySoundEffectsEnabled...
+21:45:02.716 AudioManager            querySoundEffectsEnabled fail id: 0
+21:45:02.725 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onCreate
+21:45:02.730 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+21:45:02.731 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE
+21:45:02.732 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: состояние автоматического сжатия: включено
+21:45:02.732 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическое сканирование запущено
+21:45:02.732 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическая очистка временных файлов запущена
+21:45:02.732 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onStartCommand(startId=1)
+21:45:02.732 SEAPP_C_Se...anagerImpl getStrategy: ResponseParcel{code=400, message='cannot find package strategy for policyName=weird-custom-notification, packageName=com.compressphotofast', result={}}
+21:45:02.732 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: запуск первоначального сканирования
+21:45:02.739 LogUtil                 [ПРОЦЕСС] Запуск периодического сканирования галереи
+21:45:02.739 LogUtil                 [ПРОЦЕСС] Запуск периодической очистки временных файлов
+21:45:02.755 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
+21:45:02.764 NotificationContentView updateSingleLinePinnedState: new=false;old=false, entry:0|com.compressphotofast|2|null|10703
+21:45:02.794 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 43 изображений за последние 1440 минут
+21:45:02.796 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158652 уже в процессе обработки, пропускаем
+21:45:02.798 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158536 уже в процессе обработки, пропускаем
+21:45:02.799 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158537 уже в процессе обработки, пропускаем
+21:45:02.799 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158538 уже в процессе обработки, пропускаем
+21:45:02.799 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158539 уже в процессе обработки, пропускаем
+21:45:02.800 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44593 уже в процессе обработки, пропускаем
+21:45:02.800 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44590 уже в процессе обработки, пропускаем
+21:45:02.800 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44591 уже в процессе обработки, пропускаем
+21:45:02.800 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/44592 уже в процессе обработки, пропускаем
+21:45:02.801 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: URI content://media/external/images/media/158233 уже в процессе обработки, пропускаем
+21:45:02.801 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: пакетная предзагрузка метаданных для 33 URI
+21:45:02.801 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158712
+21:45:02.801 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158708
+21:45:02.801 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158706
+21:45:02.801 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158693
+21:45:02.801 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158609
+21:45:02.801 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158605
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158598
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158574
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158572
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158564
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158562
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158541
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158534
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158487
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158485
+21:45:02.802 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158481
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158340
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158341
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158342
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158343
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158332
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158333
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158334
+21:45:02.803 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158335
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158336
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158337
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158338
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158339
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158329
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158330
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158331
+21:45:02.804 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158328
+21:45:02.808 LogUtil                 [ПРОЦЕСС] Метаданные получены из кэша: content://media/external/images/media/158327
+21:45:02.808 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
+21:45:02.817 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
+21:45:02.828 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158712
+21:45:02.835 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158712
+21:45:02.836 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.836 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.836 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
+21:45:02.849 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158712
+21:45:02.849 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.849 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.849 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158712
+21:45:02.849 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
+21:45:02.857 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
+21:45:02.873 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158708
+21:45:02.880 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158708
+21:45:02.880 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.880 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.881 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
+21:45:02.893 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158708
+21:45:02.893 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.894 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.894 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158708
+21:45:02.895 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
+21:45:02.902 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
+21:45:02.918 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158706
+21:45:02.925 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158706
+21:45:02.925 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.926 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.926 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
+21:45:02.938 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158706
+21:45:02.938 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.938 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.938 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158706
+21:45:02.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
+21:45:02.949 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
+21:45:02.959 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158693
+21:45:02.974 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158693
+21:45:02.974 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.974 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.974 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
+21:45:02.982 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158693
+21:45:02.982 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:02.982 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:02.982 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158693
+21:45:02.983 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
+21:45:02.999 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
+21:45:03.008 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
+21:45:03.025 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.033 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158609
+21:45:03.033 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.034 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/158652
+21:45:03.035 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
+21:45:03.035 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.035 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158609
+21:45:03.035 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
+21:45:03.058 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
+21:45:03.059 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158609
+21:45:03.081 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158605
+21:45:03.081 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.081 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158609
+21:45:03.081 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.081 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.081 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158605
+21:45:03.082 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.082 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
+21:45:03.082 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
+21:45:03.160 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
+21:45:03.161 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158605
+21:45:03.183 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158605
+21:45:03.183 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.183 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.183 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158598
+21:45:03.184 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.184 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
+21:45:03.184 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.184 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158598
+21:45:03.184 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
+21:45:03.207 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158598
+21:45:03.207 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
+21:45:03.229 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158598
+21:45:03.229 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.230 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.230 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158574
+21:45:03.230 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.230 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
+21:45:03.230 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.230 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158574
+21:45:03.230 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
+21:45:03.253 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
+21:45:03.254 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158574
+21:45:03.276 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158574
+21:45:03.276 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.276 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.276 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158572
+21:45:03.276 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.277 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
+21:45:03.277 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+21:45:03.277 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.277 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158572
+21:45:03.277 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
+21:45:03.300 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158572
+21:45:03.300 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
+21:45:03.325 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158572
+21:45:03.325 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.325 LogUtil                 [ПРОЦЕСС] Файл не был модифицирован после сжатия (разница 0 сек в пределах допустимой погрешности 20 сек)
+21:45:03.325 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.325 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
+21:45:03.329 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158564
+21:45:03.329 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.329 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.329 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158564
+21:45:03.330 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
+21:45:03.352 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158564
+21:45:03.353 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
+21:45:03.375 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158564
+21:45:03.375 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.375 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158562
+21:45:03.375 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.375 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.375 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.375 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158562
+21:45:03.375 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
+21:45:03.376 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
+21:45:03.397 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
+21:45:03.397 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158562
+21:45:03.417 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158562
+21:45:03.417 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.417 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.418 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158541
+21:45:03.418 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.418 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.418 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
+21:45:03.418 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158541
+21:45:03.418 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
+21:45:03.440 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
+21:45:03.441 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158541
+21:45:03.462 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158541
+21:45:03.462 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.462 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.462 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
+21:45:03.463 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158534
+21:45:03.463 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.463 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.463 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158534
+21:45:03.463 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
+21:45:03.485 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
+21:45:03.486 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
+21:45:03.491 HwViewRootImpl          [DetectViewsLocationRunner] start to get views' rect, type = SCENE_GESTURE_SINGLE_TAP
+21:45:03.491 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+21:45:03.492 HwViewRootImpl          [DetectViewsLocationRunner] displayPoint: Point(854, 1890)
+21:45:03.492 HwViewRootImpl          [DetectViewsLocationRunner] windowModeType: 1
+21:45:03.492 HwViewRootImpl          [DetectViewsLocationRunner] lazyMode:
+21:45:03.492 HwViewRootImpl          [DetectViewsLocationRunner] current mode is full screen
+21:45:03.492 HwViewRootImpl          [DetectViewsLocationRunner] start to getViewHierarchy
+21:45:03.494 HwViewRootImpl          [DetectViewsLocationRunner] deviceOrientation: 0
+21:45:03.494 HwViewRootImpl          [DetectViewsLocationRunner-ScreenDirection] ROTATION_0
+21:45:03.494 HwViewRootImpl          [DetectViewsLocationRunner] get views' rect = 4, SCENE_GESTURE_SINGLE_TAP#1013,196,1169,351#51,1436,423,1591#423,1436,796,1591#796,1436,1169,1591
+21:45:03.511 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158487
+21:45:03.511 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.511 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.511 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158487
+21:45:03.511 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.512 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158485
+21:45:03.520 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/158536
+21:45:03.520 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
+21:45:03.532 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082218.jpg
+21:45:03.532 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+21:45:03.532 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158485
+21:45:03.532 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158481
+21:45:03.544 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
+21:45:03.546 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082220.jpg
+21:45:03.546 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+21:45:03.546 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158481
+21:45:03.547 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
+21:45:03.568 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
+21:45:03.568 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.575 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/158537
+21:45:03.575 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
+21:45:03.593 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158340
+21:45:03.593 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.593 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.593 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158340
+21:45:03.593 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
+21:45:03.599 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
+21:45:03.617 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
+21:45:03.623 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.630 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/158538
+21:45:03.630 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
+21:45:03.637 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158341
+21:45:03.637 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.637 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.637 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158341
+21:45:03.637 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
+21:45:03.654 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
+21:45:03.661 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
+21:45:03.677 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.684 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158342
+21:45:03.684 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.684 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.684 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/158539
+21:45:03.684 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158342
+21:45:03.685 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
+21:45:03.685 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
+21:45:03.710 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
+21:45:03.710 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158534
+21:45:03.731 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158343
+21:45:03.731 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158534
+21:45:03.731 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.731 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.731 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158343
+21:45:03.731 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
+21:45:03.732 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.732 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.732 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
+21:45:03.756 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
+21:45:03.756 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158487
+21:45:03.776 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158487
+21:45:03.776 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.776 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.777 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158485
+21:45:03.777 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158332
+21:45:03.777 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.777 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.777 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158332
+21:45:03.777 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
+21:45:03.792 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082218.jpg
+21:45:03.792 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+21:45:03.792 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158481
+21:45:03.799 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
+21:45:03.808 LogUtil                 [ПРОЦЕСС] Файл находится в директории приложения: /storage/emulated/0/Pictures/CompressPhotoFast/IMG_20250830_082220.jpg
+21:45:03.808 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: BASIC_CHECK_FAILED
+21:45:03.808 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
+21:45:03.821 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158333
+21:45:03.821 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.821 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.821 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158333
+21:45:03.825 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
+21:45:03.834 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
+21:45:03.849 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
+21:45:03.856 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.866 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/44593
+21:45:03.866 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
+21:45:03.875 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158334
+21:45:03.875 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.876 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.876 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158334
+21:45:03.876 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
+21:45:03.901 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
+21:45:03.908 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
+21:45:03.924 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:03.934 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/44590
+21:45:03.934 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
+21:45:03.988 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158335
+21:45:03.988 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:03.988 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:03.988 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158335
+21:45:03.988 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
+21:45:04.010 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
+21:45:04.017 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
+21:45:04.031 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:04.037 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158336
+21:45:04.038 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.038 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.038 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158336
+21:45:04.038 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/44591
+21:45:04.038 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
+21:45:04.038 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
+21:45:04.066 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
+21:45:04.066 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
+21:45:04.085 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:04.085 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158337
+21:45:04.086 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.086 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.086 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158337
+21:45:04.086 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
+21:45:04.093 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/44592
+21:45:04.093 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
+21:45:04.110 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
+21:45:04.117 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158340
+21:45:04.130 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158338
+21:45:04.131 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.131 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.131 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158338
+21:45:04.131 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
+21:45:04.137 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158340
+21:45:04.137 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.137 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.137 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
+21:45:04.153 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
+21:45:04.161 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158341
+21:45:04.178 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158339
+21:45:04.178 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.178 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.178 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158339
+21:45:04.178 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
+21:45:04.185 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158341
+21:45:04.186 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.186 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.186 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
+21:45:04.200 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
+21:45:04.209 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158342
+21:45:04.224 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158329
+21:45:04.225 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.225 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.225 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158329
+21:45:04.225 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
+21:45:04.230 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158342
+21:45:04.230 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.230 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.231 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
+21:45:04.247 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
+21:45:04.254 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158343
+21:45:04.268 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158330
+21:45:04.268 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.268 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.269 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158330
+21:45:04.269 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
+21:45:04.274 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158343
+21:45:04.274 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.274 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.275 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
+21:45:04.292 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
+21:45:04.301 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158332
+21:45:04.319 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158331
+21:45:04.320 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.320 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.320 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158331
+21:45:04.320 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
+21:45:04.330 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158332
+21:45:04.330 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.330 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.330 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
+21:45:04.343 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
+21:45:04.354 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158333
+21:45:04.369 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158328
+21:45:04.369 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.370 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.370 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158328
+21:45:04.370 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
+21:45:04.375 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158333
+21:45:04.375 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.375 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.375 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
+21:45:04.390 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
+21:45:04.398 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158334
+21:45:04.411 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158327
+21:45:04.411 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.411 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.411 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/158327
+21:45:04.411 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 43
+21:45:04.412 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начальное сканирование завершено. Обработано: 0, Пропущено: 43
+21:45:04.417 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158334
+21:45:04.417 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.417 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.417 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
+21:45:04.454 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
+21:45:04.454 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
+21:45:04.456 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
+21:45:04.481 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
+21:45:04.481 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
+21:45:04.483 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
+21:45:04.494 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158335
+21:45:04.513 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158335
+21:45:04.513 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.513 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.513 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
+21:45:04.535 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158336
+21:45:04.556 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158336
+21:45:04.556 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.556 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.557 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
+21:45:04.577 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158337
+21:45:04.598 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158337
+21:45:04.598 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.598 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.598 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
+21:45:04.621 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158338
+21:45:04.641 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158338
+21:45:04.641 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.641 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.642 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
+21:45:04.664 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158339
+21:45:04.684 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158339
+21:45:04.684 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.684 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.684 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
+21:45:04.708 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158329
+21:45:04.728 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158329
+21:45:04.728 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.728 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.729 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
+21:45:04.752 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158330
+21:45:04.773 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158330
+21:45:04.773 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.773 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.774 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
+21:45:04.796 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158331
+21:45:04.819 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158331
+21:45:04.819 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.819 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.820 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
+21:45:04.843 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158328
+21:45:04.866 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158328
+21:45:04.866 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.866 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.867 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
+21:45:04.894 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158327
+21:45:04.914 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/158327
+21:45:04.914 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:45:04.914 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:45:04.914 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
+21:45:04.938 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
+21:45:04.959 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:45:04.968 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/158233
+21:45:04.971 LogUtil                 [ПРОЦЕСС] Найдено 10 необработанных изображений
+21:45:04.974 LogUtil                 [ПРОЦЕСС] Завершена обработка всех изображений (0/0)
+21:45:04.975 LogUtil                 [ПРОЦЕСС] Счетчики пакетной обработки сброшены
+21:45:04.977 LogUtil                 [ПРОЦЕСС] Запущена последовательная обработка 10 изображений
+21:45:04.987 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
+21:45:04.989 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158652
+21:45:05.006 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158652 в память
+21:45:05.014 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158652:
+21:45:05.014 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.014 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.014 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.014 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.015 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.015 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.015 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.015 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 13:51:01
+21:45:05.015 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.015 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
+21:45:05.016 LogUtil                 [URI:8652] Сжатие изображения в поток
+21:45:05.228 LogUtil                 [ПРОЦЕСС:8652] Пропуск: Сжатие не дало значительного результата
+21:45:05.236 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
+21:45:05.239 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158536
+21:45:05.253 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158536 в память
+21:45:05.260 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158536:
+21:45:05.260 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.261 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.261 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.261 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.261 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.261 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.261 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.261 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
+21:45:05.261 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.261 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
+21:45:05.262 LogUtil                 [URI:8536] Сжатие изображения в поток
+21:45:05.297 LogUtil                 [ПРОЦЕСС:8536] Пропуск: Сжатие не дало значительного результата
+21:45:05.306 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
+21:45:05.308 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158537
+21:45:05.325 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158537 в память
+21:45:05.332 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158537:
+21:45:05.332 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.332 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.332 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.333 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.333 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.333 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.333 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.333 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
+21:45:05.333 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.333 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
+21:45:05.333 LogUtil                 [URI:8537] Сжатие изображения в поток
+21:45:05.364 LogUtil                 [ПРОЦЕСС:8537] Пропуск: Сжатие не дало значительного результата
+21:45:05.376 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
+21:45:05.378 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158538
+21:45:05.395 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158538 в память
+21:45:05.402 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158538:
+21:45:05.402 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.402 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.402 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.402 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.402 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.402 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.402 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.403 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
+21:45:05.403 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.403 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
+21:45:05.403 LogUtil                 [URI:8538] Сжатие изображения в поток
+21:45:05.433 LogUtil                 [ПРОЦЕСС:8538] Пропуск: Сжатие не дало значительного результата
+21:45:05.444 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
+21:45:05.448 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158539
+21:45:05.465 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158539 в память
+21:45:05.473 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158539:
+21:45:05.473 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.474 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.474 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.474 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.474 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.474 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.474 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.474 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2025:08:30 09:17:51
+21:45:05.474 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.474 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
+21:45:05.475 LogUtil                 [URI:8539] Сжатие изображения в поток
+21:45:05.501 LogUtil                 [ПРОЦЕСС:8539] Пропуск: Сжатие не дало значительного результата
+21:45:05.509 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
+21:45:05.511 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44593
+21:45:05.525 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44593 в память
+21:45:05.534 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44593:
+21:45:05.534 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.534 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.535 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.535 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.535 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.535 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.535 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.535 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
+21:45:05.535 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.535 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
+21:45:05.536 LogUtil                 [URI:4593] Сжатие изображения в поток
+21:45:05.815 LogUtil                 [ПРОЦЕСС:4593] Пропуск: Сжатие не дало значительного результата
+21:45:05.825 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
+21:45:05.827 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44590
+21:45:05.843 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44590 в память
+21:45:05.852 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44590:
+21:45:05.852 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:05.852 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:05.852 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:05.852 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:05.852 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:05.852 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:05.852 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:05.852 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
+21:45:05.852 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:05.852 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
+21:45:05.852 LogUtil                 [URI:4590] Сжатие изображения в поток
+21:45:06.154 LogUtil                 [ПРОЦЕСС:4590] Пропуск: Сжатие не дало значительного результата
+21:45:06.162 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
+21:45:06.164 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44591
+21:45:06.177 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44591 в память
+21:45:06.184 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44591:
+21:45:06.184 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:06.184 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:06.184 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:06.184 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:06.185 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:06.185 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:06.185 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:06.185 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
+21:45:06.185 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:06.185 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
+21:45:06.185 LogUtil                 [URI:4591] Сжатие изображения в поток
+21:45:06.479 LogUtil                 [ПРОЦЕСС:4591] Пропуск: Сжатие не дало значительного результата
+21:45:06.488 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
+21:45:06.491 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/44592
+21:45:06.505 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/44592 в память
+21:45:06.513 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/44592:
+21:45:06.513 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:06.513 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:06.513 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:06.513 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:06.513 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:06.513 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:06.513 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:06.514 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2024:11:03 20:16:08
+21:45:06.514 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:06.514 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов
+21:45:06.514 LogUtil                 [URI:4592] Сжатие изображения в поток
+21:45:06.792 LogUtil                 [ПРОЦЕСС:4592] Пропуск: Сжатие не дало значительного результата
+21:45:06.802 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
+21:45:06.804 ContentResolver         provider != null. Start to getTypeAsync:content://media/external/images/media/158233
+21:45:06.817 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/158233 в память
+21:45:06.823 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/158233:
+21:45:06.823 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:45:06.823 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:45:06.824 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:45:06.824 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:45:06.824 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: null
+21:45:06.824 LogUtil                 [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+21:45:06.824 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:45:06.824 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTime: 2024:11:13 19:08:41
+21:45:06.824 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:45:06.824 LogUtil                 [ПРОЦЕСС] Прочитано 4 EXIF-тегов
+21:45:06.824 LogUtil                 [URI:8233] Сжатие изображения в поток
+21:45:06.853 LogUtil                 [ПРОЦЕСС:8233] Пропуск: Сжатие не дало значительного результата

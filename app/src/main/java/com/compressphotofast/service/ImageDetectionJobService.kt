@@ -23,6 +23,7 @@ import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.BatchMediaStoreUtil
+import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.OptimizedCacheUtil
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicReference
@@ -158,11 +159,15 @@ class ImageDetectionJobService : JobService() {
             
             if (batchToProcess.isNotEmpty()) {
                 LogUtil.processDebug("ImageDetectionJobService: начинаем обработку дебаунсного батча из ${batchToProcess.size} URI")
+                PerformanceMonitor.recordDebouncedBatch(batchToProcess.size)
                 processOptimizedBatch(batchToProcess.toList(), params)
+            } else {
+                LogUtil.processDebug("ImageDetectionJobService: дебаунсный батч пустой, пропускаем обработку")
             }
         } catch (e: Exception) {
             LogUtil.error(null, "DEBOUNCING", "Ошибка при дебаунсной обработке", e)
             // Fallback к оригинальной логике
+            PerformanceMonitor.recordImmediateProcessing()
             processOptimizedBatch(triggerUris, params)
         }
     }
@@ -176,19 +181,22 @@ class ImageDetectionJobService : JobService() {
             var skippedCount = 0
             
             // Получаем пакетные метаданные для всех URI сразу для оптимизации
-            val startTime = System.currentTimeMillis()
-            val batchMetadata = BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, uriList)
-            val metadataTime = System.currentTimeMillis() - startTime
-            LogUtil.processDebug("ImageDetectionJobService: пакетное получение метаданных заняло ${metadataTime}ms для ${uriList.size} URI")
+            val batchMetadata = PerformanceMonitor.measureBatchMetadata {
+                BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, uriList)
+            }
+            
+            PerformanceMonitor.recordOptimizedBatchProcessing()
+            LogUtil.processDebug("ImageDetectionJobService: оптимизированная пакетная обработка ${uriList.size} URI")
             
             // Предзагружаем кэш директорий для быстрых проверок
-            val filePaths = batchMetadata.mapNotNull { (uri, metadata) ->
-                UriUtil.getFilePathFromUri(applicationContext, uri)
+            val filePaths = batchMetadata.mapNotNull { entry ->
+                UriUtil.getFilePathFromUri(applicationContext, entry.key)
             }
             OptimizedCacheUtil.preloadDirectoryCache(filePaths, Constants.APP_DIRECTORY)
             
             // Фильтруем URI, оставляя только те, которые требуют обработки
-            val validUris = batchMetadata.filter { (_, metadata) ->
+            val validUris = batchMetadata.filter { entry ->
+                val metadata = entry.value
                 metadata != null && 
                 !metadata.isPending && 
                 metadata.size > 0 && 

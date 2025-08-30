@@ -18,6 +18,8 @@ import java.util.Date
 import androidx.documentfile.provider.DocumentFile
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.OptimizedCacheUtil
+import com.compressphotofast.util.PerformanceMonitor
 
 /**
  * Централизованный класс для проверки необходимости обработки изображений
@@ -93,7 +95,8 @@ object ImageProcessingChecker {
             
             // Проверяем, не находится ли файл в директории приложения
             val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
-            if (isInAppDirectory(path)) {
+            val (isInAppDir, _) = OptimizedCacheUtil.checkDirectoryStatus(path, Constants.APP_DIRECTORY)
+            if (isInAppDir) {
                 LogUtil.processDebug("Файл находится в директории приложения: $path")
                 return@withContext false
             }
@@ -158,15 +161,17 @@ object ImageProcessingChecker {
 
             val settingsManager = SettingsManager.getInstance(context)
             val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
+            val (isInAppDir, isMessengerImage) = OptimizedCacheUtil.checkDirectoryStatus(path, Constants.APP_DIRECTORY)
+            
             // Проверяем, не является ли изображение файлом из мессенджера
-            if (settingsManager.shouldIgnoreMessengerPhotos() && isMessengerImage(path)) {
+            if (settingsManager.shouldIgnoreMessengerPhotos() && isMessengerImage) {
                 result.processingRequired = false // Обработка (сжатие) не требуется
                 result.reason = ProcessingSkipReason.MESSENGER_PHOTO
                 return@withContext result
             }
             
             // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
-            if (isInAppDirectory(path)) {
+            if (isInAppDir) {
                 result.processingRequired = false
                 result.reason = ProcessingSkipReason.IN_APP_DIRECTORY
                 return@withContext result
@@ -184,17 +189,29 @@ object ImageProcessingChecker {
             
             // Получаем размер файла для проверок
             val fileSize = UriUtil.getFileSize(context, uri)
+            val modificationTimestamp = UriUtil.getFileLastModified(context, uri)
             
-            // Проверяем EXIF маркер сжатия
-            val (isCompressed, quality, compressionTimestamp) = ExifUtil.getCompressionMarker(context, uri)
+            // Проверяем кэшированные EXIF данные сначала
+            val cachedExifData = OptimizedCacheUtil.getCachedExifData(uri, modificationTimestamp)
+            val (isCompressed, quality, compressionTimestamp) = if (cachedExifData != null) {
+                PerformanceMonitor.recordCacheHit("EXIF")
+                Triple(cachedExifData.isCompressed, cachedExifData.quality, cachedExifData.compressionTimestamp)
+            } else {
+                PerformanceMonitor.recordCacheMiss("EXIF")
+                // Выполняем EXIF запрос с измерением времени
+                PerformanceMonitor.measureExifCheck {
+                    val exifResult = ExifUtil.getCompressionMarker(context, uri)
+                    // Кэшируем результат
+                    OptimizedCacheUtil.cacheExifData(uri, exifResult.first, exifResult.second, exifResult.third, modificationTimestamp)
+                    exifResult
+                }
+            }
             result.hasCompressionMarker = isCompressed
             result.compressionQuality = quality
             result.compressionTimestamp = compressionTimestamp
             
             // Если файл имеет маркер сжатия, проверяем, не был ли он модифицирован после сжатия
             if (isCompressed) {
-                // Получаем дату последней модификации файла
-                val modificationTimestamp = UriUtil.getFileLastModified(context, uri)
                 result.fileModificationTimestamp = modificationTimestamp
                 
                 // Если мы не можем получить дату модификации, считаем что файл не был изменен
