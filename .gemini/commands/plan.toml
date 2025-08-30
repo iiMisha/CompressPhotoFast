@@ -1,6 +1,6 @@
 # ~/.gemini/commands/plan.toml
 
-description="Investigates and creates a strategic plan to accomplish a task based on the example in plan_mode_example.md."
+description="Investigates and creates a strategic plan to accomplish a task."
 prompt = """
 Задача: Изучи код и составь план для: {{args}}.
 ЗАПРЕТ: Не менять код. Не использовать `search_file_content` по всему проекту.
