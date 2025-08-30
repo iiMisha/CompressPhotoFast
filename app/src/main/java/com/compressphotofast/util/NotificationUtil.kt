@@ -545,12 +545,7 @@ object NotificationUtil {
         totalSizeReduction: Float,
         individualResults: List<BatchNotificationItem>
     ) {
-        // Создаем индивидуальные уведомления в группе
-        individualResults.forEachIndexed { index, result ->
-            showIndividualNotificationInGroup(context, result, index)
-        }
-        
-        // Создаем summary уведомление
+        // Показываем только итоговое уведомление (без индивидуальных)
         showSummaryNotification(
             context = context,
             successfulCount = successfulCount,
@@ -599,36 +594,16 @@ object NotificationUtil {
             }
         }
         
-        // Создаем summary уведомление
-        val notification = createNotification(
-            context = context,
-            channelId = "compression_completion_channel",
-            title = title,
-            content = message,
-            priority = NotificationCompat.PRIORITY_DEFAULT,
-            contentIntent = pendingIntent,
-            autoCancel = true
-        ).apply {
-            // Устанавливаем как summary для группы
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                // Для Android N+ используем setGroupSummary
-                val builder = NotificationCompat.Builder(context, "compression_completion_channel")
-                    .setContentTitle(title)
-                    .setContentText(message)
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
-                    .setContentIntent(pendingIntent)
-                    .setGroup(Constants.NOTIFICATION_GROUP_COMPRESSION)
-                    .setGroupSummary(true)
-                
-                getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, builder.build())
-                return
-            }
-        }
+        // Создаем обычное уведомление без группировки
+        val builder = NotificationCompat.Builder(context, "compression_completion_channel")
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
         
-        // Для старых версий Android просто показываем обычное уведомление
-        getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, notification)
+        getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, builder.build())
     }
     
     /**
