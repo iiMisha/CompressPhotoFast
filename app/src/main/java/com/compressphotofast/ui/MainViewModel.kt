@@ -70,6 +70,10 @@ class MainViewModel @Inject constructor(
     private val _isWarningExpanded = MutableStateFlow(false)
     val isWarningExpanded = _isWarningExpanded.asStateFlow()
 
+    // StateFlows для счетчиков пропущенных и уже оптимизированных изображений
+    private val _skippedCount = MutableStateFlow(0)
+    private val _alreadyOptimizedCount = MutableStateFlow(0)
+
     // Объект для последовательной обработки изображений
     private val sequentialImageProcessor = SequentialImageProcessor(context)
     
@@ -338,6 +342,52 @@ class MainViewModel @Inject constructor(
     }
 
     /**
+     * Увеличивает счетчик пропущенных изображений
+     */
+    fun incrementSkippedCount() {
+        _skippedCount.value++
+    }
+
+    /**
+     * Увеличивает счетчик уже оптимизированных изображений
+     */
+    fun incrementAlreadyOptimizedCount() {
+        _alreadyOptimizedCount.value++
+    }
+
+    /**
+     * Сбрасывает счетчики пакетной обработки
+     */
+    fun resetBatchCounters() {
+        _skippedCount.value = 0
+        _alreadyOptimizedCount.value = 0
+        LogUtil.processDebug("Счетчики пакетной обработки сброшены")
+    }
+
+    /**
+     * Показывает итоговое сообщение о пакетной обработке
+     */
+    fun showBatchSummary() {
+        val skipped = _skippedCount.value
+        val optimized = _alreadyOptimizedCount.value
+
+        if (skipped > 0 || optimized > 0) {
+            val messageParts = mutableListOf<String>()
+            if (skipped > 0) {
+                messageParts.add("Пропущено: $skipped")
+            }
+            if (optimized > 0) {
+                messageParts.add("Уже оптимизировано: $optimized")
+            }
+            val message = messageParts.joinToString(separator = ". ")
+            showToast(message)
+        }
+
+        // Сбрасываем счетчики после показа сообщения
+        resetBatchCounters()
+    }
+
+    /**
      * Показывает Toast с дедупликацией
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
@@ -401,4 +451,4 @@ data class MultipleImagesProgress(
 ) {
     val isComplete: Boolean get() = processed >= total
     val percentComplete: Int get() = if (total > 0) (processed * 100) / total else 0
-} 
+}

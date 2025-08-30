@@ -167,10 +167,7 @@ class MainActivity : AppCompatActivity() {
     private val compressionSkippedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
-                val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
-                val reason = intent.getStringExtra(Constants.EXTRA_SKIP_REASON) ?: getString(R.string.notification_skipping_inefficient)
-                
-                showToast("$fileName: $reason")
+                viewModel.incrementSkippedCount()
             }
         }
     }
@@ -181,9 +178,7 @@ class MainActivity : AppCompatActivity() {
     private val alreadyOptimizedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Constants.ACTION_ALREADY_OPTIMIZED) {
-                val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
-                
-                showToast("$fileName: уже оптимизировано")
+                viewModel.incrementAlreadyOptimizedCount()
             }
         }
     }
@@ -342,6 +337,9 @@ class MainActivity : AppCompatActivity() {
         
         val uris = extractUrisFromIntent(intent)
         if (uris.isEmpty()) return
+
+        // Сбрасываем счетчики перед началом новой пакетной обработки
+        viewModel.resetBatchCounters()
         
         // Обрабатываем изображения
         lifecycleScope.launch {
@@ -525,6 +523,8 @@ class MainActivity : AppCompatActivity() {
                 
                 // Логируем завершение для отладки
                 LogUtil.processDebug("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
+                // Показываем итоговое сообщение
+                viewModel.showBatchSummary()
             }
         }
         
@@ -790,4 +790,4 @@ class MainActivity : AppCompatActivity() {
         // Удаляем дублирующиеся константы, т.к. они теперь в PermissionsManager
         // Оставляем остальные константы
     }
-} 
+}

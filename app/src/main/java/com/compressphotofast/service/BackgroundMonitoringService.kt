@@ -112,8 +112,8 @@ class BackgroundMonitoringService : Service() {
                     LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
                     LogUtil.processDebug("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
-                    // Показываем Toast-уведомление о результате сжатия
-                    NotificationUtil.showCompressionResultToast(applicationContext, fileName, originalSize, compressedSize, reductionPercent)
+                    // Показываем уведомление о результате сжатия
+                    NotificationUtil.showCompressionResultNotification(applicationContext, fileName, originalSize, compressedSize, reductionPercent, skipped = false)
                     
                     // Устанавливаем таймер игнорирования изменений
                     UriProcessingTracker.setIgnorePeriod(uri)
