@@ -252,8 +252,8 @@ object NotificationUtil {
         }
     }
     
-    /**
-     * Показывает Toast с результатом сжатия
+    /** 
+     * Показывает Toast с результатом сжатия 
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
         val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
@@ -261,7 +261,7 @@ object NotificationUtil {
         val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
         val reductionStr = String.format("%.1f", reduction)
         
-        val message = "$truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+        val message = "🖼️ $truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
         showToast(context, message, Toast.LENGTH_LONG)
     }
     

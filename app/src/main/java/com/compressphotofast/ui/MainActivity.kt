@@ -135,7 +135,14 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
     private fun showToast(message: String, duration: Int = Toast.LENGTH_LONG) {
-        NotificationUtil.showToast(this, message, duration)
+        // Добавляем эмодзи к сообщению, если оно еще не содержит эмодзи
+        val messageWithEmoji = if (!message.startsWith("✅") && !message.startsWith("❌") && !message.startsWith("ℹ️") && 
+                                   !message.startsWith("⏹️") && !message.startsWith("📱")) {
+            "ℹ️ $message"
+        } else {
+            message
+        }
+        NotificationUtil.showToast(this, messageWithEmoji, duration)
     }
 
     /**
@@ -143,7 +150,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
         val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
-        NotificationUtil.showCompressionResultToast(this, truncatedFileName, originalSize, compressedSize)
+        NotificationUtil.showCompressionResultToast(this, "🖼️ $truncatedFileName", originalSize, compressedSize)
     }
 
     /**

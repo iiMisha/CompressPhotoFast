@@ -28,8 +28,8 @@
     <string name="notification_stop">Остановить</string>
     <string name="background_service_notification_title">Автоматическое сжатие фотографий</string>
     <string name="background_service_notification_text">Приложение мониторит новые фотографии и автоматически сжимает их</string>
-    <string name="notification_compressing">Сжатие фотографий…</string>
-    <string name="notification_processing">Обработка изображения...</string>
+    <string name="notification_compressing">📸 Сжатие фотографий…</string>
+    <string name="notification_processing">🖼️ Обработка изображения...</string>
     <string name="notification_compression_complete">Сжатие завершено</string>
     <string name="notification_channel_id">compression_channel</string>
     <string name="notification_channel_name">Сжатие изображений</string>
@@ -37,17 +37,17 @@
     <string name="notification_compression_error">Ошибка сжатия</string>
     <string name="notification_compression_error_details">Не удалось сжать файл: %1$s</string>
     <string name="notification_compression_details">%1$s: %2$s → %3$s (-%4$s%%)</string>
-    <string name="notification_compression_in_progress">Сжатие изображения...</string>
+    <string name="notification_compression_in_progress">🔧 Сжатие изображения...</string>
     <string name="notification_compression_failed">Ошибка сжатия</string>
-    <string name="notification_skipping_compressed">Изображение уже сжато, пропускаем</string>
-    <string name="notification_skipping_invalid_size">Размер файла невалидный, пропускаем</string>
-    <string name="notification_skipping_inefficient">Сжатие неэффективно, пропускаем</string>
-    <string name="notification_skipping_messenger_photo">Пропущено: фото из мессенджера</string>
+    <string name="notification_skipping_compressed">🖼️ Изображение уже сжато, пропускаем</string>
+    <string name="notification_skipping_invalid_size">📏 Размер файла невалидный, пропускаем</string>
+    <string name="notification_skipping_inefficient">📉 Сжатие неэффективно, пропускаем</string>
+    <string name="notification_skipping_messenger_photo">📱 Пропущено: фото из мессенджера</string>
     <string name="notification_compression_completed">Сжатие завершено</string>
-    <string name="notification_compression_completed_title">Сжатие фото завершено</string>
-    <string name="notification_compression_completed_text">%1$s: %2$s → %3$s (-%4$s%%)</string>
-    <string name="notification_compression_skipped_title">Сжатие фото пропущено</string>
-    <string name="notification_compression_skipped_text">%1$s: экономия места незначительна (-%2$s%%)</string>
+    <string name="notification_compression_completed_title">✅ Сжатие фото завершено</string>
+    <string name="notification_compression_completed_text">🖼️ %1$s: %2$s → %3$s (-%4$s%%)</string>
+    <string name="notification_compression_skipped_title">⏭️ Сжатие фото пропущено</string>
+    <string name="notification_compression_skipped_text">📱 %1$s: экономия места незначительна (-%2$s%%)</string>
     <string name="notification_compression_result">Результат сжатия</string>
     
     <!-- Сообщения -->
