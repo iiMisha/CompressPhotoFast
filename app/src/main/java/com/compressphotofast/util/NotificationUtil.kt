@@ -124,6 +124,12 @@ object NotificationUtil {
         title: String, 
         content: String
     ): Notification {
+        // Для foreground сервисов проверяем разрешения, но всё равно создаем уведомление
+        // (иначе сервис не может работать)
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Foreground service notification создан без разрешений - сервис требует уведомления: '$title'")
+        }
+        
         // Создаем Intent для открытия приложения при нажатии на уведомление
         val pendingIntent = createMainActivityPendingIntent(context)
         
@@ -139,7 +145,7 @@ object NotificationUtil {
             PendingIntent.FLAG_IMMUTABLE
         )
         
-        // Создаем и возвращаем уведомление
+        // Создаем и возвращаем уведомление (обязательно для foreground сервисов)
         return createNotification(
             context = context,
             channelId = context.getString(R.string.notification_channel_id),
@@ -167,6 +173,12 @@ object NotificationUtil {
         notificationId: Int,
         content: String = context.getString(R.string.notification_processing)
     ): ForegroundInfo {
+        // Для WorkManager foreground уведомлений проверяем разрешения, но всё равно создаем уведомление
+        // (иначе worker не может работать в foreground режиме)
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "WorkManager ForegroundInfo создан без разрешений - worker требует уведомления: '$notificationTitle'")
+        }
+        
         // Создаем уведомление
         val notification = createNotification(
             context = context,
@@ -192,7 +204,8 @@ object NotificationUtil {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = context.getString(R.string.notification_channel_name)
             val description = context.getString(R.string.notification_channel_description)
-            val importance = NotificationManager.IMPORTANCE_LOW
+            // Изменено с IMPORTANCE_LOW на IMPORTANCE_DEFAULT для лучшей совместимости с Android 13+
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
             
             createNotificationChannel(
                 context,
@@ -284,7 +297,7 @@ object NotificationUtil {
     
     /**
      * Показывает Toast с дедупликацией сообщений
-     * Улучшенная версия с использованием корутин
+     * Улучшенная версия с использованием корутин и проверкой разрешений
      * Централизованный метод для всего приложения
      */
     fun showToast(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
@@ -292,6 +305,12 @@ object NotificationUtil {
         CoroutineScope(Dispatchers.Main).launch {
             synchronized(toastLock) {
                 try {
+                    // Проверяем разрешения на показ уведомлений (включая Toast на Android 13+)
+                    if (!canShowNotifications(context)) {
+                        LogUtil.debug("NotificationUtil", "Toast пропущен - отсутствуют разрешения на уведомления: '$message'")
+                        return@synchronized
+                    }
+                    
                     // Проверяем, не показывали ли мы недавно это сообщение
                     val lastTime = lastMessageTime[message] ?: 0L
                     val currentTime = System.currentTimeMillis()
@@ -314,7 +333,7 @@ object NotificationUtil {
                     // Устанавливаем флаг
                     isToastShowing = true
                     
-                    // Показываем Toast
+                    // Показываем Toast с обработкой SecurityException для Android 13+
                     val toast = Toast.makeText(context, message, duration)
                     
                     // Добавляем callback для сброса флага
@@ -339,6 +358,10 @@ object NotificationUtil {
                     Handler(Looper.getMainLooper()).postDelayed({
                         lastMessageTime.remove(message)
                     }, MIN_TOAST_INTERVAL * 2)
+                } catch (e: SecurityException) {
+                    // Обработка ошибки безопасности на Android 13+
+                    LogUtil.error(android.net.Uri.EMPTY, "Toast", "SecurityException при показе Toast - отсутствует разрешение POST_NOTIFICATIONS: '$message'", e)
+                    isToastShowing = false
                 } catch (e: Exception) {
                     LogUtil.errorWithException("NotificationUtil", e) 
                     isToastShowing = false
@@ -356,18 +379,31 @@ object NotificationUtil {
         message: String,
         notificationId: Int
     ) {
-        val pendingIntent = createMainActivityPendingIntent(context)
+        // Проверяем разрешения перед показом уведомления
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Completion notification пропущен - отсутствуют разрешения: '$title'")
+            return
+        }
         
-        val notification = createNotification(
-            context = context,
-            channelId = context.getString(R.string.notification_channel_id),
-            title = title,
-            content = message,
-            autoCancel = true,
-            contentIntent = pendingIntent
-        )
-        
-        getNotificationManager(context).notify(notificationId, notification)
+        try {
+            val pendingIntent = createMainActivityPendingIntent(context)
+            
+            val notification = createNotification(
+                context = context,
+                channelId = context.getString(R.string.notification_channel_id),
+                title = title,
+                content = message,
+                autoCancel = true,
+                contentIntent = pendingIntent
+            )
+            
+            getNotificationManager(context).notify(notificationId, notification)
+            LogUtil.debug("NotificationUtil", "Показано completion notification: $title")
+        } catch (e: SecurityException) {
+            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе completion notification - отсутствует разрешение POST_NOTIFICATIONS: '$title'", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
     }
 
     /**
@@ -433,6 +469,33 @@ object NotificationUtil {
     }
     
     /**
+     * Централизованная проверка возможности показа уведомлений
+     * Проверяет разрешение POST_NOTIFICATIONS для Android 13+ и общее состояние уведомлений
+     */
+    fun canShowNotifications(context: Context): Boolean {
+        // Проверяем общее состояние уведомлений
+        if (!areNotificationsEnabled(context)) {
+            LogUtil.debug("NotificationUtil", "Уведомления отключены в настройках системы")
+            return false
+        }
+        
+        // Для Android 13+ проверяем разрешение POST_NOTIFICATIONS
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                context, 
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            
+            if (!hasPermission) {
+                LogUtil.debug("NotificationUtil", "Отсутствует разрешение POST_NOTIFICATIONS для Android 13+")
+                return false
+            }
+        }
+        
+        return true
+    }
+    
+    /**
      * Создает PendingIntent для открытия главного активити
      */
     fun createMainActivityPendingIntent(context: Context, requestCode: Int = 0): PendingIntent {
@@ -466,46 +529,59 @@ object NotificationUtil {
         indeterminate: Boolean = false,
         cancelAction: String? = null
     ) {
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val contentIntent = createMainActivityPendingIntent(context)
-        
-        // Список действий для уведомления
-        val actions = mutableListOf<NotificationAction>()
-        
-        // Добавляем кнопку отмены, если указан action
-        if (cancelAction != null) {
-            val cancelIntent = Intent(cancelAction)
-            val cancelPendingIntent = PendingIntent.getBroadcast(
-                context,
-                notificationId,
-                cancelIntent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
-            
-            actions.add(
-                NotificationAction(
-                    iconRes = android.R.drawable.ic_menu_close_clear_cancel,
-                    title = context.getString(R.string.notification_action_stop),
-                    pendingIntent = cancelPendingIntent
-                )
-            )
+        // Проверяем разрешения перед показом уведомления
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Progress notification пропущен - отсутствуют разрешения: '$title'")
+            return
         }
         
-        // Создаем уведомление с прогрессом
-        val notification = createNotification(
-            context = context,
-            channelId = context.getString(R.string.notification_channel_id),
-            title = title,
-            content = content,
-            priority = NotificationCompat.PRIORITY_LOW,
-            ongoing = true,
-            contentIntent = contentIntent,
-            actions = actions,
-            progress = ProgressInfo(max, progress, indeterminate)
-        )
-        
-        // Показываем уведомление
-        getNotificationManager(context).notify(notificationId, notification)
+        try {
+            // Создаем Intent для открытия приложения при нажатии на уведомление
+            val contentIntent = createMainActivityPendingIntent(context)
+            
+            // Список действий для уведомления
+            val actions = mutableListOf<NotificationAction>()
+            
+            // Добавляем кнопку отмены, если указан action
+            if (cancelAction != null) {
+                val cancelIntent = Intent(cancelAction)
+                val cancelPendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    notificationId,
+                    cancelIntent,
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+                
+                actions.add(
+                    NotificationAction(
+                        iconRes = android.R.drawable.ic_menu_close_clear_cancel,
+                        title = context.getString(R.string.notification_action_stop),
+                        pendingIntent = cancelPendingIntent
+                    )
+                )
+            }
+            
+            // Создаем уведомление с прогрессом
+            val notification = createNotification(
+                context = context,
+                channelId = context.getString(R.string.notification_channel_id),
+                title = title,
+                content = content,
+                priority = NotificationCompat.PRIORITY_LOW,
+                ongoing = true,
+                contentIntent = contentIntent,
+                actions = actions,
+                progress = ProgressInfo(max, progress, indeterminate)
+            )
+            
+            // Показываем уведомление
+            getNotificationManager(context).notify(notificationId, notification)
+            LogUtil.debug("NotificationUtil", "Показано progress notification: $title ($progress/$max)")
+        } catch (e: SecurityException) {
+            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе progress notification - отсутствует разрешение POST_NOTIFICATIONS: '$title'", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
     }
     
     /**
@@ -569,41 +645,54 @@ object NotificationUtil {
         totalSizeReduction: Float,
         totalCount: Int
     ) {
-        val pendingIntent = createMainActivityPendingIntent(context)
-        
-        // Формируем заголовок
-        val title = if (successfulCount > 0) {
-            "📦 Сжато $successfulCount фото"
-        } else {
-            "⏭️ Обработано $totalCount фото"
+        // Проверяем разрешения перед показом уведомления
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Summary notification пропущен - отсутствуют разрешения")
+            return
         }
         
-        // Формируем текст
-        val message = buildString {
-            if (successfulCount > 0) {
-                val originalSizeStr = FileOperationsUtil.formatFileSize(totalOriginalSize)
-                val compressedSizeStr = FileOperationsUtil.formatFileSize(totalCompressedSize)
-                val reductionStr = String.format("%.1f", totalSizeReduction)
-                append("$originalSizeStr → $compressedSizeStr (-$reductionStr%)")
-                
-                if (skippedCount > 0) {
-                    append("\nПропущено: $skippedCount фото")
-                }
+        try {
+            val pendingIntent = createMainActivityPendingIntent(context)
+            
+            // Формируем заголовок
+            val title = if (successfulCount > 0) {
+                "📦 Сжато $successfulCount фото"
             } else {
-                append("Все файлы пропущены (уже сжаты или малый размер)")
+                "⏭️ Обработано $totalCount фото"
             }
+            
+            // Формируем текст
+            val message = buildString {
+                if (successfulCount > 0) {
+                    val originalSizeStr = FileOperationsUtil.formatFileSize(totalOriginalSize)
+                    val compressedSizeStr = FileOperationsUtil.formatFileSize(totalCompressedSize)
+                    val reductionStr = String.format("%.1f", totalSizeReduction)
+                    append("$originalSizeStr → $compressedSizeStr (-$reductionStr%)")
+                    
+                    if (skippedCount > 0) {
+                        append("\nПропущено: $skippedCount фото")
+                    }
+                } else {
+                    append("Все файлы пропущены (уже сжаты или малый размер)")
+                }
+            }
+            
+            // Создаем обычное уведомление без группировки
+            val builder = NotificationCompat.Builder(context, "compression_completion_channel")
+                .setContentTitle(title)
+                .setContentText(message)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+            
+            getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, builder.build())
+            LogUtil.debug("NotificationUtil", "Показано summary notification: $title")
+        } catch (e: SecurityException) {
+            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе summary notification - отсутствует разрешение POST_NOTIFICATIONS", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
         }
-        
-        // Создаем обычное уведомление без группировки
-        val builder = NotificationCompat.Builder(context, "compression_completion_channel")
-            .setContentTitle(title)
-            .setContentText(message)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-        
-        getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, builder.build())
     }
     
     /**
@@ -619,28 +708,41 @@ object NotificationUtil {
             return
         }
         
-        val title = if (result.skipped) "⏭️ ${result.fileName}" else "✅ ${result.fileName}"
-        
-        val message = if (result.skipped) {
-            result.skipReason ?: "Пропущен"
-        } else {
-            val originalSizeStr = FileOperationsUtil.formatFileSize(result.originalSize)
-            val compressedSizeStr = FileOperationsUtil.formatFileSize(result.compressedSize)
-            val reductionStr = String.format("%.1f", result.sizeReduction)
-            "$originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+        // Проверяем разрешения перед показом уведомления
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Individual notification пропущен - отсутствуют разрешения: '${result.fileName}'")
+            return
         }
         
-        val builder = NotificationCompat.Builder(context, "compression_completion_channel")
-            .setContentTitle(title)
-            .setContentText(message)
-            .setSmallIcon(if (result.skipped) android.R.drawable.ic_menu_close_clear_cancel else android.R.drawable.ic_menu_save)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setAutoCancel(true)
-            .setGroup(Constants.NOTIFICATION_GROUP_COMPRESSION)
-            .setGroupSummary(false)
-        
-        val notificationId = Constants.NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE + index
-        getNotificationManager(context).notify(notificationId, builder.build())
+        try {
+            val title = if (result.skipped) "⏭️ ${result.fileName}" else "✅ ${result.fileName}"
+            
+            val message = if (result.skipped) {
+                result.skipReason ?: "Пропущен"
+            } else {
+                val originalSizeStr = FileOperationsUtil.formatFileSize(result.originalSize)
+                val compressedSizeStr = FileOperationsUtil.formatFileSize(result.compressedSize)
+                val reductionStr = String.format("%.1f", result.sizeReduction)
+                "$originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+            }
+            
+            val builder = NotificationCompat.Builder(context, "compression_completion_channel")
+                .setContentTitle(title)
+                .setContentText(message)
+                .setSmallIcon(if (result.skipped) android.R.drawable.ic_menu_close_clear_cancel else android.R.drawable.ic_menu_save)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setAutoCancel(true)
+                .setGroup(Constants.NOTIFICATION_GROUP_COMPRESSION)
+                .setGroupSummary(false)
+            
+            val notificationId = Constants.NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE + index
+            getNotificationManager(context).notify(notificationId, builder.build())
+            LogUtil.debug("NotificationUtil", "Показано individual notification: ${result.fileName}")
+        } catch (e: SecurityException) {
+            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе individual notification - отсутствует разрешение POST_NOTIFICATIONS: '${result.fileName}'", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
     }
     
     /**
