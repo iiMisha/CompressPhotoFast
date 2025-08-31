@@ -21,7 +21,7 @@ object CompressionBatchTracker {
     private val batchIdCounter = AtomicInteger(1)
 
     // Константы для автобатчей
-    private const val AUTO_BATCH_TIMEOUT_MS = 8000L // 8 секунд для завершения автобатча
+    private const val AUTO_BATCH_TIMEOUT_MS = 60000L // 60 секунд для завершения автобатча
     private const val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
 
     /**
