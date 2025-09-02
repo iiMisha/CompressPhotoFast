@@ -875,9 +875,10 @@ object ExifUtil {
     suspend fun writeExifDataFromMemory(
         context: Context, 
         uri: Uri, 
-        exifData: Map<String, Any>
+        exifData: Map<String, Any>,
+        quality: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
-        return@withContext applyExifFromMemory(context, uri, exifData)
+        return@withContext applyExifFromMemory(context, uri, exifData, quality)
     }
     
     /**

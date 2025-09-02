@@ -322,17 +322,19 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.success()
             } else {
                 // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
+                var qualityForMarker: Int? = null
                 val skipReason = if (processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO) {
                     LogUtil.processInfo("[ПРОЦЕСС] Изображение из мессенджера, сжатие пропущено, но EXIF будет обновлен")
                     appContext.getString(R.string.notification_skipping_messenger_photo)
                 } else {
                     LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent%), пропускаем")
+                    qualityForMarker = 99 // Устанавливаем маркер для неэффективного сжатия
                     null
                 }
                 
-                // Сохраняем обновленные EXIF-данные (например, добавленные даты) обратно в исходный файл
-                LogUtil.processInfo("[ПРОЦЕСС] Сохраняем обновленные EXIF-данные (если были изменения)")
-                ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory)
+                // Сохраняем обновленные EXIF-данные и, если нужно, маркер сжатия
+                LogUtil.processInfo("[ПРОЦЕСС] Сохраняем обновленные EXIF-данные (качество для маркера: $qualityForMarker)")
+                ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, qualityForMarker)
                 
                 setForeground(createForegroundInfo("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}"))
                 
