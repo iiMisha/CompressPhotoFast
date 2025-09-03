@@ -77,6 +77,7 @@ object NotificationUtil {
             .setPriority(priority)
             .setOngoing(ongoing)
             .setAutoCancel(autoCancel)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         
         // Добавляем интент для открытия приложения при нажатии на уведомление
         contentIntent?.let { builder.setContentIntent(it) }
@@ -224,7 +225,7 @@ object NotificationUtil {
                 "compression_completion_channel",
                 context.getString(R.string.notification_completion_channel_name),
                 context.getString(R.string.notification_completion_channel_description),
-                NotificationManager.IMPORTANCE_DEFAULT,
+                NotificationManager.IMPORTANCE_HIGH,
                 showBadge = true,
                 enableLights = true,
                 enableVibration = true
@@ -390,7 +391,7 @@ object NotificationUtil {
             
             val notification = createNotification(
                 context = context,
-                channelId = context.getString(R.string.notification_channel_id),
+                channelId = "compression_completion_channel",
                 title = title,
                 content = message,
                 autoCancel = true,
