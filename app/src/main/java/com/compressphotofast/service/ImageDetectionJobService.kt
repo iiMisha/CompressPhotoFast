@@ -501,15 +501,6 @@ class ImageDetectionJobService : JobService() {
         }
     }
 
-    /**
-     * Получение размера файла (устаревший метод, оставлен для совместимости)
-     */
-    @Deprecated("Используйте getFileMetadata() для получения всех данных за один запрос")
-    private suspend fun getFileSize(uri: Uri): Long = withContext(Dispatchers.IO) {
-        val metadata = getFileMetadata(uri)
-        return@withContext metadata.size
-    }
-
     override fun onStopJob(params: JobParameters?): Boolean {
         LogUtil.processDebug("onStopJob: задание остановлено, отменяем корутины")
         
