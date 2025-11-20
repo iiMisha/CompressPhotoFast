@@ -279,10 +279,11 @@ object ImageProcessingChecker {
     private fun isProcessableMimeType(mimeType: String?): Boolean {
         if (mimeType == null) return false
         
-        return mimeType.startsWith("image/") && 
-               (mimeType.contains("jpeg") || 
-                mimeType.contains("jpg") || 
-                mimeType.contains("png"))
+        return mimeType.startsWith("image/") &&
+               (mimeType.contains("jpeg") ||
+                mimeType.contains("jpg") ||
+                mimeType.contains("png") ||
+                mimeType.equals("image/heic", ignoreCase = true))
     }
 
     private fun isInAppDirectory(path: String): Boolean {

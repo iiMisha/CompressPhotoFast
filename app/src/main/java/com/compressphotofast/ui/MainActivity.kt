@@ -84,7 +84,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             
-            initializeBackgroundServices()
+            // Запрашиваем разрешение на уведомления для Android 13+ (если еще не предоставлено)
+            if (!permissionsManager.hasNotificationPermission()) {
+                permissionsManager.requestNotificationPermission {
+                    initializeBackgroundServices()
+                }
+            } else {
+                initializeBackgroundServices()
+            }
         } else {
             LogUtil.processDebug("Не все разрешения получены")
             
@@ -92,7 +99,14 @@ class MainActivity : AppCompatActivity() {
             if (permissions.size == 1 && permissions.containsKey(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
                 LogUtil.processWarning("Разрешение ACCESS_MEDIA_LOCATION отклонено, продолжаем без сохранения GPS")
                 showToast("GPS координаты не будут сохраняться в сжатых фото")
-                initializeBackgroundServices()
+                // Запрашиваем разрешение на уведомления для Android 13+ (если еще не предоставлено)
+                if (!permissionsManager.hasNotificationPermission()) {
+                    permissionsManager.requestNotificationPermission {
+                        initializeBackgroundServices()
+                    }
+                } else {
+                    initializeBackgroundServices()
+                }
             } else {
                 showPermissionExplanationDialog()
             }
@@ -618,7 +632,16 @@ class MainActivity : AppCompatActivity() {
             requestCode,
             permissions,
             grantResults,
-            onAllGranted = { initializeBackgroundServices() },
+            onAllGranted = {
+                // Запрашиваем разрешение на уведомления для Android 13+ (если еще не предоставлено)
+                if (!permissionsManager.hasNotificationPermission()) {
+                    permissionsManager.requestNotificationPermission {
+                        initializeBackgroundServices()
+                    }
+                } else {
+                    initializeBackgroundServices()
+                }
+            },
             onSomePermissionsDenied = { /* Ничего не делаем, т.к. это обрабатывается внутри handlePermissionResult */ }
         )
     }
