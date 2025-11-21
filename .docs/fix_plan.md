@@ -1,68 +1,67 @@
-# План по устранению проблемы с дублированием файлов
+## План по реализации массовой обработки изображений
 
-## Проблема
-При включении автосжатия после длительного периода его отключения, для накопившихся изображений создаются дубликаты в папке приложения, несмотря на включенную опцию "заменять оригинальные файлы". Причина — состояние гонки при чтении настроек из-за некорректного управления экземплярами `SettingsManager` в утилитах, используемых фоновыми задачами.
+### 1. Цель
 
-## Цель
-Обеспечить, чтобы все компоненты приложения использовали единый, предоставленный через Hilt, экземпляр `SettingsManager` и других утилит. Это устранит состояние гонки и приведет архитектуру к единому стандарту внедрения зависимостей.
+Реализовать надежный механизм для выбора и обработки более 10,000 изображений за один сеанс, обойдя ограничение стандартного `Intent.ACTION_SEND_MULTIPLE` (~500 изображений).
 
-## Подробный план
+### 2. Ключевые изменения
 
-### 1. Рефакторинг `SettingsManager`
-- **Файл:** `app/src/main/java/com/compressphotofast/util/SettingsManager.kt`
-- **Действия:**
-  - Удалить `companion object` с методом `getInstance(context: Context)`. Это устранит основной источник проблемы.
+Для достижения цели необходимо внедрить возможность выбора папки вместо отдельных файлов. Это позволит приложению самостоятельно сканировать содержимое папки и обрабатывать все найденные изображения.
 
-### 2. Рефакторинг `FileOperationsUtil`
-- **Файл:** `app/src/main/java/com/compressphotofast/util/FileOperationsUtil.kt`
-- **Действия:**
-  - Преобразовать `object FileOperationsUtil` в `class FileOperationsUtil`.
-  - Добавить аннотацию `@Singleton`.
-  - Внедрить `SettingsManager` через конструктор: `@Inject constructor(private val settingsManager: SettingsManager)`.
-  - Заменить вызовы `isSaveModeReplace(context)` на внутренний метод, использующий внедренный `settingsManager`.
+1.  **Добавить кнопку "Выбрать папку" в UI**:
+    *   **Файл**: `app/src/main/res/layout/activity_main.xml`
+    *   **Действие**: Добавить новый элемент `Button` или `MaterialButton` рядом с существующими элементами управления.
 
-### 3. Рефакторинг `ImageCompressionUtil`
-- **Файл:** `app/src/main/java/com/compressphotofast/util/ImageCompressionUtil.kt`
-- **Действия:**
-  - Преобразовать `object ImageCompressionUtil` в `class ImageCompressionUtil`.
-  - Добавить аннотацию `@Singleton`.
-  - Внедрить зависимости (`FileOperationsUtil`, `UriUtil`, `MediaStoreUtil` и др.) через конструктор.
-  - Обновить внутренние вызовы статических методов на вызовы у внедренных экземпляров.
+2.  **Реализовать выбор папки через Storage Access Framework (SAF)**:
+    *   **Файл**: `app/src/main/java/com/compressphotofast/ui/MainActivity.kt`
+    *   **Действие**:
+        *   Создать `ActivityResultLauncher` для интента `Intent.ACTION_OPEN_DOCUMENT_TREE`.
+        *   По нажатию на новую кнопку "Выбрать папку" запускать этот лаунчер.
+        *   В колбэке лаунчера получить URI выбранной директории.
+        *   Сохранить постоянные права доступа к этой директории, чтобы иметь возможность работать с ней в фоновом режиме:
+            ```kotlin
+            val contentResolver = applicationContext.contentResolver
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            ```
 
-### 4. Рефакторинг `UriUtil`
-- **Файл:** `app/src/main/java/com/compressphotofast/util/UriUtil.kt`
-- **Действия:**
-  - Преобразовать `object UriUtil` в `class UriUtil`.
-  - Добавить аннотацию `@Singleton`.
-  - Внедрить `FileOperationsUtil` через конструктор.
-  - Обновить вызов `FileOperationsUtil.isScreenshot(context, uri)` на вызов метода у внедренного экземпляра.
+3.  **Создать новый `Worker` для сканирования и обработки папки**:
+    *   **Файл**: Создать `app/src/main/java/com/compressphotofast/worker/FolderProcessingWorker.kt`
+    *   **Действие**:
+        *   Создать новый класс `FolderProcessingWorker`, наследуемый от `CoroutineWorker`.
+        *   `Worker` будет принимать URI папки в качестве входных данных (`inputData`).
+        *   Реализовать рекурсивную функцию для обхода дерева документов (`DocumentFile.fromTreeUri(...)`) для поиска всех файлов изображений.
+        *   Для каждого найденного изображения запускать существующую логику сжатия (вероятно, через `ImageProcessingUtil.handleImage` или напрямую ставя в очередь `ImageCompressionWorker`).
+        *   `Worker` должен сообщать о прогрессе (количество найденных, обработанных, пропущенных файлов) через `setProgressAsync()`.
 
-### 5. Рефакторинг `ImageProcessingChecker`
-- **Файл:** `app/src/main/java/com/compressphotofast/util/ImageProcessingChecker.kt`
-- **Действия:**
-  - Преобразовать `object ImageProcessingChecker` в `class ImageProcessingChecker`.
-  - Добавить аннотацию `@Singleton`.
-  - Внедрить `SettingsManager` и другие необходимые утилиты через конструктор.
+4.  **Запускать `Worker` и отслеживать прогресс**:
+    *   **Файл**: `app/src/main/java/com/compressphotofast/ui/MainActivity.kt`
+    *   **Действие**:
+        *   После получения URI папки создать и поставить в очередь `OneTimeWorkRequest` для `FolderProcessingWorker`, передав ему URI.
+        *   Использовать `WorkManager.getWorkInfoBy...()` для наблюдения за `WorkInfo` задачи.
+        *   Обновлять UI (например, `ProgressBar`, текстовые поля со счетчиками) на основе данных о прогрессе, получаемых от `Worker`.
 
-### 6. Рефакторинг `ImageCompressionWorker`
-- **Файл:** `app/src/main/java/com/compressphotofast/worker/ImageCompressionWorker.kt`
-- **Действия:**
- - Внедрить через `@AssistedInject` все необходимые утилиты: `FileOperationsUtil`, `UriUtil`, `ImageCompressionUtil`, `ImageProcessingChecker`.
-  - Заменить все статические вызовы (`FileOperationsUtil.isSaveModeReplace(...)`, `UriUtil.getFileNameFromUri(...)` и т.д.) на вызовы методов у внедренных экземпляров.
+### 3. Логика работы
 
-### 7. Глобальное обновление вызовов
-- **Файлы:** Все файлы проекта.
-- **Действия:**
-  - Выполнить глобальный поиск по проекту на предмет использования статических методов из рефакторенных утилит (`FileOperationsUtil.*`, `UriUtil.*`, `ImageCompressionUtil.*` и т.д.).
-  - В классах, поддерживающих DI (Activity, ViewModel, Service, Worker), внедрить утилиты через конструктор или `@Inject lateinit var`.
-  - Заменить все найденные статические вызовы.
+1.  **Пользовательский сценарий**:
+    *   Пользователь нажимает новую кнопку "Выбрать папку" в `MainActivity`.
+    *   Открывается системный файловый менеджер для выбора директории.
+    *   Пользователь выбирает папку с фотографиями и нажимает "Разрешить".
+    *   `MainActivity` получает URI папки и сохраняет права доступа.
 
-### 8. Обновление модуля Hilt
-- **Файл:** `app/src/main/java/com/compressphotofast/di/AppModule.kt`
-- **Действия:**
- - Убедиться, что Hilt автоматически предоставляет все новые классы, помеченные аннотацией `@Singleton`. Явных привязок (`@Provides`) для них создавать не нужно.
+2.  **Запуск фоновой задачи**:
+    *   `MainActivity` создает `WorkRequest` для `FolderProcessingWorker`, передавая URI в `Data`.
+    *   `WorkManager` ставит задачу в очередь на выполнение.
+    *   На UI появляется индикатор прогресса (например, "Идет поиск изображений...").
 
-### 9. Сборка и тестирование
-- **Действия:**
-  - **После каждого шага** выполнять полную сборку проекта (`./gradlew assembleDebug`) для немедленного выявления исправления ошибок компиляции.
-  - После завершения всего рефакторинга провести ручное тестирование, воспроизведя исходный сценарий: выключить автосжатие, накопить фото, включить автосжатие и убедиться в отсутствии дубликатов.
+3.  **Обработка в `FolderProcessingWorker`**:
+    *   `Worker` запускается в фоновом потоке.
+    *   Он использует `DocumentFile.fromTreeUri` для получения доступа к папке.
+    *   Рекурсивно сканирует папку, собирая список URI всех найденных изображений (проверяя MIME-тип). На этом этапе `Worker` может обновлять прогресс (`WorkInfo`), сообщая общее количество найденных файлов.
+    *   Собрав список, `Worker` начинает итерацию по нему и для каждого URI изображения запускает уже существующий `ImageCompressionWorker` (или использует `ImageProcessingUtil`).
+    *   После обработки каждого файла `Worker` обновляет прогресс (`WorkInfo`), инкрементируя счетчик обработанных файлов.
+
+4.  **Отображение результата**:
+    *   `MainActivity` (или `MainViewModel`) наблюдает за `WorkInfo` и обновляет UI в реальном времени: `Обработано 123 из 10500...`.
+    *   По завершении работы `Worker` `MainActivity` отображает итоговый результат, как это уже сделано для пакетной обработки.
+
+Этот подход решает проблему ограничения `Intent`, так как передается только один URI (для папки), а вся остальная работа по поиску и обработке файлов инкапсулируется в надежном фоновом `Worker`.
