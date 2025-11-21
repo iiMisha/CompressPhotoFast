@@ -16,7 +16,7 @@
     *   Утилиты в пакете `app/src/main/java/com/compressphotofast/util` предоставляют вспомогательные функции для работы с файлами, URI, EXIF-данными и уведомлениями.
 
 *   **Data Layer**:
-    *   `SharedPreferences` используется для хранения простых настроек.
+    *   `DataStore` используется для хранения простых настроек.
     *   `MediaStore` используется для доступа к изображениям на устройстве.
 
 ## Фоновая обработка
@@ -47,7 +47,7 @@ graph TD
     end
 
     subgraph "Data Layer"
-        D --> H[SharedPreferences]
+        D --> H[DataStore]
         C --> I[MediaStore]
         E --> I
     end
