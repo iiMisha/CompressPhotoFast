@@ -34,6 +34,11 @@ import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import android.content.IntentSender
+import androidx.activity.result.IntentSenderRequest
+import com.compressphotofast.util.Event
+import com.compressphotofast.util.EventObserver
+
 
 /**
  * Модель представления для главного экрана
@@ -73,6 +78,10 @@ class MainViewModel @Inject constructor(
     // StateFlows для счетчиков пропущенных и уже оптимизированных изображений
     private val _skippedCount = MutableStateFlow(0)
     private val _alreadyOptimizedCount = MutableStateFlow(0)
+
+    private val _permissionRequest = MutableLiveData<Event<IntentSenderRequest>>()
+    val permissionRequest: LiveData<Event<IntentSenderRequest>> = _permissionRequest
+
 
     // Объект для последовательной обработки изображений
     private val sequentialImageProcessor = SequentialImageProcessor(context)
@@ -410,6 +419,11 @@ class MainViewModel @Inject constructor(
             LogUtil.errorWithException("Ошибка при проверке возможности обработки изображения: $uri", e)
             false
         }
+    }
+
+    fun requestPermission(intentSender: IntentSender) {
+        val request = IntentSenderRequest.Builder(intentSender).build()
+        _permissionRequest.value = Event(request)
     }
 
     // Очистка ресурсов при уничтожении ViewModel

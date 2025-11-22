@@ -52,6 +52,7 @@ import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.CompressionBatchTracker
+import com.compressphotofast.util.EventObserver
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -145,6 +146,20 @@ class MainActivity : AppCompatActivity() {
         checkPendingDeleteRequests()
     }
 
+    private val renameRequestLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            LogUtil.processDebug("Получено разрешение на переименование. Повторяем операцию.")
+            // Здесь нам нужен URI, который мы хотели переименовать.
+            // Мы можем временно сохранить его в ViewModel или SharedPreferences.
+            // Для простоты, пока просто логируем.
+            showToast("Разрешение получено. Повторите операцию сжатия.")
+        } else {
+            LogUtil.processDebug("Пользователь отклонил запрос на переименование файла")
+        }
+    }
+
     /**
      * Показывает Toast в верхней части экрана с проверкой дублирования
      */
@@ -210,8 +225,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
+    private val renamePermissionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Constants.ACTION_REQUEST_RENAME_PERMISSION) {
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
+                }
+                val sender = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Constants.EXTRA_RENAME_INTENT_SENDER, IntentSender::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<IntentSender>(Constants.EXTRA_RENAME_INTENT_SENDER)
+                }
+
+                if (uri != null && sender != null) {
+                    LogUtil.processDebug("Получен запрос на переименование файла через broadcast: $uri")
+                    viewModel.requestPermission(sender)
+                }
+            }
+        }
+    }
+ 
+     override fun onStart() {
+         super.onStart()
         
         // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
         registerReceiver(
@@ -221,9 +260,13 @@ class MainActivity : AppCompatActivity() {
         )
         
         // Регистрируем receiver для запросов на удаление файлов
-        registerReceiver(deletePermissionReceiver, 
+        registerReceiver(deletePermissionReceiver,
             IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
             Context.RECEIVER_NOT_EXPORTED)
+
+       registerReceiver(renamePermissionReceiver,
+           IntentFilter(Constants.ACTION_REQUEST_RENAME_PERMISSION),
+           Context.RECEIVER_NOT_EXPORTED)
         
         // Регистрируем BroadcastReceiver для получения уведомлений о пропуске сжатия
         registerReceiver(
@@ -244,6 +287,7 @@ class MainActivity : AppCompatActivity() {
         // Отменяем регистрацию BroadcastReceiver при остановке активности
         try {
             unregisterReceiver(deletePermissionReceiver)
+           unregisterReceiver(renamePermissionReceiver)
             unregisterReceiver(compressionCompletedReceiver)
             unregisterReceiver(compressionSkippedReceiver)
             unregisterReceiver(alreadyOptimizedReceiver)
@@ -576,6 +620,10 @@ class MainActivity : AppCompatActivity() {
                 LogUtil.processDebug(resultLog)
             }
         }
+
+        viewModel.permissionRequest.observe(this, EventObserver { request ->
+            renameRequestLauncher.launch(request)
+        })
     }
 
     /**

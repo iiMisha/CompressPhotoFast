@@ -232,9 +232,20 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Для MediaDocumentsProvider URI переименование не работает, но мы все равно можем удалить оригинал
                 if (!isMediaDocumentsUri) {
-                    backupUri = FileOperationsUtil.renameOriginalFileIfNeeded(appContext, imageUri) ?: imageUri
+                    val renameResult = FileOperationsUtil.renameOriginalFileIfNeeded(appContext, imageUri)
+                    if (renameResult is Uri) {
+                        backupUri = renameResult
+                    } else if (renameResult is IntentSender) {
+                        addPendingRenameRequest(imageUri, renameResult)
+                        // Если требуется разрешение, мы не можем продолжить, пока не получим его.
+                        // Мы вернемся к этому файлу позже.
+                        return@withContext Result.failure()
+                    } else {
+                        // Ошибка переименования
+                        return@withContext Result.failure()
+                    }
                 }
-                
+
                 // Сохраняем сжатое изображение
                     val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
                     appContext,
@@ -483,6 +494,29 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
         appContext.sendBroadcast(intent)
     }
+
+    private fun addPendingRenameRequest(uri: Uri, renamePendingIntent: IntentSender) {
+        LogUtil.processInfo("Требуется разрешение пользователя для переименования оригинального файла: $uri")
+
+        // Сохраняем URI в SharedPreferences для последующей обработки
+        val prefs = appContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
+        val pendingRenameUris = prefs.getStringSet(Constants.PREF_PENDING_RENAME_URIS, mutableSetOf()) ?: mutableSetOf()
+        val newSet = pendingRenameUris.toMutableSet()
+        newSet.add(uri.toString())
+
+        prefs.edit()
+            .putStringSet(Constants.PREF_PENDING_RENAME_URIS, newSet)
+            .apply()
+
+        // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
+        val intent = Intent(Constants.ACTION_REQUEST_RENAME_PERMISSION).apply {
+            setPackage(appContext.packageName)
+            putExtra(Constants.EXTRA_URI, uri)
+            putExtra(Constants.EXTRA_RENAME_INTENT_SENDER, renamePendingIntent)
+        }
+        appContext.sendBroadcast(intent)
+    }
+
 
     /**
      * Получает имя файла из URI с проверкой на null
