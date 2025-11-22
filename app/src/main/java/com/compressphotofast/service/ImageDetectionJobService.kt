@@ -125,6 +125,9 @@ class ImageDetectionJobService : JobService() {
         jobScope.launch {
             try {
                 processUrisWithDebouncing(triggerUris.toList(), params)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Игнорируем исключение отмены корутины, это нормальное поведение
+                LogUtil.debug("JOB_CANCELLATION", "Корутина была отменена: ${e.message}")
             } catch (e: Exception) {
                 LogUtil.error(null, "JOB_PROCESSING", "Критическая ошибка при обработке URI в JobService", e)
                 // В случае критической ошибки все равно завершаем задание
@@ -180,13 +183,29 @@ class ImageDetectionJobService : JobService() {
             var processedCount = 0
             var skippedCount = 0
             
-            // Получаем пакетные метаданные для всех URI сразу для оптимизации
+            // Сначала проверяем существование всех URI и фильтруем недоступные
+            val existingUris = mutableListOf<Uri>()
+            for (uri in uriList) {
+                if (UriUtil.isUriExistsSuspend(applicationContext, uri)) {
+                    existingUris.add(uri)
+                } else {
+                    LogUtil.processDebug("ImageDetectionJobService: URI не существует, пропускаем: $uri")
+                    skippedCount++
+                }
+            }
+            
+            if (existingUris.isEmpty()) {
+                LogUtil.processDebug("ImageDetectionJobService: все URI в батче недоступны, завершаем обработку")
+                return@withContext
+            }
+            
+            // Получаем пакетные метаданные для всех существующих URI для оптимизации
             val batchMetadata = PerformanceMonitor.measureBatchMetadata {
-                BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, uriList)
+                BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, existingUris)
             }
             
             PerformanceMonitor.recordOptimizedBatchProcessing()
-            LogUtil.processDebug("ImageDetectionJobService: оптимизированная пакетная обработка ${uriList.size} URI")
+            LogUtil.processDebug("ImageDetectionJobService: оптимизированная пакетная обработка ${existingUris.size} URI (из ${uriList.size} изначально)")
             
             // Предзагружаем кэш директорий для быстрых проверок
             val filePaths = batchMetadata.mapNotNull { entry ->
@@ -197,13 +216,13 @@ class ImageDetectionJobService : JobService() {
             // Фильтруем URI, оставляя только те, которые требуют обработки
             val validUris = batchMetadata.filter { entry ->
                 val metadata = entry.value
-                metadata != null && 
-                !metadata.isPending && 
-                metadata.size > 0 && 
+                metadata != null &&
+                !metadata.isPending &&
+                metadata.size > 0 &&
                 OptimizedCacheUtil.isProcessableMimeType(metadata.mimeType)
             }.keys.toList()
             
-            LogUtil.processDebug("ImageDetectionJobService: после быстрой фильтрации осталось ${validUris.size} из ${uriList.size} URI")
+            LogUtil.processDebug("ImageDetectionJobService: после быстрой фильтрации осталось ${validUris.size} из ${existingUris.size} URI")
             
             // Разбиваем валидные URI на батчи для предотвращения перегрузки системы
             val batches = validUris.chunked(maxConcurrentUris)
@@ -220,6 +239,10 @@ class ImageDetectionJobService : JobService() {
                 val results = deferredResults.map { deferred ->
                     try {
                         deferred.await()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // Игнорируем исключение отмены корутины, это нормальное поведение
+                        LogUtil.debug("BATCH_PROCESSING", "Корутина батчевой обработки была отменена: ${e.message}")
+                        ProcessingResult(false, true) // Отмена считается как пропуск
                     } catch (e: Exception) {
                         LogUtil.error(null, "URI_PROCESSING", "Ошибка при обработке URI", e)
                         ProcessingResult(false, true) // Ошибка считается как пропуск
@@ -234,10 +257,13 @@ class ImageDetectionJobService : JobService() {
             }
             
             // Добавляем пропущенные URI (невалидные по метаданным)
-            skippedCount += (uriList.size - validUris.size)
+            skippedCount += (existingUris.size - validUris.size)
             
             LogUtil.processDebug("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
             
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Игнорируем исключение отмены корутины, это нормальное поведение
+            LogUtil.debug("BATCH_PROCESSING", "Корутина пакетной обработки была отменена: ${e.message}")
         } catch (e: Exception) {
             LogUtil.error(null, "BATCH_PROCESSING", "Ошибка при батчевой обработке URI", e)
         } finally {
@@ -261,6 +287,12 @@ class ImageDetectionJobService : JobService() {
     private suspend fun processUriWithOptimizations(uri: Uri, metadata: BatchMediaStoreUtil.FileMetadata?): ProcessingResult = withContext(Dispatchers.IO) {
         try {
             LogUtil.processDebug("ImageDetectionJobService: обработка URI: $uri")
+            
+            // Проверяем существование URI перед обработкой
+            if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
+                LogUtil.processDebug("ImageDetectionJobService: URI не существует: $uri")
+                return@withContext ProcessingResult(skipped = true)
+            }
             
             // Проверяем предварительно полученные метаданные
             if (metadata == null) {
@@ -315,6 +347,10 @@ class ImageDetectionJobService : JobService() {
                 return@withContext ProcessingResult(skipped = true)
             }
             
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Игнорируем исключение отмены корутины, это нормальное поведение
+            LogUtil.debug("URI_PROCESSING", "Корутина обработки URI была отменена: ${e.message}")
+            return@withContext ProcessingResult(skipped = true)
         } catch (e: Exception) {
             LogUtil.error(uri, "URI_PROCESSING", "Ошибка при обработке URI", e)
             return@withContext ProcessingResult(skipped = true)

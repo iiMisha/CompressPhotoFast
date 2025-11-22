@@ -75,7 +75,15 @@ class MediaStoreObserver(
                     // Создаем новую задачу с задержкой
                     val delayTask = Runnable {
                         LogUtil.processDebug("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
-                        imageChangeListener(it)
+                        // Проверяем существование URI перед передачей в обработчик
+                        val exists = kotlinx.coroutines.runBlocking {
+                            UriUtil.isUriExistsSuspend(context, it)
+                        }
+                        if (exists) {
+                            imageChangeListener(it)
+                        } else {
+                            LogUtil.processDebug("MediaStoreObserver: URI не существует, пропускаем обработку: $uriString")
+                        }
                         pendingTasks.remove(uriString)
                     }
                     

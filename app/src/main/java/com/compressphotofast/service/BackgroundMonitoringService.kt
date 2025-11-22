@@ -28,6 +28,7 @@ import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.MediaStoreObserver
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
+import com.compressphotofast.util.UriUtil
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -302,6 +303,12 @@ class BackgroundMonitoringService : Service() {
         LogUtil.uriInfo(uri, "URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
         
         try {
+            // Проверяем существование URI перед обработкой
+            if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
+                LogUtil.processDebug("BackgroundMonitoringService: URI не существует: $uri")
+                return
+            }
+            
             // Проверяем, включено ли автоматическое сжатие
             val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
@@ -331,6 +338,9 @@ class BackgroundMonitoringService : Service() {
             if (!result.first) {
                 UriProcessingTracker.removeProcessingUri(uri)
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Игнорируем исключение отмены корутины, это нормальное поведение
+            LogUtil.debug("Обработка нового изображения", "Корутина была отменена: ${e.message}")
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
             // В случае исключения, очищаем URI из списка обрабатываемых
