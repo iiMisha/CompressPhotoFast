@@ -18,6 +18,7 @@
     <string name="compression_quality_low">🔥 Низкое</string>
     <string name="compression_quality_medium">⚖️ Среднее</string>
     <string name="compression_quality_high">💎 Высокое</string>
+    <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->
     <string name="notification_title">CompressPhotoFast</string>

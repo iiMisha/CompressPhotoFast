@@ -27,31 +27,31 @@ class PermissionsManager(
 
     // Константы
     companion object {
-        const val PERMISSION_REQUEST_CODE = 100
-        const val REQUEST_MANAGE_EXTERNAL_STORAGE = 101
-        
-        // Ключи для SharedPreferences
         private const val PREF_PERMISSION_SKIPPED = Constants.PREF_PERMISSION_SKIPPED
         private const val PREF_PERMISSION_REQUEST_COUNT = Constants.PREF_PERMISSION_REQUEST_COUNT
         private const val PREF_NOTIFICATION_PERMISSION_SKIPPED = Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED
     }
 
+    private var onPermissionsGrantedCallback: (() -> Unit)? = null
+
     // Получение доступа к SharedPreferences
     private val prefs = activity.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-    
+
+    private val requestPermissionLauncher: ActivityResultLauncher<Array<String>> =
+        activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            handlePermissionResult(permissions, onPermissionsGrantedCallback!!)
+        }
+
     // ActivityResultLauncher для запуска настроек разрешений
     private val storagePermissionLauncher: ActivityResultLauncher<Intent> = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        // Проверяем, было ли предоставлено разрешение после возврата
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
             LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE получено")
-            // Проверяем и запрашиваем другие разрешения
-            requestOtherPermissions {}
+            requestOtherPermissions(onPermissionsGrantedCallback!!)
         } else {
             LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
-            // Продолжаем запрос других разрешений
-            requestOtherPermissions {}
+            requestOtherPermissions(onPermissionsGrantedCallback!!)
         }
     }
 
@@ -60,25 +60,22 @@ class PermissionsManager(
      * @return true если все разрешения уже предоставлены
      */
     override fun checkAndRequestAllPermissions(onPermissionsGranted: () -> Unit): Boolean {
-        // Проверяем, были ли уже предоставлены все разрешения
+        this.onPermissionsGrantedCallback = onPermissionsGranted
         if (hasStoragePermissions()) {
             LogUtil.processDebug("Все разрешения уже предоставлены")
             onPermissionsGranted()
             return true
         }
 
-        // Проверяем, был ли ранее пропущен запрос разрешений пользователем
         val permissionSkipped = prefs.getBoolean(PREF_PERMISSION_SKIPPED, false)
         val permissionRequestCount = prefs.getInt(PREF_PERMISSION_REQUEST_COUNT, 0)
         
-        // Если пользователь уже 3 раза отказал или пропустил запрос, не показываем больше
         if (permissionSkipped || permissionRequestCount >= 3) {
             LogUtil.processDebug("Запрос разрешений был пропущен или превышено количество попыток, не запрашиваем снова")
             onPermissionsGranted()
             return true
         }
         
-        // Разрешение на управление всеми файлами (Android 11+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 showStoragePermissionDialog(onPermissionsGranted)
@@ -86,7 +83,6 @@ class PermissionsManager(
             }
         }
 
-        // Запрашиваем остальные разрешения
         return requestOtherPermissions(onPermissionsGranted)
     }
 
@@ -95,6 +91,7 @@ class PermissionsManager(
      * @return true если все разрешения уже предоставлены
      */
     override fun requestStoragePermissions(onPermissionsGranted: () -> Unit): Boolean {
+        this.onPermissionsGrantedCallback = onPermissionsGranted
         val permissions = getRequiredStoragePermissions()
 
         if (permissions.isEmpty()) {
@@ -105,7 +102,7 @@ class PermissionsManager(
 
         LogUtil.processDebug("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
         incrementPermissionRequestCount()
-        ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        requestPermissionLauncher.launch(permissions.toTypedArray())
         return false
     }
 
@@ -115,21 +112,21 @@ class PermissionsManager(
     private fun getRequiredStoragePermissions(): MutableList<String> {
         val permissions = mutableListOf<String>()
 
-        // Для Android 13+ используем READ_MEDIA_IMAGES
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) != 
-                    PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
             }
-        } 
-        // Для версий Android 12 и ниже используем старые разрешения
-        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) != 
-                    PackageManager.PERMISSION_GRANTED) {
+            // Для Android 14+ добавляем также запрос на частичный доступ
+            if (Build.VERSION.SDK_INT >= 34) { // Android 14
+                 if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) != PackageManager.PERMISSION_GRANTED) {
+                    permissions.add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+                }
+            }
+        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
-            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != 
-                    PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
@@ -142,20 +139,14 @@ class PermissionsManager(
      * @return true если разрешение уже предоставлено или не требуется
      */
     override fun requestNotificationPermission(onPermissionGranted: () -> Unit): Boolean {
-        // Для Android 13+ требуется специальное разрешение для уведомлений
+        this.onPermissionsGrantedCallback = onPermissionGranted
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (!hasNotificationPermission()) {
                 LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
-                ActivityCompat.requestPermissions(
-                    activity, 
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS), 
-                    PERMISSION_REQUEST_CODE
-                )
+                requestPermissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
                 return false
             }
         }
-        
-        // Разрешение уже предоставлено или не требуется
         onPermissionGranted()
         return true
     }
@@ -165,18 +156,16 @@ class PermissionsManager(
      * @return true если все разрешения уже предоставлены
      */
     override fun requestOtherPermissions(onPermissionsGranted: () -> Unit): Boolean {
+        this.onPermissionsGrantedCallback = onPermissionsGranted
         val permissions = mutableListOf<String>()
         
-        // Добавляем необходимые разрешения для хранилища
         permissions.addAll(getRequiredStoragePermissions())
         
-        // Добавляем разрешение на уведомления для Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
             LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
         }
         
-        // Добавляем разрешение ACCESS_MEDIA_LOCATION для доступа к GPS данным в EXIF (Android 10+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasMediaLocationPermission()) {
             permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
             LogUtil.processDebug("Запрашиваем разрешение ACCESS_MEDIA_LOCATION для GPS данных в EXIF")
@@ -190,7 +179,7 @@ class PermissionsManager(
 
         LogUtil.processDebug("Запрашиваем разрешения: ${permissions.joinToString()}")
         incrementPermissionRequestCount()
-        ActivityCompat.requestPermissions(activity, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        requestPermissionLauncher.launch(permissions.toTypedArray())
         return false
     }
 
@@ -238,9 +227,9 @@ class PermissionsManager(
         
         // Проверка разрешений по версии Android
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Для Android 13+ проверяем READ_MEDIA_IMAGES
-            hasPermissions = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == 
-                    PackageManager.PERMISSION_GRANTED
+            // Для Android 13+ проверяем READ_MEDIA_IMAGES или частичный доступ
+            hasPermissions = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
+                    (Build.VERSION.SDK_INT >= 34 && ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_GRANTED)
         } 
         else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             // Для Android 11+ проверяем MANAGE_EXTERNAL_STORAGE
@@ -346,7 +335,6 @@ class PermissionsManager(
     
     /**
      * Обработка результата запроса разрешений
-     * Должна вызываться из onRequestPermissionsResult активити
      */
     override fun handlePermissionResult(
         requestCode: Int,
@@ -355,12 +343,17 @@ class PermissionsManager(
         onAllGranted: () -> Unit,
         onSomePermissionsDenied: () -> Unit
     ) {
-        if (requestCode != PERMISSION_REQUEST_CODE) {
-            return
-        }
-        
-        // Проверяем результаты
-        if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+        val permissionResults = permissions.zip(grantResults.map { it == PackageManager.PERMISSION_GRANTED }).toMap()
+        handlePermissionResult(permissionResults, onAllGranted)
+    }
+
+    private fun handlePermissionResult(
+        permissions: Map<String, Boolean>,
+        onAllGranted: () -> Unit
+    ) {
+        val allGranted = permissions.values.all { it }
+
+        if (allGranted) {
             LogUtil.processDebug("Все разрешения предоставлены")
             prefs.edit()
                 .putBoolean("has_storage_permission_granted", true)
@@ -369,79 +362,56 @@ class PermissionsManager(
             onAllGranted()
             return
         }
-            
+
         LogUtil.processDebug("Не все разрешения были предоставлены")
-        
-        // Проверяем, было ли отклонено разрешение на уведомления
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val notificationPermissionIndex = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
-            if (notificationPermissionIndex != -1 && 
-                    grantResults.getOrNull(notificationPermissionIndex) != PackageManager.PERMISSION_GRANTED) {
-                
-                LogUtil.processDebug("Разрешение на уведомления было отклонено")
-                
-                // Проверяем, можно ли повторно показать запрос
-                if (isPermissionPermanentlyDenied(Manifest.permission.POST_NOTIFICATIONS)) {
-                    LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для уведомлений")
-                    prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
-                } else {
-                    showNotificationPermissionExplanation(
-                        onRetry = { requestNotificationPermission { onAllGranted() } },
-                        onSkip = onAllGranted
-                    )
-                    onSomePermissionsDenied()
-                    return
-                }
-            }
+
+        // Обработка отказа в разрешении на уведомления
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            permissions.containsKey(Manifest.permission.POST_NOTIFICATIONS) &&
+            permissions[Manifest.permission.POST_NOTIFICATIONS] == false
+        ) {
+            handleNotificationPermissionDenied(onAllGranted)
         }
-        
-        // Проверяем, были ли отклонены разрешения для хранилища
-        val storagePermissions = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            storagePermissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+
+        // Обработка отказа в разрешении на доступ к хранилищу
+        val storagePermissions = getRequiredStoragePermissions()
+        val storageDenied = storagePermissions.any { permissions[it] == false }
+
+        if (storageDenied) {
+            handleStoragePermissionDenied(onAllGranted)
         } else {
-            storagePermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            storagePermissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            // Если отказали только в необязательных, все равно вызываем колбек
+            onAllGranted()
         }
-        
-        val storagePermissionDenied = permissions.any { 
-            storagePermissions.contains(it) && isPermissionPermanentlyDenied(it)
+    }
+
+    private fun handleNotificationPermissionDenied(onAllGranted: () -> Unit) {
+        LogUtil.processDebug("Разрешение на уведомления было отклонено")
+        if (isPermissionPermanentlyDenied(Manifest.permission.POST_NOTIFICATIONS)) {
+            LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для уведомлений")
+            prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
+        } else {
+            showNotificationPermissionExplanation(
+                onRetry = { requestNotificationPermission(onAllGranted) },
+                onSkip = onAllGranted
+            )
         }
-        
-        if (storagePermissionDenied) {
+    }
+
+    private fun handleStoragePermissionDenied(onAllGranted: () -> Unit) {
+        val storagePermissions = getRequiredStoragePermissions()
+        val isPermanentlyDenied = storagePermissions.any { isPermissionPermanentlyDenied(it) }
+
+        if (isPermanentlyDenied) {
             LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
             prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
             onAllGranted()
         } else {
             showPermissionExplanationDialog(
-                IPermissionsManager.PermissionType.ALL,
+                IPermissionsManager.PermissionType.STORAGE,
                 onRetry = { checkAndRequestAllPermissions(onAllGranted) },
                 onSkip = onAllGranted
             )
         }
-        
-        onSomePermissionsDenied()
     }
-    
-    /**
-     * Обработка результата активности запроса разрешений
-     * Должна вызываться из onActivityResult активити
-     */
-    override fun handleActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        onSuccess: () -> Unit
-    ) {
-        if (requestCode == REQUEST_MANAGE_EXTERNAL_STORAGE) {
-            // Проверяем, было ли предоставлено разрешение
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-                LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE получено")
-                onSuccess()
-            } else {
-                LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
-                // Продолжаем запрос других разрешений
-                requestOtherPermissions(onSuccess)
-            }
-        }
-    }
-} 
+}

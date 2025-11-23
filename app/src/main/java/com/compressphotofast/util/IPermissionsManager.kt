@@ -85,13 +85,4 @@ interface IPermissionsManager {
         onSomePermissionsDenied: () -> Unit
     )
     
-    /**
-     * Обработка результата активности запроса разрешений
-     * Должна вызываться из onActivityResult активити
-     */
-    fun handleActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        onSuccess: () -> Unit
-    )
-} 
+}

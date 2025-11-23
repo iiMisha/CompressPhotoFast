@@ -23,6 +23,7 @@ import android.transition.TransitionManager
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.viewModels
@@ -67,52 +68,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permissionsManager: IPermissionsManager
     
     // Запуск запроса разрешений
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.entries.all { it.value }
-        if (allGranted) {
-            LogUtil.processDebug("Все разрешения получены")
-            
-            // Проверяем, было ли предоставлено разрешение ACCESS_MEDIA_LOCATION
-            if (permissions.containsKey(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
-                if (permissions[Manifest.permission.ACCESS_MEDIA_LOCATION] == true) {
-                    LogUtil.processInfo("✅ Разрешение ACCESS_MEDIA_LOCATION предоставлено - GPS координаты будут сохраняться")
-                    showToast("GPS координаты в фото будут сохраняться при сжатии")
-                } else {
-                    LogUtil.processWarning("❌ Разрешение ACCESS_MEDIA_LOCATION отклонено - GPS координаты будут потеряны")
-                    showToast("GPS координаты не будут сохраняться в сжатых фото")
-                }
-            }
-            
-            // Запрашиваем разрешение на уведомления для Android 13+ (если еще не предоставлено)
-            if (!permissionsManager.hasNotificationPermission()) {
-                permissionsManager.requestNotificationPermission {
-                    initializeBackgroundServices()
-                }
-            } else {
-                initializeBackgroundServices()
-            }
-        } else {
-            LogUtil.processDebug("Не все разрешения получены")
-            
-            // Если отклонено только ACCESS_MEDIA_LOCATION - продолжаем работу
-            if (permissions.size == 1 && permissions.containsKey(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
-                LogUtil.processWarning("Разрешение ACCESS_MEDIA_LOCATION отклонено, продолжаем без сохранения GPS")
-                showToast("GPS координаты не будут сохраняться в сжатых фото")
-                // Запрашиваем разрешение на уведомления для Android 13+ (если еще не предоставлено)
-                if (!permissionsManager.hasNotificationPermission()) {
-                    permissionsManager.requestNotificationPermission {
-                        initializeBackgroundServices()
-                    }
-                } else {
-                    initializeBackgroundServices()
-                }
-            } else {
-                showPermissionExplanationDialog()
-            }
-        }
-    }
 
     // BroadcastReceiver для запросов на удаление файлов
     private val deletePermissionReceiver = object : android.content.BroadcastReceiver() {
@@ -157,6 +112,19 @@ class MainActivity : AppCompatActivity() {
             showToast("Разрешение получено. Повторите операцию сжатия.")
         } else {
             LogUtil.processDebug("Пользователь отклонил запрос на переименование файла")
+        }
+    }
+
+    private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { uris ->
+        if (uris.isNotEmpty()) {
+            LogUtil.processDebug("Выбрано ${uris.size} изображений через Photo Picker")
+            handleIntent(Intent().apply {
+                action = Intent.ACTION_SEND_MULTIPLE
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+                type = "image/*"
+            })
+        } else {
+            LogUtil.processDebug("Photo Picker был закрыт без выбора изображений")
         }
     }
 
@@ -554,6 +522,10 @@ class MainActivity : AppCompatActivity() {
         binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setIgnoreMessengerPhotos(isChecked)
         }
+
+        binding.btnSelectPhotos.setOnClickListener {
+            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
     }
 
     /**
@@ -630,8 +602,9 @@ class MainActivity : AppCompatActivity() {
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
-        permissionsManager.checkAndRequestAllPermissions { 
-            checkMediaLocationPermission() 
+        permissionsManager.checkAndRequestAllPermissions {
+            checkMediaLocationPermission()
+            updatePhotoPickerButtonVisibility()
         }
     }
     
@@ -655,7 +628,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("Для сохранения GPS координат в сжатых фото требуется разрешение доступа к местоположению в медиафайлах.\n\nБез этого разрешения координаты будут потеряны при сжатии фото.")
             .setPositiveButton("Предоставить") { _, _ ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    requestPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_MEDIA_LOCATION))
+                    permissionsManager.requestOtherPermissions { initializeBackgroundServices() }
                 }
             }
             .setNegativeButton("Пропустить") { _, _ ->
@@ -669,30 +642,6 @@ class MainActivity : AppCompatActivity() {
     /**
      * Обработка результата запроса разрешений
      */
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        
-        permissionsManager.handlePermissionResult(
-            requestCode,
-            permissions,
-            grantResults,
-            onAllGranted = {
-                // Запрашиваем разрешение на уведомления для Android 13+ (если еще не предоставлено)
-                if (!permissionsManager.hasNotificationPermission()) {
-                    permissionsManager.requestNotificationPermission {
-                        initializeBackgroundServices()
-                    }
-                } else {
-                    initializeBackgroundServices()
-                }
-            },
-            onSomePermissionsDenied = { /* Ничего не делаем, т.к. это обрабатывается внутри handlePermissionResult */ }
-        )
-    }
 
     /**
      * Показать диалог с объяснением необходимости разрешений
@@ -825,17 +774,6 @@ class MainActivity : AppCompatActivity() {
     /**
      * Обработка результата запроса на удаление файла
      */
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        
-        permissionsManager.handleActivityResult(
-            requestCode,
-            resultCode,
-            onSuccess = { initializeBackgroundServices() }
-        )
-        
-        
-    }
 
     /**
      * Запускает обработку изображения через фоновый сервис
@@ -872,6 +810,16 @@ class MainActivity : AppCompatActivity() {
             LogUtil.processDebug("Фоновые сервисы инициализированы успешно")
         } catch (e: Exception) {
             LogUtil.errorWithMessageAndException("BACKGROUND_INIT", "Ошибка при инициализации фоновых сервисов", e)
+        }
+    }
+
+    private fun updatePhotoPickerButtonVisibility() {
+        if (Build.VERSION.SDK_INT >= 34 &&
+            !permissionsManager.hasStoragePermissions() &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            binding.btnSelectPhotos.visibility = View.VISIBLE
+        } else {
+            binding.btnSelectPhotos.visibility = View.GONE
         }
     }
 
