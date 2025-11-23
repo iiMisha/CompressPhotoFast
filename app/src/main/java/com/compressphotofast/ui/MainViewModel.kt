@@ -32,6 +32,7 @@ import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
+import com.compressphotofast.util.UriProcessingTracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import android.content.IntentSender
@@ -48,7 +49,8 @@ class MainViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val sharedPreferences: SharedPreferences,
     private val workManager: WorkManager,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val uriProcessingTracker: UriProcessingTracker
 ) : ViewModel() {
 
     // LiveData для URI выбранного изображения
@@ -84,7 +86,7 @@ class MainViewModel @Inject constructor(
 
 
     // Объект для последовательной обработки изображений
-    private val sequentialImageProcessor = SequentialImageProcessor(context)
+    private val sequentialImageProcessor = SequentialImageProcessor(context, uriProcessingTracker)
     
     init {
         // Загрузить сохраненный уровень сжатия

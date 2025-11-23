@@ -38,6 +38,7 @@ import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.CompressionBatchTracker
+import com.compressphotofast.util.OptimizedCacheUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -63,7 +64,9 @@ import java.util.concurrent.TimeUnit
 @HiltWorker
 class ImageCompressionWorker @AssistedInject constructor(
     @Assisted private val context: Context,
-    @Assisted workerParams: WorkerParameters
+    @Assisted workerParams: WorkerParameters,
+    private val optimizedCacheUtil: OptimizedCacheUtil,
+    private val uriProcessingTracker: UriProcessingTracker
 ) : CoroutineWorker(context, workerParams) {
 
     // Переопределяем поле applicationContext для удобного доступа
@@ -93,7 +96,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.processInfo("[ПРОЦЕСС] Используется качество сжатия: $compressionQuality")
             
             // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
-            val exifDataMemory = ExifUtil.readExifDataToMemory(appContext, imageUri)
+            val exifDataMemory = try {
+                ExifUtil.readExifDataToMemory(appContext, imageUri)
+            } catch (e: Exception) {
+                LogUtil.error(imageUri, "Чтение EXIF", "Не удалось прочитать EXIF-данные, отмена задачи.", e)
+                return@withContext Result.failure()
+            }
             LogUtil.uriInfo(imageUri, "[ПРОЦЕСС] Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
             
             // Используем централизованную логику для проверки необходимости обработки
@@ -127,8 +135,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
             
             // Проверяем размер исходного файла
-            val sourceSize = UriUtil.getFileSize(appContext, imageUri)
-            
+            val sourceSize = try {
+                UriUtil.getFileSize(appContext, imageUri)
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(imageUri, "Проверка размера", "Файл не найден при получении размера: ${e.message}")
+                return@withContext Result.failure()
+            }
+
             // Если размер слишком маленький или слишком большой, пропускаем
             if (!FileOperationsUtil.isFileSizeValid(sourceSize)) {
                 LogUtil.uriInfo(imageUri, "Размер файла невалидный: $sourceSize, пропускаем")
@@ -252,10 +265,13 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
 
+                // Добавляем URI в кэш недавно оптимизированных
+                uriProcessingTracker.setIgnorePeriod(savedUri)
+
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
                 if (FileOperationsUtil.isSaveModeReplace(appContext)) {
                     try {
-                        val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri)
+                        val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker)
                         if (deleteResult is Boolean && deleteResult) {
                             LogUtil.fileOperation(imageUri, "Удаление", "Оригинальный файл успешно удален")
                         } else if (deleteResult is IntentSender) {

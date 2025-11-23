@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
+import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
@@ -35,8 +36,11 @@ object ExifUtil {
     // Константы для EXIF маркировки
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
+
+    // Кэш для хранения считанных EXIF-данных. Ключ - String URI, значение - карта с данными.
+    private val exifDataCache = LruCache<String, Map<String, Any>>(20)
     
-    /** 
+    /**
      * Список важных EXIF тегов для копирования
      * Обязательно включает теги для метаданных камеры, даты/времени, GPS, экспозиции, и др.
      */
@@ -113,7 +117,7 @@ object ExifUtil {
         try {
             // ANDROID 10+ FIX: используем MediaStore.setRequireOriginal() для получения оригинальных EXIF данных
             val finalUri = try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                     uri.toString().startsWith("content://media/")) {
                     val originalUri = MediaStore.setRequireOriginal(uri)
                     // LogUtil.processDebug("🔧 ExifInterface: Использую MediaStore.setRequireOriginal() для $uri")
@@ -125,9 +129,14 @@ object ExifUtil {
                 LogUtil.processWarning("⚠️ Ошибка при получении оригинального URI для EXIF, используем исходный: ${e.message}")
                 uri
             }
-            
-            context.contentResolver.openInputStream(finalUri)?.use { inputStream ->
-                return ExifInterface(inputStream)
+
+            try {
+                context.contentResolver.openInputStream(finalUri)?.use { inputStream ->
+                    return ExifInterface(inputStream)
+                }
+            } catch (e: FileNotFoundException) {
+                LogUtil.error(uri, "Получение EXIF", "Файл не найден: ${e.message}")
+                return null
             }
         } catch (e: Exception) {
             LogUtil.error(uri, "Получение EXIF", e)
@@ -411,9 +420,16 @@ object ExifUtil {
      * @return Карта с EXIF-тегами и их значениями
      */
     suspend fun readExifDataToMemory(context: Context, uri: Uri): Map<String, Any> = withContext(Dispatchers.IO) {
+        val uriString = uri.toString()
+        // Сначала проверяем кэш
+        exifDataCache.get(uriString)?.let {
+            LogUtil.processInfo("Чтение EXIF данных из кэша для $uri")
+            return@withContext it
+        }
+
         val exifData = mutableMapOf<String, Any>()
         try {
-            LogUtil.processInfo("Чтение EXIF данных из $uri в память")
+            LogUtil.processInfo("Чтение EXIF данных из $uri в память (кэш не найден)")
             
             val exif = getExifInterface(context, uri) ?: return@withContext exifData
             
@@ -428,7 +444,7 @@ object ExifUtil {
             // === ДИАГНОСТИКА РАЗРЕШЕНИЙ ===
             try {
                 val hasMediaLocationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) == 
+                    context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
                         android.content.pm.PackageManager.PERMISSION_GRANTED
                 } else {
                     true
@@ -471,9 +487,16 @@ object ExifUtil {
             LogUtil.processInfo("🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости")
             addDigitizedDateFromFileMetadata(context, uri, exif, exifData)
             
-            LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов")
+            LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов, сохраняем в кэш")
+            // Сохраняем в кэш
+            if (exifData.isNotEmpty()) {
+                exifDataCache.put(uriString, exifData)
+            }
         } catch (e: Exception) {
             LogUtil.error(uri, "Чтение EXIF в память", e)
+            // В случае ошибки (например, FileNotFoundException), выбрасываем исключение дальше,
+            // чтобы вызывающий код мог его обработать.
+            throw e
         }
         
         return@withContext exifData
@@ -494,10 +517,14 @@ object ExifUtil {
         quality: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.processWarning("applyExifFromMemory: URI не существует, применение EXIF отменено: $uri")
+                return@withContext false
+            }
             // LogUtil.processInfo("Применение ${exifData.size} EXIF-тегов к $uri")
-
-            // 1. Сохраняем исходную дату модификации
-            val originalLastModified = UriUtil.getFileLastModified(context, uri)
+ 
+             // 1. Сохраняем исходную дату модификации
+             val originalLastModified = UriUtil.getFileLastModified(context, uri)
             LogUtil.processInfo("Сохранена исходная дата модификации: $originalLastModified")
             
             context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->

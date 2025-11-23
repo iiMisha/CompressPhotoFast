@@ -15,10 +15,14 @@ import com.compressphotofast.util.UriUtil
 /**
  * Класс для централизованной работы с ContentObserver для отслеживания изменений в MediaStore
  */
-class MediaStoreObserver(
+import javax.inject.Inject
+
+class MediaStoreObserver @Inject constructor(
     private val context: Context,
+    private val optimizedCacheUtil: OptimizedCacheUtil,
+    private val uriProcessingTracker: UriProcessingTracker,
     private val handler: Handler = Handler(Looper.getMainLooper()),
-    private val imageChangeListener: (Uri) -> Unit
+    private var imageChangeListener: ((Uri) -> Unit)? = null
 ) {
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
@@ -31,8 +35,14 @@ class MediaStoreObserver(
     private val contentObserver: ContentObserver = object : ContentObserver(handler) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             super.onChange(selfChange, uri)
-            
+
             uri?.let {
+                // Игнорируем URI, если он был недавно оптимизирован
+                if (uriProcessingTracker.shouldIgnore(it)) {
+                    LogUtil.processDebug("MediaStoreObserver: URI $it пропущен, так как недавно обработан.")
+                    return
+                }
+
                 // Проверяем, что это новое изображение с базовой фильтрацией
                 if (it.toString().contains("media") && it.toString().contains("image")) {
                     // Проверяем, не является ли файл переименованным оригиналом (с суффиксом _original)
@@ -80,7 +90,7 @@ class MediaStoreObserver(
                             UriUtil.isUriExistsSuspend(context, it)
                         }
                         if (exists) {
-                            imageChangeListener(it)
+                            imageChangeListener?.invoke(it)
                         } else {
                             LogUtil.processDebug("MediaStoreObserver: URI не существует, пропускаем обработку: $uriString")
                         }
@@ -95,10 +105,18 @@ class MediaStoreObserver(
         }
     }
     
+    fun setImageChangeListener(listener: (Uri) -> Unit) {
+        this.imageChangeListener = listener
+    }
+
     /**
      * Регистрирует ContentObserver для отслеживания изменений в MediaStore
      */
     fun register() {
+        if (imageChangeListener == null) {
+            LogUtil.error(null, "MediaStoreObserver", "imageChangeListener не установлен. Вызовите setImageChangeListener перед регистрацией.")
+            return
+        }
         context.contentResolver.registerContentObserver(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             true,

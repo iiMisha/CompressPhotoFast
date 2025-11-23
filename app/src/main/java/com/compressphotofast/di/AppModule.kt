@@ -50,4 +50,22 @@ object AppModule {
     fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
         return WorkManager.getInstance(context)
     }
-} 
+
+    /**
+     * Предоставляет синглтон экземпляр UriProcessingTracker
+     */
+    @Provides
+    @Singleton
+    fun provideUriProcessingTracker(): com.compressphotofast.util.UriProcessingTracker {
+        return com.compressphotofast.util.UriProcessingTracker
+    }
+
+    /**
+     * Предоставляет синглтон экземпляр OptimizedCacheUtil
+     */
+    @Provides
+    @Singleton
+    fun provideOptimizedCacheUtil(): com.compressphotofast.util.OptimizedCacheUtil {
+        return com.compressphotofast.util.OptimizedCacheUtil
+    }
+}

@@ -54,7 +54,9 @@ import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.EventObserver
+import com.compressphotofast.util.UriProcessingTracker
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,6 +68,9 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var prefs: SharedPreferences
     private lateinit var permissionsManager: IPermissionsManager
+
+    @Inject
+    lateinit var uriProcessingTracker: UriProcessingTracker
     
     // Запуск запроса разрешений
 
@@ -758,16 +763,18 @@ class MainActivity : AppCompatActivity() {
      * Запрос на удаление файла с получением разрешения
      */
     private fun requestFileDelete(uri: Uri) {
-        try {
-            val intentSender = FileOperationsUtil.deleteFile(this, uri)
-            if (intentSender is IntentSender) {
-                // И используем его вместо startIntentSenderForResult
-                intentSenderLauncher.launch(
-                    IntentSenderRequest.Builder(intentSender).build()
-                )
+        lifecycleScope.launch {
+            try {
+                val intentSender = FileOperationsUtil.deleteFile(this@MainActivity, uri, uriProcessingTracker)
+                if (intentSender is IntentSender) {
+                    // И используем его вместо startIntentSenderForResult
+                    intentSenderLauncher.launch(
+                        IntentSenderRequest.Builder(intentSender).build()
+                    )
+                }
+            } catch (e: Exception) {
+                LogUtil.errorWithMessageAndException(uri, "DELETE_FILE", "Ошибка при запросе удаления файла", e)
             }
-        } catch (e: Exception) {
-            LogUtil.errorWithMessageAndException(uri, "DELETE_FILE", "Ошибка при запросе удаления файла", e)
         }
     }
     

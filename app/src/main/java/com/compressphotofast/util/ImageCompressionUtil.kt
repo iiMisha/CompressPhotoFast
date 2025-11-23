@@ -238,7 +238,7 @@ object ImageCompressionUtil {
                 return@withContext Triple(true, uri, "Файл слишком маленький для сжатия")
             }
             
-            // Получение EXIF данных для сохранения
+            // Получение EXIF данных для сохранения (теперь они должны быть в кэше)
             val exifData = ExifUtil.readExifDataToMemory(context, uri)
             
             // Сжатие изображения в поток
@@ -413,6 +413,7 @@ object ImageCompressionUtil {
         targetUri: Uri
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Данные должны быть уже в кэше после вызова в ImageCompressionWorker
             val exifData = ExifUtil.readExifDataToMemory(context, sourceUri)
             return@withContext ExifUtil.writeExifDataFromMemory(context, targetUri, exifData)
         } catch (e: Exception) {

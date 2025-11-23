@@ -59,10 +59,18 @@ object FileOperationsUtil {
      * Удаляет файл по URI с централизованной логикой для всех версий Android
      * @return Boolean - успешность удаления или IntentSender для запроса разрешения на Android 10+
      */
-    fun deleteFile(context: Context, uri: Uri): Any? {
+    suspend fun deleteFile(context: Context, uri: Uri, uriProcessingTracker: UriProcessingTracker): Any? {
+        if (uriProcessingTracker.isProcessing(uri)) {
+            LogUtil.processWarning("deleteFile: URI находится в обработке, удаление отменено: $uri")
+            return false
+        }
         try {
             LogUtil.processInfo("Начинаем удаление файла: $uri")
-            
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.processWarning("deleteFile: URI не существует, удаление отменено: $uri")
+                return false
+            }
+
             // Если URI имеет фрагмент #renamed_original, удаляем этот фрагмент
             val cleanUri = if (uri.toString().contains("#renamed_original")) {
                 val original = Uri.parse(uri.toString().replace("#renamed_original", ""))
@@ -71,7 +79,7 @@ object FileOperationsUtil {
             } else {
                 uri
             }
-            
+
             // Проверка разрешений и выбор способа удаления в зависимости от версии Android
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {

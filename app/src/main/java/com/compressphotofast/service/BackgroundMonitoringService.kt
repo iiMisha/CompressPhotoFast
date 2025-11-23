@@ -22,13 +22,15 @@ import kotlinx.coroutines.withContext
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.MediaStoreObserver
+import com.compressphotofast.util.OptimizedCacheUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
+import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.UriUtil
+import javax.inject.Inject
 
 /**
  * Сервис для фонового мониторинга новых изображений
@@ -38,6 +40,9 @@ import com.compressphotofast.util.UriUtil
 class BackgroundMonitoringService : Service() {
 
     private val executorService = Executors.newSingleThreadExecutor()
+
+    @Inject
+    lateinit var uriProcessingTracker: UriProcessingTracker
     
     // MediaStoreObserver для централизованной работы с ContentObserver
     private lateinit var mediaStoreObserver: MediaStoreObserver
@@ -110,15 +115,15 @@ class BackgroundMonitoringService : Service() {
                     val uri = Uri.parse(uriString)
                     
                     // Удаляем URI из списка обрабатываемых
-                    UriProcessingTracker.removeProcessingUri(uri)
-                    LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось ${UriProcessingTracker.getProcessingCount()} URIs)")
+                    uriProcessingTracker.removeProcessingUri(uri)
+                    LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось ${uriProcessingTracker.getProcessingCount()} URIs)")
                     LogUtil.processDebug("Обработка изображения завершена: $fileName, сокращение размера: ${String.format("%.1f", reductionPercent)}%")
                     
                     // Показываем уведомление о результате сжатия
                     NotificationUtil.showCompressionResultNotification(applicationContext, fileName, originalSize, compressedSize, reductionPercent, skipped = false)
                     
                     // Устанавливаем таймер игнорирования изменений
-                    UriProcessingTracker.setIgnorePeriod(uri)
+                    uriProcessingTracker.setIgnorePeriod(uri)
                     
                     LogUtil.processDebug("Обработка URI $uriString завершена и будет игнорироваться")
                 }
@@ -249,7 +254,7 @@ class BackgroundMonitoringService : Service() {
      */
     private fun setupContentObserver() {
         // Создаем MediaStoreObserver
-        mediaStoreObserver = MediaStoreObserver(applicationContext, Handler(Looper.getMainLooper())) { uri ->
+        mediaStoreObserver = MediaStoreObserver(applicationContext, OptimizedCacheUtil, uriProcessingTracker, Handler(Looper.getMainLooper())) { uri ->
             // Этот код будет выполнен при обнаружении изменений после задержки
             executorService.execute {
                 kotlinx.coroutines.runBlocking {
@@ -299,52 +304,42 @@ class BackgroundMonitoringService : Service() {
      * Обработка нового изображения
      */
     private suspend fun processNewImage(uri: Uri) {
+        if (uriProcessingTracker.isProcessing(uri)) {
+            LogUtil.processDebug("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
+            return
+        }
+
         LogUtil.processDebug("BackgroundMonitoringService: начало обработки нового изображения: $uri")
         LogUtil.uriInfo(uri, "URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
-        
+
         try {
-            // Проверяем существование URI перед обработкой
             if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
                 LogUtil.processDebug("BackgroundMonitoringService: URI не существует: $uri")
                 return
             }
-            
-            // Проверяем, включено ли автоматическое сжатие
+
             val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
                 LogUtil.processDebug("BackgroundMonitoringService: автоматическое сжатие отключено, пропускаем обработку")
                 return
             }
 
-            // Проверяем, обрабатывается ли уже это изображение
-            if (UriProcessingTracker.isImageBeingProcessed(uri)) {
-                LogUtil.processDebug("BackgroundMonitoringService: изображение уже находится в обработке: $uri")
-                return
-            }
-            
-            // Проверяем, не следует ли игнорировать это изменение
-            if (UriProcessingTracker.shouldIgnore(uri)) {
+            if (uriProcessingTracker.shouldIgnore(uri)) {
                 LogUtil.processDebug("BackgroundMonitoringService: игнорируем изменение для недавно обработанного URI: $uri")
                 return
             }
-            
-            // Не добавляем URI в список обрабатываемых здесь, это делается в ImageProcessingUtil.handleImage
-            
-            // Используем централизованный метод обработки изображения
+
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
             LogUtil.processDebug("BackgroundMonitoringService: результат обработки изображения: ${result.third}")
-            
-            // Если обработка не удалась, удаляем URI из списка обрабатываемых
+
             if (!result.first) {
-                UriProcessingTracker.removeProcessingUri(uri)
+                uriProcessingTracker.removeProcessingUri(uri)
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
-            // Игнорируем исключение отмены корутины, это нормальное поведение
             LogUtil.debug("Обработка нового изображения", "Корутина была отменена: ${e.message}")
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
-            // В случае исключения, очищаем URI из списка обрабатываемых
-            UriProcessingTracker.removeProcessingUri(uri)
+            uriProcessingTracker.removeProcessingUri(uri)
         }
     }
     

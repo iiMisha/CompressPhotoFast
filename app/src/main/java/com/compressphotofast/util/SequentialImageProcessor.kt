@@ -57,7 +57,10 @@ interface ProgressListener {
  * Класс для последовательной обработки изображений без использования WorkManager
  * Это решает проблемы с race condition при параллельной обработке
  */
-class SequentialImageProcessor(private val context: Context) {
+class SequentialImageProcessor(
+    private val context: Context,
+    private val uriProcessingTracker: UriProcessingTracker
+) {
     
     // StateFlow для отслеживания прогресса обработки нескольких изображений
     private val _progress = MutableStateFlow(MultipleImagesProgress())
@@ -196,61 +199,59 @@ class SequentialImageProcessor(private val context: Context) {
         listener: CompressionProgressListener?
     ): Uri? = withContext(Dispatchers.IO) {
         if (!isActive) {
-            // Если обработка остановлена, возвращаем null
             return@withContext null
         }
 
-        // Получаем имя файла для отображения в логах
-        val fileName = try {
-            UriUtil.getFileNameFromUri(context, uri) ?: "Неизвестный файл"
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Имя файла", "Ошибка получения имени файла: ${e.message}")
-            "Неизвестный файл"
-        }
-
-        // Обновляем прогресс обработки
-        updateProgress(position, total, fileName)
-
+        uriProcessingTracker.addProcessingUri(uri)
         try {
-            // Используем централизованный метод для обработки изображения
+            val fileName = try {
+                UriUtil.getFileNameFromUri(context, uri) ?: "Неизвестный файл"
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Имя файла", "Ошибка получения имени файла: ${e.message}")
+                "Неизвестный файл"
+            }
+
+            updateProgress(position, total, fileName)
+
             val result = ImageCompressionUtil.processAndSaveImage(context, uri, compressionQuality)
-            
+
             if (!result.first) {
-                // Если произошла ошибка
                 LogUtil.error(uri, "Обработка", result.third)
                 listener?.onCompressionFailed(uri, result.third)
                 return@withContext null
             }
-            
-            // Если изображение было пропущено (сжатие неэффективно)
+
             if (result.second == null || result.second == uri) {
                 LogUtil.skipImage(uri, result.third)
                 listener?.onCompressionSkipped(uri, result.third)
                 return@withContext null
             }
-            
-            // Если сжатие было успешным
+
             val savedUri = result.second!!
             val originalSize = UriUtil.getFileSize(context, uri)
             val compressedSize = UriUtil.getFileSize(context, savedUri)
-            
-            // Отправляем broadcast о завершении сжатия
+
             val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED)
             intent.setPackage(context.packageName)
             intent.putExtra(Constants.EXTRA_FILE_NAME, fileName)
             intent.putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
             intent.putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
             context.sendBroadcast(intent)
-            
-            // Отправляем информацию через listener
+
             listener?.onCompressionCompleted(uri, savedUri, originalSize, compressedSize)
-            
-            LogUtil.fileOperation(uri, "Сохранение", "Изображение успешно сжато: $fileName, ${originalSize/1024}KB → ${compressedSize/1024}KB")
+
+            LogUtil.fileOperation(
+                uri,
+                "Сохранение",
+                "Изображение успешно сжато: $fileName, ${originalSize / 1024}KB → ${compressedSize / 1024}KB"
+            )
             return@withContext savedUri
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка", "Ошибка при обработке изображения", e)
             listener?.onCompressionFailed(uri, e.message ?: "Неизвестная ошибка")
             return@withContext null
+        } finally {
+            uriProcessingTracker.removeProcessingUri(uri)
         }
     }
     
