@@ -227,94 +227,53 @@ class ImageCompressionWorker @AssistedInject constructor(
                     return@withContext Result.failure()
                 }
                 
-                // Переименовываем оригинальный файл перед сохранением сжатой версии, если нужно
-                var backupUri = imageUri
-                
-                // Для MediaDocumentsProvider URI переименование не работает, но мы все равно можем удалить оригинал
-                if (!isMediaDocumentsUri) {
-                    val renameResult = FileOperationsUtil.renameOriginalFileIfNeeded(appContext, imageUri)
-                    if (renameResult is Uri) {
-                        backupUri = renameResult
-                    } else if (renameResult is IntentSender) {
-                        addPendingRenameRequest(imageUri, renameResult)
-                        // Если требуется разрешение, мы не можем продолжить, пока не получим его.
-                        // Мы вернемся к этому файлу позже.
-                        return@withContext Result.failure()
-                    } else {
-                        // Ошибка переименования
-                        return@withContext Result.failure()
-                    }
-                }
-
                 // Сохраняем сжатое изображение
-                    val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
-                    appContext,
-                    ByteArrayInputStream(compressedImageStream.toByteArray()),
-                    finalFileName,
-                    backupUri,
-                    compressionQuality,
-                    exifDataMemory // Передаем заранее загруженные EXIF данные
+                val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
+                    context = appContext,
+                    inputStream = ByteArrayInputStream(compressedImageStream.toByteArray()),
+                    fileName = finalFileName,
+                    directory = directory,
+                    originalUri = imageUri,
+                    quality = compressionQuality,
+                    exifDataMemory = exifDataMemory
                 )
-                
+
                 // Закрываем поток сжатого изображения
                 compressedImageStream.close()
-                
-                // Проверяем результат сохранения
-                    if (savedUri == null) {
+
+                if (savedUri == null) {
                     LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
                     setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    // Попытка восстановить оригинальный файл, если он был удален
+                    // FileOperationsUtil.restoreOriginalFileIfNeeded(appContext, imageUri)
                     return@withContext Result.failure()
                 }
-                
+
                 LogUtil.fileOperation(imageUri, "Сохранение", "Сжатый файл успешно сохранен: $savedUri")
-                
-                // Если режим замены включен, удаляем оригинальный файл
-                try {
-                    if (FileOperationsUtil.isSaveModeReplace(appContext)) {
-                        val uriToDelete = if (backupUri != imageUri) {
-                            // Если файл был переименован, удаляем переименованный файл
-                            LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление переименованного файла: $backupUri")
-                            backupUri
-                        } else if (isMediaDocumentsUri) {
-                            // Для MediaDocumentsProvider URI удаляем оригинальный файл напрямую
-                            LogUtil.processInfo("[ПРОЦЕСС] Начинаем удаление оригинального файла (MediaDocuments): $imageUri")
-                            imageUri
+
+                // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
+                if (FileOperationsUtil.isSaveModeReplace(appContext)) {
+                    try {
+                        val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri)
+                        if (deleteResult is Boolean && deleteResult) {
+                            LogUtil.fileOperation(imageUri, "Удаление", "Оригинальный файл успешно удален")
+                        } else if (deleteResult is IntentSender) {
+                            LogUtil.fileOperation(imageUri, "Удаление", "Требуется разрешение пользователя на удаление оригинального файла")
+                            addPendingDeleteRequest(imageUri, deleteResult)
                         } else {
-                            null
+                            LogUtil.error(imageUri, "Удаление", "Не удалось удалить оригинальный файл")
                         }
-                        
-                        uriToDelete?.let { uri ->
-                            val deleteResult = FileOperationsUtil.deleteFile(appContext, uri)
-                            
-                            when (deleteResult) {
-                                is Boolean -> {
-                                    if (deleteResult) {
-                                        val fileType = if (uri == imageUri) "оригинальный" else "переименованный оригинальный"
-                                        LogUtil.fileOperation(imageUri, "Удаление", "${fileType.replaceFirstChar { it.uppercase() }} файл успешно удален")
-                                    } else {
-                                        val fileType = if (uri == imageUri) "оригинальный" else "переименованный оригинальный"
-                                        LogUtil.error(imageUri, "Удаление", "Не удалось удалить $fileType файл")
-                                    }
-                                }
-                                is android.content.IntentSender -> {
-                                    val fileType = if (uri == imageUri) "оригинального" else "переименованного оригинального"
-                                    LogUtil.fileOperation(imageUri, "Удаление", "Требуется разрешение пользователя на удаление $fileType файла")
-                                    // В WorkManager мы не можем запросить разрешение через IntentSender
-                                    addPendingDeleteRequest(uri, deleteResult)
-                                }
-                            }
-                        }
+                    } catch (e: Exception) {
+                        LogUtil.error(imageUri, "Удаление", "Ошибка при удалении оригинального файла", e)
                     }
-                } catch (e: Exception) {
-                    LogUtil.error(imageUri, "Удаление", "Ошибка при удалении оригинального файла", e)
                 }
                 
                 // Получаем размер сжатого файла для уведомления
-                val compressedSize = UriUtil.getFileSize(appContext, savedUri)
+                val compressedSize = UriUtil.getFileSize(appContext, savedUri) ?: testCompressionResult.compressedSize
                 val sizeReduction = if (sourceSize > 0 && compressedSize > 0) {
                     ((sourceSize - compressedSize).toFloat() / sourceSize) * 100
-                } else 0f
+                } else testCompressionResult.sizeReduction
                 
                 // Отправляем уведомление о завершении сжатия
                 sendCompressionStatusNotification(

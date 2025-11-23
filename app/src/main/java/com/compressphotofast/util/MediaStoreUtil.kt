@@ -294,25 +294,17 @@ object MediaStoreUtil {
         context: Context,
         inputStream: InputStream,
         fileName: String,
+        directory: String,
         originalUri: Uri,
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
         exifDataMemory: Map<String, Any>? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
-            // Получаем путь к директории для сохранения
-            val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
-                // Если включен режим замены, сохраняем в той же директории
-                UriUtil.getDirectoryFromUri(context, originalUri)
-            } else {
-                // Иначе сохраняем в директории приложения
-                Constants.APP_DIRECTORY
-            }
-
-            LogUtil.debug("FileUtil", "Директория для сохранения: $directoryToSave")
+            LogUtil.debug("FileUtil", "Директория для сохранения: $directory")
             LogUtil.processInfo("[MediaStoreUtil] Создание записи MediaStore для файла: $fileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(context)})")
 
             // Централизованное создание записи в MediaStore
-            val uri = createMediaStoreEntry(context, fileName, directoryToSave)
+            val uri = createMediaStoreEntry(context, fileName, directory)
             
             if (uri == null) {
                 LogUtil.error(originalUri, "Сохранение", "Не удалось создать запись в MediaStore")

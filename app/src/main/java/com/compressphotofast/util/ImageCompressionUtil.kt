@@ -258,10 +258,17 @@ object ImageCompressionUtil {
             
             // Сохранение сжатого файла
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
+            val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
+                UriUtil.getDirectoryFromUri(context, uri)
+            } else {
+                Constants.APP_DIRECTORY
+            }
+
             val savedFileResult = MediaStoreUtil.saveCompressedImageFromStream(
                 context,
-                compressedInputStream, 
+                compressedInputStream,
                 compressedFileName,
+                directoryToSave,
                 uri,
                 quality,
                 exifData
