@@ -124,6 +124,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.failure()
             }
             
+            // Добавляем URI в отслеживание обработки
+            uriProcessingTracker.addProcessingUri(imageUri)
+            
             // Проверка на временный файл
             if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
                 LogUtil.skipImage(imageUri, "Файл находится в процессе записи")
@@ -305,6 +308,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Обновляем статус и возвращаем успех
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+                
+                // Удаляем URI из обрабатываемых и добавляем в недавно обработанные
+                uriProcessingTracker.removeProcessingUri(imageUri)
+                uriProcessingTracker.addRecentlyProcessedUri(imageUri)
+                
                 return@withContext Result.success()
             } else {
                 // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
@@ -370,6 +378,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (uriString != null) {
                 val uri = Uri.parse(uriString)
                 StatsTracker.updateStatus(uri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                
+                // Удаляем URI из обрабатываемых в случае ошибки
+                uriProcessingTracker.removeProcessingUri(uri)
             }
             
             return@withContext Result.failure()
