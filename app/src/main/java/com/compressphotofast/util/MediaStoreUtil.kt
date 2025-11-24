@@ -36,9 +36,12 @@ object MediaStoreUtil {
                     val relativePath = if (directory.isEmpty()) {
                         // Если директория пуста (например, для режима замены в корневой директории)
                         Environment.DIRECTORY_PICTURES
-                    } else if (directory.contains("/")) {
-                        // Если директория уже содержит полный путь (например, Pictures/MyAlbum)
+                    } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
+                        // Если директория уже начинается с Pictures (например, Pictures или Pictures/Album), используем как есть
                         directory
+                    } else if (directory.contains("/")) {
+                        // Если директория уже содержит полный путь (например, Downloads/MyAlbum)
+                        "${Environment.DIRECTORY_PICTURES}/$directory"
                     } else {
                         // Если указана только поддиректория, добавляем "Pictures/"
                         "${Environment.DIRECTORY_PICTURES}/$directory"
@@ -199,9 +202,14 @@ object MediaStoreUtil {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val relativePath = if (directory.isEmpty()) {
                         Environment.DIRECTORY_PICTURES
-                    } else if (directory.contains("/")) {
+                    } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
+                        // Если директория уже начинается с Pictures (например, Pictures или Pictures/Album), используем как есть
                         directory
+                    } else if (directory.contains("/")) {
+                        // Если директория уже содержит полный путь (например, Downloads/MyAlbum)
+                        "${Environment.DIRECTORY_PICTURES}/$directory"
                     } else {
+                        // Если указана только поддиректория, добавляем "Pictures/"
                         "${Environment.DIRECTORY_PICTURES}/$directory"
                     }
                     put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
