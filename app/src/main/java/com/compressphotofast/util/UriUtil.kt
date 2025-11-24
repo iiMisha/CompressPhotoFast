@@ -252,7 +252,12 @@ object UriUtil {
         }
         
         // Возвращаем стандартный путь, если не удалось определить директорию
-        return "Pictures/${Constants.APP_DIRECTORY}"
+        // Для режима замены используем Pictures без поддиректории приложения
+        return if (FileOperationsUtil.isSaveModeReplace(context)) {
+            Environment.DIRECTORY_PICTURES
+        } else {
+            "Pictures/${Constants.APP_DIRECTORY}"
+        }
     }
     
     /**

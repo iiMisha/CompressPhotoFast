@@ -25,7 +25,8 @@ object MediaStoreUtil {
         context: Context,
         fileName: String,
         directory: String,
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        originalUri: Uri? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             val contentValues = ContentValues().apply {
@@ -33,7 +34,12 @@ object MediaStoreUtil {
                 put(MediaStore.Images.Media.MIME_TYPE, mimeType)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val relativePath = if (directory.isEmpty()) {
+                    val relativePath = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
+                        // В режиме замены используем оригинальную директорию файла
+                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
+                        LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
+                        originalDirectory
+                    } else if (directory.isEmpty()) {
                         // Если директория пуста (например, для режима замены в корневой директории)
                         Environment.DIRECTORY_PICTURES
                     } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
@@ -52,10 +58,17 @@ object MediaStoreUtil {
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 } else {
                     // Для API < 29 нужно указать полный путь к файлу
-                    val targetDir = File(
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                        directory
-                    )
+                    val targetDir = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
+                        // В режиме замены используем оригинальную директорию
+                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
+                        File(Environment.getExternalStorageDirectory(), originalDirectory)
+                    } else {
+                        File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                            directory
+                        )
+                    }
+                    
                     if (!targetDir.exists()) {
                         targetDir.mkdirs()
                     }
@@ -186,7 +199,8 @@ object MediaStoreUtil {
         file: File,
         fileName: String,
         directory: String,
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        originalUri: Uri? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование файла
@@ -200,7 +214,12 @@ object MediaStoreUtil {
                 put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val relativePath = if (directory.isEmpty()) {
+                    val relativePath = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
+                        // В режиме замены используем оригинальную директорию файла
+                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
+                        LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
+                        originalDirectory
+                    } else if (directory.isEmpty()) {
                         Environment.DIRECTORY_PICTURES
                     } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
                         // Если директория уже начинается с Pictures (например, Pictures или Pictures/Album), используем как есть
@@ -270,7 +289,7 @@ object MediaStoreUtil {
             LogUtil.debug("FileUtil", "Директория для сохранения: $directory")
             
             // Централизованное создание записи в MediaStore
-            val uri = createMediaStoreEntry(context, fileName, directory)
+            val uri = createMediaStoreEntry(context, fileName, directory, originalUri = originalUri)
             
             if (uri == null) {
                 LogUtil.errorSimple("FileUtil", "Не удалось создать запись в MediaStore")
@@ -312,7 +331,7 @@ object MediaStoreUtil {
             LogUtil.processInfo("[MediaStoreUtil] Создание записи MediaStore для файла: $fileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(context)})")
 
             // Централизованное создание записи в MediaStore
-            val uri = createMediaStoreEntry(context, fileName, directory)
+            val uri = createMediaStoreEntry(context, fileName, directory, originalUri = originalUri)
             
             if (uri == null) {
                 LogUtil.error(originalUri, "Сохранение", "Не удалось создать запись в MediaStore")
