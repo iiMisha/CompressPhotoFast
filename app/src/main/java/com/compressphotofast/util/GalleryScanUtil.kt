@@ -113,6 +113,16 @@ object GalleryScanUtil {
                         continue
                     }
                     
+                    // Дополнительная проверка: исключаем файлы, которые были недавно изменены
+                    // чтобы избежать конфликта с MediaStoreObserver
+                    val lastModified = UriUtil.getFileLastModified(context, contentUri)
+                    val currentTime = System.currentTimeMillis()
+                    if (lastModified > 0 && (currentTime - lastModified < 3000L)) { // 3 секунды
+                        LogUtil.processDebug("GalleryScanUtil: файл $contentUri был недавно изменен, пропускаем для избежания конфликта")
+                        skippedCount++
+                        continue
+                    }
+                    
                     allUris.add(contentUri)
                     uriSizeMap[contentUri] = size
                     uriNameMap[contentUri] = name

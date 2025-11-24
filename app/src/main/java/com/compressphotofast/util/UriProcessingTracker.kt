@@ -2,6 +2,7 @@ package com.compressphotofast.util
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
 
@@ -13,6 +14,19 @@ object UriProcessingTracker {
 
     // Множество URI, которые в данный момент обрабатываются
     private val processingUris = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+    
+    // Контекст для доступа к UriUtil (инжектится через инициализацию)
+    private var context: Context? = null
+    
+    // Множество URI, которые недоступны (не существуют)
+    private val unavailableUris = ConcurrentHashMap<String, Long>()
+    
+    // Время истечения для недоступных URI (10 минут)
+    private const val UNAVAILABLE_URI_EXPIRATION = 10 * 60 * 1000L
+    
+    fun initialize(context: Context) {
+        this.context = context
+    }
     
     // Карта URI с временными метками, которые недавно были обработаны
     private val recentlyProcessedUris = ConcurrentHashMap<String, Long>()
@@ -181,8 +195,22 @@ object UriProcessingTracker {
             ignoreUrisUntil.remove(uri)
         }
         
+        // Очищаем устаревшие недоступные URI
+        val expiredUnavailableUris = mutableListOf<String>()
+        for ((uri, timestamp) in unavailableUris) {
+            if (now - timestamp > UNAVAILABLE_URI_EXPIRATION) {
+                expiredUnavailableUris.add(uri)
+            }
+        }
+        
+        for (uri in expiredUnavailableUris) {
+            unavailableUris.remove(uri)
+            LogUtil.processDebug("Устаревший URI удален из списка недоступных: $uri")
+        }
+        
         LogUtil.processDebug("Очищены устаревшие URI из списка недавно обработанных (удалено: ${expiredUris.size}, осталось: ${recentlyProcessedUris.size})")
         LogUtil.processDebug("Очищены истекшие периоды игнорирования (удалено: ${expiredIgnorePeriods.size}, осталось: ${ignoreUrisUntil.size})")
+        LogUtil.processDebug("Очищены устаревшие недоступные URI (удалено: ${expiredUnavailableUris.size}, осталось: ${unavailableUris.size})")
     }
     
     /**
@@ -192,20 +220,137 @@ object UriProcessingTracker {
         processingUris.clear()
         recentlyProcessedUris.clear()
         ignoreUrisUntil.clear()
+        unavailableUris.clear()
         LogUtil.processDebug("Все списки отслеживания URI очищены")
     }
     
     /**
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
+     * Расширенная проверка с учетом всех состояний
      */
     fun isImageBeingProcessed(uri: Uri): Boolean {
-        return isProcessing(uri) || shouldIgnore(uri) || wasRecentlyProcessed(uri)
+        val uriString = uri.toString()
+        val isProcessing = processingUris.contains(uriString)
+        val isIgnored = shouldIgnoreUri(uriString)
+        val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
+        
+        // Дополнительная проверка: если файл был обработан совсем недавно, но уже вышел из кэша,
+        // все равно временно игнорируем его
+        if (!isRecentlyProcessed && !isIgnored && !isProcessing) {
+            // Проверяем время модификации файла - если он был изменен совсем недавно,
+            // возможно он все еще находится в процессе обработки другим процессом
+            try {
+                val appContext = context ?: return isProcessing || isIgnored || isRecentlyProcessed
+                val lastModified = kotlinx.coroutines.runBlocking {
+                    UriUtil.getFileLastModified(appContext, uri)
+                }
+                val currentTime = System.currentTimeMillis()
+                if (lastModified > 0 && (currentTime - lastModified < 5000)) { // 5 секунд
+                    return true
+                }
+            } catch (e: Exception) {
+                // Если не удается получить время модификации, продолжаем стандартную проверку
+            }
+        }
+        
+        return isProcessing || isIgnored || isRecentlyProcessed
+    }
+    
+    /**
+     * Добавляет URI в список обрабатываемых с дополнительной информацией
+     */
+    fun addProcessingUriWithDetails(uri: Uri, source: String = "unknown") {
+        val uriString = uri.toString()
+        processingUris.add(uriString)
+        LogUtil.processDebug("URI добавлен в список обрабатываемых из $source: $uriString (всего: ${processingUris.size})")
+    }
+    
+    /**
+     * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
+     * Расширенная проверка с учетом времени модификации файла
+     */
+    fun isImageBeingProcessed(uri: Uri, fileModifiedDate: Long = 0): Boolean {
+        val uriString = uri.toString()
+        val isProcessing = processingUris.contains(uriString)
+        val isIgnored = shouldIgnoreUri(uriString)
+        val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
+        
+        // Если передано время модификации файла, используем его для дополнительной проверки
+        if (fileModifiedDate > 0) {
+            val currentTime = System.currentTimeMillis()
+            // Если файл был изменен совсем недавно (в течение 5 секунд),
+            // возможно он все еще находится в процессе обработки другим процессом
+            if (currentTime - fileModifiedDate < 5000L) {
+                return true
+            }
+        } else {
+            // Дополнительная проверка: если файл был обработан совсем недавно, но уже вышел из кэша,
+            // все равно временно игнорируем его
+            if (!isRecentlyProcessed && !isIgnored && !isProcessing) {
+                // Проверяем время модификации файла - если он был изменен совсем недавно,
+                // возможно он все еще находится в процессе обработки другим процессом
+                try {
+                    val appContext = context ?: return isProcessing || isIgnored || isRecentlyProcessed
+                    val lastModified = kotlinx.coroutines.runBlocking {
+                        UriUtil.getFileLastModified(appContext, uri)
+                    }
+                    val currentTime = System.currentTimeMillis()
+                    if (lastModified > 0 && (currentTime - lastModified < 5000L)) { // 5 секунд
+                        return true
+                    }
+                } catch (e: Exception) {
+                    // Если не удается получить время модификации, продолжаем стандартную проверку
+                }
+            }
+        }
+        
+        return isProcessing || isIgnored || isRecentlyProcessed
     }
     
     /**
      * Получает статистику кэшей для мониторинга производительности
      */
     fun getCacheStats(): String {
-        return "UriTracker: обрабатывается ${processingUris.size}, недавно обработано ${recentlyProcessedUris.size}, игнорируется ${ignoreUrisUntil.size}"
+        return "UriTracker: обрабатывается ${processingUris.size}, недавно обработано ${recentlyProcessedUris.size}, игнорируется ${ignoreUrisUntil.size}, недоступно ${unavailableUris.size}"
     }
-} 
+    
+    /**
+     * Помечает URI как недоступный
+     */
+    fun markUriUnavailable(uri: Uri) {
+        val uriString = uri.toString()
+        unavailableUris[uriString] = System.currentTimeMillis()
+        LogUtil.processDebug("URI помечен как недоступный: $uriString")
+    }
+    
+    /**
+     * Проверяет, является ли URI недоступным
+     */
+    fun isUriUnavailable(uri: Uri): Boolean {
+        val uriString = uri.toString()
+        
+        // Очищаем устаревшие записи перед проверкой
+        cleanupStaleUnavailableEntries()
+        
+        return unavailableUris.containsKey(uriString)
+    }
+    
+    /**
+     * Очищает устаревшие записи недоступных URI
+     */
+    private fun cleanupStaleUnavailableEntries() {
+        val now = System.currentTimeMillis()
+        val expiredUris = mutableListOf<String>()
+        
+        for ((uri, timestamp) in unavailableUris) {
+            if (now - timestamp > UNAVAILABLE_URI_EXPIRATION) {
+                expiredUris.add(uri)
+            }
+        }
+        
+        for (uri in expiredUris) {
+            unavailableUris.remove(uri)
+            LogUtil.processDebug("Устаревший URI удален из списка недоступных: $uri")
+        }
+    }
+}

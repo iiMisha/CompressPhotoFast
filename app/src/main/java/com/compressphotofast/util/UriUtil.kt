@@ -283,7 +283,7 @@ object UriUtil {
                     return@withContext true
                 }
             } catch (e: Exception) {
-                // Игнорируем ошибку открытия потока
+                LogUtil.error(uri, "Проверка существования через InputStream", "Ошибка при открытии потока", e)
             }
             
             // Проверка для file:// URI через FileProvider
@@ -339,8 +339,10 @@ object UriUtil {
             }
             
             // Если не удалось получить через META-данные, пытаемся через InputStream
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                return inputStream.available().toLong()
+            if (kotlinx.coroutines.runBlocking { isUriExistsSuspend(context, uri) }) {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    return inputStream.available().toLong()
+                }
             }
             
             // Если обе попытки не удались, возвращаем 0

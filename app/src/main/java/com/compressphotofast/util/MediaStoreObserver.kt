@@ -26,7 +26,7 @@ class MediaStoreObserver @Inject constructor(
 ) {
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
-    private val contentObserverDebounceTime = 2000L // 2000мс (2 секунды) для дедупликации событий
+    private val contentObserverDebounceTime = 5000L // 5000мс (5 секунд) для дедупликации событий - увеличиваем для надежности
     
     // Очередь отложенных задач для ContentObserver
     private val pendingTasks = ConcurrentHashMap<String, Runnable>()
@@ -66,9 +66,9 @@ class MediaStoreObserver @Inject constructor(
                     // Обновляем время последнего наблюдения
                     recentlyObservedUris[uriString] = currentTime
                     
-                    // Удаляем старые записи (старше 10 секунд)
+                    // Удаляем старые записи (старше 15 секунд, чтобы соответствовать новому debounce времени)
                     val urisToRemove = recentlyObservedUris.entries
-                        .filter { (currentTime - it.value) > 10000 }
+                        .filter { (currentTime - it.value) > 15000L }
                         .map { it.key }
                     
                     urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
@@ -85,6 +85,13 @@ class MediaStoreObserver @Inject constructor(
                     // Создаем новую задачу с задержкой
                     val delayTask = Runnable {
                         LogUtil.processDebug("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
+                        // Проверяем, является ли URI недоступным перед обработкой
+                        if (uriProcessingTracker.isUriUnavailable(it)) {
+                            LogUtil.processDebug("MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: $uriString")
+                            pendingTasks.remove(uriString)
+                            return@Runnable
+                        }
+                        
                         // Проверяем существование URI перед передачей в обработчик
                         val exists = kotlinx.coroutines.runBlocking {
                             UriUtil.isUriExistsSuspend(context, it)
@@ -92,7 +99,8 @@ class MediaStoreObserver @Inject constructor(
                         if (exists) {
                             imageChangeListener?.invoke(it)
                         } else {
-                            LogUtil.processDebug("MediaStoreObserver: URI не существует, пропускаем обработку: $uriString")
+                            LogUtil.processDebug("MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: $uriString")
+                            uriProcessingTracker.markUriUnavailable(it)
                         }
                         pendingTasks.remove(uriString)
                     }

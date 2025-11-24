@@ -90,6 +90,12 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             val imageUri = Uri.parse(uriString)
             
+            // Проверяем, является ли URI недоступным
+            if (uriProcessingTracker.isUriUnavailable(imageUri)) {
+                LogUtil.processDebug("ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: $imageUri")
+                return@withContext Result.failure()
+            }
+            
             // Обновляем уведомление
             setForeground(createForegroundInfo("🔧 ${appContext.getString(R.string.notification_compression_in_progress)}"))
             
@@ -125,7 +131,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Добавляем URI в отслеживание обработки
-            uriProcessingTracker.addProcessingUri(imageUri)
+            uriProcessingTracker.addProcessingUriWithDetails(imageUri, "ImageCompressionWorker")
             
             // Проверка на временный файл
             if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
@@ -215,6 +221,13 @@ class ImageCompressionWorker @AssistedInject constructor(
                     }
                 
                 LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
+                
+                // Проверяем существование URI перед открытием потока
+                if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
+                    LogUtil.error(imageUri, "Проверка файла", "Файл не существует перед открытием потока")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    return@withContext Result.failure()
+                }
                 
                 // Получаем поток с изображением
                 val imageStream = appContext.contentResolver.openInputStream(imageUri)

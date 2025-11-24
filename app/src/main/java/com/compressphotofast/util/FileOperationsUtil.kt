@@ -86,14 +86,21 @@ object FileOperationsUtil {
                     LogUtil.processInfo("Удаляем файл через MediaStore (Android 10+)")
                     val result = context.contentResolver.delete(cleanUri, null, null) > 0
                     LogUtil.processInfo("Результат удаления через MediaStore: $result")
+                    if (!result) {
+                        LogUtil.processWarning("Удаление через MediaStore не удалось для URI: $cleanUri")
+                    }
                     return result
                 } catch (e: SecurityException) {
                     if (e is android.app.RecoverableSecurityException) {
                         LogUtil.processInfo("Требуется разрешение пользователя для удаления файла: $cleanUri")
                         return e.userAction.actionIntent.intentSender
                     } else {
+                        LogUtil.error(cleanUri, "Удаление", "SecurityException при удалении файла", e)
                         throw e
                     }
+                } catch (e: Exception) {
+                    LogUtil.error(cleanUri, "Удаление", "Ошибка при удалении файла через MediaStore", e)
+                    return false
                 }
             } else {
                 // Для более старых версий получаем путь к файлу и удаляем его напрямую
@@ -103,7 +110,13 @@ object FileOperationsUtil {
                     val file = File(path)
                     val result = file.delete()
                     LogUtil.processInfo("Результат удаления файла: $result")
+                    if (!result) {
+                        LogUtil.processWarning("Удаление файла по пути не удалось: $path")
+                    }
                     return result
+                } else {
+                    LogUtil.processWarning("Не удалось получить путь к файлу для URI: $cleanUri")
+                    return false
                 }
             }
         } catch (e: Exception) {

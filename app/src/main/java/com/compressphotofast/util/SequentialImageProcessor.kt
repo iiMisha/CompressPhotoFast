@@ -202,7 +202,7 @@ class SequentialImageProcessor(
             return@withContext null
         }
 
-        uriProcessingTracker.addProcessingUri(uri)
+        uriProcessingTracker.addProcessingUriWithDetails(uri, "SequentialImageProcessor")
         try {
             val fileName = try {
                 UriUtil.getFileNameFromUri(context, uri) ?: "Неизвестный файл"

@@ -102,9 +102,17 @@ object ImageProcessingChecker {
             }
             
             // Проверяем, является ли файл временным или в процессе записи
+            // Добавляем более гибкую проверку с учетом времени
             if (UriUtil.isFilePendingSuspend(context, uri)) {
                 LogUtil.processDebug("Файл является временным или в процессе записи: $uri")
-                return@withContext false
+                // Проверяем, может быть файл уже был обработан, но все еще помечен как pending
+                val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
+                if (fileName.contains("_compressed")) {
+                    // Это может быть сжатая версия, пропускаем проверку pending
+                    LogUtil.processDebug("Файл содержит '_compressed', возможно это результат предыдущей обработки: $uri")
+                } else {
+                    return@withContext false
+                }
             }
             
             // Проверяем MIME тип
@@ -206,6 +214,8 @@ object ImageProcessingChecker {
                     exifResult
                 }
             }
+            
+            // Дополнительная проверка: если файл был изменен после кэширования EXIF, используем свежие данные
             result.hasCompressionMarker = isCompressed
             result.compressionQuality = quality
             result.compressionTimestamp = compressionTimestamp

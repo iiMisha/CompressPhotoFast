@@ -225,6 +225,11 @@ object ImageCompressionUtil {
                 return@withContext Triple(false, null, "Недействительный URI")
             }
             
+            // Проверка существования URI перед получением размера
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                return@withContext Triple(false, null, "Файл не существует")
+            }
+            
             // Получение имени и размера файла
             val fileName = UriUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
             val fileSize = UriUtil.getFileSize(context, uri)
@@ -242,8 +247,16 @@ object ImageCompressionUtil {
             val exifData = ExifUtil.readExifDataToMemory(context, uri)
             
             // Сжатие изображения в поток
-            val outputStream = compressImageToStream(context, uri, quality)
-                ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
+            val outputStream = try {
+                compressImageToStream(context, uri, quality)
+                    ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(uri, "Сжатие изображения", "Файл не найден при сжатии: ${e.message}")
+                return@withContext Triple(false, null, "Файл не найден при сжатии")
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Сжатие изображения", "Ошибка при сжатии изображения", e)
+                return@withContext Triple(false, null, "Ошибка при сжатии: ${e.message}")
+            }
             
             val compressedSize = outputStream.size().toLong()
             
@@ -264,15 +277,23 @@ object ImageCompressionUtil {
                 Constants.APP_DIRECTORY
             }
 
-            val savedFileResult = MediaStoreUtil.saveCompressedImageFromStream(
-                context,
-                compressedInputStream,
-                compressedFileName,
-                directoryToSave,
-                uri,
-                quality,
-                exifData
-            )
+            val savedFileResult = try {
+                MediaStoreUtil.saveCompressedImageFromStream(
+                    context,
+                    compressedInputStream,
+                    compressedFileName,
+                    directoryToSave,
+                    uri,
+                    quality,
+                    exifData
+                )
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(uri, "Сохранение сжатого изображения", "Файл не найден при сохранении: ${e.message}")
+                null
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Сохранение сжатого изображения", "Ошибка при сохранении сжатого изображения", e)
+                null
+            }
             
             compressedInputStream.close()
             outputStream.close()
