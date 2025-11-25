@@ -9,8 +9,10 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.text.DecimalFormat
 import java.util.Date
 
@@ -67,8 +69,19 @@ object FileOperationsUtil {
         }
         try {
             LogUtil.processInfo("Начинаем удаление файла: $uri")
+
+            // Двойная проверка существования файла перед удалением
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.processWarning("deleteFile: URI не существует, удаление отменено: $uri")
+                LogUtil.processWarning("deleteFile: URI не существует (первая проверка), удаление отменено: $uri")
+                return false
+            }
+
+            // Небольшая задержка для предотвращения race condition
+            delay(50)
+
+            // Повторная проверка существования файла
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.processWarning("deleteFile: URI не существует (вторая проверка), удаление отменено: $uri")
                 return false
             }
 
@@ -131,11 +144,34 @@ object FileOperationsUtil {
      * Создание временного файла для изображения
      */
     fun createTempImageFile(context: Context): File {
-        return File.createTempFile(
-            "temp_image_",
-            ".jpg",
-            context.cacheDir
-        )
+        try {
+            // Проверяем доступность cacheDir
+            val cacheDir = context.cacheDir
+            if (!cacheDir.exists()) {
+                LogUtil.error(null, "Cache директория", "Cache директория не существует: ${cacheDir.absolutePath}")
+                throw IOException("Cache директория недоступна")
+            }
+
+            if (!cacheDir.canWrite()) {
+                LogUtil.error(null, "Cache директория", "Нет прав на запись в cache директорию: ${cacheDir.absolutePath}")
+                throw IOException("Нет прав на запись в cache директорию")
+            }
+
+            return File.createTempFile(
+                "temp_image_",
+                ".jpg",
+                cacheDir
+            )
+        } catch (e: java.io.IOException) {
+            LogUtil.error(null, "Создание временного файла", "Ошибка создания временного файла: ${e.message}")
+            throw e
+        } catch (e: java.lang.SecurityException) {
+            LogUtil.error(null, "Создание временного файла", "Нет прав для создания временного файла: ${e.message}")
+            throw e
+        } catch (e: Exception) {
+            LogUtil.error(null, "Создание временного файла", "Неожиданная ошибка при создании временного файла: ${e.message}")
+            throw IOException("Не удалось создать временный файл", e)
+        }
     }
     
     /**

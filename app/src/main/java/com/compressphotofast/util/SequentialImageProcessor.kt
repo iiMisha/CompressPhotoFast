@@ -12,6 +12,7 @@ import com.compressphotofast.util.NotificationUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -204,6 +205,23 @@ class SequentialImageProcessor(
 
         uriProcessingTracker.addProcessingUriWithDetails(uri, "SequentialImageProcessor")
         try {
+            // Проверка существования файла перед обработкой
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Пакетная обработка", "Файл не существует (первая проверка)")
+                uriProcessingTracker.markUriUnavailable(uri)
+                return@withContext null
+            }
+
+            // Небольшая задержка для предотвращения race condition
+            delay(30)
+
+            // Повторная проверка существования файла
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Пакетная обработка", "Файл не существует (вторая проверка)")
+                uriProcessingTracker.markUriUnavailable(uri)
+                return@withContext null
+            }
+
             val fileName = try {
                 UriUtil.getFileNameFromUri(context, uri) ?: "Неизвестный файл"
             } catch (e: Exception) {
@@ -212,6 +230,13 @@ class SequentialImageProcessor(
             }
 
             updateProgress(position, total, fileName)
+
+            // Финальная проверка непосредственно перед сжатием
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Пакетная обработка", "Файл не существует перед сжатием")
+                uriProcessingTracker.markUriUnavailable(uri)
+                return@withContext null
+            }
 
             val result = ImageCompressionUtil.processAndSaveImage(context, uri, compressionQuality)
 
@@ -228,8 +253,25 @@ class SequentialImageProcessor(
             }
 
             val savedUri = result.second!!
-            val originalSize = UriUtil.getFileSize(context, uri)
-            val compressedSize = UriUtil.getFileSize(context, savedUri)
+            val originalSize = try {
+                UriUtil.getFileSize(context, uri)
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(uri, "Пакетная обработка", "Файл не найден при получении оригинального размера: ${e.message}")
+                0L
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Пакетная обработка", "Ошибка получения оригинального размера: ${e.message}")
+                0L
+            }
+
+            val compressedSize = try {
+                UriUtil.getFileSize(context, savedUri)
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(savedUri, "Пакетная обработка", "Файл не найден при получении сжатого размера: ${e.message}")
+                0L
+            } catch (e: Exception) {
+                LogUtil.error(savedUri, "Пакетная обработка", "Ошибка получения сжатого размера: ${e.message}")
+                0L
+            }
 
             val intent = Intent(Constants.ACTION_COMPRESSION_COMPLETED)
             intent.setPackage(context.packageName)

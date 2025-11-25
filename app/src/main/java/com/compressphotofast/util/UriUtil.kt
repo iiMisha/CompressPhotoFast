@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
@@ -277,32 +278,78 @@ object UriUtil {
      */
     suspend fun isUriExistsSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Проверка через contentResolver
-            context.contentResolver.getType(uri)?.let {
-                return@withContext true
+            // Первая быстрая проверка через getType
+            val mimeType = context.contentResolver.getType(uri)
+            if (mimeType != null) {
+                // MIME тип есть, но файл может быть в процессе записи
+                // Добавляем небольшую задержку и дополнительную проверку
+                delay(20)
             }
-            
-            // Дополнительная проверка через InputStream
+
+            // Усиленная проверка через InputStream с детальной обработкой ошибок
             try {
-                context.contentResolver.openInputStream(uri)?.use { _ ->
-                    return@withContext true
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    // Проверяем, что поток можно прочитать (имеет данные)
+                    val available = stream.available()
+                    if (available > 0) {
+                        return@withContext true
+                    } else {
+                        LogUtil.debug("Проверка существования", "Файл существует, но пуст (${uri})")
+                        return@withContext true // Пустой файл все равно существует
+                    }
                 }
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.debug("Проверка существования", "Файл не найден (${uri}): ${e.message}")
+                return@withContext false
+            } catch (e: java.io.IOException) {
+                LogUtil.debug("Проверка существования", "Ошибка ввода/вывода (${uri}): ${e.message}")
+                return@withContext false
+            } catch (e: java.lang.SecurityException) {
+                LogUtil.debug("Проверка существования", "Нет прав доступа (${uri}): ${e.message}")
+                return@withContext false
             } catch (e: Exception) {
-                LogUtil.error(uri, "Проверка существования через InputStream", "Ошибка при открытии потока", e)
+                LogUtil.debug("Проверка существования", "Неожиданная ошибка (${uri}): ${e.message}")
+                return@withContext false
             }
-            
-            // Проверка для file:// URI через FileProvider
-            if (uri.scheme == "file" || uri.scheme == "content") {
-                val path = getFilePathFromUri(context, uri)
+
+            // Дополнительная проверка для file:// URI
+            if (uri.scheme == "file") {
+                val path = uri.path
                 if (path != null) {
                     val file = File(path)
-                    return@withContext file.exists() && file.canRead()
+                    val exists = file.exists() && file.canRead()
+                    LogUtil.debug("Проверка существования", "File URI проверка (${uri}): $exists")
+                    return@withContext exists
                 }
             }
-            
+
+            // Проверка для content:// URI через путь (если возможно)
+            if (uri.scheme == "content") {
+                val path = getFilePathFromUri(context, uri)
+                if (path != null && path != uri.toString()) {
+                    val file = File(path)
+                    val exists = file.exists() && file.canRead()
+                    LogUtil.debug("Проверка существования", "Content URI проверка через путь (${uri}): $exists")
+                    if (exists) {
+                        return@withContext true
+                    }
+                }
+
+                // Дополнительная проверка через DocumentFile
+                try {
+                    val documentFile = DocumentFile.fromSingleUri(context, uri)
+                    if (documentFile != null && documentFile.exists()) {
+                        LogUtil.debug("Проверка существования", "DocumentFile подтверждает существование (${uri})")
+                        return@withContext true
+                    }
+                } catch (e: Exception) {
+                    LogUtil.debug("Проверка существования", "DocumentFile проверка не удалась (${uri}): ${e.message}")
+                }
+            }
+
             return@withContext false
         } catch (e: Exception) {
-            LogUtil.error(uri, "Проверка существования", "Ошибка при проверке существования файла", e)
+            LogUtil.error(uri, "Проверка существования", "Критическая ошибка при проверке", e)
             return@withContext false
         }
     }
@@ -325,35 +372,72 @@ object UriUtil {
     fun getFileSize(context: Context, uri: Uri): Long {
         try {
             // Сначала пытаемся получить размер через META-данные
-            val fileSize = context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                    if (sizeIndex != -1) {
-                        cursor.getLong(sizeIndex)
+            val fileSize = try {
+                context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        if (sizeIndex != -1 && !cursor.isNull(sizeIndex)) {
+                            val size = cursor.getLong(sizeIndex)
+                            if (size >= 0) size else -1L
+                        } else {
+                            -1L
+                        }
                     } else {
                         -1L
                     }
-                } else {
-                    -1L
-                }
-            } ?: -1L
-            
-            // Если размер получен через META-данные, возвращаем его
-            if (fileSize != -1L) {
+                } ?: -1L
+            } catch (e: java.lang.SecurityException) {
+                LogUtil.debug("Получение размера", "Нет прав доступа к META-данным (${uri}): ${e.message}")
+                -1L
+            } catch (e: Exception) {
+                LogUtil.debug("Получение размера", "Ошибка получения META-данных (${uri}): ${e.message}")
+                -1L
+            }
+
+            // Если размер получен через META-данные и он валидный, возвращаем его
+            if (fileSize > 0) {
                 return fileSize
+            } else if (fileSize == 0L) {
+                // Файл может быть пустым, это нормальная ситуация
+                return 0L
             }
-            
+
             // Если не удалось получить через META-данные, пытаемся через InputStream
-            if (kotlinx.coroutines.runBlocking { isUriExistsSuspend(context, uri) }) {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    return inputStream.available().toLong()
+            // с проверкой существования файла
+            val exists = kotlinx.coroutines.runBlocking {
+                try {
+                    isUriExistsSuspend(context, uri)
+                } catch (e: Exception) {
+                    LogUtil.debug("Получение размера", "Ошибка проверки существования (${uri}): ${e.message}")
+                    false
                 }
             }
-            
-            // Если обе попытки не удались, возвращаем 0
+
+            if (exists) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val available = inputStream.available()
+                        return if (available >= 0) available.toLong() else 0L
+                    }
+                } catch (e: java.io.FileNotFoundException) {
+                    LogUtil.error(uri, "Получение размера", "Файл не найден при открытии потока: ${e.message}")
+                    return 0L
+                } catch (e: java.io.IOException) {
+                    LogUtil.error(uri, "Получение размера", "Ошибка ввода/вывода при чтении потока: ${e.message}")
+                    return 0L
+                } catch (e: java.lang.SecurityException) {
+                    LogUtil.error(uri, "Получение размера", "Нет прав доступа к файлу: ${e.message}")
+                    return 0L
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "Получение размера", "Неожиданная ошибка при чтении файла: ${e.message}")
+                    return 0L
+                }
+            }
+
+            // Если все попытки не удались, возвращаем 0 (индикатор ошибки)
             return 0L
         } catch (e: Exception) {
-            LogUtil.error(uri, "Получение размера", "Ошибка при получении размера файла по URI", e)
+            LogUtil.error(uri, "Получение размера", "Критическая ошибка при получении размера файла", e)
             return 0L
         }
     }

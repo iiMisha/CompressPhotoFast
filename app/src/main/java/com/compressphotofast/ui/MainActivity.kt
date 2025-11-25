@@ -58,6 +58,7 @@ import com.compressphotofast.util.UriProcessingTracker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -382,34 +383,80 @@ class MainActivity : AppCompatActivity() {
         val uris = extractUrisFromIntent(intent)
         if (uris.isEmpty()) return
 
-        // Сбрасываем счетчики перед началом новой пакетной обработки
-        viewModel.resetBatchCounters()
-        
-        // Создаем batch ID для Intent-сжатий
-        val batchId = CompressionBatchTracker.createIntentBatch(this, uris.size)
-        LogUtil.processDebug("Создан Intent батч для ${uris.size} изображений: $batchId")
-        
-        // Обрабатываем изображения
+        // Валидация всех URI перед началом пакетной обработки
+        val validUris = mutableListOf<Uri>()
         lifecycleScope.launch {
+            for (uri in uris) {
+                // Первая проверка существования файла
+                if (!UriUtil.isUriExistsSuspend(this@MainActivity, uri)) {
+                    LogUtil.error(uri, "Intent обработка", "Файл не существует (первая проверка)")
+                    uriProcessingTracker.markUriUnavailable(uri)
+                    continue
+                }
+
+                // Небольшая задержка для предотвращения race condition
+                delay(50)
+
+                // Повторная проверка существования файла
+                if (!UriUtil.isUriExistsSuspend(this@MainActivity, uri)) {
+                    LogUtil.error(uri, "Intent обработка", "Файл не существует (вторая проверка)")
+                    uriProcessingTracker.markUriUnavailable(uri)
+                    continue
+                }
+
+                // Проверка, является ли файл изображением
+                val mimeType = try {
+                    UriUtil.getMimeType(this@MainActivity, uri)
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "Intent обработка", "Ошибка получения MIME типа: ${e.message}")
+                    null
+                }
+
+                if (mimeType?.startsWith("image/") != true) {
+                    LogUtil.processWarning("Intent обработка: Файл не является изображением ($uri): $mimeType")
+                    continue
+                }
+
+                validUris.add(uri)
+                LogUtil.processDebug("handleIntent: URI прошел валидацию: $uri")
+            }
+
+            // Если нет валидных URI, выходим
+            if (validUris.isEmpty()) {
+                LogUtil.processWarning("handleIntent: Нет валидных URI для обработки")
+                return@launch
+            }
+
+            // Сбрасываем счетчики перед началом новой пакетной обработки
+            viewModel.resetBatchCounters()
+
+            // Создаем batch ID для Intent-сжатий
+            val batchId = CompressionBatchTracker.createIntentBatch(this@MainActivity, validUris.size)
+            LogUtil.processDebug("Создан Intent батч для ${validUris.size} изображений: $batchId")
+
             // Если есть хотя бы одно изображение, показываем первое в UI
-            viewModel.setSelectedImageUri(uris[0])
-            
+            viewModel.setSelectedImageUri(validUris[0])
+
             // Обрабатываем несколько изображений принудительно, независимо от настройки автосжатия
             var processedCount = 0
-            
-            for (uri in uris) {
-                LogUtil.processDebug("handleIntent: Обработка URI: $uri")
+
+            for (uri in validUris) {
+                LogUtil.processDebug("handleIntent: Обработка валидного URI: $uri")
                 logFileDetails(uri)
-                
-                // Принудительно обрабатываем изображения, полученные через Share, передаем batch ID
-                val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true, batchId = batchId)
-                
-                // Считаем обработанные изображения
-                if (result.first && result.second) {
-                    processedCount++
-                } else {
-                    // Ошибки или уже обработанные изображения
-                    LogUtil.processDebug("handleIntent: URI $uri пропущен: ${result.third}")
+
+                try {
+                    // Принудительно обрабатываем изображения, полученные через Share, передаем batch ID
+                    val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true, batchId = batchId)
+
+                    // Считаем обработанные изображения
+                    if (result.first && result.second) {
+                        processedCount++
+                    } else {
+                        // Ошибки или уже обработанные изображения
+                        LogUtil.processDebug("handleIntent: URI $uri пропущен: ${result.third}")
+                    }
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "Intent обработка", "Критическая ошибка при обработке: ${e.message}")
                 }
             }
             

@@ -47,6 +47,7 @@ import id.zelory.compressor.constraint.quality
 import id.zelory.compressor.constraint.resolution
 import id.zelory.compressor.constraint.size
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -89,21 +90,46 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             val imageUri = Uri.parse(uriString)
-            
+
             // Проверяем, является ли URI недоступным
             if (uriProcessingTracker.isUriUnavailable(imageUri)) {
                 LogUtil.processDebug("ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: $imageUri")
                 return@withContext Result.failure()
             }
-            
+
+            // Ранняя проверка существования файла перед любыми операциями
+            if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
+                LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует (первая проверка)")
+                uriProcessingTracker.markUriUnavailable(imageUri)
+                return@withContext Result.failure()
+            }
+
+            // Небольшая задержка для предотвращения race condition
+            delay(100)
+
+            // Повторная проверка существования файла
+            if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
+                LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует (вторая проверка)")
+                uriProcessingTracker.markUriUnavailable(imageUri)
+                return@withContext Result.failure()
+            }
+
             // Обновляем уведомление
             setForeground(createForegroundInfo("🔧 ${appContext.getString(R.string.notification_compression_in_progress)}"))
-            
+
             LogUtil.processInfo("[ПРОЦЕСС] Используется качество сжатия: $compressionQuality")
-            
+
             // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
             val exifDataMemory = try {
                 ExifUtil.readExifDataToMemory(appContext, imageUri)
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(imageUri, "Чтение EXIF", "Файл не найден при чтении EXIF: ${e.message}")
+                uriProcessingTracker.markUriUnavailable(imageUri)
+                return@withContext Result.failure()
+            } catch (e: java.io.IOException) {
+                LogUtil.error(imageUri, "Чтение EXIF", "Ошибка ввода/вывода при чтении EXIF: ${e.message}")
+                uriProcessingTracker.markUriUnavailable(imageUri)
+                return@withContext Result.failure()
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Чтение EXIF", "Не удалось прочитать EXIF-данные, отмена задачи.", e)
                 return@withContext Result.failure()
@@ -222,18 +248,55 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
                 
-                // Проверяем существование URI перед открытием потока
+                // Дополнительная проверка существования файла перед открытием потока
                 if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                     LogUtil.error(imageUri, "Проверка файла", "Файл не существует перед открытием потока")
                     uriProcessingTracker.markUriUnavailable(imageUri)
                     return@withContext Result.failure()
                 }
-                
-                // Получаем поток с изображением
-                val imageStream = appContext.contentResolver.openInputStream(imageUri)
-                
+
+                // Короткая задержка перед открытием потока
+                delay(50)
+
+                // Финальная проверка существования файла непосредственно перед открытием потока
+                if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
+                    LogUtil.error(imageUri, "Проверка файла", "Файл не существует перед открытием потока (финальная проверка)")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    return@withContext Result.failure()
+                }
+
+                // Безопасное получение потока с изображением
+                val imageStream = try {
+                    appContext.contentResolver.openInputStream(imageUri)
+                } catch (e: java.io.FileNotFoundException) {
+                    LogUtil.error(imageUri, "Открытие потока", "Файл не найден при открытии потока: ${e.message}")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                } catch (e: java.io.IOException) {
+                    LogUtil.error(imageUri, "Открытие потока", "Ошибка ввода/вывода при открытии потока: ${e.message}")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                } catch (e: java.lang.SecurityException) {
+                    LogUtil.error(imageUri, "Открытие потока", "Нет прав доступа к файлу: ${e.message}")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                } catch (e: Exception) {
+                    LogUtil.error(imageUri, "Открытие потока", "Неожиданная ошибка при открытии потока: ${e.message}")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
+                }
+
                 if (imageStream == null) {
-                    LogUtil.error(imageUri, "Открытие потока", "Не удалось открыть поток изображения")
+                    LogUtil.error(imageUri, "Открытие потока", "Не удалось открыть поток изображения (поток null)")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
                     setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()

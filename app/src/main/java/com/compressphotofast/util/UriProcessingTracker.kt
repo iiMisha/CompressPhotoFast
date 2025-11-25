@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
+import kotlinx.coroutines.delay
 
 /**
  * Утилитарный класс для отслеживания обрабатываемых URI
@@ -21,8 +22,8 @@ object UriProcessingTracker {
     // Множество URI, которые недоступны (не существуют)
     private val unavailableUris = ConcurrentHashMap<String, Long>()
     
-    // Время истечения для недоступных URI (10 минут)
-    private const val UNAVAILABLE_URI_EXPIRATION = 10 * 60 * 1000L
+    // Время истечения для недоступных URI (2 минуты - уменьшено для более быстрого восстановления)
+    private const val UNAVAILABLE_URI_EXPIRATION = 2 * 60 * 1000L
     
     fun initialize(context: Context) {
         this.context = context
@@ -72,6 +73,43 @@ object UriProcessingTracker {
         val uriString = uri.toString()
         processingUris.remove(uriString)
         LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось: ${processingUris.size})")
+    }
+
+    /**
+     * Выполняет операцию с блокировкой на уровне URI для предотвращения race conditions
+     * @param uri URI для блокировки
+     * @param operation Операция, которую нужно выполнить с блокировкой
+     * @return Результат операции
+     */
+    suspend fun <T> withUriLock(uri: Uri, operation: suspend () -> T): T {
+        val uriString = uri.toString()
+
+        // Ждем завершения текущих операций (максимум 5 секунд)
+        val startTime = System.currentTimeMillis()
+        val maxWaitTime = 5000L // 5 секунд
+        val checkInterval = 100L // Проверять каждые 100мс
+
+        while (processingUris.contains(uriString) &&
+               System.currentTimeMillis() - startTime < maxWaitTime) {
+            LogUtil.processDebug("Ожидание освобождения URI: $uriString")
+            delay(checkInterval)
+        }
+
+        // Если URI все еще обрабатывается после таймаута, выполняем операцию anyway
+        // чтобы избежать вечного ожидания, но логируем это
+        if (processingUris.contains(uriString)) {
+            LogUtil.processDebug("URI все еще обрабатывается после таймаута: $uriString, выполняем операцию")
+        }
+
+        // Добавляем в обработку
+        addProcessingUri(uri)
+
+        return try {
+            operation()
+        } finally {
+            // Гарантированно удаляем из обработки
+            removeProcessingUri(uri)
+        }
     }
     
     /**

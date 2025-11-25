@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -41,11 +42,34 @@ object ImageCompressionUtil {
     ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
         try {
             LogUtil.uriInfo(uri, "Сжатие изображения в поток")
-            
-            // Загружаем изображение в Bitmap
-            val inputBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input)
-            } ?: throw IOException("Не удалось открыть изображение")
+
+            // Проверка существования файла перед открытием потока
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Сжатие в поток", "Файл не существует перед открытием потока")
+                return@withContext null
+            }
+
+            // Небольшая задержка для предотвращения race condition
+            delay(30)
+
+            // Безопасное открытие потока с детальной обработкой ошибок
+            val inputBitmap = try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input)
+                }
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(uri, "Сжатие в поток", "Файл не найден при открытии потока: ${e.message}")
+                return@withContext null
+            } catch (e: java.io.IOException) {
+                LogUtil.error(uri, "Сжатие в поток", "Ошибка ввода/вывода при открытии потока: ${e.message}")
+                return@withContext null
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Сжатие в поток", "Ошибка при открытии потока: ${e.message}")
+                return@withContext null
+            } ?: run {
+                LogUtil.error(uri, "Сжатие в поток", "Не удалось открыть изображение (поток null)")
+                return@withContext null
+            }
             
             // Создаем ByteArrayOutputStream для сжатия в память
             val outputStream = ByteArrayOutputStream()
@@ -224,15 +248,34 @@ object ImageCompressionUtil {
             if (!isValidUri(context, uri)) {
                 return@withContext Triple(false, null, "Недействительный URI")
             }
-            
-            // Проверка существования URI перед получением размера
+
+            // Двойная проверка существования файла
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Обработка", "Файл не существует (первая проверка)")
                 return@withContext Triple(false, null, "Файл не существует")
             }
+
+            // Небольшая задержка для предотвращения race condition
+            delay(50)
+
+            // Повторная проверка существования файла перед критическими операциями
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Обработка", "Файл не существует (вторая проверка)")
+                return@withContext Triple(false, null, "Файл стал недоступен")
+            }
             
-            // Получение имени и размера файла
+            // Получение имени и размера файла с безопасной обработкой
             val fileName = UriUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
-            val fileSize = UriUtil.getFileSize(context, uri)
+
+            val fileSize = try {
+                UriUtil.getFileSize(context, uri)
+            } catch (e: java.io.FileNotFoundException) {
+                LogUtil.error(uri, "Обработка", "Файл не найден при получении размера: ${e.message}")
+                return@withContext Triple(false, null, "Файл недоступен")
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Обработка", "Ошибка при получении размера файла: ${e.message}")
+                return@withContext Triple(false, null, "Ошибка доступа к файлу")
+            }
             
             if (fileSize <= 0) {
                 return@withContext Triple(false, null, "Не удалось получить размер файла или файл пуст")
@@ -246,13 +289,22 @@ object ImageCompressionUtil {
             // Получение EXIF данных для сохранения (теперь они должны быть в кэше)
             val exifData = ExifUtil.readExifDataToMemory(context, uri)
             
-            // Сжатие изображения в поток
+            // Дополнительная проверка существования файла перед сжатием
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Сжатие", "Файл не существует перед сжатием")
+                return@withContext Triple(false, null, "Файл недоступен для сжатия")
+            }
+
+            // Сжатие изображения в поток с усиленной обработкой ошибок
             val outputStream = try {
                 compressImageToStream(context, uri, quality)
                     ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
             } catch (e: java.io.FileNotFoundException) {
                 LogUtil.error(uri, "Сжатие изображения", "Файл не найден при сжатии: ${e.message}")
                 return@withContext Triple(false, null, "Файл не найден при сжатии")
+            } catch (e: java.io.IOException) {
+                LogUtil.error(uri, "Сжатие изображения", "Ошибка ввода/вывода при сжатии: ${e.message}")
+                return@withContext Triple(false, null, "Ошибка доступа к файлу при сжатии")
             } catch (e: Exception) {
                 LogUtil.error(uri, "Сжатие изображения", "Ошибка при сжатии изображения", e)
                 return@withContext Triple(false, null, "Ошибка при сжатии: ${e.message}")

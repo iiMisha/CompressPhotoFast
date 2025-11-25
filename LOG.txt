@@ -1,577 +1,573 @@
---------- beginning of main
---------- beginning of system
---------- beginning of crash
-22:05:24.612 mpressphotofast         Late-enabling -Xcheck:jni
-22:05:24.688 mpressphotofast         Using CollectorTypeCMC GC.
-22:05:24.690 mpressphotofast         Unexpected CPU variant for x86: x86_64.
-                                     Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, default
-22:05:24.709 nativeloader            Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
-22:05:24.872 ziparchive              Unable to open '/data/app/~~nXy0q4jP0Fs2lkLVy9x5rQ==/com.compressphotofast-sjipRW-mea5qX-vVzfopKQ==/base.dm': No such file or directory
-22:05:24.872 ziparchive              Unable to open '/data/app/~~nXy0q4jP0Fs2lkLVy9x5rQ==/com.compressphotofast-sjipRW-mea5qX-vVzfopKQ==/base.dm': No such file or directory
-22:05:24.989 nativeloader            Configuring clns-7 for other apk /data/app/~~nXy0q4jP0Fs2lkLVy9x5rQ==/com.compressphotofast-sjipRW-mea5qX-vVzfopKQ==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~nXy0q4jP0Fs2lkLVy9x5rQ==/com.compressphotofast-sjipRW-mea5qX-vVzfopKQ==/lib/x86_64:/data/app/~~nXy0q4jP0Fs2lkLVy9x5rQ==/com.compressphotofast-sjipRW-mea5qX-vVzfopKQ==/base.apk!/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.compressphotofast
-22:05:25.018 GraphicsEnvironment     Currently set values for:
-22:05:25.018 GraphicsEnvironment       angle_gl_driver_selection_pkgs=[]
-22:05:25.018 GraphicsEnvironment       angle_gl_driver_selection_values=[]
-22:05:25.018 GraphicsEnvironment     Global.Settings values are invalid: number of packages: 0, number of values: 0
-22:05:25.019 GraphicsEnvironment     Neither updatable production driver nor prerelease driver is supported.
-22:05:25.075 LogUtil                 [ПРОЦЕСС] FileInfoUtil: Очищено 0 устаревших записей в кэше
-22:05:25.108 WM-PackageManagerHelper Skipping component enablement for androidx.work.impl.background.systemjob.SystemJobService
-22:05:25.108 WM-Schedulers           Created SystemJobScheduler and enabled SystemJobService
-22:05:25.141 WM-ForceStopRunnable    Is default app process = true
-22:05:25.148 WM-ForceStopRunnable    Performing cleanup operations.
-22:05:25.327 AppCompatDelegate       Checking for metadata for AppLocalesMetadataHolderService : Service not found
-22:05:25.414 LogUtil                 [ПРОЦЕСС] MainActivity onCreate
-22:05:25.854 mpressphotofast         Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (unsupported, reflection, allowed)
-22:05:25.913 WM-PackageManagerHelper Skipping component enablement for androidx.work.impl.background.systemalarm.RescheduleReceiver
-22:05:25.942 LogUtil                 [ПРОЦЕСС] handleIntent: Получен интент с action=android.intent.action.MAIN, type=null
-22:05:25.943 LogUtil                 [ПРОЦЕСС] Все разрешения уже предоставлены
-22:05:25.947 LogUtil                 [ПРОЦЕСС] setupBackgroundService: автоматическое сжатие включено
-22:05:25.948 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
-22:05:25.948 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
-22:05:26.277 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: создан триггер для MediaStore
-22:05:26.280 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: создан JobInfo с параметрами: maxDelay=15000, updateDelay=0
-22:05:26.284 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание успешно запланировано
-22:05:26.284 LogUtil                 [ПРОЦЕСС] setupBackgroundService: JobService запланирован
-22:05:26.284 LogUtil                 [ПРОЦЕСС] setupBackgroundService: запуск как foreground сервис (Android O+)
-22:05:26.290 LogUtil                 [ПРОЦЕСС] Фоновые сервисы запущены успешно
-22:05:26.291 LogUtil                 [ПРОЦЕСС] Фоновые сервисы инициализированы успешно
-22:05:26.354 LogUtil                 [ПРОЦЕСС] Установлено качество сжатия: 60
-22:05:26.373 HWUI                    Unknown dataspace 0
-22:05:26.448 LogUtil                 [ПРОЦЕСС] Получен BOOT_COMPLETED, запускаем сервисы
-22:05:26.448 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
-22:05:26.451 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
-22:05:26.460 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
-22:05:26.463 LogUtil                 [ПРОЦЕСС] Фоновые сервисы запущены после загрузки системы
-22:05:26.472 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onCreate
-22:05:26.541 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: ContentObserver зарегистрирован для MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-22:05:26.547 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: зарегистрирован BroadcastReceiver для ACTION_PROCESS_IMAGE
-22:05:26.549 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: состояние автоматического сжатия: включено
-22:05:26.550 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическое сканирование запущено
-22:05:26.550 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: периодическая очистка временных файлов запущена
-22:05:26.551 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onStartCommand(startId=1)
-22:05:26.551 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: запуск первоначального сканирования
-22:05:26.767 EGL_emulation           Opening libGLESv1_CM_emulation.so
-22:05:26.768 EGL_emulation           Opening libGLESv2_emulation.so
-22:05:26.772 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 3 изображений за последние 1440 минут
-22:05:26.795 mpressphotofast         Compiler allocated 4219KB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
-22:05:26.816 HWUI                    Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
-22:05:26.816 HWUI                    Failed to initialize 101010-2 format, error = EGL_SUCCESS
-22:05:26.851 Gralloc4                mapper 4.x is not supported
-22:05:27.176 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: пакетная предзагрузка метаданных для 3 URI
-22:05:27.206 LogUtil                 [ПРОЦЕСС] Пакетное получение метаданных завершено: 3 URI, 3 запросов к MediaStore
-22:05:27.427 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: onStartCommand(startId=2)
-22:05:27.427 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: запуск первоначального сканирования
-22:05:27.427 LogUtil                 [ПРОЦЕСС] Запуск периодического сканирования галереи
-22:05:27.428 LogUtil                 [ПРОЦЕСС] Запуск периодической очистки временных файлов
-22:05:27.429 Choreographer           Skipped 50 frames!  The application may be doing too much work on its main thread.
-22:05:27.449 HWUI                    Davey! duration=1007ms; Flags=1, FrameTimelineVsyncId=35048, IntendedVsync=141072636263, Vsync=141205969591, InputEventId=0, HandleInputStart=141208966571, AnimationStart=141208977822, PerformTraversalsStart=141208978313, DrawStart=141925630777, FrameDeadline=141089302929, FrameInterval=141208703889, FrameStartTime=16666666, SyncQueued=141959868581, SyncStart=141969103248, IssueDrawCommandsStart=142003886976, SwapBuffers=142073363120, FrameCompleted=142089497135, DequeueBufferDuration=2264, QueueBufferDuration=201628, GpuCompleted=142089497135, SwapBuffersCompleted=142078828339, DisplayPresentTime=72904454231359566, CommandSubmissionCompleted=142073363120,
-22:05:27.709 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:05:28.077 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764096371193 для URI: content://media/external/images/media/1000000802
-22:05:28.078 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000802
-22:05:28.123 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-22:05:28.124 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/1000000802
-22:05:28.622 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:05:28.677 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764096371655 для URI: content://media/external/images/media/1000000803
-22:05:28.677 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000803
-22:05:28.679 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-22:05:28.679 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/1000000803
-22:05:28.742 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:05:28.758 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764096364105 для URI: content://media/external/images/media/1000000801
-22:05:28.758 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000801
-22:05:28.758 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-22:05:28.759 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/1000000801
-22:05:28.759 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 3
-22:05:28.761 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начальное сканирование завершено. Обработано: 0, Пропущено: 3
-22:05:28.766 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
-22:05:28.766 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-22:05:28.767 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
-22:05:28.770 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
-22:05:28.770 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-22:05:28.772 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
-22:05:28.862 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
-22:05:28.863 LogUtil                 [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-22:05:28.873 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
-22:05:28.873 mpressphotofast         Compiler allocated 5174KB to compile void android.view.ViewRootImpl.performTraversals()
-22:05:31.218 ProfileInstaller        Installing profile for com.compressphotofast
-22:05:31.816 EGL_emulation           app_time_stats: avg=149.67ms min=2.32ms max=3379.33ms count=28
-22:05:32.610 VRI[MainActivity]       visibilityChanged oldVisibility=true newVisibility=false
-22:05:43.481 mpressphotofast         Background concurrent mark compact GC freed 3383KB AllocSpace bytes, 3(60KB) LOS objects, 49% free, 4278KB/8556KB, paused 272us,8.251ms total 103.280ms
-22:05:47.529 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000805, обработка через 10 сек
-22:05:48.088 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: onStartJob вызван
-22:05:48.089 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: получено 1 URI для обработки
-22:05:48.110 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: добавлены 1 URI к батчу, общий размер: 1
-22:05:48.519 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000806, обработка через 10 сек
-22:05:49.207 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000807, обработка через 10 сек
-22:05:50.127 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начинаем обработку дебаунсного батча из 1 URI
-22:05:50.128 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Debounced batch processed with 1 items
-22:05:50.305 LogUtil                 [ПРОЦЕСС] Пакетное получение метаданных завершено: 1 URI, 1 запросов к MediaStore
-22:05:50.305 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: оптимизированная пакетная обработка 1 URI (из 1 изначально)
-22:05:50.402 LogUtil                 [ПРОЦЕСС] Предзагружен кэш для 1 директорий (1 файлов)
-22:05:50.404 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: после быстрой фильтрации осталось 1 из 1 URI
-22:05:50.408 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: обработка URI: content://media/external/images/media/1000000805
-22:05:50.494 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:05:50.548 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000805
-22:05:50.563 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000805 (всего: 1)
-22:05:50.581 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000805 (всего: 1)
-22:05:50.708 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000805
-22:05:50.708 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
-22:05:50.724 LogUtil                 [ПРОЦЕСС] Создан автобатч: auto_batch_1_1764097550723
-22:05:50.776 LogUtil                 [СЖАТИЕ:0805] Запущена работа по сжатию для content://media/external/images/media/1000000805 с тегом compress_1764097550716_IMG_20251125_220546.jpg в батче auto_batch_1_1764097550723
-22:05:50.776 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: запрос на обработку изображения отправлен: content://media/external/images/media/1000000805
-22:05:50.778 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: обработка завершена. Обработано: 1, Пропущено: 0
-22:05:50.778 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
-22:05:50.779 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
-22:05:50.781 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
-22:05:50.882 WM-SystemJobScheduler   Scheduling work ID 040e21a6-439b-42db-a2f4-e635a16323fcJob ID 351
-22:05:50.941 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=040e21a6-439b-42db-a2f4-e635a16323fc, generation=0)
-22:05:50.943 WM-GreedyScheduler      Starting work for 040e21a6-439b-42db-a2f4-e635a16323fc
-22:05:50.975 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=040e21a6-439b-42db-a2f4-e635a16323fc, generation=0)
-22:05:50.978 WM-Processor            Work WorkGenerationalId(workSpecId=040e21a6-439b-42db-a2f4-e635a16323fc, generation=0) is already enqueued for processing
-22:05:51.027 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
-22:05:51.041 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
-22:05:51.074 WM-Processor            Moving WorkSpec (040e21a6-439b-42db-a2f4-e635a16323fc) to the foreground
-22:05:51.120 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
-22:05:51.127 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000805 в память (кэш не найден)
-22:05:51.134 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
-22:05:51.137 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 040e21a6-439b-42db-a2f4-e635a16323fc, notificationType :1)
-22:05:51.269 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 040e21a6-439b-42db-a2f4-e635a16323fc, notificationType :1)
-22:05:51.285 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000805:
-22:05:51.286 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
-22:05:51.286 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-22:05:51.287 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-22:05:51.288 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-22:05:51.289 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
-22:05:51.290 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
-22:05:51.290 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-22:05:51.291 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 22:05:47
-22:05:51.291 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-22:05:51.291 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
-22:05:51.292 LogUtil                 [URI:0805] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
-22:05:51.479 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000805
-22:05:51.480 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
-22:05:51.507 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000805 (всего: 1)
-22:05:51.546 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000805
-22:05:51.583 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
-22:05:51.583 LogUtil                 [URI:0805] Изображение требует обработки
-22:05:51.583 LogUtil                 [URI:0805] Начало тестового сжатия в RAM
-22:05:51.584 LogUtil                 [URI:0805] Сжатие изображения в поток
-22:05:51.693 LogUtil                 [СЖАТИЕ:0805] 141KB → 53KB (-62%)
-22:05:51.694 LogUtil                 [СЖАТИЕ:0805] 141KB → 53KB (-62.19933%)
-22:05:51.695 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000805 эффективно (экономия 62.19933%), выполняем полное сжатие
-22:05:51.695 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
-22:05:51.722 LogUtil                 [URI:0805] Имя файла: IMG_20251125_220546.jpg
-22:05:51.722 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_220546.jpg
-22:05:51.723 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_220546.jpg (режим замены: true)
-22:05:51.742 LogUtil                 [URI:0805] Директория для сохранения: Pictures
-22:05:51.767 LogUtil                 [URI:0805] Сжатие изображения в поток
-22:05:52.018 LogUtil                 [FileUtil] Директория для сохранения: Pictures
-22:05:52.019 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_220546.jpg (режим замены: true)
-22:05:52.047 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
-22:05:52.047 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
-22:05:52.057 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000805
-22:05:52.060 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_220546.jpg', включен режим замены - удаляем
-22:05:52.177 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
-22:05:52.225 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000808
-22:05:52.261 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000808
-22:05:52.284 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000808, обработка через 10 сек
-22:05:52.347 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000808
-22:05:52.348 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000808, максимальное время: 2000 мс
-22:05:52.370 LogUtil                 [FileUtil] URI стал доступен через 12 мс, размер: 54783 байт
-22:05:52.410 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764097552000
-22:05:52.452 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
-22:05:52.453 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764097552453
-22:05:52.473 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000808
-22:05:52.479 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
-22:05:52.483 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
-22:05:52.591 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
-22:05:52.593 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
-22:05:52.594 LogUtil                 [ФАЙЛ:0805] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000808
-22:05:52.635 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000808 до Tue Nov 25 22:05:57 GMT+03:00 2025
-22:05:52.638 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000805 (осталось: 0)
-22:05:52.638 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000805
-22:05:52.645 ContentResolver         Failed to get type for: content://media/external/images/media/1000000805 (No item at content://media/external/images/media/1000000805)
-22:05:52.654 LogUtil                 [ОШИБКА:Проверка существования через InputStream:0805] Ошибка при открытии потока (Ask Gemini)
-                                     java.io.FileNotFoundException: java.io.FileNotFoundException: No item at content://media/external/images/media/1000000805
-                                     	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
-                                     	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
-                                     	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2043)
-                                     	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1858)
-                                     	at android.content.ContentResolver.openInputStream(ContentResolver.java:1528)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invokeSuspend(UriUtil.kt:287)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invoke(Unknown Source:8)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invoke(Unknown Source:4)
-                                     	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndspatched(Undispatched.kt:66)
-                                     	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(Undispatched.kt:43)
-                                     	at kotlinx.coroutines.BuildersKt__Builders_commonKt.withContext(Builders.common.kt:165)
-                                     	at kotlinx.coroutines.BuildersKt.withContext(Unknown Source:1)
-                                     	at com.compressphotofast.util.UriUtil.isUriExistsSuspend(UriUtil.kt:278)
-                                     	at com.compressphotofast.util.FileOperationsUtil.deleteFile(FileOperationsUtil.kt:70)
-                                     	at com.compressphotofast.worker.ImageCompressionWorker$doWork$2.invokeSuspend(ImageCompressionWorker.kt:293)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-                                     	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:266)
-                                     	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:46)
-                                     	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:266)
-                                     	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:46)
-                                     	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                     	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
-                                     	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
-22:05:52.662 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует, удаление отменено: content://media/external/images/media/1000000805
-22:05:52.664 LogUtil                 [ОШИБКА:Удаление:0805] Не удалось удалить оригинальный файл
-22:05:52.672 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764097550723: IMG_20251125_220546.jpg (1)
-22:05:52.673 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_220546.jpg
-22:05:52.685 WM-Processor            Moving WorkSpec (040e21a6-439b-42db-a2f4-e635a16323fc) to the foreground
-22:05:52.721 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 040e21a6-439b-42db-a2f4-e635a16323fc, notificationType :1)
-22:05:52.722 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000805
-22:05:52.723 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000805
-22:05:52.818 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=040e21a6-439b-42db-a2f4-e635a16323fc, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764097550716_IMG_20251125_220546.jpg } ]
-22:05:52.889 WM-Processor            Processor 040e21a6-439b-42db-a2f4-e635a16323fc executed; reschedule = false
-22:05:52.889 WM-SystemJobService     040e21a6-439b-42db-a2f4-e635a16323fc executed on JobScheduler
-22:05:52.889 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=040e21a6-439b-42db-a2f4-e635a16323fc, generation=0), notificationType: 1
-22:05:52.898 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
-22:05:52.915 WM-GreedyScheduler      Cancelling work ID 040e21a6-439b-42db-a2f4-e635a16323fc
-22:05:52.918 WM-SystemFgDispatcher   Stopping foreground service
-22:05:52.918 WM-SystemFgService      Shutting down.
-22:05:57.537 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000805 после задержки
-22:05:57.568 ContentResolver         Failed to get type for: content://media/external/images/media/1000000805 (No item at content://media/external/images/media/1000000805)
-22:05:57.574 LogUtil                 [ОШИБКА:Проверка существования через InputStream:0805] Ошибка при открытии потока (Ask Gemini)
-                                     java.io.FileNotFoundException: java.io.FileNotFoundException: No item at content://media/external/images/media/1000000805
-                                     	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
-                                     	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
-                                     	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2043)
-                                     	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1858)
-                                     	at android.content.ContentResolver.openInputStream(ContentResolver.java:1528)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invokeSuspend(UriUtil.kt:287)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-                                     	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                     	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
-                                     	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
-22:05:57.585 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000805
-22:05:57.585 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000805
-22:05:58.523 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000806 после задержки
-22:05:58.542 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000806
-22:05:58.546 LogUtil                 [URI:0806] URI scheme: content, authority: media, path: /external/images/media/1000000806
-22:05:58.562 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000806 (всего: 1)
-22:05:58.643 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:05:58.650 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000806
-22:05:58.667 LogUtil                 [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1764097550723
-22:05:58.672 LogUtil                 [СЖАТИЕ:0806] Запущена работа по сжатию для content://media/external/images/media/1000000806 с тегом compress_1764097558658_IMG_20251125_220547.jpg в батче auto_batch_1_1764097550723
-22:05:58.674 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
-22:05:58.712 WM-SystemJobScheduler   Scheduling work ID 46bdad1e-c27f-4343-988c-bf900143f855Job ID 352
-22:05:58.724 WM-GreedyScheduler      Starting work for 46bdad1e-c27f-4343-988c-bf900143f855
-22:05:58.732 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=46bdad1e-c27f-4343-988c-bf900143f855, generation=0)
-22:05:58.735 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=46bdad1e-c27f-4343-988c-bf900143f855, generation=0)
-22:05:58.742 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
-22:05:58.749 WM-Processor            Work WorkGenerationalId(workSpecId=46bdad1e-c27f-4343-988c-bf900143f855, generation=0) is already enqueued for processing
-22:05:58.768 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
-22:05:58.770 WM-Processor            Moving WorkSpec (46bdad1e-c27f-4343-988c-bf900143f855) to the foreground
-22:05:58.779 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
-22:05:58.779 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000806 в память (кэш не найден)
-22:05:58.784 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
-22:05:58.785 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 46bdad1e-c27f-4343-988c-bf900143f855, notificationType :1)
-22:05:58.792 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 46bdad1e-c27f-4343-988c-bf900143f855, notificationType :1)
-22:05:58.802 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000806:
-22:05:58.804 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
-22:05:58.804 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-22:05:58.804 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-22:05:58.804 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-22:05:58.804 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
-22:05:58.805 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
-22:05:58.805 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-22:05:58.805 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 22:05:48
-22:05:58.805 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-22:05:58.805 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
-22:05:58.805 LogUtil                 [URI:0806] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
-22:05:58.865 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000806
-22:05:58.866 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
-22:05:58.882 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000806 (всего: 1)
-22:05:58.895 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000806
-22:05:58.908 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
-22:05:58.908 LogUtil                 [URI:0806] Изображение требует обработки
-22:05:58.908 LogUtil                 [URI:0806] Начало тестового сжатия в RAM
-22:05:58.909 LogUtil                 [URI:0806] Сжатие изображения в поток
-22:05:59.016 LogUtil                 [СЖАТИЕ:0806] 141KB → 53KB (-62%)
-22:05:59.017 LogUtil                 [СЖАТИЕ:0806] 141KB → 53KB (-62.091713%)
-22:05:59.017 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000806 эффективно (экономия 62.091713%), выполняем полное сжатие
-22:05:59.017 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
-22:05:59.038 LogUtil                 [URI:0806] Имя файла: IMG_20251125_220547.jpg
-22:05:59.039 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_220547.jpg
-22:05:59.040 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_220547.jpg (режим замены: true)
-22:05:59.072 LogUtil                 [URI:0806] Директория для сохранения: Pictures
-22:05:59.090 LogUtil                 [URI:0806] Сжатие изображения в поток
-22:05:59.191 LogUtil                 [FileUtil] Директория для сохранения: Pictures
-22:05:59.192 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_220547.jpg (режим замены: true)
-22:05:59.209 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000807 после задержки
-22:05:59.236 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
-22:05:59.236 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
-22:05:59.271 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000807
-22:05:59.279 LogUtil                 [URI:0807] URI scheme: content, authority: media, path: /external/images/media/1000000807
-22:05:59.302 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000806
-22:05:59.324 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_220547.jpg', включен режим замены - удаляем
-22:05:59.351 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000807 (всего: 2)
-22:05:59.672 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
-22:05:59.816 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000806, обработка через 10 сек
-22:05:59.849 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000809
-22:05:59.926 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000809
-22:06:00.018 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000809, обработка через 10 сек
-22:06:00.120 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000809
-22:06:00.121 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000809, максимальное время: 2000 мс
-22:06:00.135 LogUtil                 [FileUtil] URI стал доступен через 13 мс, размер: 55105 байт
-22:06:00.143 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:06:00.149 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000807
-22:06:00.159 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764097559000
-22:06:00.172 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
-22:06:00.174 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764097560172
-22:06:00.205 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000809
-22:06:00.211 LogUtil                 [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1764097550723
-22:06:00.211 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
-22:06:00.212 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
-22:06:00.218 LogUtil                 [СЖАТИЕ:0807] Запущена работа по сжатию для content://media/external/images/media/1000000807 с тегом compress_1764097560198_IMG_20251125_220548.jpg в батче auto_batch_1_1764097550723
-22:06:00.225 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
-22:06:00.229 WM-SystemJobScheduler   Scheduling work ID 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1Job ID 353
-22:06:00.237 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, generation=0)
-22:06:00.244 WM-GreedyScheduler      Starting work for 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1
-22:06:00.257 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, generation=0)
-22:06:00.261 WM-Processor            Work WorkGenerationalId(workSpecId=5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, generation=0) is already enqueued for processing
-22:06:00.266 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
-22:06:00.279 WM-Processor            Moving WorkSpec (5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1) to the foreground
-22:06:00.284 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
-22:06:00.284 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, notificationType :1)
-22:06:00.289 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
-22:06:00.289 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000807 в память (кэш не найден)
-22:06:00.324 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, notificationType :1)
-22:06:00.340 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
-22:06:00.344 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000807:
-22:06:00.352 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
-22:06:00.356 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
-22:06:00.360 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
-22:06:00.368 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
-22:06:00.373 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
-22:06:00.374 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
-22:06:00.374 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
-22:06:00.374 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
-22:06:00.375 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 22:05:49
-22:06:00.375 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
-22:06:00.407 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
-22:06:00.409 LogUtil                 [URI:0807] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
-22:06:00.412 LogUtil                 [ФАЙЛ:0806] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000809
-22:06:00.423 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000809 до Tue Nov 25 22:06:05 GMT+03:00 2025
-22:06:00.426 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000806 (осталось: 1)
-22:06:00.427 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000806
-22:06:00.484 ContentResolver         Failed to get type for: content://media/external/images/media/1000000806 (No item at content://media/external/images/media/1000000806)
-22:06:00.503 LogUtil                 [ОШИБКА:Проверка существования через InputStream:0806] Ошибка при открытии потока (Ask Gemini)
-                                     java.io.FileNotFoundException: java.io.FileNotFoundException: No item at content://media/external/images/media/1000000806
-                                     	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
-                                     	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
-                                     	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2043)
-                                     	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1858)
-                                     	at android.content.ContentResolver.openInputStream(ContentResolver.java:1528)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invokeSuspend(UriUtil.kt:287)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invoke(Unknown Source:8)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invoke(Unknown Source:4)
-                                     	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndspatched(Undispatched.kt:66)
-                                     	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(Undispatched.kt:43)
-                                     	at kotlinx.coroutines.BuildersKt__Builders_commonKt.withContext(Builders.common.kt:165)
-                                     	at kotlinx.coroutines.BuildersKt.withContext(Unknown Source:1)
-                                     	at com.compressphotofast.util.UriUtil.isUriExistsSuspend(UriUtil.kt:278)
-                                     	at com.compressphotofast.util.FileOperationsUtil.deleteFile(FileOperationsUtil.kt:70)
-                                     	at com.compressphotofast.worker.ImageCompressionWorker$doWork$2.invokeSuspend(ImageCompressionWorker.kt:293)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-                                     	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:266)
-                                     	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:46)
-                                     	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:266)
-                                     	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:46)
-                                     	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                     	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
-                                     	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
-22:06:00.553 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует, удаление отменено: content://media/external/images/media/1000000806
-22:06:00.559 LogUtil                 [ОШИБКА:Удаление:0806] Не удалось удалить оригинальный файл
-22:06:00.636 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764097550723: IMG_20251125_220547.jpg (2)
-22:06:00.636 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_220547.jpg
-22:06:00.710 WM-Processor            Moving WorkSpec (46bdad1e-c27f-4343-988c-bf900143f855) to the foreground
-22:06:00.713 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 46bdad1e-c27f-4343-988c-bf900143f855, notificationType :1)
-22:06:00.779 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000806
-22:06:00.780 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000806
-22:06:00.785 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=46bdad1e-c27f-4343-988c-bf900143f855, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764097558658_IMG_20251125_220547.jpg } ]
-22:06:00.791 WM-Processor            Processor 46bdad1e-c27f-4343-988c-bf900143f855 executed; reschedule = false
-22:06:00.792 WM-SystemJobService     46bdad1e-c27f-4343-988c-bf900143f855 executed on JobScheduler
-22:06:00.865 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=46bdad1e-c27f-4343-988c-bf900143f855, generation=0), notificationType: 1
-22:06:00.869 WM-GreedyScheduler      Cancelling work ID 46bdad1e-c27f-4343-988c-bf900143f855
-22:06:00.874 WM-SystemJobService     onStopJob for WorkGenerationalId(workSpecId=46bdad1e-c27f-4343-988c-bf900143f855, generation=0)
-22:06:00.877 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000807
-22:06:00.879 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
-22:06:00.896 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000807 (всего: 1)
-22:06:00.936 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000807
-22:06:00.972 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
-22:06:01.001 LogUtil                 [URI:0807] Изображение требует обработки
-22:06:01.002 LogUtil                 [URI:0807] Начало тестового сжатия в RAM
-22:06:01.003 LogUtil                 [URI:0807] Сжатие изображения в поток
-22:06:01.237 LogUtil                 [СЖАТИЕ:0807] 141KB → 53KB (-62%)
-22:06:01.237 LogUtil                 [СЖАТИЕ:0807] 141KB → 53KB (-62.126713%)
-22:06:01.237 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000807 эффективно (экономия 62.126713%), выполняем полное сжатие
-22:06:01.237 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
-22:06:01.325 LogUtil                 [URI:0807] Имя файла: IMG_20251125_220548.jpg
-22:06:01.326 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_220548.jpg
-22:06:01.337 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_220548.jpg (режим замены: true)
-22:06:01.405 LogUtil                 [URI:0807] Директория для сохранения: Pictures
-22:06:01.492 LogUtil                 [URI:0807] Сжатие изображения в поток
-22:06:01.659 LogUtil                 [FileUtil] Директория для сохранения: Pictures
-22:06:01.660 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_220548.jpg (режим замены: true)
-22:06:01.696 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
-22:06:01.697 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
-22:06:01.711 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000807
-22:06:01.721 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_220548.jpg', включен режим замены - удаляем
-22:06:01.843 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
-22:06:01.895 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000807, обработка через 10 сек
-22:06:01.896 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000810
-22:06:01.914 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000810
-22:06:01.934 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000810, обработка через 10 сек
-22:06:02.070 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000810
-22:06:02.070 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000810, максимальное время: 2000 мс
-22:06:02.079 LogUtil                 [FileUtil] URI стал доступен через 8 мс, размер: 54953 байт
-22:06:02.166 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764097561000
-22:06:02.213 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
-22:06:02.214 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764097562213
-22:06:02.273 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000810
-22:06:02.332 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
-22:06:02.336 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
-22:06:02.375 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000808 после задержки
-22:06:02.414 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000808
-22:06:02.423 LogUtil                 [URI:0808] URI scheme: content, authority: media, path: /external/images/media/1000000808
-22:06:02.436 mpressphotofast         Background concurrent mark compact GC freed 2904KB AllocSpace bytes, 25(908KB) LOS objects, 49% free, 4934KB/9868KB, paused 321us,32.845ms total 250.948ms
-22:06:02.479 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000808 (всего: 2)
-22:06:02.481 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
-22:06:02.482 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
-22:06:02.482 LogUtil                 [ФАЙЛ:0807] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000810
-22:06:02.482 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000810 до Tue Nov 25 22:06:07 GMT+03:00 2025
-22:06:02.483 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000807 (осталось: 1)
-22:06:02.483 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000807
-22:06:02.506 ContentResolver         Failed to get type for: content://media/external/images/media/1000000807 (No item at content://media/external/images/media/1000000807)
-22:06:02.518 LogUtil                 [ОШИБКА:Проверка существования через InputStream:0807] Ошибка при открытии потока (Ask Gemini)
-                                     java.io.FileNotFoundException: java.io.FileNotFoundException: No item at content://media/external/images/media/1000000807
-                                     	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
-                                     	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
-                                     	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2043)
-                                     	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1858)
-                                     	at android.content.ContentResolver.openInputStream(ContentResolver.java:1528)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invokeSuspend(UriUtil.kt:287)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invoke(Unknown Source:8)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invoke(Unknown Source:4)
-                                     	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndspatched(Undispatched.kt:66)
-                                     	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(Undispatched.kt:43)
-                                     	at kotlinx.coroutines.BuildersKt__Builders_commonKt.withContext(Builders.common.kt:165)
-                                     	at kotlinx.coroutines.BuildersKt.withContext(Unknown Source:1)
-                                     	at com.compressphotofast.util.UriUtil.isUriExistsSuspend(UriUtil.kt:278)
-                                     	at com.compressphotofast.util.FileOperationsUtil.deleteFile(FileOperationsUtil.kt:70)
-                                     	at com.compressphotofast.worker.ImageCompressionWorker$doWork$2.invokeSuspend(ImageCompressionWorker.kt:293)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-                                     	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:266)
-                                     	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:46)
-                                     	at kotlinx.coroutines.UndispatchedCoroutine.afterResume(CoroutineContext.kt:266)
-                                     	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:46)
-                                     	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                     	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
-                                     	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
-22:06:02.539 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует, удаление отменено: content://media/external/images/media/1000000807
-22:06:02.555 LogUtil                 [ОШИБКА:Удаление:0807] Не удалось удалить оригинальный файл
-22:06:02.569 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764097550723: IMG_20251125_220548.jpg (3)
-22:06:02.569 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_220548.jpg
-22:06:02.625 WM-Processor            Moving WorkSpec (5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1) to the foreground
-22:06:02.640 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, notificationType :1)
-22:06:02.658 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000807
-22:06:02.659 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000807
-22:06:02.675 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764097560198_IMG_20251125_220548.jpg } ]
-22:06:02.689 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:06:02.738 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764097552453 для URI: content://media/external/images/media/1000000808
-22:06:02.738 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000808
-22:06:02.745 WM-Processor            Processor 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1 executed; reschedule = false
-22:06:02.745 WM-SystemJobService     5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1 executed on JobScheduler
-22:06:02.745 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1, generation=0), notificationType: 1
-22:06:02.747 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-22:06:02.747 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000808 (осталось: 0)
-22:06:02.749 WM-SystemFgDispatcher   Stopping foreground service
-22:06:02.749 WM-SystemFgService      Shutting down.
-22:06:02.754 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
-22:06:02.775 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
-22:06:02.808 WM-GreedyScheduler      Cancelling work ID 5bd0d1e6-27ac-4dd6-b1d0-6c8a681dd5b1
-22:06:09.824 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000806 после задержки
-22:06:09.838 ContentResolver         Failed to get type for: content://media/external/images/media/1000000806 (No item at content://media/external/images/media/1000000806)
-22:06:09.842 LogUtil                 [ОШИБКА:Проверка существования через InputStream:0806] Ошибка при открытии потока (Ask Gemini)
-                                     java.io.FileNotFoundException: java.io.FileNotFoundException: No item at content://media/external/images/media/1000000806
-                                     	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
-                                     	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
-                                     	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2043)
-                                     	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1858)
-                                     	at android.content.ContentResolver.openInputStream(ContentResolver.java:1528)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invokeSuspend(UriUtil.kt:287)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-                                     	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                     	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
-                                     	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
-22:06:09.851 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000806
-22:06:09.851 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000806
-22:06:10.019 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000809 после задержки
-22:06:10.026 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000809
-22:06:10.026 LogUtil                 [URI:0809] URI scheme: content, authority: media, path: /external/images/media/1000000809
-22:06:10.032 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000809 (всего: 1)
-22:06:10.069 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:06:10.074 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764097560172 для URI: content://media/external/images/media/1000000809
-22:06:10.074 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000809
-22:06:10.075 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-22:06:10.075 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000809 (осталось: 0)
-22:06:10.076 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
-22:06:11.898 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000807 после задержки
-22:06:11.902 ContentResolver         Failed to get type for: content://media/external/images/media/1000000807 (No item at content://media/external/images/media/1000000807)
-22:06:11.906 LogUtil                 [ОШИБКА:Проверка существования через InputStream:0807] Ошибка при открытии потока (Ask Gemini)
-                                     java.io.FileNotFoundException: java.io.FileNotFoundException: No item at content://media/external/images/media/1000000807
-                                     	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
-                                     	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
-                                     	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2043)
-                                     	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1858)
-                                     	at android.content.ContentResolver.openInputStream(ContentResolver.java:1528)
-                                     	at com.compressphotofast.util.UriUtil$isUriExistsSuspend$2.invokeSuspend(UriUtil.kt:287)
-                                     	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
-                                     	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                     	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
-                                     	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
-                                     	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
-22:06:11.913 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000807
-22:06:11.913 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000807
-22:06:11.944 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000810 после задержки
-22:06:11.952 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000810
-22:06:11.953 LogUtil                 [URI:0810] URI scheme: content, authority: media, path: /external/images/media/1000000810
-22:06:11.961 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000810 (всего: 1)
-22:06:11.997 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
-22:06:12.003 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764097562213 для URI: content://media/external/images/media/1000000810
-22:06:12.003 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000810
-22:06:12.003 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
-22:06:12.003 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000810 (осталось: 0)
-22:06:12.004 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+23:03:57.971 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000819, обработка через 10 сек
+23:03:58.568 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: onStartJob вызван
+23:03:58.569 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: получено 1 URI для обработки
+23:03:58.571 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: добавлены 1 URI к батчу, общий размер: 1
+23:03:58.832 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000820, обработка через 10 сек
+23:04:00.060 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000821, обработка через 10 сек
+23:04:00.572 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начинаем обработку дебаунсного батча из 1 URI
+23:04:00.572 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Debounced batch processed with 1 items
+23:04:00.612 LogUtil                 [ПРОЦЕСС] Пакетное получение метаданных завершено: 1 URI, 1 запросов к MediaStore
+23:04:00.613 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: оптимизированная пакетная обработка 1 URI (из 1 изначально)
+23:04:00.619 LogUtil                 [ПРОЦЕСС] Предзагружен кэш для 1 директорий (1 файлов)
+23:04:00.620 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: после быстрой фильтрации осталось 1 из 1 URI
+23:04:00.621 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: обработка URI: content://media/external/images/media/1000000819
+23:04:00.705 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:00.710 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000819
+23:04:00.710 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000819 (всего: 1)
+23:04:00.711 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000819 (всего: 1)
+23:04:00.767 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000819
+23:04:00.767 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+23:04:00.780 LogUtil                 [ПРОЦЕСС] Создан автобатч: auto_batch_1_1764101040779
+23:04:00.806 LogUtil                 [СЖАТИЕ:0819] Запущена работа по сжатию для content://media/external/images/media/1000000819 с тегом compress_1764101040774_IMG_20251125_230357.jpg в батче auto_batch_1_1764101040779
+23:04:00.809 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: запрос на обработку изображения отправлен: content://media/external/images/media/1000000819
+23:04:00.810 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: обработка завершена. Обработано: 1, Пропущено: 0
+23:04:00.810 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
+23:04:00.811 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
+23:04:00.812 LogUtil                 [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
+23:04:00.825 WM-SystemJobScheduler   Scheduling work ID fe9c8471-e4d2-41c2-9ef6-376046e22fdbJob ID 358
+23:04:00.831 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=fe9c8471-e4d2-41c2-9ef6-376046e22fdb, generation=0)
+23:04:00.831 WM-GreedyScheduler      Starting work for fe9c8471-e4d2-41c2-9ef6-376046e22fdb
+23:04:00.833 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=fe9c8471-e4d2-41c2-9ef6-376046e22fdb, generation=0)
+23:04:00.835 WM-Processor            Work WorkGenerationalId(workSpecId=fe9c8471-e4d2-41c2-9ef6-376046e22fdb, generation=0) is already enqueued for processing
+23:04:00.853 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
+23:04:00.860 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+23:04:01.037 WM-Processor            Moving WorkSpec (fe9c8471-e4d2-41c2-9ef6-376046e22fdb) to the foreground
+23:04:01.054 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+23:04:01.055 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000819 в память (кэш не найден)
+23:04:01.065 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000819:
+23:04:01.066 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
+23:04:01.066 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+23:04:01.066 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+23:04:01.066 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+23:04:01.067 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
+23:04:01.067 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
+23:04:01.067 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+23:04:01.068 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 23:03:57
+23:04:01.068 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+23:04:01.068 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
+23:04:01.069 LogUtil                 [URI:0819] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
+23:04:01.091 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+23:04:01.098 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: fe9c8471-e4d2-41c2-9ef6-376046e22fdb, notificationType :1)
+23:04:01.104 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: fe9c8471-e4d2-41c2-9ef6-376046e22fdb, notificationType :1)
+23:04:01.133 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000819
+23:04:01.133 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+23:04:01.170 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000819 (всего: 1)
+23:04:01.176 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000819
+23:04:01.189 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+23:04:01.190 LogUtil                 [URI:0819] Изображение требует обработки
+23:04:01.190 LogUtil                 [URI:0819] Начало тестового сжатия в RAM
+23:04:01.191 LogUtil                 [URI:0819] Сжатие изображения в поток
+23:04:01.396 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000822, обработка через 10 сек
+23:04:01.400 LogUtil                 [СЖАТИЕ:0819] 141KB → 53KB (-62%)
+23:04:01.401 LogUtil                 [СЖАТИЕ:0819] 141KB → 53KB (-62.129337%)
+23:04:01.401 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000819 эффективно (экономия 62.129337%), выполняем полное сжатие
+23:04:01.401 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+23:04:01.407 LogUtil                 [URI:0819] Имя файла: IMG_20251125_230357.jpg
+23:04:01.407 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_230357.jpg
+23:04:01.409 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_230357.jpg (режим замены: true)
+23:04:01.420 LogUtil                 [URI:0819] Директория для сохранения: Pictures
+23:04:01.647 LogUtil                 [URI:0819] Сжатие изображения в поток
+23:04:01.772 LogUtil                 [FileUtil] Директория для сохранения: Pictures
+23:04:01.772 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_230357.jpg (режим замены: true)
+23:04:01.782 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
+23:04:01.782 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
+23:04:01.790 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000819
+23:04:01.792 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_230357.jpg', включен режим замены - удаляем
+23:04:01.820 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
+23:04:01.830 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000823
+23:04:01.844 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000823
+23:04:01.867 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000823, обработка через 10 сек
+23:04:01.931 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000823
+23:04:01.936 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000823, максимальное время: 2000 мс
+23:04:01.953 LogUtil                 [FileUtil] URI стал доступен через 15 мс, размер: 54942 байт
+23:04:02.056 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764101041000
+23:04:02.080 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
+23:04:02.081 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764101042080
+23:04:02.112 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000823
+23:04:02.118 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
+23:04:02.125 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+23:04:02.240 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+23:04:02.242 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
+23:04:02.242 LogUtil                 [ФАЙЛ:0819] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000823
+23:04:02.341 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000823 до Tue Nov 25 23:04:07 GMT+03:00 2025
+23:04:02.341 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000819 (осталось: 0)
+23:04:02.342 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000819
+23:04:02.352 ContentResolver         Failed to get type for: content://media/external/images/media/1000000819 (No item at content://media/external/images/media/1000000819)
+23:04:02.363 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000819): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000819
+23:04:02.363 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует (первая проверка), удаление отменено: content://media/external/images/media/1000000819
+23:04:02.363 LogUtil                 [ОШИБКА:Удаление:0819] Не удалось удалить оригинальный файл
+23:04:02.414 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764101040779: IMG_20251125_230357.jpg (1)
+23:04:02.415 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_230357.jpg
+23:04:02.440 WM-Processor            Moving WorkSpec (fe9c8471-e4d2-41c2-9ef6-376046e22fdb) to the foreground
+23:04:02.470 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: fe9c8471-e4d2-41c2-9ef6-376046e22fdb, notificationType :1)
+23:04:02.474 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000819
+23:04:02.476 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000819
+23:04:02.538 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=fe9c8471-e4d2-41c2-9ef6-376046e22fdb, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764101040774_IMG_20251125_230357.jpg } ]
+23:04:02.547 WM-Processor            Processor fe9c8471-e4d2-41c2-9ef6-376046e22fdb executed; reschedule = false
+23:04:02.547 WM-SystemJobService     fe9c8471-e4d2-41c2-9ef6-376046e22fdb executed on JobScheduler
+23:04:02.547 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=fe9c8471-e4d2-41c2-9ef6-376046e22fdb, generation=0), notificationType: 1
+23:04:02.548 WM-SystemFgDispatcher   Stopping foreground service
+23:04:02.548 WM-SystemFgService      Shutting down.
+23:04:02.564 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+23:04:02.579 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000824, обработка через 10 сек
+23:04:02.583 WM-SystemJobService     onStopJob for WorkGenerationalId(workSpecId=fe9c8471-e4d2-41c2-9ef6-376046e22fdb, generation=0)
+23:04:02.592 WM-GreedyScheduler      Cancelling work ID fe9c8471-e4d2-41c2-9ef6-376046e22fdb
+23:04:07.980 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000819 после задержки
+23:04:08.008 ContentResolver         Failed to get type for: content://media/external/images/media/1000000819 (No item at content://media/external/images/media/1000000819)
+23:04:08.011 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000819): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000819
+23:04:08.015 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000819
+23:04:08.016 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000819
+23:04:08.834 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000820 после задержки
+23:04:08.873 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000820
+23:04:08.874 LogUtil                 [URI:0820] URI scheme: content, authority: media, path: /external/images/media/1000000820
+23:04:08.906 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000820 (всего: 1)
+23:04:08.979 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:08.988 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000820
+23:04:09.000 LogUtil                 [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1764101040779
+23:04:09.006 LogUtil                 [СЖАТИЕ:0820] Запущена работа по сжатию для content://media/external/images/media/1000000820 с тегом compress_1764101048996_IMG_20251125_230358.jpg в батче auto_batch_1_1764101040779
+23:04:09.007 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+23:04:09.027 WM-SystemJobScheduler   Scheduling work ID af728ec7-0a5b-4d84-9c47-3428cfab03b3Job ID 359
+23:04:09.033 WM-GreedyScheduler      Starting work for af728ec7-0a5b-4d84-9c47-3428cfab03b3
+23:04:09.035 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=af728ec7-0a5b-4d84-9c47-3428cfab03b3, generation=0)
+23:04:09.039 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=af728ec7-0a5b-4d84-9c47-3428cfab03b3, generation=0)
+23:04:09.040 WM-Processor            Work WorkGenerationalId(workSpecId=af728ec7-0a5b-4d84-9c47-3428cfab03b3, generation=0) is already enqueued for processing
+23:04:09.046 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
+23:04:09.051 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+23:04:09.204 WM-Processor            Moving WorkSpec (af728ec7-0a5b-4d84-9c47-3428cfab03b3) to the foreground
+23:04:09.209 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+23:04:09.209 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000820 в память (кэш не найден)
+23:04:09.213 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+23:04:09.213 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: af728ec7-0a5b-4d84-9c47-3428cfab03b3, notificationType :1)
+23:04:09.216 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: af728ec7-0a5b-4d84-9c47-3428cfab03b3, notificationType :1)
+23:04:09.216 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000820:
+23:04:09.217 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
+23:04:09.217 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+23:04:09.217 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+23:04:09.217 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+23:04:09.217 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
+23:04:09.218 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
+23:04:09.218 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+23:04:09.218 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 23:03:58
+23:04:09.218 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+23:04:09.218 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
+23:04:09.218 LogUtil                 [URI:0820] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
+23:04:09.262 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000820
+23:04:09.262 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+23:04:09.288 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000820 (всего: 1)
+23:04:09.293 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000820
+23:04:09.297 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+23:04:09.297 LogUtil                 [URI:0820] Изображение требует обработки
+23:04:09.297 LogUtil                 [URI:0820] Начало тестового сжатия в RAM
+23:04:09.298 LogUtil                 [URI:0820] Сжатие изображения в поток
+23:04:09.393 LogUtil                 [СЖАТИЕ:0820] 141KB → 53KB (-62%)
+23:04:09.393 LogUtil                 [СЖАТИЕ:0820] 141KB → 53KB (-62.20553%)
+23:04:09.393 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000820 эффективно (экономия 62.20553%), выполняем полное сжатие
+23:04:09.393 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+23:04:09.400 LogUtil                 [URI:0820] Имя файла: IMG_20251125_230358.jpg
+23:04:09.400 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_230358.jpg
+23:04:09.401 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_230358.jpg (режим замены: true)
+23:04:09.406 LogUtil                 [URI:0820] Директория для сохранения: Pictures
+23:04:09.520 LogUtil                 [URI:0820] Сжатие изображения в поток
+23:04:09.630 LogUtil                 [FileUtil] Директория для сохранения: Pictures
+23:04:09.630 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_230358.jpg (режим замены: true)
+23:04:09.637 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
+23:04:09.637 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
+23:04:09.646 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000820
+23:04:09.649 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_230358.jpg', включен режим замены - удаляем
+23:04:09.684 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
+23:04:09.689 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000820, обработка через 10 сек
+23:04:09.691 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000825
+23:04:09.700 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000825
+23:04:09.703 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000825, обработка через 10 сек
+23:04:09.724 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000825
+23:04:09.724 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000825, максимальное время: 2000 мс
+23:04:09.738 LogUtil                 [FileUtil] URI стал доступен через 14 мс, размер: 54901 байт
+23:04:09.770 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764101049000
+23:04:09.776 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
+23:04:09.776 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764101049776
+23:04:09.780 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000825
+23:04:09.784 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
+23:04:09.786 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+23:04:09.892 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+23:04:09.893 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
+23:04:09.893 LogUtil                 [ФАЙЛ:0820] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000825
+23:04:09.893 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000825 до Tue Nov 25 23:04:14 GMT+03:00 2025
+23:04:09.893 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000820 (осталось: 0)
+23:04:09.893 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000820
+23:04:09.896 ContentResolver         Failed to get type for: content://media/external/images/media/1000000820 (No item at content://media/external/images/media/1000000820)
+23:04:09.898 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000820): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000820
+23:04:09.899 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует (первая проверка), удаление отменено: content://media/external/images/media/1000000820
+23:04:09.899 LogUtil                 [ОШИБКА:Удаление:0820] Не удалось удалить оригинальный файл
+23:04:09.911 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764101040779: IMG_20251125_230358.jpg (2)
+23:04:09.911 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_230358.jpg
+23:04:09.916 WM-Processor            Moving WorkSpec (af728ec7-0a5b-4d84-9c47-3428cfab03b3) to the foreground
+23:04:09.919 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: af728ec7-0a5b-4d84-9c47-3428cfab03b3, notificationType :1)
+23:04:09.919 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000820
+23:04:09.919 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000820
+23:04:09.930 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=af728ec7-0a5b-4d84-9c47-3428cfab03b3, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764101048996_IMG_20251125_230358.jpg } ]
+23:04:09.936 WM-Processor            Processor af728ec7-0a5b-4d84-9c47-3428cfab03b3 executed; reschedule = false
+23:04:09.936 WM-SystemJobService     af728ec7-0a5b-4d84-9c47-3428cfab03b3 executed on JobScheduler
+23:04:09.936 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=af728ec7-0a5b-4d84-9c47-3428cfab03b3, generation=0), notificationType: 1
+23:04:09.938 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+23:04:09.938 WM-SystemFgDispatcher   Stopping foreground service
+23:04:09.938 WM-SystemFgService      Shutting down.
+23:04:09.940 WM-GreedyScheduler      Cancelling work ID af728ec7-0a5b-4d84-9c47-3428cfab03b3
+23:04:09.946 WM-SystemJobService     onStopJob for WorkGenerationalId(workSpecId=af728ec7-0a5b-4d84-9c47-3428cfab03b3, generation=0)
+23:04:10.060 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000821 после задержки
+23:04:10.101 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000821
+23:04:10.102 LogUtil                 [URI:0821] URI scheme: content, authority: media, path: /external/images/media/1000000821
+23:04:10.130 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000821 (всего: 1)
+23:04:10.188 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:10.194 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000821
+23:04:10.204 LogUtil                 [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1764101040779
+23:04:10.206 LogUtil                 [СЖАТИЕ:0821] Запущена работа по сжатию для content://media/external/images/media/1000000821 с тегом compress_1764101050200_IMG_20251125_230359.jpg в батче auto_batch_1_1764101040779
+23:04:10.207 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+23:04:10.215 WM-SystemJobScheduler   Scheduling work ID 3ffe01b1-a955-469b-9280-83c534c2524dJob ID 360
+23:04:10.222 WM-GreedyScheduler      Starting work for 3ffe01b1-a955-469b-9280-83c534c2524d
+23:04:10.225 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=3ffe01b1-a955-469b-9280-83c534c2524d, generation=0)
+23:04:10.228 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=3ffe01b1-a955-469b-9280-83c534c2524d, generation=0)
+23:04:10.234 WM-Processor            Work WorkGenerationalId(workSpecId=3ffe01b1-a955-469b-9280-83c534c2524d, generation=0) is already enqueued for processing
+23:04:10.267 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
+23:04:10.333 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+23:04:10.485 WM-Processor            Moving WorkSpec (3ffe01b1-a955-469b-9280-83c534c2524d) to the foreground
+23:04:10.490 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+23:04:10.490 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 3ffe01b1-a955-469b-9280-83c534c2524d, notificationType :1)
+23:04:10.492 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+23:04:10.493 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000821 в память (кэш не найден)
+23:04:10.496 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 3ffe01b1-a955-469b-9280-83c534c2524d, notificationType :1)
+23:04:10.508 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000821:
+23:04:10.508 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
+23:04:10.509 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+23:04:10.509 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+23:04:10.509 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+23:04:10.509 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
+23:04:10.509 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
+23:04:10.510 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+23:04:10.510 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 23:03:59
+23:04:10.510 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+23:04:10.510 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
+23:04:10.510 LogUtil                 [URI:0821] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
+23:04:10.561 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000821
+23:04:10.561 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+23:04:10.738 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000821 (всего: 1)
+23:04:10.739 mpressphotofast         Background concurrent mark compact GC freed 3508KB AllocSpace bytes, 22(896KB) LOS objects, 49% free, 5102KB/10204KB, paused 269us,33.336ms total 249.663ms
+23:04:10.744 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000821
+23:04:10.747 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+23:04:10.747 LogUtil                 [URI:0821] Изображение требует обработки
+23:04:10.748 LogUtil                 [URI:0821] Начало тестового сжатия в RAM
+23:04:10.748 LogUtil                 [URI:0821] Сжатие изображения в поток
+23:04:10.838 LogUtil                 [СЖАТИЕ:0821] 141KB → 53KB (-62%)
+23:04:10.838 LogUtil                 [СЖАТИЕ:0821] 141KB → 53KB (-62.14713%)
+23:04:10.838 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000821 эффективно (экономия 62.14713%), выполняем полное сжатие
+23:04:10.838 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+23:04:10.845 LogUtil                 [URI:0821] Имя файла: IMG_20251125_230359.jpg
+23:04:10.845 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_230359.jpg
+23:04:10.845 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_230359.jpg (режим замены: true)
+23:04:10.851 LogUtil                 [URI:0821] Директория для сохранения: Pictures
+23:04:10.972 LogUtil                 [URI:0821] Сжатие изображения в поток
+23:04:11.057 LogUtil                 [FileUtil] Директория для сохранения: Pictures
+23:04:11.057 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_230359.jpg (режим замены: true)
+23:04:11.062 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
+23:04:11.062 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
+23:04:11.066 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000821
+23:04:11.067 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_230359.jpg', включен режим замены - удаляем
+23:04:11.073 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
+23:04:11.080 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000821, обработка через 10 сек
+23:04:11.087 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000826
+23:04:11.096 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000826, обработка через 10 сек
+23:04:11.097 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000826
+23:04:11.116 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000826
+23:04:11.116 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000826, максимальное время: 2000 мс
+23:04:11.119 LogUtil                 [FileUtil] URI стал доступен через 2 мс, размер: 54722 байт
+23:04:11.148 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764101051000
+23:04:11.151 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
+23:04:11.152 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764101051151
+23:04:11.154 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000826
+23:04:11.156 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
+23:04:11.157 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+23:04:11.265 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+23:04:11.267 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
+23:04:11.268 LogUtil                 [ФАЙЛ:0821] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000826
+23:04:11.270 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000826 до Tue Nov 25 23:04:16 GMT+03:00 2025
+23:04:11.271 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000821 (осталось: 0)
+23:04:11.271 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000821
+23:04:11.274 ContentResolver         Failed to get type for: content://media/external/images/media/1000000821 (No item at content://media/external/images/media/1000000821)
+23:04:11.275 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000821): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000821
+23:04:11.275 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует (первая проверка), удаление отменено: content://media/external/images/media/1000000821
+23:04:11.275 LogUtil                 [ОШИБКА:Удаление:0821] Не удалось удалить оригинальный файл
+23:04:11.279 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764101040779: IMG_20251125_230359.jpg (3)
+23:04:11.279 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_230359.jpg
+23:04:11.281 WM-Processor            Moving WorkSpec (3ffe01b1-a955-469b-9280-83c534c2524d) to the foreground
+23:04:11.283 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 3ffe01b1-a955-469b-9280-83c534c2524d, notificationType :1)
+23:04:11.283 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000821
+23:04:11.283 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000821
+23:04:11.288 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=3ffe01b1-a955-469b-9280-83c534c2524d, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764101050200_IMG_20251125_230359.jpg } ]
+23:04:11.296 WM-Processor            Processor 3ffe01b1-a955-469b-9280-83c534c2524d executed; reschedule = false
+23:04:11.297 WM-SystemJobService     3ffe01b1-a955-469b-9280-83c534c2524d executed on JobScheduler
+23:04:11.298 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=3ffe01b1-a955-469b-9280-83c534c2524d, generation=0), notificationType: 1
+23:04:11.299 WM-SystemFgDispatcher   Stopping foreground service
+23:04:11.299 WM-SystemFgService      Shutting down.
+23:04:11.307 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+23:04:11.309 WM-GreedyScheduler      Cancelling work ID 3ffe01b1-a955-469b-9280-83c534c2524d
+23:04:11.397 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000822 после задержки
+23:04:11.466 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000822
+23:04:11.467 LogUtil                 [URI:0822] URI scheme: content, authority: media, path: /external/images/media/1000000822
+23:04:11.502 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000822 (всего: 1)
+23:04:11.568 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:11.571 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000822
+23:04:11.579 LogUtil                 [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1764101040779
+23:04:11.580 LogUtil                 [СЖАТИЕ:0822] Запущена работа по сжатию для content://media/external/images/media/1000000822 с тегом compress_1764101051576_IMG_20251125_230400.jpg в батче auto_batch_1_1764101040779
+23:04:11.581 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+23:04:11.587 WM-SystemJobScheduler   Scheduling work ID 7aa30087-108d-49af-9f13-79a158f7a28eJob ID 361
+23:04:11.593 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=7aa30087-108d-49af-9f13-79a158f7a28e, generation=0)
+23:04:11.595 WM-GreedyScheduler      Starting work for 7aa30087-108d-49af-9f13-79a158f7a28e
+23:04:11.598 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=7aa30087-108d-49af-9f13-79a158f7a28e, generation=0)
+23:04:11.600 WM-Processor            Work WorkGenerationalId(workSpecId=7aa30087-108d-49af-9f13-79a158f7a28e, generation=0) is already enqueued for processing
+23:04:11.606 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
+23:04:11.610 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+23:04:11.775 WM-Processor            Moving WorkSpec (7aa30087-108d-49af-9f13-79a158f7a28e) to the foreground
+23:04:11.783 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+23:04:11.783 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 7aa30087-108d-49af-9f13-79a158f7a28e, notificationType :1)
+23:04:11.784 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+23:04:11.785 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000822 в память (кэш не найден)
+23:04:11.789 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 7aa30087-108d-49af-9f13-79a158f7a28e, notificationType :1)
+23:04:11.800 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000822:
+23:04:11.800 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
+23:04:11.800 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+23:04:11.800 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+23:04:11.801 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+23:04:11.801 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
+23:04:11.802 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
+23:04:11.802 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+23:04:11.803 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 23:04:01
+23:04:11.803 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+23:04:11.804 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
+23:04:11.805 LogUtil                 [URI:0822] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
+23:04:11.867 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000823 после задержки
+23:04:11.872 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000822
+23:04:11.872 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+23:04:11.901 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000822 (всего: 1)
+23:04:11.902 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000823
+23:04:11.902 LogUtil                 [URI:0823] URI scheme: content, authority: media, path: /external/images/media/1000000823
+23:04:11.906 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000822
+23:04:11.910 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+23:04:11.910 LogUtil                 [URI:0822] Изображение требует обработки
+23:04:11.910 LogUtil                 [URI:0822] Начало тестового сжатия в RAM
+23:04:11.910 LogUtil                 [URI:0822] Сжатие изображения в поток
+23:04:11.933 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000823 (всего: 2)
+23:04:11.990 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:11.999 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764101042080 для URI: content://media/external/images/media/1000000823
+23:04:12.000 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000823
+23:04:12.000 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+23:04:12.001 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000823 (осталось: 1)
+23:04:12.003 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+23:04:12.105 LogUtil                 [СЖАТИЕ:0822] 141KB → 53KB (-62%)
+23:04:12.105 LogUtil                 [СЖАТИЕ:0822] 141KB → 53KB (-62.16367%)
+23:04:12.105 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000822 эффективно (экономия 62.16367%), выполняем полное сжатие
+23:04:12.105 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+23:04:12.113 LogUtil                 [URI:0822] Имя файла: IMG_20251125_230400.jpg
+23:04:12.114 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_230400.jpg
+23:04:12.114 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_230400.jpg (режим замены: true)
+23:04:12.118 LogUtil                 [URI:0822] Директория для сохранения: Pictures
+23:04:12.235 LogUtil                 [URI:0822] Сжатие изображения в поток
+23:04:12.321 LogUtil                 [FileUtil] Директория для сохранения: Pictures
+23:04:12.321 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_230400.jpg (режим замены: true)
+23:04:12.328 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
+23:04:12.328 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
+23:04:12.333 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000822
+23:04:12.334 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_230400.jpg', включен режим замены - удаляем
+23:04:12.342 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
+23:04:12.350 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000822, обработка через 10 сек
+23:04:12.352 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000827
+23:04:12.365 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000827
+23:04:12.365 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000827, обработка через 10 сек
+23:04:12.383 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000827
+23:04:12.383 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000827, максимальное время: 2000 мс
+23:04:12.387 LogUtil                 [FileUtil] URI стал доступен через 4 мс, размер: 54941 байт
+23:04:12.423 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764101052000
+23:04:12.427 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
+23:04:12.427 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764101052427
+23:04:12.430 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000827
+23:04:12.433 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
+23:04:12.434 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+23:04:12.539 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+23:04:12.540 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
+23:04:12.540 LogUtil                 [ФАЙЛ:0822] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000827
+23:04:12.541 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000827 до Tue Nov 25 23:04:17 GMT+03:00 2025
+23:04:12.541 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000822 (осталось: 0)
+23:04:12.541 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000822
+23:04:12.545 ContentResolver         Failed to get type for: content://media/external/images/media/1000000822 (No item at content://media/external/images/media/1000000822)
+23:04:12.548 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000822): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000822
+23:04:12.548 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует (первая проверка), удаление отменено: content://media/external/images/media/1000000822
+23:04:12.548 LogUtil                 [ОШИБКА:Удаление:0822] Не удалось удалить оригинальный файл
+23:04:12.554 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764101040779: IMG_20251125_230400.jpg (4)
+23:04:12.555 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_230400.jpg
+23:04:12.560 WM-Processor            Moving WorkSpec (7aa30087-108d-49af-9f13-79a158f7a28e) to the foreground
+23:04:12.562 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 7aa30087-108d-49af-9f13-79a158f7a28e, notificationType :1)
+23:04:12.563 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000822
+23:04:12.563 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000822
+23:04:12.570 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=7aa30087-108d-49af-9f13-79a158f7a28e, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764101051576_IMG_20251125_230400.jpg } ]
+23:04:12.576 WM-Processor            Processor 7aa30087-108d-49af-9f13-79a158f7a28e executed; reschedule = false
+23:04:12.576 WM-SystemJobService     7aa30087-108d-49af-9f13-79a158f7a28e executed on JobScheduler
+23:04:12.576 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=7aa30087-108d-49af-9f13-79a158f7a28e, generation=0), notificationType: 1
+23:04:12.576 WM-SystemFgDispatcher   Stopping foreground service
+23:04:12.576 WM-SystemFgService      Shutting down.
+23:04:12.581 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+23:04:12.582 WM-GreedyScheduler      Cancelling work ID 7aa30087-108d-49af-9f13-79a158f7a28e
+23:04:12.587 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000824 после задержки
+23:04:12.623 WM-SystemJobService     onStopJob for WorkGenerationalId(workSpecId=7aa30087-108d-49af-9f13-79a158f7a28e, generation=0)
+23:04:12.623 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000824
+23:04:12.624 LogUtil                 [URI:0824] URI scheme: content, authority: media, path: /external/images/media/1000000824
+23:04:12.665 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000824 (всего: 1)
+23:04:12.716 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:12.719 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000824
+23:04:12.729 LogUtil                 [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1764101040779
+23:04:12.730 LogUtil                 [СЖАТИЕ:0824] Запущена работа по сжатию для content://media/external/images/media/1000000824 с тегом compress_1764101052725_IMG_20251125_230402.jpg в батче auto_batch_1_1764101040779
+23:04:12.731 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+23:04:12.737 WM-SystemJobScheduler   Scheduling work ID 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00Job ID 362
+23:04:12.742 WM-GreedyScheduler      Starting work for 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00
+23:04:12.744 WM-SystemJobService     onStartJob for WorkGenerationalId(workSpecId=43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, generation=0)
+23:04:12.745 WM-Processor            Processor: processing WorkGenerationalId(workSpecId=43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, generation=0)
+23:04:12.746 WM-Processor            Work WorkGenerationalId(workSpecId=43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, generation=0) is already enqueued for processing
+23:04:12.750 WM-WorkerWrapper        Starting work for com.compressphotofast.worker.ImageCompressionWorker
+23:04:12.753 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+23:04:12.917 WM-Processor            Moving WorkSpec (43716b84-aa87-4a4e-a9ed-5c18dd7d7d00) to the foreground
+23:04:12.923 WM-SystemFgDispatcher   Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+23:04:12.923 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, notificationType :1)
+23:04:12.924 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+23:04:12.925 LogUtil                 [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000000824 в память (кэш не найден)
+23:04:12.928 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, notificationType :1)
+23:04:12.938 LogUtil                 [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000000824:
+23:04:12.938 LogUtil                 [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
+23:04:12.938 LogUtil                 [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+23:04:12.938 LogUtil                 [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+23:04:12.938 LogUtil                 [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+23:04:12.939 LogUtil                 [ПРОЦЕСС] 🔍 GPS результат: lat=55.751130555555555, lng=37.61601111111111
+23:04:12.940 LogUtil                 [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.751130555555555, lng=37.61601111111111
+23:04:12.940 LogUtil                 [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+23:04:12.940 LogUtil                 [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2025:11:25 23:04:02
+23:04:12.941 LogUtil                 [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+23:04:12.941 LogUtil                 [ПРОЦЕСС] Прочитано 25 EXIF-тегов, сохраняем в кэш
+23:04:12.942 LogUtil                 [URI:0824] [ПРОЦЕСС] Загружены EXIF данные в память: 25 тегов
+23:04:12.996 LogUtil                 [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000000824
+23:04:12.996 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+23:04:13.023 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000000824 (всего: 1)
+23:04:13.027 LogUtil                 [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000000824
+23:04:13.031 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+23:04:13.031 LogUtil                 [URI:0824] Изображение требует обработки
+23:04:13.031 LogUtil                 [URI:0824] Начало тестового сжатия в RAM
+23:04:13.032 LogUtil                 [URI:0824] Сжатие изображения в поток
+23:04:13.158 LogUtil                 [СЖАТИЕ:0824] 141KB → 53KB (-62%)
+23:04:13.158 LogUtil                 [СЖАТИЕ:0824] 141KB → 53KB (-62.19833%)
+23:04:13.159 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000000824 эффективно (экономия 62.19833%), выполняем полное сжатие
+23:04:13.159 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+23:04:13.167 LogUtil                 [URI:0824] Имя файла: IMG_20251125_230402.jpg
+23:04:13.168 LogUtil                 [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20251125_230402.jpg
+23:04:13.168 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20251125_230402.jpg (режим замены: true)
+23:04:13.174 LogUtil                 [URI:0824] Директория для сохранения: Pictures
+23:04:13.282 LogUtil                 [URI:0824] Сжатие изображения в поток
+23:04:13.367 LogUtil                 [FileUtil] Директория для сохранения: Pictures
+23:04:13.367 LogUtil                 [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20251125_230402.jpg (режим замены: true)
+23:04:13.370 LogUtil                 [ПРОЦЕСС] Режим замены, использую оригинальную директорию: Pictures
+23:04:13.370 LogUtil                 [ПРОЦЕСС] Использую относительный путь для сохранения: Pictures
+23:04:13.376 LogUtil                 [MediaStore] Найден существующий файл с таким же именем: content://media/external/images/media/1000000824
+23:04:13.378 LogUtil                 [ПРОЦЕСС] [MediaStore] Найден существующий файл с именем 'IMG_20251125_230402.jpg', включен режим замены - удаляем
+23:04:13.385 LogUtil                 [MediaStore] Существующий файл удален (режим замены)
+23:04:13.396 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000824, обработка через 10 сек
+23:04:13.397 LogUtil                 [MediaStore] Создан URI для изображения: content://media/external/images/media/1000000828
+23:04:13.405 LogUtil                 [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/1000000828
+23:04:13.405 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000000828, обработка через 10 сек
+23:04:13.426 LogUtil                 [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/1000000828
+23:04:13.427 LogUtil                 [FileUtil] Ожидание доступности URI: content://media/external/images/media/1000000828, максимальное время: 2000 мс
+23:04:13.433 LogUtil                 [FileUtil] URI стал доступен через 5 мс, размер: 54806 байт
+23:04:13.467 LogUtil                 [ПРОЦЕСС] Сохранена исходная дата модификации: 1764101053000
+23:04:13.473 LogUtil                 [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.751130555555555, lng=37.61601111111111
+23:04:13.473 LogUtil                 [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1764101053473
+23:04:13.479 LogUtil                 [ПРОЦЕСС] Применено 21 EXIF-тегов к content://media/external/images/media/1000000828
+23:04:13.481 LogUtil                 [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
+23:04:13.483 LogUtil                 [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+23:04:13.588 LogUtil                 [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+23:04:13.589 LogUtil                 [FileUtil] Обработка EXIF данных: успешно
+23:04:13.589 LogUtil                 [ФАЙЛ:0824] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/1000000828
+23:04:13.589 LogUtil                 [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/1000000828 до Tue Nov 25 23:04:18 GMT+03:00 2025
+23:04:13.589 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000824 (осталось: 0)
+23:04:13.589 LogUtil                 [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/1000000824
+23:04:13.592 ContentResolver         Failed to get type for: content://media/external/images/media/1000000824 (No item at content://media/external/images/media/1000000824)
+23:04:13.594 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000824): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000824
+23:04:13.594 LogUtil                 [ПРОЦЕСС] deleteFile: URI не существует (первая проверка), удаление отменено: content://media/external/images/media/1000000824
+23:04:13.595 LogUtil                 [ОШИБКА:Удаление:0824] Не удалось удалить оригинальный файл
+23:04:13.599 LogUtil                 [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1764101040779: IMG_20251125_230402.jpg (5)
+23:04:13.599 LogUtil                 [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20251125_230402.jpg
+23:04:13.603 WM-Processor            Moving WorkSpec (43716b84-aa87-4a4e-a9ed-5c18dd7d7d00) to the foreground
+23:04:13.605 WM-SystemFgDispatcher   Notifying with (id:1, workSpecId: 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, notificationType :1)
+23:04:13.605 LogUtil                 [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000000824
+23:04:13.605 LogUtil                 [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/1000000824
+23:04:13.610 WM-WorkerWrapper        Worker result SUCCESS for Work [ id=43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1764101052725_IMG_20251125_230402.jpg } ]
+23:04:13.616 WM-Processor            Processor 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00 executed; reschedule = false
+23:04:13.616 WM-SystemJobService     43716b84-aa87-4a4e-a9ed-5c18dd7d7d00 executed on JobScheduler
+23:04:13.616 WM-SystemFgDispatcher   Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, generation=0), notificationType: 1
+23:04:13.617 WM-SystemFgDispatcher   Stopping foreground service
+23:04:13.617 WM-SystemFgService      Shutting down.
+23:04:13.617 WM-PackageManagerHelper androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+23:04:13.623 WM-GreedyScheduler      Cancelling work ID 43716b84-aa87-4a4e-a9ed-5c18dd7d7d00
+23:04:13.623 WM-SystemJobService     onStopJob for WorkGenerationalId(workSpecId=43716b84-aa87-4a4e-a9ed-5c18dd7d7d00, generation=0)
+23:04:19.694 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000820 после задержки
+23:04:19.701 ContentResolver         Failed to get type for: content://media/external/images/media/1000000820 (No item at content://media/external/images/media/1000000820)
+23:04:19.704 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000820): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000820
+23:04:19.705 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000820
+23:04:19.705 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000820
+23:04:19.705 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000825 после задержки
+23:04:19.735 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000825
+23:04:19.735 LogUtil                 [URI:0825] URI scheme: content, authority: media, path: /external/images/media/1000000825
+23:04:19.767 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000825 (всего: 1)
+23:04:19.838 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:19.844 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764101049776 для URI: content://media/external/images/media/1000000825
+23:04:19.844 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000825
+23:04:19.844 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+23:04:19.845 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000825 (осталось: 0)
+23:04:19.845 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+23:04:21.082 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000821 после задержки
+23:04:21.098 ContentResolver         Failed to get type for: content://media/external/images/media/1000000821 (No item at content://media/external/images/media/1000000821)
+23:04:21.102 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000821): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000821
+23:04:21.103 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000821
+23:04:21.103 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000821
+23:04:21.103 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000826 после задержки
+23:04:21.137 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000826
+23:04:21.138 LogUtil                 [URI:0826] URI scheme: content, authority: media, path: /external/images/media/1000000826
+23:04:21.170 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000826 (всего: 1)
+23:04:21.255 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:21.263 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764101051151 для URI: content://media/external/images/media/1000000826
+23:04:21.264 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000826
+23:04:21.264 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+23:04:21.265 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000826 (осталось: 0)
+23:04:21.266 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+23:04:22.351 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000822 после задержки
+23:04:22.361 ContentResolver         Failed to get type for: content://media/external/images/media/1000000822 (No item at content://media/external/images/media/1000000822)
+23:04:22.365 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000822): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000822
+23:04:22.366 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000822
+23:04:22.366 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000822
+23:04:22.367 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000827 после задержки
+23:04:22.399 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000827
+23:04:22.400 LogUtil                 [URI:0827] URI scheme: content, authority: media, path: /external/images/media/1000000827
+23:04:22.433 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000827 (всего: 1)
+23:04:22.518 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:22.523 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764101052427 для URI: content://media/external/images/media/1000000827
+23:04:22.523 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000827
+23:04:22.523 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+23:04:22.524 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000827 (осталось: 0)
+23:04:22.524 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+23:04:23.399 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000824 после задержки
+23:04:23.403 ContentResolver         Failed to get type for: content://media/external/images/media/1000000824 (No item at content://media/external/images/media/1000000824)
+23:04:23.407 LogUtil                 [Проверка существования] Файл не найден (content://media/external/images/media/1000000824): java.io.FileNotFoundException: No item at content://media/external/images/media/1000000824
+23:04:23.408 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/1000000824
+23:04:23.408 LogUtil                 [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/1000000824
+23:04:23.409 LogUtil                 [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000000828 после задержки
+23:04:23.443 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000000828
+23:04:23.444 LogUtil                 [URI:0828] URI scheme: content, authority: media, path: /external/images/media/1000000828
+23:04:23.476 LogUtil                 [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000000828 (всего: 1)
+23:04:23.572 LogUtil                 [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+23:04:23.580 LogUtil                 [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1764101053473 для URI: content://media/external/images/media/1000000828
+23:04:23.580 LogUtil                 [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000000828
+23:04:23.581 LogUtil                 [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+23:04:23.581 LogUtil                 [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/1000000828 (осталось: 0)
+23:04:23.585 LogUtil                 [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
