@@ -57,10 +57,11 @@ object FileOperationsUtil {
 
     /**
      * Удаляет файл по URI с централизованной логикой для всех версий Android
+     * @param forceDelete Если true, обходит проверку нахождения URI в обработке
      * @return Boolean - успешность удаления или IntentSender для запроса разрешения на Android 10+
      */
-    suspend fun deleteFile(context: Context, uri: Uri, uriProcessingTracker: UriProcessingTracker): Any? {
-        if (uriProcessingTracker.isProcessing(uri)) {
+    suspend fun deleteFile(context: Context, uri: Uri, uriProcessingTracker: UriProcessingTracker, forceDelete: Boolean = false): Any? {
+        if (!forceDelete && uriProcessingTracker.isProcessing(uri)) {
             LogUtil.processWarning("deleteFile: URI находится в обработке, удаление отменено: $uri")
             return false
         }

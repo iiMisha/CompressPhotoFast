@@ -341,16 +341,32 @@ object UriProcessingTracker {
     private fun cleanupStaleUnavailableEntries() {
         val now = System.currentTimeMillis()
         val expiredUris = mutableListOf<String>()
-        
+
         for ((uri, timestamp) in unavailableUris) {
             if (now - timestamp > UNAVAILABLE_URI_EXPIRATION) {
                 expiredUris.add(uri)
             }
         }
-        
+
         for (uri in expiredUris) {
             unavailableUris.remove(uri)
             LogUtil.processDebug("Устаревший URI удален из списка недоступных: $uri")
+        }
+    }
+
+    /**
+     * Атомарно удаляет URI из обработки, выполняет действие и добавляет в недавно обработанные
+     * Безопасная обертка для предотвращения гонок состояний
+     */
+    suspend fun <T> safelyProcessAfterRemoval(
+        uri: Uri,
+        action: suspend () -> T
+    ): T {
+        removeProcessingUri(uri)
+        return try {
+            action()
+        } finally {
+            addRecentlyProcessedUri(uri)
         }
     }
 }

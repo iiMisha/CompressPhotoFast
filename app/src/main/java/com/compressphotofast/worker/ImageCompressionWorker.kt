@@ -284,10 +284,13 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Добавляем URI в кэш недавно оптимизированных
                 uriProcessingTracker.setIgnorePeriod(savedUri)
 
+                // ПЕРЕД удалением удаляем URI из обработки (исправление race condition)
+                uriProcessingTracker.removeProcessingUri(imageUri)
+
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
                 if (FileOperationsUtil.isSaveModeReplace(appContext)) {
                     try {
-                        val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker)
+                        val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
                         if (deleteResult is Boolean && deleteResult) {
                             LogUtil.fileOperation(imageUri, "Удаление", "Оригинальный файл успешно удален")
                         } else if (deleteResult is IntentSender) {
@@ -321,9 +324,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Обновляем статус и возвращаем успех
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
-                
-                // Удаляем URI из обрабатываемых и добавляем в недавно обработанные
-                uriProcessingTracker.removeProcessingUri(imageUri)
+
+                // Добавляем URI в недавно обработанные (уже удален из обработки выше)
                 uriProcessingTracker.addRecentlyProcessedUri(imageUri)
                 
                 return@withContext Result.success()
