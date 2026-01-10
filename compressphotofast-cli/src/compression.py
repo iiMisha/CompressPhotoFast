@@ -210,6 +210,8 @@ class ImageCompressor:
 
             if preserve_exif:
                 ExifHandler.copy_exif_with_marker(file_path, output_path, quality)
+                # Пересчитать размер файла после добавления EXIF
+                compressed_size = ImageCompressor.get_file_size(output_path)
 
             return CompressionResult(
                 True,
