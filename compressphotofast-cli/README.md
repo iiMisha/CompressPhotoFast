@@ -17,20 +17,36 @@
 
 #### Linux (Ubuntu/Mint)
 
-```bash
-# Установка системных зависимостей (для HEIC поддержки)
-sudo apt-get update
-sudo apt-get install -y libheif-dev libffi-dev
+**Важно**: Начиная с Python 3.12+, системный Python защищен от прямой установки пакетов (PEP 668). Рекомендуется использовать виртуальное окружение.
 
-# Установка Python-пакета
-pip install -e .
+```bash
+# 1. Установка системных зависимостей (для HEIC поддержки)
+sudo apt-get update
+sudo apt-get install -y libheif-dev libffi-dev python3-venv
+
+# 2. Создание и активация виртуального окружения
+cd compressphotofast-cli
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Установка Python-пакета
+pip install --upgrade -e .
 ```
+
+**Примечание**: Если вы получаете ошибку `externally-managed-environment`, используйте виртуальное окружение, как показано выше.
 
 #### Windows
 
 ```powershell
-# Установка Python-пакета
-pip install -e .
+# 1. Создание виртуального окружения (рекомендуется)
+cd compressphotofast-cli
+python -m venv venv
+
+# 2. Активация виртуального окружения
+.\venv\Scripts\Activate.ps1
+
+# 3. Установка Python-пакета
+pip install --upgrade -e .
 ```
 
 **Примечание**: На Windows НЕ нужны системные зависимости - pillow-heif использует precompiled wheels.
@@ -38,14 +54,29 @@ pip install -e .
 #### macOS
 
 ```bash
-# Установка через Homebrew
-brew install libheif
+# 1. Установка через Homebrew
+brew install libheif python3
 
-# Установка Python-пакета
-pip install -e .
+# 2. Создание и активация виртуального окружения
+cd compressphotofast-cli
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Установка Python-пакета
+pip install --upgrade -e .
 ```
 
 ### Базовое использование
+
+**Важно**: Перед использованием убедитесь, что виртуальное окружение активировано:
+
+```bash
+# Linux/macOS
+source venv/bin/activate
+
+# Windows
+.\venv\Scripts\Activate.ps1
+```
 
 ```bash
 # Сжать папку с изображениями
@@ -60,6 +91,44 @@ compressphotofast compress ~/iPhone/Photos
 # Посмотреть статистику
 compressphotofast stats ~/Photos
 ```
+
+### Работа с виртуальным окружением
+
+**Что такое виртуальное окружение?**
+Виртуальное окружение (virtual environment) изолирует зависимости проекта от системного Python. Это рекомендуемый способ работы с Python-проектами.
+
+**Активация окружения:**
+
+```bash
+# Linux/macOS
+source venv/bin/activate
+
+# Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+
+# Windows (CMD)
+venv\Scripts\activate.bat
+```
+
+**Как проверить, что окружение активировано?**
+
+После активации в командной строке появится префикс `(venv)`:
+```bash
+(venv) user@computer:~/compressphotofast-cli$
+```
+
+**Деактивация окружения:**
+
+```bash
+deactivate
+```
+
+**Зачем нужно виртуальное окружение?**
+
+- ✅ Изолирует зависимости проекта
+- ✅ Избегает конфликтов с системными пакетами
+- ✅ Требуется для Python 3.12+ (PEP 668)
+- ✅ Позволяет легко удалить все зависимости (просто удалите папку venv)
 
 ## Команды
 
@@ -221,6 +290,32 @@ CLI версия автоматически использует все дост
 
 ## Устранение проблем
 
+### Ошибка "externally-managed-environment"
+
+**Симптом**: При установке появляется ошибка:
+```
+error: externally-managed-environment
+To install package system-wide, try apt install python3-xyz
+```
+
+**Причина**: Начиная с Python 3.12+, системный Python защищен от прямой установки пакетов (PEP 668).
+
+**Решение**: Используйте виртуальное окружение:
+
+```bash
+# Создание виртуального окружения
+python3 -m venv venv
+
+# Активация (Linux/macOS)
+source venv/bin/activate
+
+# Активация (Windows)
+.\venv\Scripts\Activate.ps1
+
+# Установка пакета в виртуальное окружение
+pip install --upgrade -e .
+```
+
 ### HEIC файлы не обрабатываются
 
 **Симптом**: Файлы `.heic` пропускаются с предупреждением
@@ -228,6 +323,11 @@ CLI версия автоматически использует все дост
 **Решение**:
 
 ```bash
+# Убедитесь, что виртуальное окружение активировано
+source venv/bin/activate  # Linux/macOS
+# или
+.\venv\Scripts\Activate.ps1  # Windows
+
 # Linux
 sudo apt-get install libheif-dev libffi-dev
 pip install --upgrade pillow-heif
