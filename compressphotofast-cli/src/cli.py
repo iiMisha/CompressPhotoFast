@@ -226,6 +226,7 @@ def _run_dry_run(
         for file_info in files:
             should_process = True
             skip_reason = ""
+            test_result = None
 
             if not force:
                 if ExifHandler.is_image_compressed(
@@ -246,11 +247,14 @@ def _run_dry_run(
                     should_process = False
                     skip_reason = "Test failed"
 
-            stats.add_result(
-                CompressionResult(should_process, file_info.size, 0),
-                skipped=not should_process,
-                reason=skip_reason,
-            )
+            if should_process and test_result:
+                stats.add_result(test_result, skipped=False, reason="")
+            else:
+                stats.add_result(
+                    CompressionResult(False, file_info.size, 0),
+                    skipped=True,
+                    reason=skip_reason,
+                )
 
             status = (
                 "[green]Will compress[/green]" if should_process else "[red]Skip[/red]"
