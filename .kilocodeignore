@@ -2,6 +2,8 @@
 # Файлы и папки, унаследованные из .gitignore
 # =================================================
 
+!compressphotofast-cli/README.md
+
 # Файлы Gradle
 .gradle/
 build/
