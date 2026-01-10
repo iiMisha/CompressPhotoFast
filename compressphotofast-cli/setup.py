@@ -28,6 +28,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "Pillow>=10.0.0",
+        "pillow-heif>=0.16.0",
         "piexif>=1.1.3",
         "click>=8.1.0",
         "tqdm>=4.65.0",

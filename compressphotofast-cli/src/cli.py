@@ -112,6 +112,22 @@ def compress(
     console.print(f"[dim]Dry run:[/dim] {'Yes' if dry_run else 'No'}")
     console.print()
 
+    # Проверка поддержки HEIC и информирование пользователя
+    from .compression import HEIC_SUPPORT_AVAILABLE
+
+    if not HEIC_SUPPORT_AVAILABLE:
+        console.print(
+            Panel(
+                "[yellow]⚠ HEIC/HEIF поддержка не доступна[/yellow]\n"
+                "Установите pillow-heif для обработки HEIC файлов:\n"
+                "  1. sudo apt-get install libheif-dev libffi-dev\n"
+                "  2. pip install --upgrade pillow-heif\n\n"
+                "HEIC файлы будут [bold]пропущены[/bold] при обработке.",
+                title="Warning",
+                border_style="yellow"
+            )
+        )
+
     # Use thread-safe stats for both compression and dry-run (both are now multi-threaded)
     stats = ThreadSafeStats()
 

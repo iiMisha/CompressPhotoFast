@@ -19,6 +19,14 @@ from .constants import (
 )
 from .exif_handler import ExifHandler
 
+# Попытка инициализации поддержки HEIC
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+    HEIC_SUPPORT_AVAILABLE = True
+except ImportError:
+    HEIC_SUPPORT_AVAILABLE = False
+
 
 class CompressionResult:
     def __init__(
@@ -52,6 +60,10 @@ class ImageCompressor:
     @staticmethod
     def is_supported_file(file_path: str) -> bool:
         ext = os.path.splitext(file_path)[1].lower()
+        # Проверка поддержки HEIC
+        if ext in {".heic", ".heif"}:
+            if not HEIC_SUPPORT_AVAILABLE:
+                return False
         return ext in SUPPORTED_EXTENSIONS
 
     @staticmethod
@@ -161,6 +173,12 @@ class ImageCompressor:
     ) -> CompressionResult:
         try:
             if not ImageCompressor.is_supported_file(file_path):
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext in {".heic", ".heif"} and not HEIC_SUPPORT_AVAILABLE:
+                    return CompressionResult(
+                        False, 0, 0, None,
+                        "HEIC/HEIF support not available. Install pillow-heif."
+                    )
                 return CompressionResult(False, 0, 0, None, "Unsupported file format")
 
             if not ImageCompressor.is_processable(file_path):
@@ -282,6 +300,9 @@ class ImageCompressor:
 
             base_name = os.path.basename(file_path)
             name, ext = os.path.splitext(base_name)
+            # HEIC/HEIF файлы конвертируются в JPEG
+            if ext.lower() in {".heic", ".heif"}:
+                ext = ".jpg"
             output_name = f"{name}_compressed{ext}"
             output_path = os.path.join(output_dir, output_name)
 
@@ -296,7 +317,9 @@ class ImageCompressor:
                 # Add small delay for thread-safety
                 time.sleep(0.001)
 
-                output_name = f"{name}_compressed_{counter}{ext}"
+                # HEIC/HEIF файлы конвертируются в JPEG
+                file_ext = ".jpg" if ext.lower() in {".heic", ".heif"} else ext
+                output_name = f"{name}_compressed_{counter}{file_ext}"
                 output_path = os.path.join(output_dir, output_name)
                 counter += 1
 
