@@ -20,11 +20,57 @@
 - Python 3.10 или выше
 - pip менеджер пакетов
 
-### Установка зависимостей
+### Способ 1: Использование скриптов запуска (рекомендуется)
+
+#### Linux/macOS
 
 ```bash
 cd compressphotofast-cli
-pip install -r requirements.txt
+chmod +x compressphotofast.sh
+
+# Первый запуск автоматически создаст виртуальное окружение
+./compressphotofast.sh --help
+```
+
+#### Windows
+
+```cmd
+cd compressphotofast-cli
+compressphotofast.bat --help
+```
+
+### Способ 2: Создание глобального алиаса (Linux/macOS)
+
+Для удобства добавьте алиас в `~/.bashrc`:
+
+```bash
+echo "alias compressphotofast='~/путь/к/compressphotofast-cli/compressphotofast.sh'" >> ~/.bashrc
+source ~/.bashrc
+```
+
+Теперь можно использовать команду из любой папки:
+```bash
+compressphotofast compress . --dry-run
+```
+
+### Способ 3: Ручная установка зависимостей
+
+```bash
+cd compressphotofast-cli
+pip3 install -r requirements.txt
+python3 -m src.cli --help
+```
+
+### Способ 4: Глобальная установка через pip
+
+```bash
+cd compressphotofast-cli
+pip3 install -e .
+```
+
+После этого можно будет запускать из любой папки:
+```bash
+compressphotofast compress . --dry-run
 ```
 
 ## Использование
