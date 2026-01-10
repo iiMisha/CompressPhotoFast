@@ -1,0 +1,243 @@
+"""
+Thread-safe utilities for parallel image compression.
+
+Provides thread-safe wrapper for statistics collection and worker function
+for processing individual images in multi-threaded environment.
+"""
+
+from typing import Tuple, Optional
+from threading import Lock
+from traceback import format_exc
+
+from .compression import ImageCompressor, CompressionResult
+from .exif_handler import ExifHandler
+from .file_utils import FileInfo, is_already_small
+from .stats import CompressionStats
+
+
+def process_single_file_dry_run(
+    file_info: FileInfo,
+    quality: int,
+    force: bool
+) -> Tuple[FileInfo, bool, str, Optional[CompressionResult]]:
+    """
+    Worker function to analyze a single image file in dry-run mode.
+
+    This function is designed to run in a separate thread and handles:
+    - Checking if file needs processing (EXIF, size)
+    - Testing compression efficiency
+    - Returning results for display in main thread
+
+    Args:
+        file_info: Information about the file to analyze
+        quality: Compression quality to test
+        force: Force re-compression of already compressed files
+
+    Returns:
+        Tuple containing:
+        - file_info: Original file information
+        - should_process: Whether the file should be compressed
+        - skip_reason: Reason for skipping (empty string if not skipped)
+        - test_result: CompressionResult from test_compression (None if skipped/error)
+    """
+    try:
+        should_process = True
+        skip_reason = ""
+        test_result = None
+
+        # Check if processing is needed
+        if not force:
+            try:
+                if (ExifHandler.is_image_compressed(file_info.path) and
+                    not ExifHandler.should_recompress(file_info.path)):
+                    should_process = False
+                    skip_reason = "Already compressed"
+                elif is_already_small(file_info.size):
+                    should_process = False
+                    skip_reason = "Already small"
+            except Exception as e:
+                # Error during checking - log but try to process anyway
+                skip_reason = f"Check error: {str(e)}"
+
+        # Test compression if needed
+        if should_process:
+            try:
+                test_result = ImageCompressor.test_compression(file_info.path, quality)
+                if test_result and not test_result.is_efficient:
+                    should_process = False
+                    skip_reason = "Compression not efficient"
+                elif not test_result:
+                    should_process = False
+                    skip_reason = "Test failed"
+            except Exception as e:
+                # Error during test compression
+                return (
+                    file_info,
+                    False,
+                    f"Test error: {type(e).__name__}: {str(e)}",
+                    None
+                )
+
+        return (file_info, should_process, skip_reason, test_result)
+
+    except Exception as e:
+        # Unexpected error in worker function
+        error_msg = f"Worker error: {type(e).__name__}: {str(e)}\n{format_exc()}"
+        return (
+            file_info,
+            False,
+            error_msg,
+            None
+        )
+
+
+class ThreadSafeStats:
+    """
+    Thread-safe wrapper around CompressionStats.
+
+    Uses threading.Lock to ensure safe concurrent access to statistics
+    from multiple worker threads.
+
+    All methods that modify state are protected by locks.
+    """
+
+    def __init__(self):
+        """Initialize thread-safe statistics wrapper."""
+        self._stats = CompressionStats()
+        self._lock = Lock()
+
+    def add_result(
+        self,
+        result: CompressionResult,
+        skipped: bool = False,
+        reason: str = ""
+    ) -> None:
+        """
+        Thread-safe addition of compression result.
+
+        Args:
+            result: Compression result to add
+            skipped: Whether the file was skipped
+            reason: Reason for skipping (if applicable)
+        """
+        with self._lock:
+            self._stats.add_result(result, skipped, reason)
+
+    def print_summary(self) -> None:
+        """Print summary statistics (called from main thread only)."""
+        # No lock needed - called from main thread after all workers complete
+        self._stats.print_summary()
+
+    @property
+    def total(self) -> int:
+        """Get total number of files."""
+        return self._stats.total
+
+    @total.setter
+    def total(self, value: int) -> None:
+        """Set total number of files (called from main thread only)."""
+        self._stats.total = value
+
+
+def process_single_file(
+    file_info: FileInfo,
+    quality: int,
+    replace: bool,
+    output_dir: Optional[str],
+    force: bool
+) -> Tuple[FileInfo, Optional[CompressionResult], bool, str, str]:
+    """
+    Worker function to process a single image file.
+
+    This function is designed to run in a separate thread and handles:
+    - Checking if file needs processing (EXIF, size)
+    - Finding optimal quality (if auto)
+    - Compressing the image
+    - Returning results for display in main thread
+
+    Args:
+        file_info: Information about the file to process
+        quality: Compression quality (0 for auto)
+        replace: Whether to replace original file
+        output_dir: Output directory for compressed files
+        force: Force re-compression of already compressed files
+
+    Returns:
+        Tuple containing:
+        - file_info: Original file information
+        - result: CompressionResult (None if skipped)
+        - skipped: Whether the file was skipped
+        - skip_reason: Reason for skipping (empty string if not skipped)
+        - error_message: Error message if exception occurred (empty if no error)
+    """
+    try:
+        # Check if processing is needed
+        should_process = True
+        skip_reason = ""
+
+        if not force:
+            try:
+                if (ExifHandler.is_image_compressed(file_info.path) and
+                    not ExifHandler.should_recompress(file_info.path)):
+                    should_process = False
+                    skip_reason = "Already compressed"
+                elif is_already_small(file_info.size):
+                    should_process = False
+                    skip_reason = "Already small"
+            except Exception as e:
+                # Error during checking - log but try to process anyway
+                skip_reason = f"Check error: {str(e)}"
+
+        # Process the file if needed
+        if should_process:
+            try:
+                # Find optimal quality if auto (quality == 0)
+                actual_quality = quality
+                if actual_quality == 0:
+                    try:
+                        actual_quality = ImageCompressor.find_optimal_quality(file_info.path)
+                    except Exception as e:
+                        # If quality detection fails, use default
+                        actual_quality = 75  # Default fallback
+                        skip_reason = f"Quality detection failed: {str(e)}"
+
+                # Compress the image
+                result = ImageCompressor.compress_image_safe(
+                    file_info.path,
+                    actual_quality,
+                    replace_mode=replace,
+                    output_dir=output_dir
+                )
+
+                return (file_info, result, False, "", "")
+
+            except Exception as e:
+                # Error during compression
+                error_msg = f"Compression error: {type(e).__name__}: {str(e)}"
+                return (
+                    file_info,
+                    None,
+                    False,
+                    "",
+                    error_msg
+                )
+        else:
+            # File was skipped
+            return (
+                file_info,
+                None,
+                True,
+                skip_reason,
+                ""
+            )
+
+    except Exception as e:
+        # Unexpected error in worker function
+        error_msg = f"Worker error: {type(e).__name__}: {str(e)}\n{format_exc()}"
+        return (
+            file_info,
+            None,
+            False,
+            "",
+            error_msg
+        )

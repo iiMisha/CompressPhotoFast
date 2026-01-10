@@ -8,8 +8,9 @@ VENV_DIR="$SCRIPT_DIR/venv"
 if [ ! -d "$VENV_DIR" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$VENV_DIR"
-    echo "Installing dependencies..."
-    "$VENV_DIR/bin/pip" install -q -r "$SCRIPT_DIR/requirements.txt"
+    echo "Installing package and dependencies..."
+    cd "$SCRIPT_DIR"
+    "$VENV_DIR/bin/pip" install -q -e .
 fi
 
 exec "$VENV_DIR/bin/python" -m src.cli "$@"

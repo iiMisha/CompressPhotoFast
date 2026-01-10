@@ -2,6 +2,7 @@ import os
 import sys
 from typing import Optional, List
 from pathlib import Path
+import concurrent.futures
 
 import click
 from rich.console import Console
@@ -34,63 +35,11 @@ from .constants import (
     DEFAULT_COMPRESSION_QUALITY,
     APP_DIRECTORY,
 )
+from .stats import CompressionStats
+from .threading_utils import ThreadSafeStats, process_single_file, process_single_file_dry_run
 
 
 console = Console()
-
-
-class CompressionStats:
-    def __init__(self):
-        self.total = 0
-        self.processed = 0
-        self.skipped = 0
-        self.success = 0
-        self.failed = 0
-        self.original_size_total = 0
-        self.compressed_size_total = 0
-        self.skipped_reasons = {}
-
-    def add_result(
-        self, result: CompressionResult, skipped: bool = False, reason: str = ""
-    ):
-        self.processed += 1
-
-        if skipped:
-            self.skipped += 1
-            if reason:
-                self.skipped_reasons[reason] = self.skipped_reasons.get(reason, 0) + 1
-        elif result.success:
-            self.success += 1
-            self.original_size_total += result.original_size
-            self.compressed_size_total += result.compressed_size
-        else:
-            self.failed += 1
-
-    def print_summary(self):
-        table = Table(title="Compression Summary")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="magenta")
-
-        table.add_row("Total files", str(self.total))
-        table.add_row("Processed", str(self.processed))
-        table.add_row("Success", str(self.success), style="green")
-        table.add_row("Skipped", str(self.skipped))
-        table.add_row("Failed", str(self.failed), style="red")
-
-        if self.success > 0:
-            saved = self.original_size_total - self.compressed_size_total
-            saved_percent = (saved / self.original_size_total) * 100
-            table.add_row("Original size", format_size(self.original_size_total))
-            table.add_row("Compressed size", format_size(self.compressed_size_total))
-            table.add_row("Saved", format_size(saved), style="green")
-            table.add_row("Saved %", f"{saved_percent:.1f}%")
-
-        console.print(table)
-
-        if self.skipped_reasons:
-            console.print("\n[bold]Skipped reasons:[/bold]")
-            for reason, count in self.skipped_reasons.items():
-                console.print(f"  • {reason}: {count}")
 
 
 @click.group()
@@ -163,7 +112,8 @@ def compress(
     console.print(f"[dim]Dry run:[/dim] {'Yes' if dry_run else 'No'}")
     console.print()
 
-    stats = CompressionStats()
+    # Use thread-safe stats for both compression and dry-run (both are now multi-threaded)
+    stats = ThreadSafeStats()
 
     if path.is_file():
         if not ImageCompressor.is_supported_file(str(path)):
@@ -206,7 +156,11 @@ def compress(
 def _run_dry_run(
     files: List[FileInfo], quality: int, force: bool, stats: CompressionStats
 ):
-    """Show what would be compressed without actually compressing"""
+    """Show what would be compressed without actually compressing (multi-threaded)"""
+
+    # Determine number of worker threads (auto-detect CPU cores)
+    num_workers = os.cpu_count() or 1
+
     table = Table(title="Dry Run - Images to Compress")
     table.add_column("Filename", style="cyan")
     table.add_column("Size", style="magenta")
@@ -221,49 +175,72 @@ def _run_dry_run(
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task("Analyzing images...", total=len(files))
+        task = progress.add_task(
+            f"Analyzing images... ({num_workers} threads)",
+            total=len(files)
+        )
 
-        for file_info in files:
-            should_process = True
-            skip_reason = ""
-            test_result = None
+        # Use ThreadPoolExecutor for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=num_workers,
+            thread_name_prefix="dryrun_worker"
+        ) as executor:
+            # Submit all tasks
+            future_to_file = {
+                executor.submit(
+                    process_single_file_dry_run,
+                    file_info,
+                    quality,
+                    force
+                ): file_info for file_info in files
+            }
 
-            if not force:
-                if ExifHandler.is_image_compressed(
-                    file_info.path
-                ) and not ExifHandler.should_recompress(file_info.path):
-                    should_process = False
-                    skip_reason = "Already compressed"
-                elif is_already_small(file_info.size):
-                    should_process = False
-                    skip_reason = "Already small"
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_file):
+                file_info = future_to_file[future]
 
-            if should_process:
-                test_result = ImageCompressor.test_compression(file_info.path, quality)
-                if test_result and not test_result.is_efficient:
-                    should_process = False
-                    skip_reason = "Compression not efficient"
-                elif not test_result:
-                    should_process = False
-                    skip_reason = "Test failed"
+                try:
+                    result_data = future.result()
+                    file_info, should_process, skip_reason, test_result = result_data
 
-            if should_process and test_result:
-                stats.add_result(test_result, skipped=False, reason="")
-            else:
-                stats.add_result(
-                    CompressionResult(False, file_info.size, 0),
-                    skipped=True,
-                    reason=skip_reason,
+                    # Add to stats
+                    if should_process and test_result:
+                        stats.add_result(test_result, skipped=False, reason="")
+                    else:
+                        stats.add_result(
+                            CompressionResult(False, file_info.size, 0),
+                            skipped=True,
+                            reason=skip_reason,
+                        )
+
+                    # Add to table
+                    status = (
+                        "[green]Will compress[/green]" if should_process else "[red]Skip[/red]"
+                    )
+                    table.add_row(
+                        file_info.name, format_size(file_info.size), status, skip_reason
+                    )
+
+                except Exception as e:
+                    # Future raised exception (shouldn't happen due to try/except in worker)
+                    table.add_row(
+                        file_info.name,
+                        format_size(file_info.size),
+                        "[red]Error[/red]",
+                        str(e)
+                    )
+                    stats.add_result(
+                        CompressionResult(False, file_info.size, 0),
+                        skipped=True,
+                        reason=f"Error: {e}"
+                    )
+
+                # Update progress bar
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"Analyzing: {file_info.name[:50]}..."
                 )
-
-            status = (
-                "[green]Will compress[/green]" if should_process else "[red]Skip[/red]"
-            )
-            table.add_row(
-                file_info.name, format_size(file_info.size), status, skip_reason
-            )
-
-            progress.update(task, advance=1)
 
     console.print(table)
 
@@ -276,7 +253,17 @@ def _run_compression(
     force: bool,
     stats: CompressionStats,
 ):
-    """Run actual compression"""
+    """Run actual compression with thread pool for multi-core support"""
+
+    # Determine number of worker threads (auto-detect CPU cores)
+    num_workers = os.cpu_count() or 1
+
+    # Ensure stats is ThreadSafeStats for multi-threaded operation
+    if not isinstance(stats, ThreadSafeStats):
+        console.print("[yellow]Warning: Using non-thread-safe stats in multi-threaded mode[/yellow]")
+        # Fallback to sequential processing
+        num_workers = 1
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -284,52 +271,87 @@ def _run_compression(
         TaskProgressColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task("Compressing images...", total=len(files))
+        task = progress.add_task(
+            f"Compressing images... ({num_workers} threads)",
+            total=len(files)
+        )
 
-        for file_info in files:
-            progress.update(task, description=f"Processing: {file_info.name[:50]}...")
+        # Use ThreadPoolExecutor for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=num_workers,
+            thread_name_prefix="compress_worker"
+        ) as executor:
+            # Submit all tasks
+            future_to_file = {
+                executor.submit(
+                    process_single_file,
+                    file_info,
+                    quality,
+                    replace,
+                    output_dir,
+                    force
+                ): file_info for file_info in files
+            }
 
-            should_process = True
-            skip_reason = ""
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_file):
+                file_info = future_to_file[future]
 
-            if not force:
-                if ExifHandler.is_image_compressed(
-                    file_info.path
-                ) and not ExifHandler.should_recompress(file_info.path):
-                    should_process = False
-                    skip_reason = "Already compressed"
-                elif is_already_small(file_info.size):
-                    should_process = False
-                    skip_reason = "Already small"
+                try:
+                    result_data = future.result()
+                    file_info, result, skipped, skip_reason, error_msg = result_data
 
-            if should_process:
-                if quality == 0:
-                    quality = ImageCompressor.find_optimal_quality(file_info.path)
+                    # Display result
+                    if error_msg:
+                        console.print(f"  [red]✗[/red] {file_info.name}: {error_msg}")
+                        # Add failure to stats
+                        stats.add_result(
+                            CompressionResult(False, file_info.size, 0, None, error_msg)
+                        )
+                    elif skipped:
+                        console.print(f"  [yellow]⊘[/yellow] {file_info.name}: {skip_reason}")
+                        stats.add_result(
+                            CompressionResult(False, file_info.size, 0),
+                            skipped=True,
+                            reason=skip_reason,
+                        )
+                    elif result and result.success and result.saved_path:
+                        saved_percent = result.size_reduction
+                        console.print(
+                            f"  [green]✓[/green] {file_info.name}: "
+                            f"{format_size(result.original_size)} → "
+                            f"{format_size(result.compressed_size)} "
+                            f"([green]{saved_percent:.1f}%[/green])"
+                        )
+                        stats.add_result(result)
+                    elif result:
+                        # Compression failed
+                        console.print(f"  [red]✗[/red] {file_info.name}: {result.message}")
+                        stats.add_result(result)
 
-                result = ImageCompressor.compress_image_safe(
-                    file_info.path, quality, replace_mode=replace, output_dir=output_dir
-                )
-
-                if result.success and result.saved_path:
-                    saved_percent = result.size_reduction
-                    console.print(
-                        f"  [green]✓[/green] {file_info.name}: "
-                        f"{format_size(result.original_size)} → {format_size(result.compressed_size)} "
-                        f"([green]{saved_percent:.1f}%[/green])"
+                except Exception as e:
+                    # Future raised exception (shouldn't happen due to try/except in worker)
+                    console.print(f"  [red]✗[/red] {file_info.name}: Thread error: {e}")
+                    stats.add_result(
+                        CompressionResult(False, file_info.size, 0, None, str(e))
                     )
-                    stats.add_result(result)
-                else:
-                    console.print(f"  [red]✗[/red] {file_info.name}: {result.message}")
-                    stats.add_result(result)
-            else:
-                console.print(f"  [yellow]⊘[/yellow] {file_info.name}: {skip_reason}")
-                stats.add_result(
-                    CompressionResult(False, file_info.size, 0),
-                    skipped=True,
-                    reason=skip_reason,
+
+                # Update progress bar
+                progress.update(
+                    task,
+                    advance=1,
+                    description=f"Processing: {file_info.name[:50]}..."
                 )
 
-            progress.update(task, advance=1)
+    # Cleanup any remaining .lock files (in replace mode)
+    if replace:
+        for file_info in files:
+            lock_path = file_info.path + ".lock"
+            if os.path.exists(lock_path):
+                try:
+                    os.remove(lock_path)
+                except OSError:
+                    pass
 
 
 @cli.command()

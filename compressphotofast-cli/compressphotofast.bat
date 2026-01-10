@@ -7,8 +7,9 @@ set VENV_DIR=%SCRIPT_DIR%venv
 if not exist "%VENV_DIR%" (
     echo Creating virtual environment...
     python -m venv "%VENV_DIR%"
-    echo Installing dependencies...
-    "%VENV_DIR%\Scripts\pip.exe" install -q -r "%SCRIPT_DIR%requirements.txt"
+    echo Installing package and dependencies...
+    cd /d "%SCRIPT_DIR%"
+    "%VENV_DIR%\Scripts\pip.exe" install -q -e .
 )
 
 "%VENV_DIR%\Scripts\python.exe" -m src.cli %*

@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Tuple, Optional
 from PIL import Image
 import io
@@ -233,31 +234,45 @@ class ImageCompressor:
         original_size = ImageCompressor.get_file_size(file_path)
 
         if replace_mode:
+            # Import FileLock for thread-safe file operations
+            from .file_lock import FileLock, FileLockTimeoutError
+
             backup_path = file_path + ".bak"
+
             try:
-                shutil.copy2(file_path, backup_path)
-            except (IOError, OSError) as e:
+                # Use FileLock to prevent race conditions in multi-threaded environment
+                with FileLock(file_path, timeout=30.0):
+                    try:
+                        shutil.copy2(file_path, backup_path)
+                    except (IOError, OSError) as e:
+                        return CompressionResult(
+                            False, original_size, 0, None,
+                            f"Failed to create backup: {e}"
+                        )
+
+                    result = ImageCompressor.compress_image(
+                        file_path, quality, file_path, preserve_exif=True
+                    )
+
+                    if not result.success or result.saved_path is None:
+                        try:
+                            shutil.move(backup_path, file_path)
+                        except (IOError, OSError):
+                            pass
+                        return result
+                    else:
+                        try:
+                            os.remove(backup_path)
+                        except OSError:
+                            pass
+                        ExifHandler.preserve_file_dates(backup_path, file_path)
+                        return result
+
+            except FileLockTimeoutError as e:
                 return CompressionResult(
-                    False, original_size, 0, None, f"Failed to create backup: {e}"
+                    False, original_size, 0, None,
+                    f"Failed to acquire file lock: {e}"
                 )
-
-            result = ImageCompressor.compress_image(
-                file_path, quality, file_path, preserve_exif=True
-            )
-
-            if not result.success or result.saved_path is None:
-                try:
-                    shutil.move(backup_path, file_path)
-                except (IOError, OSError):
-                    pass
-                return result
-            else:
-                try:
-                    os.remove(backup_path)
-                except OSError:
-                    pass
-                ExifHandler.preserve_file_dates(backup_path, file_path)
-                return result
         else:
             if output_dir is None:
                 base_dir = os.path.dirname(file_path)
@@ -270,11 +285,27 @@ class ImageCompressor:
             output_name = f"{name}_compressed{ext}"
             output_path = os.path.join(output_dir, output_name)
 
+            # Thread-safe filename generation with retry logic
+            max_attempts = 100
             counter = 1
-            while os.path.exists(output_path):
+
+            for attempt in range(max_attempts):
+                if not os.path.exists(output_path):
+                    break
+
+                # Add small delay for thread-safety
+                time.sleep(0.001)
+
                 output_name = f"{name}_compressed_{counter}{ext}"
                 output_path = os.path.join(output_dir, output_name)
                 counter += 1
+
+            # Check if we exhausted all attempts
+            if os.path.exists(output_path):
+                return CompressionResult(
+                    False, original_size, 0, None,
+                    "Failed to generate unique filename after 100 attempts"
+                )
 
             result = ImageCompressor.compress_image(
                 file_path, quality, output_path, preserve_exif=True
