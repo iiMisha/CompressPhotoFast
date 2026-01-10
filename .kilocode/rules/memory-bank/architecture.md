@@ -68,14 +68,17 @@ CLI-версия написана на Python 3.10+ и использует ид
     *   `__main__.py`: Точка входа для запуска через `python -m src.cli`.
 
 *   **Domain Layer**:
-    *   `compression.py`: Класс `ImageCompressor` для сжатия изображений с использованием Pillow. Включает методы тестирования эффективности сжатия.
+    *   `compression.py`: Класс `ImageCompressor` для сжатия изображений с использованием Pillow. Включает методы тестирования эффективности сжатия, поддержку HEIC/HEIF через pillow-heif.
     *   `exif_handler.py`: Класс `ExifHandler` для работы с EXIF-метаданными с библиотекой piexif. Обеспечивает чтение/запись EXIF, добавление маркеров сжатия, копирование метаданных.
     *   `file_utils.py`: Утилиты для работы с файлами, рекурсивный обход папок, фильтрация изображений (скриншоты, мессенджеры).
     *   `constants.py`: Константы приложения, идентичные Android-версии (уровни качества, размеры файлов, EXIF-маркеры).
 
-*   **Вспомогательные компоненты**:
-    *   `CompressionResult`: Представление результата одиночного сжатия.
-    *   `CompressionStats`: Отслеживание и отображение итоговой статистики с помощью Rich для красивого вывода в терминал.
+*   **Многопоточность и синхронизация**:
+    *   `threading_utils.py`: Утилиты для многопоточной обработки изображений. Включает `ThreadSafeStats` для thread-safe сбора статистики и worker-функции для обработки файлов в отдельных потоках.
+    *   `file_lock.py`: File-based locking механизм для предотвращения race conditions при многопоточной обработке файлов. Использует `.lock` файлы для эксклюзивного доступа.
+
+*   **Статистика и вывод**:
+    *   `stats.py`: Класс `CompressionStats` для отслеживания и отображения статистики сжатия с использованием Rich для красивого табличного вывода.
 
 ### Структура CLI-проекта
 
@@ -84,11 +87,14 @@ compressphotofast-cli/
 ├── src/
 │   ├── __init__.py
 │   ├── __main__.py         # Точка входа
-│   ├── cli.py              # CLI интерфейс (Click)
-│   ├── compression.py      # Логика сжатия (Pillow)
+│   ├── cli.py              # CLI интерфейс (Click) с многопоточной обработкой
+│   ├── compression.py      # Логика сжатия (Pillow + pillow-heif)
 │   ├── exif_handler.py     # EXIF метаданные (piexif)
 │   ├── file_utils.py       # Утилиты файлов
-│   └── constants.py        # Константы (идентичны Android)
+│   ├── constants.py        # Константы (идентичны Android)
+│   ├── stats.py            # Статистика сжатия (Rich)
+│   ├── threading_utils.py  # Многопоточная обработка
+│   └── file_lock.py        # File-based locking
 ├── requirements.txt         # Зависимости Python
 ├── setup.py              # Установка через pip
 ├── pyproject.toml        # Современная конфигурация
@@ -102,6 +108,7 @@ compressphotofast-cli/
 *   **Те же EXIF-маркеры**: `CompressPhotoFast_Compressed:quality:timestamp` в теге UserComment (piexif.ExifIFD.UserComment).
 *   **Одинаковые правила**: Проверка маркеров, сравнение времени изменения (допустимая разница 20 секунд), пропуск скриншотов и мессенджеров.
 *   **Копирование EXIF**: Те же теги (GPS, даты, камера, экспозиция) сохраняются при сжатии.
+*   **Поддержка HEIC/HEIF**: Конвертация HEIC/HEIF файлов в JPEG при сжатии (требует pillow-heif).
 
 ### Диаграмма CLI-компонентов
 
@@ -120,12 +127,22 @@ graph TD
         D --> E
     end
 
-    subgraph "Data Layer"
-        D --> G[Pillow Library]
-        E --> H[piexif Library]
-        F --> I[File System]
+    subgraph "Multi-threading"
+        B --> G[ThreadPoolExecutor]
+        G --> H[process_single_file]
+        G --> I[process_single_file_dry_run]
+        H --> J[FileLock]
+        I --> J
+        B --> K[ThreadSafeStats]
     end
 
-    B --> J[CompressionStats]
-    J --> K[Rich Display]
+    subgraph "Data Layer"
+        D --> L[Pillow Library]
+        D --> M[pillow-heif]
+        E --> N[piexif Library]
+        F --> O[File System]
+    end
+
+    B --> P[CompressionStats]
+    P --> Q[Rich Display]
 ```
