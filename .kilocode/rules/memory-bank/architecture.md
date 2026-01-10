@@ -53,3 +53,79 @@ graph TD
     end
 
     A -- "Запускает" --> C
+```
+
+## CLI-версия (Linux/Windows)
+
+### Обзор
+
+CLI-версия написана на Python 3.10+ и использует идентичную логику сжатия с Android-приложением. Структура построена на модульном подходе с четким разделением ответственности.
+
+### Ключевые компоненты
+
+*   **CLI Layer (`compressphotofast-cli/src/`)**:
+    *   `cli.py`: CLI интерфейс с использованием библиотеки Click. Включает команды `compress`, `stats`, `version` с богатым набором опций.
+    *   `__main__.py`: Точка входа для запуска через `python -m src.cli`.
+
+*   **Domain Layer**:
+    *   `compression.py`: Класс `ImageCompressor` для сжатия изображений с использованием Pillow. Включает методы тестирования эффективности сжатия.
+    *   `exif_handler.py`: Класс `ExifHandler` для работы с EXIF-метаданными с библиотекой piexif. Обеспечивает чтение/запись EXIF, добавление маркеров сжатия, копирование метаданных.
+    *   `file_utils.py`: Утилиты для работы с файлами, рекурсивный обход папок, фильтрация изображений (скриншоты, мессенджеры).
+    *   `constants.py`: Константы приложения, идентичные Android-версии (уровни качества, размеры файлов, EXIF-маркеры).
+
+*   **Вспомогательные компоненты**:
+    *   `CompressionResult`: Представление результата одиночного сжатия.
+    *   `CompressionStats`: Отслеживание и отображение итоговой статистики с помощью Rich для красивого вывода в терминал.
+
+### Структура CLI-проекта
+
+```
+compressphotofast-cli/
+├── src/
+│   ├── __init__.py
+│   ├── __main__.py         # Точка входа
+│   ├── cli.py              # CLI интерфейс (Click)
+│   ├── compression.py      # Логика сжатия (Pillow)
+│   ├── exif_handler.py     # EXIF метаданные (piexif)
+│   ├── file_utils.py       # Утилиты файлов
+│   └── constants.py        # Константы (идентичны Android)
+├── requirements.txt         # Зависимости Python
+├── setup.py              # Установка через pip
+├── pyproject.toml        # Современная конфигурация
+├── compressphotofast.sh  # Запуск на Linux/macOS
+└── compressphotofast.bat # Запуск на Windows
+```
+
+### Интеграция с Android-логикой
+
+*   **Идентичные константы**: Уровни качества (60, 70, 85), минимальный размер файла (100 КБ), минимальная экономия (30%).
+*   **Те же EXIF-маркеры**: `CompressPhotoFast_Compressed:quality:timestamp` в теге UserComment (piexif.ExifIFD.UserComment).
+*   **Одинаковые правила**: Проверка маркеров, сравнение времени изменения (допустимая разница 20 секунд), пропуск скриншотов и мессенджеров.
+*   **Копирование EXIF**: Те же теги (GPS, даты, камера, экспозиция) сохраняются при сжатии.
+
+### Диаграмма CLI-компонентов
+
+```mermaid
+graph TD
+    subgraph "CLI Layer"
+        A[cli.py] --> B{Compress Command}
+        A --> C{Stats Command}
+    end
+
+    subgraph "Domain Layer"
+        B --> D[ImageCompressor]
+        B --> E[ExifHandler]
+        B --> F[file_utils]
+        C --> F
+        D --> E
+    end
+
+    subgraph "Data Layer"
+        D --> G[Pillow Library]
+        E --> H[piexif Library]
+        F --> I[File System]
+    end
+
+    B --> J[CompressionStats]
+    J --> K[Rich Display]
+```
