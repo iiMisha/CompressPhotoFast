@@ -114,15 +114,29 @@ def compress(
 
     # Проверка поддержки HEIC и информирование пользователя
     from .compression import HEIC_SUPPORT_AVAILABLE
+    import platform
 
     if not HEIC_SUPPORT_AVAILABLE:
+        system = platform.system()
+        if system == "Windows":
+            instructions = (
+                "[yellow]⚠ HEIC/HEIF поддержка не доступна[/yellow]\n\n"
+                "Для обработки HEIC файлов установите pillow-heif:\n"
+                "  pip install --upgrade pillow-heif\n\n"
+                "HEIC файлы будут [bold]пропущены[/bold] при обработке."
+            )
+        else:  # Linux, macOS
+            instructions = (
+                "[yellow]⚠ HEIC/HEIF поддержка не доступна[/yellow]\n\n"
+                "Для обработки HEIC файлов установите:\n"
+                "  1. sudo apt-get install libheif-dev libffi-dev  (Linux)\n"
+                "  2. pip install --upgrade pillow-heif\n\n"
+                "HEIC файлы будут [bold]пропущены[/bold] при обработке."
+            )
+
         console.print(
             Panel(
-                "[yellow]⚠ HEIC/HEIF поддержка не доступна[/yellow]\n"
-                "Установите pillow-heif для обработки HEIC файлов:\n"
-                "  1. sudo apt-get install libheif-dev libffi-dev\n"
-                "  2. pip install --upgrade pillow-heif\n\n"
-                "HEIC файлы будут [bold]пропущены[/bold] при обработке.",
+                instructions,
                 title="Warning",
                 border_style="yellow"
             )
