@@ -150,4 +150,36 @@ coverage.ec
 *.db-wal
 *.sqlite
 *.sqlite-shm
-*.sqlite-wal 
+*.sqlite-wal
+
+# Kotlin Multiplatform
+shared/build/
+desktop/build/
+
+# Compose for Desktop
+desktop/build/compose/
+desktop/build/compileSync/
+desktop/build/kotlin/
+desktop/build/libs/
+desktop/build/tmp/
+
+# Python CLI
+compressphotofast-cli/__pycache__/
+compressphotofast-cli/**/__pycache__/
+compressphotofast-cli/*.egg-info/
+compressphotofast-cli/.pytest_cache/
+compressphotofast-cli/.mypy_cache/
+compressphotofast-cli/.ruff_cache/
+compressphotofast-cli/dist/
+compressphotofast-cli/build/
+compressphotofast-cli/*.pyc
+compressphotofast-cli/*.pyo
+compressphotofast-cli/*.pyd
+compressphotofast-cli/venv/
+compressphotofast-cli/env/
+compressphotofast-cli/ENV/
+compressphotofast-cli/.venv/
+compressphotofast-cli/test_images/
+compressphotofast-cli/*.bak
+compressphotofast-cli/test_*.jpg
+compressphotofast-cli/src/__pycache__/
