@@ -219,12 +219,14 @@ class ImageCompressor:
                         os.remove(output_path)
                     except OSError:
                         pass
+                # Add marker for inefficient compression
+                ExifHandler.add_compression_marker(file_path, 99)
                 return CompressionResult(
                     True,
                     original_size,
                     compressed_size,
                     None,
-                    "Compression not efficient",
+                    "Compression not efficient (marker added)",
                 )
 
             if preserve_exif:
@@ -273,6 +275,9 @@ class ImageCompressor:
                         shutil.move(backup_path, file_path)
                     except (IOError, OSError):
                         pass
+                    # Add marker for inefficient compression after restoring
+                    if result.success and "not efficient" in result.message.lower():
+                        ExifHandler.add_compression_marker(file_path, 99)
                     return result
                 else:
                     try:

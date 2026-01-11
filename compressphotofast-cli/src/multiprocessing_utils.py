@@ -63,7 +63,9 @@ def process_single_file_dry_run(
                 test_result = ImageCompressor.test_compression(file_info.path, quality)
                 if test_result and not test_result.is_efficient:
                     should_process = False
-                    skip_reason = "Compression not efficient"
+                    skip_reason = "Compression not efficient (marker added)"
+                    # Add marker for inefficient compression
+                    ExifHandler.add_compression_marker(file_info.path, 99)
                 elif not test_result:
                     should_process = False
                     skip_reason = "Test failed"

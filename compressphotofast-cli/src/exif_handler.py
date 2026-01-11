@@ -111,27 +111,21 @@ class ExifHandler:
     @staticmethod
     def should_recompress(file_path: str) -> bool:
         is_compressed, quality, timestamp = ExifHandler.get_compression_info(file_path)
-        if not is_compressed:
-            return True
-
-        if timestamp == 0:
+        if is_compressed:
             return False
-
-        try:
-            file_mtime = int(os.path.getmtime(file_path))
-            time_diff = file_mtime - timestamp
-
-            if time_diff <= TIME_DIFFERENCE_ALLOWED_SECONDS:
-                return False
-
-            return True
-        except OSError:
-            return True
+        return True
 
     @staticmethod
     def add_compression_marker(file_path: str, quality: int) -> bool:
         try:
-            exif_dict = ExifHandler.read_exif_data(file_path)
+            # Read existing EXIF data
+            with open(file_path, 'rb') as f:
+                exif_data = f.read()
+
+            try:
+                exif_dict = piexif.load(exif_data)
+            except:
+                exif_dict = None
 
             if exif_dict is None or not exif_dict:
                 exif_dict = {"0th": {}, "Exif": {}}
@@ -158,23 +152,8 @@ class ExifHandler:
                 except Exception:
                     return False
 
-            with Image.open(file_path) as img:
-                fmt = img.format or "JPEG"
-                if fmt.lower() == "jpeg":
-                    try:
-                        if exif_bytes:
-                            img.save(
-                                file_path,
-                                exif=exif_bytes,
-                                quality=quality,
-                                optimize=True,
-                            )
-                        else:
-                            img.save(file_path, quality=quality, optimize=True)
-                    except Exception:
-                        img.save(file_path, quality=quality, optimize=True)
-                elif fmt.lower() == "png":
-                    img.save(file_path, optimize=True)
+            # Insert EXIF data into JPEG without re-encoding the image
+            piexif.insert(exif_bytes, file_path)
 
             return True
         except Exception:
