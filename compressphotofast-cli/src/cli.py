@@ -175,8 +175,11 @@ def compress(
     console.print(f"[dim]Found {stats.total} images[/dim]")
     console.print()
 
-    if not output_dir and not replace:
+    # Создавать папку только если НЕ dry-run
+    if not dry_run and not output_dir and not replace:
         output_dir = ensure_output_directory(str(path))
+        console.print(f"[dim]Output directory:[/dim] {output_dir}")
+    elif not dry_run and not replace:
         console.print(f"[dim]Output directory:[/dim] {output_dir}")
 
     # Сохранить обрабатываемый путь
