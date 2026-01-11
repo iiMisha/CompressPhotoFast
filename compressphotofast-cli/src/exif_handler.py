@@ -116,46 +116,82 @@ class ExifHandler:
         return True
 
     @staticmethod
-    def add_compression_marker(file_path: str, quality: int) -> bool:
+    def add_compression_marker(file_path: str, quality: int, source_exif: Optional[dict] = None) -> bool:
+        """
+        Add compression marker to file, optionally preserving all source metadata.
+
+        Args:
+            file_path: Path to file to modify
+            quality: Compression quality level
+            source_exif: Optional source EXIF dictionary to preserve all metadata
+
+        Returns:
+            True if marker added successfully, False otherwise
+        """
         try:
-            # Read existing EXIF data
-            with open(file_path, 'rb') as f:
-                exif_data = f.read()
+            if source_exif:
+                # Copy all metadata from source and add marker
+                exif_dict = {}
+                for ifd_name in ["0th", "Exif", "1st", "GPS", "Interop"]:
+                    if ifd_name in source_exif and source_exif[ifd_name]:
+                        exif_dict[ifd_name] = {}
+                        for tag, value in source_exif[ifd_name].items():
+                            exif_dict[ifd_name][tag] = value
 
-            try:
-                exif_dict = piexif.load(exif_data)
-            except:
-                exif_dict = None
+                if "Exif" not in exif_dict:
+                    exif_dict["Exif"] = {}
 
-            if exif_dict is None or not exif_dict:
-                exif_dict = {"0th": {}, "Exif": {}}
+                timestamp = int(datetime.now().timestamp() * 1000)
+                marker_data = f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}"
+                marker_bytes = marker_data.encode("utf-8")
 
-            if "Exif" not in exif_dict:
-                exif_dict["Exif"] = {}
+                exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
 
-            timestamp = int(datetime.now().timestamp() * 1000)
-            marker_data = f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}"
-            marker_bytes = marker_data.encode("utf-8")
-
-            exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
-
-            exif_bytes = None
-            try:
-                exif_bytes = piexif.dump(exif_dict)
-            except Exception:
+                exif_bytes = None
                 try:
-                    minimal_exif = {
-                        "0th": {},
-                        "Exif": {piexif.ExifIFD.UserComment: marker_bytes},
-                    }
-                    exif_bytes = piexif.dump(minimal_exif)
+                    exif_bytes = piexif.dump(exif_dict)
                 except Exception:
                     return False
 
-            # Insert EXIF data into JPEG without re-encoding the image
-            piexif.insert(exif_bytes, file_path)
+                piexif.insert(exif_bytes, file_path)
+                return True
+            else:
+                # Read existing EXIF data
+                with open(file_path, 'rb') as f:
+                    exif_data = f.read()
 
-            return True
+                try:
+                    exif_dict = piexif.load(exif_data)
+                except:
+                    exif_dict = None
+
+                if exif_dict is None or not exif_dict:
+                    exif_dict = {"0th": {}, "Exif": {}}
+
+                if "Exif" not in exif_dict:
+                    exif_dict["Exif"] = {}
+
+                timestamp = int(datetime.now().timestamp() * 1000)
+                marker_data = f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}"
+                marker_bytes = marker_data.encode("utf-8")
+
+                exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
+
+                exif_bytes = None
+                try:
+                    exif_bytes = piexif.dump(exif_dict)
+                except Exception:
+                    try:
+                        minimal_exif = {
+                            "0th": {},
+                            "Exif": {piexif.ExifIFD.UserComment: marker_bytes},
+                        }
+                        exif_bytes = piexif.dump(minimal_exif)
+                    except Exception:
+                        return False
+
+                piexif.insert(exif_bytes, file_path)
+                return True
         except Exception:
             return False
 
@@ -193,7 +229,20 @@ class ExifHandler:
             return False
 
     @staticmethod
-    def copy_exif_with_marker(source_path: str, target_path: str, quality: int) -> bool:
+    def copy_exif_with_marker(source_path: str, target_path: str, quality: int,
+                             fallback_on_error: bool = True) -> bool:
+        """
+        Copy EXIF data from source to target and add compression marker.
+
+        Args:
+            source_path: Path to original image file
+            target_path: Path to compressed image file
+            quality: Compression quality level
+            fallback_on_error: If True, falls back to add_compression_marker on error
+
+        Returns:
+            True if EXIF copied successfully, False otherwise
+        """
         try:
             source_exif = ExifHandler.read_exif_data(source_path)
 
@@ -220,7 +269,9 @@ class ExifHandler:
             try:
                 exif_bytes = piexif.dump(target_exif)
             except Exception:
-                return ExifHandler.add_compression_marker(target_path, quality)
+                if fallback_on_error:
+                    return ExifHandler.add_compression_marker(target_path, quality, source_exif)
+                return False
 
             with Image.open(target_path) as img:
                 fmt = img.format or "JPEG"
@@ -236,13 +287,19 @@ class ExifHandler:
                         else:
                             img.save(target_path, quality=quality, optimize=True)
                     except Exception:
-                        img.save(target_path, quality=quality, optimize=True)
+                        if fallback_on_error:
+                            return ExifHandler.add_compression_marker(target_path, quality, source_exif)
+                        return False
                 elif fmt.lower() == "png":
                     img.save(target_path, optimize=True)
 
             return True
         except Exception:
-            return ExifHandler.add_compression_marker(target_path, quality)
+            if fallback_on_error:
+                source_exif = ExifHandler.read_exif_data(source_path)
+                return ExifHandler.add_compression_marker(target_path, quality, source_exif)
+            return False
+
 
     @staticmethod
     def preserve_file_dates(source_path: str, target_path: str) -> bool:
@@ -253,3 +310,82 @@ class ExifHandler:
             return True
         except OSError:
             return False
+
+    @staticmethod
+    def validate_exif_preservation(source_path: str, target_path: str) -> Dict[str, tuple]:
+        """
+        Validate if EXIF metadata was preserved in the compressed file.
+
+        Compares key EXIF tags between source and target files.
+
+        Args:
+            source_path: Path to the original image file
+            target_path: Path to the compressed image file
+
+        Returns:
+            Dictionary with format: {tag_name: (present_in_source, present_in_target, values_equal)}
+            - present_in_source: bool - if tag exists in source file
+            - present_in_target: bool - if tag exists in target file
+            - values_equal: bool - if values are equal (both must be present)
+        """
+        source_exif = ExifHandler.read_exif_data(source_path)
+        target_exif = ExifHandler.read_exif_data(target_path)
+
+        if source_exif is None and target_exif is None:
+            return {}
+
+        result = {}
+
+        # Key tags to validate
+        key_tags = {
+            "0th": ["Make", "Model", "Software", "Orientation"],
+            "Exif": [
+                "DateTimeOriginal",
+                "DateTime",
+                "DateTimeDigitized",
+                "ExposureTime",
+                "ExposureBiasValue",
+                "FNumber",
+                "FocalLength",
+                "FocalLengthIn35mmFilm",
+                "PhotographicSensitivity",
+                "ISOSpeedRatings",
+            ],
+            "GPS": [
+                "GPSLatitude",
+                "GPSLatitudeRef",
+                "GPSLongitude",
+                "GPSLongitudeRef",
+                "GPSAltitude",
+            ],
+        }
+
+        for ifd_name, tag_names in key_tags.items():
+            for tag_name in tag_names:
+                source_present = False
+                target_present = False
+                values_equal = False
+
+                # Check source
+                if source_exif and ifd_name in source_exif:
+                    source_value = source_exif[ifd_name].get(tag_name)
+                    if source_value is not None:
+                        source_present = True
+
+                # Check target
+                if target_exif and ifd_name in target_exif:
+                    target_value = target_exif[ifd_name].get(tag_name)
+                    if target_value is not None:
+                        target_present = True
+
+                # Compare values if both present
+                if source_present and target_present:
+                    try:
+                        values_equal = source_exif[ifd_name][tag_name] == target_exif[ifd_name][tag_name]
+                    except Exception:
+                        values_equal = False
+
+                result[tag_name] = (source_present, target_present, values_equal)
+
+        return result
+

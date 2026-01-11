@@ -390,13 +390,13 @@ def _run_compression(
 
                     # Display result
                     if error_msg:
-                        console.print(f"  [red]✗[/red] {file_info.name}: {error_msg}")
+                        console.print(f"  [red]X[/red] {file_info.name}: {error_msg}")
                         # Add failure to stats
                         stats.add_result(
                             CompressionResult(False, file_info.size, 0, None, error_msg)
                         )
                     elif skipped:
-                        console.print(f"  [yellow]⊘[/yellow] {file_info.name}: {skip_reason}")
+                        console.print(f"  [yellow]-[/yellow] {file_info.name}: {skip_reason}")
                         stats.add_result(
                             CompressionResult(False, file_info.size, 0),
                             skipped=True,
@@ -405,20 +405,32 @@ def _run_compression(
                     elif result and result.success and result.saved_path:
                         saved_percent = result.size_reduction
                         console.print(
-                            f"  [green]✓[/green] {file_info.name}: "
+                            f"  [green]+[/green] {file_info.name}: "
                             f"{format_size(result.original_size)} → "
                             f"{format_size(result.compressed_size)} "
                             f"([green]{saved_percent:.1f}%[/green])"
                         )
+
+                        if hasattr(result, 'metadata_preserved') and not result.metadata_preserved:
+                            if "PNG" in result.message:
+                                console.print(f"    [yellow]![/yellow] PNG file saved without EXIF metadata")
+                            else:
+                                console.print(f"    [yellow]![/yellow] Metadata loss detected")
+                                if hasattr(result, 'metadata_details') and result.metadata_details:
+                                    lost_tags = [tag for tag, (src, tgt, eq) in result.metadata_details.items()
+                                                if src and not tgt]
+                                    if lost_tags:
+                                        console.print(f"      Lost tags: {', '.join(lost_tags[:5])}...")
+
                         stats.add_result(result)
                     elif result:
                         # Compression failed
-                        console.print(f"  [red]✗[/red] {file_info.name}: {result.message}")
+                        console.print(f"  [red]X[/red] {file_info.name}: {result.message}")
                         stats.add_result(result)
 
                 except Exception as e:
                     # Future raised exception (shouldn't happen due to try/except in worker)
-                    console.print(f"  [red]✗[/red] {file_info.name}: Process error: {e}")
+                    console.print(f"  [red]X[/red] {file_info.name}: Process error: {e}")
                     stats.add_result(
                         CompressionResult(False, file_info.size, 0, None, str(e))
                     )

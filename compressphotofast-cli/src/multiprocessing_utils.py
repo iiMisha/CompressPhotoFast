@@ -227,6 +227,17 @@ class ProcessSafeStats:
         """Set total folder size after compression (called from main process only)."""
         self._stats.total_folder_size_after = value
 
+    @property
+    def metadata_preserved_count(self) -> int:
+        """Get count of files with preserved metadata."""
+        return self._stats.metadata_preserved_count
+
+    @property
+    def metadata_lost_count(self) -> int:
+        """Get count of files with lost metadata."""
+        return self._stats.metadata_lost_count
+
+
 
 def process_single_file(
     file_info: FileInfo,

@@ -43,11 +43,14 @@ class CompressionStats:
         self.skipped_reasons = {}
         self.start_time = None
         self.end_time = None
-        self.processed_path = None  # Обрабатываемый путь
-        self.folder_size_before = 0  # Общий размер папки до сжатия (только изображения)
-        self.folder_size_after = 0   # Общий размер папки после сжатия (только изображения)
-        self.total_folder_size_before = 0  # Общий размер папки до сжатия (все файлы)
-        self.total_folder_size_after = 0   # Общий размер папки после сжатия (все файлы)
+        self.processed_path = None  # type: Optional[str]
+        self.folder_size_before = 0
+        self.folder_size_after = 0
+        self.total_folder_size_before = 0
+        self.total_folder_size_after = 0
+        self.metadata_preserved_count = 0
+        self.metadata_lost_count = 0
+        self.metadata_warnings = []
 
     def start_timing(self) -> None:
         """Начать отсчет времени обработки."""
@@ -68,11 +71,11 @@ class CompressionStats:
         self, result: CompressionResult, skipped: bool = False, reason: str = ""
     ):
         """
-        Add a compression result to the statistics.
+        Add a compression result to statistics.
 
         Args:
             result: CompressionResult object
-            skipped: Whether the file was skipped
+            skipped: Whether file was skipped
             reason: Reason for skipping (if applicable)
         """
         self.processed += 1
@@ -85,8 +88,18 @@ class CompressionStats:
             self.success += 1
             self.original_size_total += result.original_size
             self.compressed_size_total += result.compressed_size
+
+            if hasattr(result, 'metadata_preserved'):
+                if result.metadata_preserved:
+                    self.metadata_preserved_count += 1
+                else:
+                    self.metadata_lost_count += 1
+
+            if hasattr(result, 'message') and 'metadata' in result.message.lower():
+                self.metadata_warnings.append(result.message)
         else:
             self.failed += 1
+
 
     def print_summary(self):
         """Print summary statistics table to console."""
@@ -145,7 +158,19 @@ class CompressionStats:
 
         console.print(table)
 
+        if self.success > 0 and (self.metadata_preserved_count > 0 or self.metadata_lost_count > 0):
+            console.print("\n[bold]Metadata:[/bold]")
+            console.print(f"  • Files with preserved metadata: {self.metadata_preserved_count}")
+            console.print(f"  • Files with lost metadata: {self.metadata_lost_count}")
+
+            if self.metadata_warnings:
+                console.print("\n[bold]Metadata warnings:[/bold]")
+                unique_warnings = list(dict.fromkeys(self.metadata_warnings))
+                for warning in unique_warnings[:10]:
+                    console.print(f"  • {warning}")
+
         if self.skipped_reasons:
             console.print("\n[bold]Skipped reasons:[/bold]")
             for reason, count in self.skipped_reasons.items():
                 console.print(f"  • {reason}: {count}")
+

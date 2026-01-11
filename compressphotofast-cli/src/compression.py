@@ -1,8 +1,9 @@
 import os
 import time
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
 from PIL import Image
 import io
+import piexif
 
 from .constants import (
     COMPRESSION_QUALITY_LOW,
@@ -36,12 +37,16 @@ class CompressionResult:
         compressed_size: int = 0,
         saved_path: Optional[str] = None,
         message: str = "",
+        metadata_preserved: bool = True,
+        metadata_details: Optional[dict] = None,
     ):
         self.success = success
         self.original_size = original_size
         self.compressed_size = compressed_size
         self.saved_path = saved_path
         self.message = message
+        self.metadata_preserved = metadata_preserved
+        self.metadata_details = metadata_details
 
     @property
     def size_reduction(self) -> float:
@@ -198,11 +203,31 @@ class ImageCompressor:
 
                 img_copy = img.copy()
 
+                # Read EXIF from source before compression
+                source_exif = None
+                if preserve_exif:
+                    source_exif = ExifHandler.read_exif_data(file_path)
+
+                # Prepare EXIF bytes for initial save
+                exif_bytes = None
+                if preserve_exif and source_exif and format.upper() == "JPEG":
+                    try:
+                        exif_bytes = piexif.dump(source_exif)
+                    except Exception:
+                        exif_bytes = None
+
+                # Save with EXIF for JPEG, without for PNG
                 if format.upper() == "JPEG":
-                    img_copy.save(
-                        output_path, format="JPEG", quality=quality, optimize=True
-                    )
+                    if exif_bytes:
+                        img_copy.save(
+                            output_path, format="JPEG", quality=quality, optimize=True, exif=exif_bytes
+                        )
+                    else:
+                        img_copy.save(
+                            output_path, format="JPEG", quality=quality, optimize=True
+                        )
                 elif format.upper() == "PNG":
+                    # PNG files are saved without EXIF metadata
                     img_copy.save(output_path, format="PNG", optimize=True)
                 else:
                     img_copy.save(
@@ -219,30 +244,62 @@ class ImageCompressor:
                         os.remove(output_path)
                     except OSError:
                         pass
-                # Add marker for inefficient compression
-                ExifHandler.add_compression_marker(file_path, 99)
-                return CompressionResult(
-                    True,
-                    original_size,
-                    compressed_size,
-                    None,
-                    "Compression not efficient (marker added)",
-                )
+                # Add marker for inefficient compression, preserving all source metadata
+                ExifHandler.add_compression_marker(file_path, 99, source_exif)
+                if format.upper() == "PNG":
+                    return CompressionResult(
+                        True,
+                        original_size,
+                        compressed_size,
+                        None,
+                        "Compression not efficient (marker added to original)",
+                        metadata_preserved=False,
+                    )
+                else:
+                    return CompressionResult(
+                        True,
+                        original_size,
+                        compressed_size,
+                        None,
+                        "Compression not efficient (marker added with metadata)",
+                        metadata_preserved=(source_exif is not None),
+                    )
 
-            if preserve_exif:
-                ExifHandler.copy_exif_with_marker(file_path, output_path, quality)
-                # Пересчитать размер файла после добавления EXIF
-                compressed_size = ImageCompressor.get_file_size(output_path)
+            # Validate metadata preservation
+            metadata_preserved = True
+            metadata_details = None
+            if preserve_exif and format.upper() == "JPEG":
+                if source_exif is not None:
+                    try:
+                        metadata_details = ExifHandler.validate_exif_preservation(file_path, output_path)
+                        # Check if any critical tags were lost
+                        critical_tags = ["Make", "Model", "DateTimeOriginal", "FNumber", "ExposureTime"]
+                        lost_tags = [tag for tag in critical_tags
+                                     if tag in metadata_details and
+                                     metadata_details[tag][0] and not metadata_details[tag][1]]
+                        if lost_tags:
+                            metadata_preserved = False
+                    except Exception:
+                        metadata_preserved = True
+                else:
+                    metadata_preserved = True
+            elif format.upper() == "PNG":
+                # PNG files don't support EXIF
+                metadata_preserved = False
+                metadata_details = None
 
             return CompressionResult(
                 True,
                 original_size,
                 compressed_size,
                 output_path,
-                f"Compressed successfully",
+                f"Compressed successfully" if metadata_preserved else "Compressed with metadata loss",
+                metadata_preserved=metadata_preserved,
+                metadata_details=metadata_details,
             )
         except Exception as e:
             return CompressionResult(False, 0, 0, None, f"Error: {str(e)}")
+
 
     @staticmethod
     def compress_image_safe(
@@ -275,9 +332,10 @@ class ImageCompressor:
                         shutil.move(backup_path, file_path)
                     except (IOError, OSError):
                         pass
-                    # Add marker for inefficient compression after restoring
+                    # Add marker for inefficient compression after restoring, with source metadata
                     if result.success and "not efficient" in result.message.lower():
-                        ExifHandler.add_compression_marker(file_path, 99)
+                        source_exif = ExifHandler.read_exif_data(backup_path)
+                        ExifHandler.add_compression_marker(file_path, 99, source_exif)
                     return result
                 else:
                     try:
