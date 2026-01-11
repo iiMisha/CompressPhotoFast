@@ -29,6 +29,7 @@ from .file_utils import (
     ensure_output_directory,
     create_compressed_filename,
     get_unique_filename,
+    get_total_folder_size,
 )
 from .constants import (
     COMPRESSION_QUALITY_LOW,
@@ -188,6 +189,13 @@ def compress(
     # Рассчитать размер папки до сжатия (сумма всех файлов)
     stats.folder_size_before = sum(f.size for f in files)
 
+    # Рассчитать общий размер папки до сжатия (все файлы, включая не-изображения)
+    if path.is_dir():
+        stats.total_folder_size_before = get_total_folder_size(str(path), recursive=True)
+    else:
+        # Если это один файл, общий размер равен размеру файла
+        stats.total_folder_size_before = stats.folder_size_before
+
     # Начать отсчет времени перед обработкой
     stats.start_timing()
 
@@ -199,7 +207,7 @@ def compress(
     # Остановить отсчет времени после обработки
     stats.stop_timing()
 
-    # Рассчитать размер папки после сжатия
+    # Рассчитать размер папки после сжатия (только изображения)
     if stats.success > 0:
         # Размер несжатых файлов = общий размер - размер сжатых файлов (до сжатия)
         uncompressed_size = stats.folder_size_before - stats.original_size_total
@@ -208,6 +216,16 @@ def compress(
     else:
         # Если ничего не сжато, размер остается таким же
         stats.folder_size_after = stats.folder_size_before
+
+    # Рассчитать общий размер папки после сжатия (все файлы)
+    if stats.success > 0:
+        # Экономия на изображениях
+        images_saved = stats.original_size_total - stats.compressed_size_total
+        # Общий размер после = общий размер до - экономия на изображениях
+        stats.total_folder_size_after = stats.total_folder_size_before - images_saved
+    else:
+        # Если ничего не сжато, размер остается таким же
+        stats.total_folder_size_after = stats.total_folder_size_before
 
     stats.print_summary()
 
@@ -453,8 +471,15 @@ def stats(path: Path, skip_screenshots: bool, skip_messenger: bool):
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="magenta")
 
+    # Общий размер папки (все файлы)
+    if path.is_dir():
+        total_folder_size = get_total_folder_size(str(path), recursive=True)
+        table.add_row("Total folder size", format_size(total_folder_size))
+        # Добавить пустую строку для визуального разделения
+        table.add_row("", "")
+
     table.add_row("Total images", str(len(files)))
-    table.add_row("Total size", format_size(total_size))
+    table.add_row("Images size", format_size(total_size))
     table.add_row("Compressed", str(compressed_count))
     table.add_row("Uncompressed", str(uncompressed_count))
     table.add_row("Compressed %", f"{(compressed_count / len(files) * 100):.1f}%")

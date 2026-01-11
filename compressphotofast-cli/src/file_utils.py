@@ -191,3 +191,37 @@ def get_unique_filename(directory: str, base_name: str, extension: str) -> str:
 
 def is_already_small(size: int) -> bool:
     return size < OPTIMUM_FILE_SIZE
+
+
+def get_total_folder_size(root_path: str, recursive: bool = True) -> int:
+    """
+    Calculate total size of all files in a folder (including non-image files).
+
+    Args:
+        root_path: Path to the folder
+        recursive: Whether to include subdirectories (default: True)
+
+    Returns:
+        Total size in bytes
+    """
+    root = Path(root_path)
+    if not root.exists() or not root.is_dir():
+        return 0
+
+    total_size = 0
+
+    if recursive:
+        pattern = "**/*"
+    else:
+        pattern = "*"
+
+    for item in root.glob(pattern):
+        if not item.is_file():
+            continue
+
+        try:
+            total_size += item.stat().st_size
+        except OSError:
+            continue
+
+    return total_size

@@ -207,6 +207,26 @@ class ProcessSafeStats:
         """Set folder size after compression."""
         self._stats.folder_size_after = value
 
+    @property
+    def total_folder_size_before(self) -> int:
+        """Get total folder size before compression (all files)."""
+        return self._stats.total_folder_size_before
+
+    @total_folder_size_before.setter
+    def total_folder_size_before(self, value: int) -> None:
+        """Set total folder size before compression (called from main process only)."""
+        self._stats.total_folder_size_before = value
+
+    @property
+    def total_folder_size_after(self) -> int:
+        """Get total folder size after compression (all files)."""
+        return self._stats.total_folder_size_after
+
+    @total_folder_size_after.setter
+    def total_folder_size_after(self, value: int) -> None:
+        """Set total folder size after compression (called from main process only)."""
+        self._stats.total_folder_size_after = value
+
 
 def process_single_file(
     file_info: FileInfo,

@@ -44,8 +44,10 @@ class CompressionStats:
         self.start_time = None
         self.end_time = None
         self.processed_path = None  # Обрабатываемый путь
-        self.folder_size_before = 0  # Общий размер папки до сжатия
-        self.folder_size_after = 0   # Общий размер папки после сжатия
+        self.folder_size_before = 0  # Общий размер папки до сжатия (только изображения)
+        self.folder_size_after = 0   # Общий размер папки после сжатия (только изображения)
+        self.total_folder_size_before = 0  # Общий размер папки до сжатия (все файлы)
+        self.total_folder_size_after = 0   # Общий размер папки после сжатия (все файлы)
 
     def start_timing(self) -> None:
         """Начать отсчет времени обработки."""
@@ -113,14 +115,25 @@ class CompressionStats:
             table.add_row("Avg time per file", format_duration(avg_time))
 
         # Добавить метрики папки перед строками сжатых файлов
+        if self.total_folder_size_before > 0:
+            table.add_row("Total folder size", format_size(self.total_folder_size_before))
+            if self.total_folder_size_after > 0:
+                table.add_row("Total folder size after", format_size(self.total_folder_size_after))
+                saved = self.total_folder_size_before - self.total_folder_size_after
+                saved_percent = (saved / self.total_folder_size_before) * 100
+                table.add_row("Total folder saved", format_size(saved), style="green")
+                table.add_row("Total folder saved %", f"{saved_percent:.1f}%")
+            # Добавить пустую строку для визуального разделения
+            table.add_row("", "")
+
         if self.folder_size_before > 0:
-            table.add_row("Folder size before", format_size(self.folder_size_before))
+            table.add_row("Images size before", format_size(self.folder_size_before))
             if self.folder_size_after > 0:
-                table.add_row("Folder size after", format_size(self.folder_size_after))
+                table.add_row("Images size after", format_size(self.folder_size_after))
                 saved = self.folder_size_before - self.folder_size_after
                 saved_percent = (saved / self.folder_size_before) * 100
-                table.add_row("Folder saved", format_size(saved), style="green")
-                table.add_row("Folder saved %", f"{saved_percent:.1f}%")
+                table.add_row("Images saved", format_size(saved), style="green")
+                table.add_row("Images saved %", f"{saved_percent:.1f}%")
 
         if self.success > 0:
             saved = self.original_size_total - self.compressed_size_total
