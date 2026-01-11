@@ -207,9 +207,6 @@ app/src/test/
 .qwen/
 .trae/
 
-# Игнорировать специфичные для AI-ассистентов файлы
-*.md
-
 # Но включить файлы Memory Bank, которые важны для Kilo Code
 !/.kilocode/rules/memory-bank/*.md
 
