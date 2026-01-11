@@ -51,6 +51,33 @@ def cli():
     pass
 
 
+def show_confirmation(path: Path, quality: str, replace: bool, output_dir: Optional[str],
+                      skip_screenshots: bool, skip_messenger: bool, force: bool,
+                      dry_run: bool) -> None:
+    """Display confirmation with all settings before compression."""
+    table = Table.grid(padding=(0, 1))
+    table.add_column("Parameter", style="cyan")
+    table.add_column("Value", style="magenta")
+
+    table.add_row("Path", str(path))
+    table.add_row("Quality", quality)
+
+    if replace:
+        table.add_row("Mode", "Replace original files")
+    elif output_dir:
+        table.add_row("Output directory", str(output_dir))
+    else:
+        table.add_row("Mode", "Create copies in CompressPhotoFast/ folder")
+
+    table.add_row("Skip screenshots", "Yes" if skip_screenshots else "No")
+    table.add_row("Skip messenger photos", "Yes" if skip_messenger else "No")
+    table.add_row("Force re-compression", "Yes" if force else "No")
+    table.add_row("Dry run", "Yes" if dry_run else "No")
+
+    console.print()
+    console.print(Panel(table, title="[bold]Compression Settings[/bold]", border_style="cyan"))
+
+
 @cli.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.option(
@@ -88,6 +115,12 @@ def cli():
     is_flag=True,
     help="Show what would be compressed without actually compressing",
 )
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
 def compress(
     path: Path,
     quality: str,
@@ -97,6 +130,7 @@ def compress(
     skip_messenger: bool,
     force: bool,
     dry_run: bool,
+    yes: bool,
 ):
     """Compress images in the specified path (file or directory)"""
 
@@ -108,12 +142,15 @@ def compress(
     }
     quality_value = quality_map[quality]
 
-    console.print(f"[bold cyan]CompressPhotoFast CLI[/bold cyan]")
-    console.print(f"[dim]Path:[/dim] {path}")
-    console.print(f"[dim]Quality:[/dim] {quality}")
-    console.print(f"[dim]Mode:[/dim] {'Replace' if replace else 'Separate'}")
-    console.print(f"[dim]Dry run:[/dim] {'Yes' if dry_run else 'No'}")
-    console.print()
+    # Show confirmation and ask for permission (unless --yes flag is set)
+    show_confirmation(path, quality, replace, output_dir, skip_screenshots,
+                      skip_messenger, force, dry_run)
+
+    if not yes:
+        if not click.confirm("Proceed with compression?"):
+            console.print("[yellow]Operation cancelled by user[/yellow]")
+            return
+        console.print()
 
     # Проверка поддержки HEIC и информирование пользователя
     from .compression import HEIC_SUPPORT_AVAILABLE
