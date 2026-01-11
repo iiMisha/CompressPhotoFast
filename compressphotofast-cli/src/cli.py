@@ -14,6 +14,7 @@ from rich.progress import (
     TextColumn,
     BarColumn,
     TaskProgressColumn,
+    TimeElapsedColumn,
     TimeRemainingColumn,
 )
 from rich.panel import Panel
@@ -178,10 +179,32 @@ def compress(
         output_dir = ensure_output_directory(str(path))
         console.print(f"[dim]Output directory:[/dim] {output_dir}")
 
+    # Сохранить обрабатываемый путь
+    stats.processed_path = str(path)
+
+    # Рассчитать размер папки до сжатия (сумма всех файлов)
+    stats.folder_size_before = sum(f.size for f in files)
+
+    # Начать отсчет времени перед обработкой
+    stats.start_timing()
+
     if dry_run:
         _run_dry_run(files, quality_value, force, stats)
     else:
         _run_compression(files, quality_value, replace, output_dir, force, stats)
+
+    # Остановить отсчет времени после обработки
+    stats.stop_timing()
+
+    # Рассчитать размер папки после сжатия
+    if stats.success > 0:
+        # Размер несжатых файлов = общий размер - размер сжатых файлов (до сжатия)
+        uncompressed_size = stats.folder_size_before - stats.original_size_total
+        # Итоговый размер = несжатые файлы + сжатые файлы (после сжатия)
+        stats.folder_size_after = uncompressed_size + stats.compressed_size_total
+    else:
+        # Если ничего не сжато, размер остается таким же
+        stats.folder_size_after = stats.folder_size_before
 
     stats.print_summary()
 
@@ -196,7 +219,8 @@ def _run_dry_run(
 
     table = Table(title="Dry Run - Images to Compress")
     table.add_column("Filename", style="cyan")
-    table.add_column("Size", style="magenta")
+    table.add_column("Before", style="magenta")
+    table.add_column("After", style="magenta")
     table.add_column("Status", style="yellow")
     table.add_column("Reason")
 
@@ -205,6 +229,7 @@ def _run_dry_run(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TaskProgressColumn(),
+        TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
@@ -250,8 +275,13 @@ def _run_dry_run(
                     status = (
                         "[green]Will compress[/green]" if should_process else "[red]Skip[/red]"
                     )
+                    # Get compressed size if available
+                    compressed_size_str = "-"
+                    if should_process and test_result and test_result.success:
+                        compressed_size_str = format_size(test_result.compressed_size)
+
                     table.add_row(
-                        file_info.name, format_size(file_info.size), status, skip_reason
+                        file_info.name, format_size(file_info.size), compressed_size_str, status, skip_reason
                     )
 
                 except Exception as e:
@@ -259,6 +289,7 @@ def _run_dry_run(
                     table.add_row(
                         file_info.name,
                         format_size(file_info.size),
+                        "-",  # No compressed size on error
                         "[red]Error[/red]",
                         str(e)
                     )
@@ -302,6 +333,8 @@ def _run_compression(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TaskProgressColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
         console=console,
     ) as progress:
         task = progress.add_task(

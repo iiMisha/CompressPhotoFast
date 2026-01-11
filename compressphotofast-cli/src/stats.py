@@ -10,7 +10,8 @@ from rich.console import Console
 from rich.table import Table
 
 from .compression import CompressionResult
-from .file_utils import format_size
+from .file_utils import format_size, format_duration
+import time
 
 console = Console()
 
@@ -40,6 +41,26 @@ class CompressionStats:
         self.original_size_total = 0
         self.compressed_size_total = 0
         self.skipped_reasons = {}
+        self.start_time = None
+        self.end_time = None
+        self.processed_path = None  # Обрабатываемый путь
+        self.folder_size_before = 0  # Общий размер папки до сжатия
+        self.folder_size_after = 0   # Общий размер папки после сжатия
+
+    def start_timing(self) -> None:
+        """Начать отсчет времени обработки."""
+        self.start_time = time.time()
+
+    def stop_timing(self) -> None:
+        """Остановить отсчет времени обработки."""
+        self.end_time = time.time()
+
+    def get_elapsed_time(self) -> float:
+        """Получить прошедшее время в секундах."""
+        if self.start_time is None:
+            return 0.0
+        end = self.end_time if self.end_time is not None else time.time()
+        return end - self.start_time
 
     def add_result(
         self, result: CompressionResult, skipped: bool = False, reason: str = ""
@@ -71,11 +92,35 @@ class CompressionStats:
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="magenta")
 
+        # Отобразить обрабатываемый путь (если указан)
+        if self.processed_path:
+            table.add_row("Path", str(self.processed_path), style="cyan")
+            # Добавить пустую строку для визуального разделения
+            table.add_row("", "")
+
         table.add_row("Total files", str(self.total))
         table.add_row("Processed", str(self.processed))
         table.add_row("Success", str(self.success), style="green")
         table.add_row("Skipped", str(self.skipped))
         table.add_row("Failed", str(self.failed), style="red")
+
+        # Добавить метрики времени
+        elapsed = self.get_elapsed_time()
+        table.add_row("Total time", format_duration(elapsed))
+
+        if self.processed > 0:
+            avg_time = elapsed / self.processed
+            table.add_row("Avg time per file", format_duration(avg_time))
+
+        # Добавить метрики папки перед строками сжатых файлов
+        if self.folder_size_before > 0:
+            table.add_row("Folder size before", format_size(self.folder_size_before))
+            if self.folder_size_after > 0:
+                table.add_row("Folder size after", format_size(self.folder_size_after))
+                saved = self.folder_size_before - self.folder_size_after
+                saved_percent = (saved / self.folder_size_before) * 100
+                table.add_row("Folder saved", format_size(saved), style="green")
+                table.add_row("Folder saved %", f"{saved_percent:.1f}%")
 
         if self.success > 0:
             saved = self.original_size_total - self.compressed_size_total

@@ -36,6 +36,34 @@ def format_size(size: int) -> str:
     return f"{size:.1f} TB"
 
 
+def format_duration(seconds: float) -> str:
+    """
+    Форматирует продолжительность времени в читаемый формат.
+
+    Примеры:
+    - 45.3 -> "45.3s"
+    - 125.0 -> "2m 5s"
+    - 3665.0 -> "1h 1m 5s"
+
+    Args:
+        seconds: Продолжительность в секундах (может быть float)
+
+    Returns:
+        Отформатированная строка времени
+    """
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}m {secs:.0f}s"
+    else:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        return f"{hours}h {minutes}m {secs:.0f}s"
+
+
 def is_screenshot(filename: str) -> bool:
     name_lower = filename.lower()
     return (

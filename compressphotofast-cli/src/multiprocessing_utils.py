@@ -137,6 +137,14 @@ class ProcessSafeStats:
         # No lock needed - called from main process after all workers complete
         self._stats.print_summary()
 
+    def start_timing(self) -> None:
+        """Начать отсчет времени (только в главном процессе)."""
+        self._stats.start_timing()
+
+    def stop_timing(self) -> None:
+        """Остановить отсчет времени (только в главном процессе)."""
+        self._stats.stop_timing()
+
     @property
     def total(self) -> int:
         """Get total number of files."""
@@ -146,6 +154,56 @@ class ProcessSafeStats:
     def total(self, value: int) -> None:
         """Set total number of files (called from main process only)."""
         self._stats.total = value
+
+    @property
+    def success(self) -> int:
+        """Get number of successful compressions."""
+        return self._stats.success
+
+    @property
+    def processed(self) -> int:
+        """Get number of processed files."""
+        return self._stats.processed
+
+    @property
+    def original_size_total(self) -> int:
+        """Get total original size."""
+        return self._stats.original_size_total
+
+    @property
+    def compressed_size_total(self) -> int:
+        """Get total compressed size."""
+        return self._stats.compressed_size_total
+
+    @property
+    def processed_path(self) -> str:
+        """Get processed path."""
+        return self._stats.processed_path
+
+    @processed_path.setter
+    def processed_path(self, value: str) -> None:
+        """Set processed path (called from main process only)."""
+        self._stats.processed_path = value
+
+    @property
+    def folder_size_before(self) -> int:
+        """Get folder size before compression."""
+        return self._stats.folder_size_before
+
+    @folder_size_before.setter
+    def folder_size_before(self, value: int) -> None:
+        """Set folder size before compression."""
+        self._stats.folder_size_before = value
+
+    @property
+    def folder_size_after(self) -> int:
+        """Get folder size after compression."""
+        return self._stats.folder_size_after
+
+    @folder_size_after.setter
+    def folder_size_after(self, value: int) -> None:
+        """Set folder size after compression."""
+        self._stats.folder_size_after = value
 
 
 def process_single_file(
