@@ -1,18 +1,16 @@
 """
-Thread-safe utilities for parallel image compression.
+Multiprocessing utilities for parallel image compression.
 
-Provides thread-safe wrapper for statistics collection and worker function
-for processing individual images in multi-threaded environment.
+Provides process-safe wrapper for statistics collection and worker function
+for processing individual images in multi-process environment.
 """
 
 from typing import Tuple, Optional
-from threading import Lock
 from traceback import format_exc
 
 from .compression import ImageCompressor, CompressionResult
 from .exif_handler import ExifHandler
 from .file_utils import FileInfo, is_already_small
-from .stats import CompressionStats
 
 
 def process_single_file_dry_run(
@@ -23,10 +21,10 @@ def process_single_file_dry_run(
     """
     Worker function to analyze a single image file in dry-run mode.
 
-    This function is designed to run in a separate thread and handles:
+    This function is designed to run in a separate process and handles:
     - Checking if file needs processing (EXIF, size)
     - Testing compression efficiency
-    - Returning results for display in main thread
+    - Returning results for display in main process
 
     Args:
         file_info: Information about the file to analyze
@@ -91,20 +89,27 @@ def process_single_file_dry_run(
         )
 
 
-class ThreadSafeStats:
+class ProcessSafeStats:
     """
-    Thread-safe wrapper around CompressionStats.
+    Process-safe wrapper around CompressionStats.
 
-    Uses threading.Lock to ensure safe concurrent access to statistics
-    from multiple worker threads.
+    Uses multiprocessing.Manager().Lock to ensure safe concurrent access to statistics
+    from multiple worker processes.
 
     All methods that modify state are protected by locks.
     """
 
-    def __init__(self):
-        """Initialize thread-safe statistics wrapper."""
+    def __init__(self, manager_lock=None):
+        """
+        Initialize process-safe statistics wrapper.
+
+        Args:
+            manager_lock: Optional lock from multiprocessing.Manager().Lock()
+                          If None, creates a new lock (not recommended for multiprocessing)
+        """
+        from .stats import CompressionStats
         self._stats = CompressionStats()
-        self._lock = Lock()
+        self._lock = manager_lock
 
     def add_result(
         self,
@@ -113,19 +118,23 @@ class ThreadSafeStats:
         reason: str = ""
     ) -> None:
         """
-        Thread-safe addition of compression result.
+        Process-safe addition of compression result.
 
         Args:
             result: Compression result to add
             skipped: Whether the file was skipped
             reason: Reason for skipping (if applicable)
         """
-        with self._lock:
+        if self._lock:
+            with self._lock:
+                self._stats.add_result(result, skipped, reason)
+        else:
+            # Fallback for single-process mode
             self._stats.add_result(result, skipped, reason)
 
     def print_summary(self) -> None:
-        """Print summary statistics (called from main thread only)."""
-        # No lock needed - called from main thread after all workers complete
+        """Print summary statistics (called from main process only)."""
+        # No lock needed - called from main process after all workers complete
         self._stats.print_summary()
 
     @property
@@ -135,7 +144,7 @@ class ThreadSafeStats:
 
     @total.setter
     def total(self, value: int) -> None:
-        """Set total number of files (called from main thread only)."""
+        """Set total number of files (called from main process only)."""
         self._stats.total = value
 
 
@@ -149,11 +158,11 @@ def process_single_file(
     """
     Worker function to process a single image file.
 
-    This function is designed to run in a separate thread and handles:
+    This function is designed to run in a separate process and handles:
     - Checking if file needs processing (EXIF, size)
     - Finding optimal quality (if auto)
     - Compressing the image
-    - Returning results for display in main thread
+    - Returning results for display in main process
 
     Args:
         file_info: Information about the file to process

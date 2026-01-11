@@ -3,6 +3,7 @@ import sys
 from typing import Optional, List
 from pathlib import Path
 import concurrent.futures
+import multiprocessing
 
 import click
 from rich.console import Console
@@ -36,7 +37,7 @@ from .constants import (
     APP_DIRECTORY,
 )
 from .stats import CompressionStats
-from .threading_utils import ThreadSafeStats, process_single_file, process_single_file_dry_run
+from .multiprocessing_utils import ProcessSafeStats, process_single_file, process_single_file_dry_run
 
 
 console = Console()
@@ -142,8 +143,10 @@ def compress(
             )
         )
 
-    # Use thread-safe stats for both compression and dry-run (both are now multi-threaded)
-    stats = ThreadSafeStats()
+    # Use process-safe stats for both compression and dry-run (both are now multi-process)
+    # Create a multiprocessing.Manager for shared locks
+    manager = multiprocessing.Manager()
+    stats = ProcessSafeStats(manager_lock=manager.Lock())
 
     if path.is_file():
         if not ImageCompressor.is_supported_file(str(path)):
@@ -186,9 +189,9 @@ def compress(
 def _run_dry_run(
     files: List[FileInfo], quality: int, force: bool, stats: CompressionStats
 ):
-    """Show what would be compressed without actually compressing (multi-threaded)"""
+    """Show what would be compressed without actually compressing (multi-process)"""
 
-    # Determine number of worker threads (auto-detect CPU cores)
+    # Determine number of worker processes (use CPU cores for CPU-bound tasks)
     num_workers = os.cpu_count() or 1
 
     table = Table(title="Dry Run - Images to Compress")
@@ -206,14 +209,14 @@ def _run_dry_run(
         console=console,
     ) as progress:
         task = progress.add_task(
-            f"Analyzing images... ({num_workers} threads)",
+            f"Analyzing images... ({num_workers} processes)",
             total=len(files)
         )
 
-        # Use ThreadPoolExecutor for parallel processing
-        with concurrent.futures.ThreadPoolExecutor(
+        # Use ProcessPoolExecutor for parallel processing (CPU-bound task)
+        with concurrent.futures.ProcessPoolExecutor(
             max_workers=num_workers,
-            thread_name_prefix="dryrun_worker"
+            mp_context=multiprocessing.get_context('spawn')
         ) as executor:
             # Submit all tasks
             future_to_file = {
@@ -283,14 +286,14 @@ def _run_compression(
     force: bool,
     stats: CompressionStats,
 ):
-    """Run actual compression with thread pool for multi-core support"""
+    """Run actual compression with process pool for multi-core support"""
 
-    # Determine number of worker threads (auto-detect CPU cores)
+    # Determine number of worker processes (use CPU cores for CPU-bound tasks)
     num_workers = os.cpu_count() or 1
 
-    # Ensure stats is ThreadSafeStats for multi-threaded operation
-    if not isinstance(stats, ThreadSafeStats):
-        console.print("[yellow]Warning: Using non-thread-safe stats in multi-threaded mode[/yellow]")
+    # Ensure stats is ProcessSafeStats for multi-process operation
+    if not isinstance(stats, ProcessSafeStats):
+        console.print("[yellow]Warning: Using non-process-safe stats in multi-process mode[/yellow]")
         # Fallback to sequential processing
         num_workers = 1
 
@@ -302,14 +305,14 @@ def _run_compression(
         console=console,
     ) as progress:
         task = progress.add_task(
-            f"Compressing images... ({num_workers} threads)",
+            f"Compressing images... ({num_workers} processes)",
             total=len(files)
         )
 
-        # Use ThreadPoolExecutor for parallel processing
-        with concurrent.futures.ThreadPoolExecutor(
+        # Use ProcessPoolExecutor for parallel processing (CPU-bound task)
+        with concurrent.futures.ProcessPoolExecutor(
             max_workers=num_workers,
-            thread_name_prefix="compress_worker"
+            mp_context=multiprocessing.get_context('spawn')
         ) as executor:
             # Submit all tasks
             future_to_file = {
@@ -361,7 +364,7 @@ def _run_compression(
 
                 except Exception as e:
                     # Future raised exception (shouldn't happen due to try/except in worker)
-                    console.print(f"  [red]✗[/red] {file_info.name}: Thread error: {e}")
+                    console.print(f"  [red]✗[/red] {file_info.name}: Process error: {e}")
                     stats.add_result(
                         CompressionResult(False, file_info.size, 0, None, str(e))
                     )
@@ -373,15 +376,7 @@ def _run_compression(
                     description=f"Processing: {file_info.name[:50]}..."
                 )
 
-    # Cleanup any remaining .lock files (in replace mode)
-    if replace:
-        for file_info in files:
-            lock_path = file_info.path + ".lock"
-            if os.path.exists(lock_path):
-                try:
-                    os.remove(lock_path)
-                except OSError:
-                    pass
+    # No need to cleanup .lock files - not used in multiprocessing mode
 
 
 @cli.command()
