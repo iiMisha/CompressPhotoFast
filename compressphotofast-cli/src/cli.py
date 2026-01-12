@@ -7,7 +7,7 @@ import multiprocessing
 
 import click
 from rich.console import Console
-from rich.table import Table
+from rich.table import Table, Column
 from rich.progress import (
     Progress,
     SpinnerColumn,
@@ -282,9 +282,12 @@ def _run_dry_run(
     table.add_column("Status", style="yellow")
     table.add_column("Reason")
 
+    # Create a fixed-width column for progress descriptions to prevent flickering
+    description_column = Column(width=60, overflow="ellipsis")
+
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[progress.description]{task.description}", table_column=description_column),
         BarColumn(),
         TaskProgressColumn(),
         TimeElapsedColumn(),
@@ -394,9 +397,12 @@ def _run_compression(
         # Fallback to sequential processing
         num_workers = 1
 
+    # Create a fixed-width column for progress descriptions to prevent flickering
+    description_column = Column(width=60, overflow="ellipsis")
+
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[progress.description]{task.description}", table_column=description_column),
         BarColumn(),
         TaskProgressColumn(),
         TimeElapsedColumn(),

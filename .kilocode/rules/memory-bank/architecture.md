@@ -13,7 +13,17 @@
 *   **Domain Layer**:
     *   Логика сжатия инкапсулирована в `ImageCompressionUtil.kt` и `ImageCompressionWorker.kt`.
     *   `SettingsManager.kt` управляет настройками приложения.
-    *   Утилиты в пакете `app/src/main/java/com/compressphotofast/util` предоставляют вспомогательные функции для работы с файлами, URI, EXIF-данными и уведомлениями.
+    *   Утилиты в пакете `app/src/main/java/com/compressphotofast/util` предоставляют вспомогательные функции:
+        *   **Работа с MediaStore**: `MediaStoreUtil.kt`, `BatchMediaStoreUtil.kt`, `MediaStoreObserver.kt`, `GalleryScanUtil.kt`
+        *   **Обработка изображений**: `ImageCompressionUtil.kt`, `ImageProcessingUtil.kt`, `ImageProcessingChecker.kt`, `SequentialImageProcessor.kt`
+        *   **Работа с файлами и URI**: `FileOperationsUtil.kt`, `FileInfoUtil.kt`, `UriUtil.kt`, `UriProcessingTracker.kt`
+        *   **EXIF-метаданные**: `ExifUtil.kt`
+        *   **Отслеживание и статистика**: `CompressionBatchTracker.kt`, `StatsTracker.kt`, `UriProcessingTracker.kt`
+        *   **Производительность и кэширование**: `PerformanceMonitor.kt`, `OptimizedCacheUtil.kt`
+        *   **Уведомления**: `NotificationUtil.kt`
+        *   **Разрешения**: `PermissionsManager.kt`, `IPermissionsManager.kt`
+        *   **Очистка**: `TempFilesCleaner.kt`
+        *   **Логирование и события**: `LogUtil.kt`, `Event.kt`, `EventObserver.kt`
 
 *   **Data Layer**:
     *   `DataStore` используется для хранения простых настроек.
