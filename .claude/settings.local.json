@@ -6,7 +6,8 @@
       "Bash(source:*)",
       "Bash(pip install:*)",
       "Bash(compressphotofast:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(/home/misha/Документы/1\\\\ Проекты/CompressPhotoFast/compressphotofast-cli/compressphotofast.sh:*)"
     ]
   }
 }
