@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(cd:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(compressphotofast:*)",
+      "Bash(bash:*)"
     ]
   }
 }
