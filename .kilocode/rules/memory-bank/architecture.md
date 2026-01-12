@@ -73,9 +73,8 @@ CLI-версия написана на Python 3.10+ и использует ид
     *   `file_utils.py`: Утилиты для работы с файлами, рекурсивный обход папок, фильтрация изображений (скриншоты, мессенджеры).
     *   `constants.py`: Константы приложения, идентичные Android-версии (уровни качества, размеры файлов, EXIF-маркеры).
 
-*   **Многопоточность и синхронизация**:
-    *   `threading_utils.py`: Утилиты для многопоточной обработки изображений. Включает `ThreadSafeStats` для thread-safe сбора статистики и worker-функции для обработки файлов в отдельных потоках.
-    *   `file_lock.py`: File-based locking механизм для предотвращения race conditions при многопоточной обработке файлов. Использует `.lock` файлы для эксклюзивного доступа.
+*   **Многопроцессорная обработка**:
+    *   `multiprocessing_utils.py`: Утилиты для многопроцессорной обработки изображений. Включает `ProcessSafeStats` для process-safe сбора статистики и worker-функции для обработки файлов в отдельных процессах. Использует `ProcessPoolExecutor` с контекстом `spawn` для параллельной обработки.
 
 *   **Статистика и вывод**:
     *   `stats.py`: Класс `CompressionStats` для отслеживания и отображения статистики сжатия с использованием Rich для красивого табличного вывода.
@@ -93,8 +92,7 @@ compressphotofast-cli/
 │   ├── file_utils.py       # Утилиты файлов
 │   ├── constants.py        # Константы (идентичны Android)
 │   ├── stats.py            # Статистика сжатия (Rich)
-│   ├── threading_utils.py  # Многопоточная обработка
-│   └── file_lock.py        # File-based locking
+│   └── multiprocessing_utils.py  # Многопроцессорная обработка
 ├── requirements.txt         # Зависимости Python
 ├── setup.py              # Установка через pip
 ├── pyproject.toml        # Современная конфигурация
@@ -127,13 +125,11 @@ graph TD
         D --> E
     end
 
-    subgraph "Multi-threading"
-        B --> G[ThreadPoolExecutor]
+    subgraph "Multi-processing"
+        B --> G[ProcessPoolExecutor]
         G --> H[process_single_file]
         G --> I[process_single_file_dry_run]
-        H --> J[FileLock]
-        I --> J
-        B --> K[ThreadSafeStats]
+        B --> K[ProcessSafeStats]
     end
 
     subgraph "Data Layer"
