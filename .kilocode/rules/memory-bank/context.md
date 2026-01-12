@@ -2,15 +2,18 @@
 
 ## Последние изменения
 
-*   **Обновление Memory Bank (12.01.2026)**: Исправлена документация CLI-версии - изменено описание с многопоточной (threading) на многопроцессорную (multiprocessing) обработку.
-*   **`architecture.md`**: Обновлены компоненты CLI-версии:
-    *   Заменен `threading_utils.py` на `multiprocessing_utils.py`
-    *   Удален `file_lock.py` (не используется в multiprocessing режиме)
-    *   Обновлена диаграмма CLI-компонентов с отображением многопроцессорной обработки
-*   **`tech.md`**: Обновлен раздел о многопроцессорной обработке:
-    *   Заменен `ThreadPoolExecutor` на `ProcessPoolExecutor`
-    *   Заменен `threading.Lock` на `multiprocessing.Manager().Lock()`
-    *   Добавлено описание контекста `spawn` для создания процессов
+*   **Обновление Memory Bank (12.01.2026)**: Обновлена документация Android-версии с полным списком утилит в пакете `util`.
+*   **`architecture.md`**: Обновлен раздел Domain Layer с детальным описанием всех утилит:
+    *   Работа с MediaStore: `MediaStoreUtil.kt`, `BatchMediaStoreUtil.kt`, `MediaStoreObserver.kt`, `GalleryScanUtil.kt`
+    *   Обработка изображений: `ImageCompressionUtil.kt`, `ImageProcessingUtil.kt`, `ImageProcessingChecker.kt`, `SequentialImageProcessor.kt`
+    *   Работа с файлами и URI: `FileOperationsUtil.kt`, `FileInfoUtil.kt`, `UriUtil.kt`, `UriProcessingTracker.kt`
+    *   EXIF-метаданные: `ExifUtil.kt`
+    *   Отслеживание и статистика: `CompressionBatchTracker.kt`, `StatsTracker.kt`, `UriProcessingTracker.kt`
+    *   Производительность и кэширование: `PerformanceMonitor.kt`, `OptimizedCacheUtil.kt`
+    *   Уведомления: `NotificationUtil.kt`
+    *   Разрешения: `PermissionsManager.kt`, `IPermissionsManager.kt`
+    *   Очистка: `TempFilesCleaner.kt`
+    *   Логирование и события: `LogUtil.kt`, `Event.kt`, `EventObserver.kt`
 
 ## Текущее состояние проекта
 

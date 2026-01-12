@@ -96,7 +96,7 @@ compressphotofast-cli/
 ├── src/
 │   ├── __init__.py
 │   ├── __main__.py         # Точка входа
-│   ├── cli.py              # CLI интерфейс (Click) с многопоточной обработкой
+│   ├── cli.py              # CLI интерфейс (Click) с многопроцессорной обработкой
 │   ├── compression.py      # Логика сжатия (Pillow + pillow-heif)
 │   ├── exif_handler.py     # EXIF метаданные (piexif)
 │   ├── file_utils.py       # Утилиты файлов
