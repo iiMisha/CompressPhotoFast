@@ -101,40 +101,42 @@ def find_image_files(
 
     files = []
 
-    if recursive:
-        pattern = "**/*"
-    else:
-        pattern = "*"
-
-    for item in root.glob(pattern):
-        if not item.is_file():
-            continue
-
-        file_path = str(item)
-
-        if skip_app_dir:
-            if APP_DIRECTORY in file_path:
-                continue
-
-        if skip_messenger and is_messenger_photo(file_path):
-            continue
-
-        filename = item.name
-        if skip_screenshots and is_screenshot(filename):
-            continue
-
-        ext = item.suffix.lower()
-        if ext not in SUPPORTED_EXTENSIONS:
-            continue
-
+    def scan_directory(directory: Path):
+        """Scan a single directory using os.scandir for better performance."""
         try:
-            size = item.stat().st_size
-            mtime = item.stat().st_mtime
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if entry.is_file():
+                        file_path = entry.path
 
-            files.append(FileInfo(file_path, filename, size, mtime))
-        except OSError:
-            continue
+                        if skip_app_dir:
+                            if APP_DIRECTORY in file_path:
+                                continue
 
+                        if skip_messenger and is_messenger_photo(file_path):
+                            continue
+
+                        filename = entry.name
+                        if skip_screenshots and is_screenshot(filename):
+                            continue
+
+                        ext = os.path.splitext(filename)[1].lower()
+                        if ext not in SUPPORTED_EXTENSIONS:
+                            continue
+
+                        try:
+                            stat = entry.stat()
+                            files.append(FileInfo(file_path, filename, stat.st_size, stat.st_mtime))
+                        except OSError:
+                            continue
+                    elif recursive and entry.is_dir():
+                        # Recursively scan subdirectories
+                        scan_directory(Path(entry.path))
+        except (OSError, PermissionError):
+            # Skip directories we can't access
+            pass
+
+    scan_directory(root)
     return files
 
 
@@ -210,18 +212,23 @@ def get_total_folder_size(root_path: str, recursive: bool = True) -> int:
 
     total_size = 0
 
-    if recursive:
-        pattern = "**/*"
-    else:
-        pattern = "*"
-
-    for item in root.glob(pattern):
-        if not item.is_file():
-            continue
-
+    def scan_directory(directory: Path):
+        """Scan a single directory using os.scandir for better performance."""
+        nonlocal total_size
         try:
-            total_size += item.stat().st_size
-        except OSError:
-            continue
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if entry.is_file():
+                        try:
+                            total_size += entry.stat().st_size
+                        except OSError:
+                            continue
+                    elif recursive and entry.is_dir():
+                        # Recursively scan subdirectories
+                        scan_directory(Path(entry.path))
+        except (OSError, PermissionError):
+            # Skip directories we can't access
+            pass
 
+    scan_directory(root)
     return total_size

@@ -297,10 +297,12 @@ def _run_dry_run(
         )
 
         # Use ProcessPoolExecutor for parallel processing (CPU-bound task)
-        with concurrent.futures.ProcessPoolExecutor(
+        executor = concurrent.futures.ProcessPoolExecutor(
             max_workers=num_workers,
             mp_context=multiprocessing.get_context('spawn')
-        ) as executor:
+        )
+        
+        try:
             # Submit all tasks
             future_to_file = {
                 executor.submit(
@@ -363,6 +365,12 @@ def _run_dry_run(
                     advance=1,
                     description=f"Analyzing: {file_info.name[:50]}..."
                 )
+        except KeyboardInterrupt:
+            # User interrupted - shutdown executor and show partial results
+            console.print("\n[yellow]⚠ Interrupted by user. Showing partial results...[/yellow]")
+            executor.shutdown(wait=False, cancel_futures=True)
+        finally:
+            executor.shutdown(wait=True)
 
     console.print(table)
 
@@ -401,10 +409,12 @@ def _run_compression(
         )
 
         # Use ProcessPoolExecutor for parallel processing (CPU-bound task)
-        with concurrent.futures.ProcessPoolExecutor(
+        executor = concurrent.futures.ProcessPoolExecutor(
             max_workers=num_workers,
             mp_context=multiprocessing.get_context('spawn')
-        ) as executor:
+        )
+        
+        try:
             # Submit all tasks
             future_to_file = {
                 executor.submit(
@@ -478,6 +488,12 @@ def _run_compression(
                     advance=1,
                     description=f"Processing: {file_info.name[:50]}..."
                 )
+        except KeyboardInterrupt:
+            # User interrupted - shutdown executor and show partial results
+            console.print("\n[yellow]⚠ Interrupted by user. Showing partial results...[/yellow]")
+            executor.shutdown(wait=False, cancel_futures=True)
+        finally:
+            executor.shutdown(wait=True)
 
     # No need to cleanup .lock files - not used in multiprocessing mode
 

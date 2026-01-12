@@ -1,9 +1,13 @@
 import os
+import shutil
 import time
+import logging
 from typing import Tuple, Optional, Dict
 from PIL import Image
 import io
 import piexif
+
+logger = logging.getLogger(__name__)
 
 from .constants import (
     COMPRESSION_QUALITY_LOW,
@@ -129,7 +133,7 @@ class ImageCompressor:
 
                 return CompressionResult(True, original_size, compressed_size)
         except Exception as e:
-            print(f"Error testing compression: {e}")
+            logger.error(f"Error testing compression: {e}")
             return None
 
     @staticmethod
@@ -150,7 +154,7 @@ class ImageCompressor:
     @staticmethod
     def find_optimal_quality(file_path: str) -> int:
         original_size = ImageCompressor.get_file_size(file_path)
-        qualities = [70, 60, 80, 50, 90]
+        qualities = [50, 60, 70, 80, 90]  # Ordered from lowest to highest
 
         best_quality = DEFAULT_COMPRESSION_QUALITY
         best_ratio = 1.0
@@ -338,11 +342,12 @@ class ImageCompressor:
                         ExifHandler.add_compression_marker(file_path, 99, source_exif)
                     return result
                 else:
+                    # Preserve file dates BEFORE removing backup
+                    ExifHandler.preserve_file_dates(backup_path, file_path)
                     try:
                         os.remove(backup_path)
                     except OSError:
                         pass
-                    ExifHandler.preserve_file_dates(backup_path, file_path)
                     return result
 
             except Exception as e:
@@ -394,6 +399,3 @@ class ImageCompressor:
                 ExifHandler.preserve_file_dates(file_path, output_path)
 
             return result
-
-
-import shutil

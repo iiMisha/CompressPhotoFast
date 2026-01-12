@@ -109,7 +109,7 @@ class CompressionStats:
 
         # Отобразить обрабатываемый путь (если указан)
         if self.processed_path:
-            table.add_row("Path", str(self.processed_path), style="cyan")
+            table.add_row("Path", str(self.processed_path))
             # Добавить пустую строку для визуального разделения
             table.add_row("", "")
 
@@ -165,6 +165,7 @@ class CompressionStats:
 
             if self.metadata_warnings:
                 console.print("\n[bold]Metadata warnings:[/bold]")
+                # Remove duplicates while preserving order (dict.fromkeys trick)
                 unique_warnings = list(dict.fromkeys(self.metadata_warnings))
                 for warning in unique_warnings[:10]:
                     console.print(f"  • {warning}")

@@ -32,6 +32,9 @@ dependencies = [
     "rich>=13.0.0",
 ]
 
+[project.optional-dependencies]
+heic = ["pillow-heif>=0.16.0"]
+
 [project.scripts]
 compressphotofast = "src.cli:cli"
 

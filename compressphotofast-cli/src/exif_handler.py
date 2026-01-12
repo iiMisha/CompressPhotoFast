@@ -162,7 +162,7 @@ class ExifHandler:
 
                 try:
                     exif_dict = piexif.load(exif_data)
-                except:
+                except (piexif.InvalidImageDataError, ValueError, TypeError, Exception):
                     exif_dict = None
 
                 if exif_dict is None or not exif_dict:
