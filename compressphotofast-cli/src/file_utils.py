@@ -170,10 +170,13 @@ def create_compressed_filename(original_name: str, replace_mode: bool = False) -
 
 def ensure_output_directory(base_path: str, output_dir: Optional[str] = None) -> str:
     if output_dir is None:
+        # If base_path is a file, use its parent directory
+        if os.path.isfile(base_path):
+            base_path = os.path.dirname(base_path)
         output_path = os.path.join(base_path, APP_DIRECTORY)
     else:
         output_path = output_dir
-
+    
     os.makedirs(output_path, exist_ok=True)
     return output_path
 
