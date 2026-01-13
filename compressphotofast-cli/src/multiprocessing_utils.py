@@ -79,6 +79,14 @@ def process_single_file_dry_run(
 
         return (file_info, should_process, skip_reason, test_result)
 
+    except KeyboardInterrupt:
+        # Worker interrupted - return gracefully
+        return (
+            file_info,
+            False,
+            "Interrupted",
+            None
+        )
     except Exception as e:
         # Unexpected error in worker function
         error_msg = f"Worker error: {type(e).__name__}: {str(e)}\n{format_exc()}"
@@ -330,6 +338,15 @@ def process_single_file(
                 ""
             )
 
+    except KeyboardInterrupt:
+        # Worker interrupted - return gracefully
+        return (
+            file_info,
+            None,
+            False,
+            "",
+            "Interrupted"
+        )
     except Exception as e:
         # Unexpected error in worker function
         error_msg = f"Worker error: {type(e).__name__}: {str(e)}\n{format_exc()}"

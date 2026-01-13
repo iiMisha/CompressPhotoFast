@@ -371,9 +371,9 @@ def _run_dry_run(
         except KeyboardInterrupt:
             # User interrupted - shutdown executor and show partial results
             console.print("\n[yellow]⚠ Interrupted by user. Showing partial results...[/yellow]")
-            executor.shutdown(wait=False, cancel_futures=True)
         finally:
-            executor.shutdown(wait=True)
+            # Always shutdown executor, cancel futures on interrupt
+            executor.shutdown(wait=False, cancel_futures=True)
 
     console.print(table)
 
@@ -497,9 +497,9 @@ def _run_compression(
         except KeyboardInterrupt:
             # User interrupted - shutdown executor and show partial results
             console.print("\n[yellow]⚠ Interrupted by user. Showing partial results...[/yellow]")
-            executor.shutdown(wait=False, cancel_futures=True)
         finally:
-            executor.shutdown(wait=True)
+            # Always shutdown executor, cancel futures on interrupt
+            executor.shutdown(wait=False, cancel_futures=True)
 
     # No need to cleanup .lock files - not used in multiprocessing mode
 
