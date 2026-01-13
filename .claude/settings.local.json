@@ -8,7 +8,9 @@
       "Bash(compressphotofast:*)",
       "Bash(bash:*)",
       "Bash(/home/misha/Документы/1\\\\ Проекты/CompressPhotoFast/compressphotofast-cli/compressphotofast.sh:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)"
     ]
   }
 }
