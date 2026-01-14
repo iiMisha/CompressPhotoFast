@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    id("jacoco")
 }
 
 android {
@@ -106,4 +107,65 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+
+    // Unit Testing
+    testImplementation("org.robolectric:robolectric:4.11")
+    testImplementation("androidx.test:core-ktx:1.6.1")
+    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+
+    // Instrumentation Testing
+    androidTestImplementation("androidx.test.espresso:espresso-contrib:3.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.1")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestImplementation("io.mockk:mockk-android:1.13.10")
+    androidTestImplementation("androidx.work:work-testing:2.10.3")
+
+    // Hilt Testing
+    testImplementation("com.google.dagger:hilt-android-testing:2.57.1")
+    kspTest("com.google.dagger:hilt-compiler:2.57.1")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.57.1")
+    kspAndroidTest("com.google.dagger:hilt-compiler:2.57.1")
+
+    // Coverage
+    testImplementation("org.jacoco:org.jacoco.core:0.8.11")
+}
+
+// Настройка Jacoco для покрытия кода
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
+    executionData.setFrom(files("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec"))
+}
+
+// Параллельный запуск тестов
+tasks.withType<Test> {
+    maxParallelForks = Runtime.getRuntime().availableProcessors()
+    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+}
+
+// Полная проверка всех тестов
+tasks.register("checkAllTests") {
+    description = "Запуск всех тестов с coverage"
+    group = "verification"
+
+    dependsOn("testDebugUnitTest")
+    dependsOn("connectedDebugAndroidTest")
+    dependsOn("jacocoTestReport")
+
+    doLast {
+        println("✅ Все тесты выполнены")
+        println("📊 Coverage отчет: app/build/reports/jacoco/index.html")
+    }
 }

@@ -10,7 +10,13 @@
       "Bash(/home/misha/Документы/1\\\\ Проекты/CompressPhotoFast/compressphotofast-cli/compressphotofast.sh:*)",
       "Bash(python3:*)",
       "Bash(tree:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(./gradlew:*)",
+      "Bash(chmod:*)",
+      "Bash(adb:*)",
+      "Bash(find:*)",
+      "Bash(docker:*)",
+      "Bash(./scripts/run_unit_tests.sh:*)"
     ]
   }
 }
