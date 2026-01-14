@@ -2,35 +2,35 @@
 
 ## Последние изменения
 
-*   **Обновление Memory Bank (12.01.2026)**: Обновлена документация Android-версии с полным списком утилит в пакете `util`.
-*   **`architecture.md`**: Обновлен раздел Domain Layer с детальным описанием всех утилит:
-    *   Работа с MediaStore: `MediaStoreUtil.kt`, `BatchMediaStoreUtil.kt`, `MediaStoreObserver.kt`, `GalleryScanUtil.kt`
-    *   Обработка изображений: `ImageCompressionUtil.kt`, `ImageProcessingUtil.kt`, `ImageProcessingChecker.kt`, `SequentialImageProcessor.kt`
-    *   Работа с файлами и URI: `FileOperationsUtil.kt`, `FileInfoUtil.kt`, `UriUtil.kt`, `UriProcessingTracker.kt`
-    *   EXIF-метаданные: `ExifUtil.kt`
-    *   Отслеживание и статистика: `CompressionBatchTracker.kt`, `StatsTracker.kt`, `UriProcessingTracker.kt`
-    *   Производительность и кэширование: `PerformanceMonitor.kt`, `OptimizedCacheUtil.kt`
-    *   Уведомления: `NotificationUtil.kt`
-    *   Разрешения: `PermissionsManager.kt`, `IPermissionsManager.kt`
-    *   Очистка: `TempFilesCleaner.kt`
-    *   Логирование и события: `LogUtil.kt`, `Event.kt`, `EventObserver.kt`
+*   **Обновление Memory Bank (14.01.2026)**: Полное обновление документации проекта с учетом текущего состояния.
+*   **Система тестирования**: Добавлена локальная система автоматического тестирования для Android-приложения с JaCoCo coverage.
+*   **Скрипты установки CLI**: Добавлены автоматические установщики для Linux/macOS (`install.sh`) и Windows (`install.ps1`) с детекцией Python и зависимостей.
+*   **Скрипты тестирования**: Добавлены скрипты для запуска unit тестов (`run_unit_tests.sh`) и всех тестов (`run_all_tests.sh`).
+*   **Документация**: Добавлен файл [`docs/TESTING.md`](docs/TESTING.md) с описанием системы тестирования.
 
 ## Текущее состояние проекта
 
 ### Android-версия
 *   Версия: 2.2.8 (31.08.2025), versionCode 2
+*   Kotlin: 2.2.10, Android Gradle Plugin: 8.13.2
 *   Использует DataStore для хранения настроек (вместо SharedPreferences)
 *   Поддерживает автоматическое сжатие в фоновом режиме
 *   Включает функции игнорирования фото из мессенджеров и скриншотов
+*   Система тестирования с JaCoCo coverage (текущий ~5%, целевой 50-70%)
+*   Полный набор утилит в пакете `util` (24 файла)
 
 ### CLI-версия
 *   Версия: 1.0.0
+*   Python: 3.10+
 *   Полностью поддерживает многопроцессорную обработку изображений с использованием ProcessPoolExecutor
 *   Использует multiprocessing.Manager().Lock() для process-safe доступа к статистике
-*   Поддерживает HEIC/HEIF форматы (опционально)
+*   Поддерживает HEIC/HEIF форматы (опционально через pillow-heif)
 *   Имеет dry-run режим для предварительного анализа с многопроцессорной обработкой
+*   Автоматические установщики для Linux/macOS и Windows
+*   Модульная структура с 7 основными файлами
 
 ## Дальнейшие шаги
 
-*   Проверить актуальность `brief.md` и `product.md`.
-*   Запросить у пользователя проверку обновленной документации.
+*   Увеличить coverage тестов до 50-70%
+*   Добавить instrumentation тесты
+*   Рассмотреть возможность создания tasks.md для документации повторяющихся задач

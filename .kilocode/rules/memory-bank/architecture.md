@@ -40,6 +40,16 @@
 
 *   **Hilt**: Используется для внедрения зависимостей во все компоненты приложения, включая `Activity`, `ViewModel` и `Worker`. `AppModule.kt` определяет, как предоставлять зависимости.
 
+## Тестирование
+
+*   **Unit тесты**: Расположены в `app/src/test/java/com/compressphotofast/`. Используют JUnit, Robolectric и MockK.
+*   **Instrumentation тесты**: Расположены в `app/src/androidTest/java/com/compressphotofast/`. Используют Espresso и UIAutomator.
+*   **Скрипты тестирования**:
+    *   `scripts/check_device.sh`: Проверка подключения устройства
+    *   `scripts/run_unit_tests.sh`: Запуск только unit тестов
+    *   `scripts/run_all_tests.sh`: Полный цикл тестирования (Unit + Instrumentation + Coverage)
+*   **JaCoCo**: Инструмент для измерения покрытия кода тестами. HTML отчет: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+
 ## Диаграмма компонентов
 
 ```mermaid
@@ -103,6 +113,13 @@ compressphotofast-cli/
 │   ├── constants.py        # Константы (идентичны Android)
 │   ├── stats.py            # Статистика сжатия (Rich)
 │   └── multiprocessing_utils.py  # Многопроцессорная обработка
+├── install/
+│   ├── install.sh          # Автоматическая установка для Linux/macOS
+│   ├── install.ps1        # Автоматическая установка для Windows
+│   ├── install_common.sh   # Общие функции для Linux/macOS
+│   ├── install_common.ps1 # Общие функции для Windows
+│   ├── detect_python.sh   # Детекция версии Python
+│   └── install_deps.sh    # Установка системных зависимостей
 ├── requirements.txt         # Зависимости Python
 ├── setup.py              # Установка через pip
 ├── pyproject.toml        # Современная конфигурация
