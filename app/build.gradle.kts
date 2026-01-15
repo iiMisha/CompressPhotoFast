@@ -20,6 +20,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -145,8 +152,43 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     }
 
     sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
-    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/intermediates/javac/debug/classes"))
     executionData.setFrom(files("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec"))
+}
+
+// Задача для проверки минимального coverage
+tasks.register("jacocoTestCoverageVerification") {
+    group = "verification"
+    description = "Verifies that the code coverage is at least 30%"
+    
+    dependsOn("jacocoTestReport")
+    
+    doLast {
+        val reportFile = file("${layout.buildDirectory.get()}/reports/jacoco/jacocoTestReport/html/index.html")
+        if (!reportFile.exists()) {
+            throw GradleException("JaCoCo report not found at: ${reportFile.absolutePath}")
+        }
+        
+        // Чтение HTML отчета для извлечения значения покрытия
+        val reportContent = reportFile.readText()
+        
+        // Поиск строки с общим покрытием (Total)
+        val totalPattern = Regex("""Total.*?(\d+)%""")
+        val match = totalPattern.find(reportContent)
+        
+        if (match != null) {
+            val coverage = match.groupValues[1].toInt()
+            println("📊 Текущее покрытие кода: $coverage%")
+            
+            if (coverage < 30) {
+                throw GradleException("❌ Покрытие кода ($coverage%) ниже минимального требования (30%)")
+            } else {
+                println("✅ Покрытие кода ($coverage%) соответствует минимальному требованию (30%)")
+            }
+        } else {
+            println("⚠️ Не удалось извлечь значение покрытия из отчета")
+        }
+    }
 }
 
 // Параллельный запуск тестов

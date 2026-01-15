@@ -193,8 +193,8 @@ docs/archive/
 .gitlab-ci.yml
 
 # Тесты
-app/src/androidTest/
-app/src/test/
+# app/src/androidTest/
+# app/src/test/
 
 # =================================================
 # Специфичные для Kilo Code правила
