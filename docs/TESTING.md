@@ -228,7 +228,7 @@ testOptions {
 - Задача для проверки минимального coverage (30%)
 - **217 тестов**, все проходят успешно
 
-### ✅ Реализовано (Этап 2 - в процессе)
+### ✅ Реализовано (Этап 2 - завершён)
 - Unit тесты для утилит пакета `util`:
   - `PerformanceMonitorTest` - 30 тестов
   - `CompressionBatchTrackerTest` - 15 тестов
@@ -240,12 +240,25 @@ testOptions {
   - `FileOperationsUtilTest` - 18 тестов
 - **Тестовый генератор изображений** (`TestImageGenerator`)
 - **Mock-контекст** для тестов
+- **TestUtilities** - вспомогательные функции для тестов
+- **WorkManagerTestModule** - модуль для тестирования WorkManager
+- **robolectric.properties** - конфигурация Robolectric
 
-### ⏳ В планах (Этап 3)
-- Unit тесты для `ImageCompressionUtil` (требует WorkManager mocking)
-- Unit тесты для ViewModel'ов
-- Unit тесты для Worker'ов
-- Instrumentation тесты для UI
+### ✅ Реализовано (Этап 3 - в процессе)
+- **Instrumentation UI тесты для MainActivity:**
+  - `MainActivityTest` - 15 UI тестов для проверки критических сценариев
+    - Проверка запуска приложения
+    - Проверка отображения всех UI элементов
+    - Проверка переключателей (автосжатие, режим сохранения, мессенджеры)
+    - Проверка выбора качества сжатия
+    - Проверка кнопки выбора фото
+- **Скрипт для instrumentation тестов:** `run_instrumentation_tests.sh`
+
+### ⏳ В планах (Этап 4)
+- Дополнительные instrumentation тесты для PermissionsManager
+- Instrumentation тесты для фоновых сервисов
+- Unit тесты для MainViewModel (требует рефакторинг синглтонов)
+- Unit тесты для ImageCompressionWorker
 - Увеличение coverage до 50-70%
 - Добавление интеграционных тестов
 
@@ -258,6 +271,7 @@ testOptions {
 - kotlinx-coroutines-test 1.10.2
 - androidx.arch.core:core-testing 2.2.0
 - Hilt Testing 2.57.1
+- **androidx.work:work-testing:2.10.3** (добавлено для unit тестов)
 
 ### Instrumentation тесты
 - JUnit (androidx.test.ext:junit)
@@ -266,3 +280,11 @@ testOptions {
 - MockK-Android 1.13.10
 - WorkManager Testing 2.10.3
 - Hilt Testing 2.57.1
+
+## Статистика тестирования (Январь 2026)
+
+- **Всего unit тестов:** 231
+- **Проходят успешно:** 218 (94.4%)
+- **Instrumentation тесты:** 15 (MainActivityTest)
+- **Общее покрытие:** ~8-10%
+- **Целевое покрытие:** 60-70%
