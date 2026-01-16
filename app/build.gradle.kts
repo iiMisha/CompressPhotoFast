@@ -124,6 +124,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("androidx.work:work-testing:2.10.3")
 
     // Instrumentation Testing
     androidTestImplementation("androidx.test.espresso:espresso-contrib:3.6.1")

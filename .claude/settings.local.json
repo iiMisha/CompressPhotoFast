@@ -16,7 +16,8 @@
       "Bash(adb:*)",
       "Bash(find:*)",
       "Bash(docker:*)",
-      "Bash(./scripts/run_unit_tests.sh:*)"
+      "Bash(./scripts/run_unit_tests.sh:*)",
+      "Bash(cat:*)"
     ]
   }
 }
