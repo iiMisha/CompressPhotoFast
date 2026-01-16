@@ -25,6 +25,7 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
+        animationsDisabled = true
     }
 
     buildTypes {
@@ -122,14 +123,17 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.10")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("com.google.truth:truth:1.4.4")
 
     // Instrumentation Testing
     androidTestImplementation("androidx.test.espresso:espresso-contrib:3.6.1")
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.6.1")
     androidTestImplementation("androidx.test:runner:1.6.1")
     androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestImplementation("io.mockk:mockk-android:1.13.10")
     androidTestImplementation("androidx.work:work-testing:2.10.3")
+    androidTestImplementation("com.google.truth:truth:1.4.4")
 
     // Hilt Testing
     testImplementation("com.google.dagger:hilt-android-testing:2.57.1")
@@ -152,48 +156,132 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     }
 
     sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
-    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/intermediates/javac/debug/classes"))
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
     executionData.setFrom(files("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec"))
+
+    // Исключения для сгенерированных файлов
+    val exclusions = listOf(
+        // Hilt сгенерированные файлы
+        "**/di/*_Factory.class",
+        "**/di/*_MembersInjector.class",
+        "**/Hilt_*.*",
+        // ViewBinding сгенерированные файлы
+        "**/databinding/*.*",
+        "**/android/databinding/*.*",
+        // DataBinding сгенерированные файлы
+        "**/BuildConfig.*",
+        // R файлы
+        "**/R.class",
+        "**/R$*.class",
+        // BR файлы
+        "**/BR.class"
+    )
+
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug").asFileTree.matching {
+        exclude(exclusions)
+    })
 }
 
 // Задача для проверки минимального coverage
-tasks.register("jacocoTestCoverageVerification") {
+tasks.register<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     group = "verification"
     description = "Verifies that the code coverage is at least 30%"
-    
+
     dependsOn("jacocoTestReport")
-    
-    doLast {
-        val reportFile = file("${layout.buildDirectory.get()}/reports/jacoco/jacocoTestReport/html/index.html")
-        if (!reportFile.exists()) {
-            throw GradleException("JaCoCo report not found at: ${reportFile.absolutePath}")
-        }
-        
-        // Чтение HTML отчета для извлечения значения покрытия
-        val reportContent = reportFile.readText()
-        
-        // Поиск строки с общим покрытием (Total)
-        val totalPattern = Regex("""Total.*?(\d+)%""")
-        val match = totalPattern.find(reportContent)
-        
-        if (match != null) {
-            val coverage = match.groupValues[1].toInt()
-            println("📊 Текущее покрытие кода: $coverage%")
-            
-            if (coverage < 30) {
-                throw GradleException("❌ Покрытие кода ($coverage%) ниже минимального требования (30%)")
-            } else {
-                println("✅ Покрытие кода ($coverage%) соответствует минимальному требованию (30%)")
+
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.30".toBigDecimal()
             }
-        } else {
-            println("⚠️ Не удалось извлечь значение покрытия из отчета")
         }
     }
+
+    sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
+    executionData.setFrom(files("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec"))
+
+    // Те же исключения для сгенерированных файлов
+    val exclusions = listOf(
+        // Hilt сгенерированные файлы
+        "**/di/*_Factory.class",
+        "**/di/*_MembersInjector.class",
+        "**/Hilt_*.*",
+        // ViewBinding сгенерированные файлы
+        "**/databinding/*.*",
+        "**/android/databinding/*.*",
+        // DataBinding сгенерированные файлы
+        "**/BuildConfig.*",
+        // R файлы
+        "**/R.class",
+        "**/R$*.class",
+        // BR файлы
+        "**/BR.class"
+    )
+
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug").asFileTree.matching {
+        exclude(exclusions)
+    })
+}
+
+// Задача для объединенного coverage отчета (Unit + Instrumentation)
+tasks.register<JacocoReport>("jacocoCombinedTestReport") {
+    group = "verification"
+    description = "Generates combined coverage report from unit and instrumentation tests"
+
+    dependsOn("testDebugUnitTest", "createDebugAndroidTestCoverageReport")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
+
+    // Объединение execution data из unit и instrumentation тестов
+    val unitTestExec = file("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec")
+    val androidTestExecDir = file("${project.layout.buildDirectory.get()}/outputs/code_coverage/debugAndroidTest/connected")
+
+    val executionFiles = mutableListOf<File>()
+    if (unitTestExec.exists()) {
+        executionFiles.add(unitTestExec)
+    }
+    if (androidTestExecDir.exists()) {
+        executionFiles.addAll(fileTree(androidTestExecDir).matching { include("**/*.ec") })
+    }
+
+    executionData.setFrom(files(executionFiles))
+
+    // Те же исключения для сгенерированных файлов
+    val exclusions = listOf(
+        // Hilt сгенерированные файлы
+        "**/di/*_Factory.class",
+        "**/di/*_MembersInjector.class",
+        "**/Hilt_*.*",
+        // ViewBinding сгенерированные файлы
+        "**/databinding/*.*",
+        "**/android/databinding/*.*",
+        // DataBinding сгенерированные файлы
+        "**/BuildConfig.*",
+        // R файлы
+        "**/R.class",
+        "**/R$*.class",
+        // BR файлы
+        "**/BR.class"
+    )
+
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug").asFileTree.matching {
+        exclude(exclusions)
+    })
 }
 
 // Параллельный запуск тестов
 tasks.withType<Test> {
-    maxParallelForks = Runtime.getRuntime().availableProcessors()
+    maxHeapSize = "2048m"
+    jvmArgs("-XX:MaxMetaspaceSize=512m")
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtMost(4)
     systemProperty("junit.jupiter.execution.parallel.enabled", "true")
 }
 

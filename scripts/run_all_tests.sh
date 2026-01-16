@@ -131,17 +131,17 @@ else
 fi
 
 # 4. Coverage отчет
-log_step "Генерация Coverage отчета..."
-./gradlew jacocoTestReport --quiet
+log_step "Генерация объединенного Coverage отчета..."
+./gradlew jacocoCombinedTestReport --quiet
 
 if [ $? -eq 0 ]; then
     log_info "Coverage отчет сгенерирован"
     echo ""
     echo "📊 Coverage отчет:"
-    echo "   📁 app/build/reports/jacoco/jacocoTestReport/html/index.html"
+    echo "   📁 app/build/reports/jacoco/jacocoCombinedTestReport/html/index.html"
     echo ""
     echo "   Для открытия:"
-    echo "   xdg-open app/build/reports/jacoco/jacocoTestReport/html/index.html"
+    echo "   xdg-open app/build/reports/jacoco/jacocoCombinedTestReport/html/index.html"
 else
     log_warn "Не удалось сгенерировать coverage отчет"
     echo "   Но тесты прошли успешно!"

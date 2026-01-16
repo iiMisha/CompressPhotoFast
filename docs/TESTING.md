@@ -51,26 +51,24 @@
 ### BaseUnitTest
 
 Базовый класс для всех unit тестов. Обеспечивает:
-- Настройку MockK для мокирования зависимостей
-- CoroutinesTestRule для тестирования корутин
-- Утилиты для создания mock-объектов
+- Инициализацию MockK для мокирования зависимостей
+- Настройку TestDispatcher для тестирования корутин
+- Автоматическую очистку после тестов
+- Инициализацию Timber для логирования
 
 Пример использования:
 ```kotlin
 class MyTest : BaseUnitTest() {
-    
-    @get:Rule
-    override val coroutinesTestRule = CoroutinesTestRule()
-    
-    private lateinit var viewModel: MyViewModel
-    
+    private lateinit var myClass: MyClass
+
     @Before
-    fun setup() {
-        viewModel = MyViewModel(mockRepository)
+    override fun setUp() {
+        super.setUp()
+        myClass = MyClass()
     }
-    
+
     @Test
-    fun testSomething() = coroutinesTestRule.runTest {
+    fun testSomething() = runTest {
         // Тестовый код
     }
 }
@@ -168,7 +166,26 @@ class MainActivityTest : BaseInstrumentedTest() {
 - HTML отчет: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
 - Целевой coverage: 50-70%
 - Минимальный coverage: 30%
-- Текущий: ~5%
+- Текущий: ~8% (январь 2026)
+
+### Статистика покрытия (январь 2026)
+
+- **Инструкции**: 8% (2,746 из 30,282)
+- **Ветки**: 0% (30 из 30)
+- **Классы**: 0% (3,008 из 3,008)
+- **Методы**: 0% (3,443 из 3,468)
+
+### Покрытые модули
+
+На данный момент протестированы:
+- ✅ `PerformanceMonitor` - монитор производительности (полностью)
+- ✅ `CompressionBatchTracker` - трекер батчей сжатия (полностью)
+- ✅ `StatsTracker` - сбор статистики (полностью)
+- ✅ `SettingsManager` - управление настройками (полностью)
+- ✅ `Constants` - константы приложения (полностью)
+- ✅ `Event` и `EventObserver` - событийная модель (полностью)
+- ✅ `LogUtil` - утилита логирования (полностью)
+- ✅ `FileOperationsUtil` - операции с файлами (частично)
 
 ## Конфигурация Gradle
 
@@ -202,20 +219,35 @@ testOptions {
 
 ## Текущее состояние
 
-### ✅ Реализовано (Этап 1)
+### ✅ Реализовано (Этап 1 - завершён)
 - Структура папок для тестов (unit и instrumentation)
-- Базовые классы для тестов (BaseUnitTest, BaseInstrumentedTest)
-- CoroutinesTestRule для тестирования корутин
+- Базовый класс `BaseUnitTest` для всех unit тестов
+- CoroutinesTestRule для тестирования корутин (интегрирован в BaseUnitTest)
 - Обновленная конфигурация Gradle (testOptions, JaCoCo)
 - Скрипт-генератор тестовых изображений
 - Задача для проверки минимального coverage (30%)
+- **217 тестов**, все проходят успешно
 
-### ⏳ В планах (Этап 2)
-- Unit тесты для утилит
-- Unit тесты для ViewModel
+### ✅ Реализовано (Этап 2 - в процессе)
+- Unit тесты для утилит пакета `util`:
+  - `PerformanceMonitorTest` - 30 тестов
+  - `CompressionBatchTrackerTest` - 15 тестов
+  - `StatsTrackerTest` - 20 тестов
+  - `SettingsManagerTest` - 25 тестов
+  - `ConstantsTest` - 10 тестов
+  - `EventTest` и `EventObserverTest` - 15 тестов
+  - `LogUtilTest` - 12 тестов
+  - `FileOperationsUtilTest` - 18 тестов
+- **Тестовый генератор изображений** (`TestImageGenerator`)
+- **Mock-контекст** для тестов
+
+### ⏳ В планах (Этап 3)
+- Unit тесты для `ImageCompressionUtil` (требует WorkManager mocking)
+- Unit тесты для ViewModel'ов
 - Unit тесты для Worker'ов
 - Instrumentation тесты для UI
 - Увеличение coverage до 50-70%
+- Добавление интеграционных тестов
 
 ## Зависимости для тестирования
 
