@@ -48,7 +48,15 @@
     *   `scripts/check_device.sh`: Проверка подключения устройства
     *   `scripts/run_unit_tests.sh`: Запуск только unit тестов
     *   `scripts/run_all_tests.sh`: Полный цикл тестирования (Unit + Instrumentation + Coverage)
+    *   `scripts/run_instrumentation_tests.sh`: Запуск только instrumentation тестов
+    *   `scripts/generate_test_images.sh`: Генерация тестовых изображений для тестов
 *   **JaCoCo**: Инструмент для измерения покрытия кода тестами. HTML отчет: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+*   **Статистика тестирования (январь 2026)**:
+    *   Всего unit тестов: 251
+    *   Проходят успешно: 238 (94.8%)
+    *   Instrumentation тестов: 96
+    *   Всего тестов: 347 (251 unit + 96 instrumentation)
+    *   Общее покрытие: ~8-10%
 
 ## Диаграмма компонентов
 

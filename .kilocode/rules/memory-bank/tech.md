@@ -70,6 +70,10 @@
 *   **JaCoCo 0.8.11**: Инструмент для измерения покрытия кода тестами.
 *   **AndroidX Test**: androidx.test:core-ktx:1.6.1, androidx.test.ext:junit:1.2.1, androidx.test:runner:1.6.1, androidx.test:rules:1.6.1
 *   **UIAutomator 2.3.0**: Фреймворк для UI тестирования на уровне системы.
+*   **kotlinx-coroutines-test 1.10.2**: Библиотека для тестирования корутин.
+*   **androidx.arch.core:core-testing 2.2.0**: Библиотека для тестирования архитектурных компонентов.
+*   **androidx.work:work-testing:2.10.3**: Библиотека для тестирования WorkManager.
+*   **com.google.truth:truth:1.4.4**: Библиотека для улучшенных assert'ов в тестах.
 
 ### Требования к системе
 
