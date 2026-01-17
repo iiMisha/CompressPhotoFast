@@ -8,6 +8,8 @@ import org.junit.Test
 import org.junit.Assert.*
 import org.robolectric.annotation.Config
 import java.io.File
+import androidx.work.testing.WorkManagerTestInitHelper
+import com.compressphotofast.test.TestApplication
 
 /**
  * Unit тесты для утилит генерации и проверки тестовых данных.
@@ -16,7 +18,7 @@ import java.io.File
  * инициализаторами из пакета util.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [29])
+@Config(sdk = [29], application = TestApplication::class)
 class TestUtilitiesTest {
 
     @Test
