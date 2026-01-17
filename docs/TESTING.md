@@ -288,6 +288,17 @@ testOptions {
     - Проверка Event и EventObserver
     - Проверка getContentIfNotHandled и peekContent
     - Проверка обработки множественных событий
+- **Интеграционные и Unit тесты для HEIC формата:**
+  - `HeicFormatTest` - 10 instrumentation тестов для поддержки HEIC
+    - Проверка MIME типа для HEIC
+    - Проверка поддержки HEIC в ImageProcessingChecker
+    - Проверка расширения HEIC файлов
+    - Проверка создания URI для HEIC файлов
+  - `HeicProcessingTest` - 10 unit тестов для обработки HEIC
+    - Проверка определения HEIC MIME типа
+    - Проверка регистронезависимого сравнения
+    - Проверка HEIF формата
+    - Проверка расширения HEIC файлов
 - **Скрипт для instrumentation тестов:** `run_instrumentation_tests.sh`
 
 ### ⏳ В планах (Этап 4)
@@ -320,15 +331,17 @@ testOptions {
 
 ## Статистика тестирования (Январь 2026)
 
-- **Всего unit тестов:** 231
-- **Проходят успешно:** 218 (94.4%)
-- **Instrumentation тесты:** 76 (MainActivityTest + BootCompletedReceiverTest + 4 интеграционных теста)
+- **Всего unit тестов:** 241
+- **Проходят успешно:** 228 (94.6%)
+- **Instrumentation тесты:** 86 (MainActivityTest + BootCompletedReceiverTest + 5 интеграционных теста + HEIC)
   - MainActivityTest: 40 тестов
   - BootCompletedReceiverTest: 6 тестов
   - SettingsIntegrationTest: 10 тестов
   - ConstantsIntegrationTest: 10 тестов
   - UriIntegrationTest: 10 тестов
   - EventIntegrationTest: 10 тестов
-- **Всего тестов:** 307 (231 unit + 76 instrumentation)
+  - HeicFormatTest: 10 тестов
+- **Всего тестов:** 327 (241 unit + 86 instrumentation)
 - **Общее покрытие:** ~8-10%
 - **Целевое покрытие:** 60-70%
+- **Поддержка HEIC:** ✅ Протестирована (20 тестов)
