@@ -320,7 +320,16 @@ object ImageCompressionUtil {
             
             // Создание имени для сжатого файла
             val compressedFileName = FileOperationsUtil.createCompressedFileName(context, fileName)
-            
+
+            // Получение исходного MIME типа для правильного сохранения
+            val originalMimeType = UriUtil.getMimeType(context, uri)
+            LogUtil.debug("ImageCompression", "Исходный MIME тип: $originalMimeType для файла: $fileName")
+
+            // Определяем MIME тип для сохранения на основе формата сжатия
+            // Поскольку мы сжимаем в JPEG, MIME тип должен быть image/jpeg
+            val outputMimeType = "image/jpeg"
+            LogUtil.debug("ImageCompression", "MIME тип для сохранения: $outputMimeType")
+
             // Сохранение сжатого файла
             val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
             val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
@@ -337,7 +346,8 @@ object ImageCompressionUtil {
                     directoryToSave,
                     uri,
                     quality,
-                    exifData
+                    exifData,
+                    outputMimeType
                 )
             } catch (e: java.io.FileNotFoundException) {
                 LogUtil.error(uri, "Сохранение сжатого изображения", "Файл не найден при сохранении: ${e.message}")

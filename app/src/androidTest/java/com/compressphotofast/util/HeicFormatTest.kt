@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.compressphotofast.BaseInstrumentedTest
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,7 +15,6 @@ import java.io.File
  *
  * Тестируют поддержку и обработку HEIC/HEIF изображений
  */
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class HeicFormatTest : BaseInstrumentedTest() {
 

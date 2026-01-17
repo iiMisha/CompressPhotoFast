@@ -7,14 +7,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.compressphotofast.BaseInstrumentedTest
 import com.compressphotofast.util.Constants
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
-import org.mockito.Mockito.*
-import org.mockito.MockitoAnnotations
 
 /**
  * Instrumentation тесты для BootCompletedReceiver
@@ -25,7 +21,6 @@ import org.mockito.MockitoAnnotations
  * - Отсутствие запуска при выключенном автосжатии
  * - Проверка настроек SharedPreferences
  */
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class BootCompletedReceiverTest : BaseInstrumentedTest() {
 
@@ -36,7 +31,6 @@ class BootCompletedReceiverTest : BaseInstrumentedTest() {
 
     @Before
     fun setup() {
-        MockitoAnnotations.openMocks(this)
         receiver = BootCompletedReceiver()
         context = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -133,17 +127,14 @@ class BootCompletedReceiverTest : BaseInstrumentedTest() {
         editor.putBoolean(Constants.PREF_AUTO_COMPRESSION, true)
         editor.commit()
 
-        // Проверяем, что onReceive не падает с null интентом
+        // Проверяем, что onReceive не падает с пустым интентом
         try {
-            receiver.onReceive(context, null)
+            val emptyIntent = Intent()
+            receiver.onReceive(context, emptyIntent)
             // Если дошли сюда, значит Receiver не упал
-            org.junit.Assert.assertTrue("Receiver обработал null интент без ошибок", true)
+            org.junit.Assert.assertTrue("Receiver обработал пустой интент без ошибок", true)
         } catch (e: Exception) {
-            // Null Pointer Exception допустим в этом случае
-            org.junit.Assert.assertTrue(
-                "Receiver корректно обработал null: ${e.javaClass.simpleName}",
-                e is NullPointerException || e is kotlin.KotlinNullPointerException
-            )
+            org.junit.Assert.fail("Receiver упал с ошибкой: ${e.message}")
         }
     }
 

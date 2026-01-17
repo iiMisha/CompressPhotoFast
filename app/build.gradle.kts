@@ -51,6 +51,22 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/NOTICE"
+            pickFirsts.add("META-INF/LICENSE.md")
+            pickFirsts.add("META-INF/NOTICE.md")
+            pickFirsts.add("META-INF/LICENSE-notice.md")
+        }
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+
     // Настройка имени выходного APK для release версии
     applicationVariants.configureEach {
         val variant = this

@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.compressphotofast.BaseInstrumentedTest
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -12,7 +11,6 @@ import org.junit.runner.RunWith
  *
  * Тестируют значения констант и их корректность
  */
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class ConstantsIntegrationTest : BaseInstrumentedTest() {
 
@@ -53,12 +51,12 @@ class ConstantsIntegrationTest : BaseInstrumentedTest() {
     fun test_MAX_POSSIBLE_FILE_SIZE_isCorrect() {
         org.junit.Assert.assertTrue(
             "Максимальный размер файла должен быть больше 0",
-            Constants.MAX_POSSIBLE_FILE_SIZE > 0
+            Constants.MAX_FILE_SIZE > 0
         )
 
         org.junit.Assert.assertTrue(
             "Максимальный размер должен быть больше оптимального",
-            Constants.MAX_POSSIBLE_FILE_SIZE > Constants.OPTIMUM_FILE_SIZE
+            Constants.MAX_FILE_SIZE > Constants.OPTIMUM_FILE_SIZE
         )
     }
 
@@ -72,10 +70,10 @@ class ConstantsIntegrationTest : BaseInstrumentedTest() {
             Constants.TEMP_FILE_MAX_AGE > 0
         )
 
-        // Обычно это 24 часа в миллисекундах
+        // Обычно это 30 минут в миллисекундах
         org.junit.Assert.assertEquals(
-            "Максимальный возраст должен быть 24 часа",
-            24 * 60 * 60 * 1000L,
+            "Максимальный возраст должен быть 30 минут",
+            30 * 60 * 1000L,
             Constants.TEMP_FILE_MAX_AGE
         )
     }

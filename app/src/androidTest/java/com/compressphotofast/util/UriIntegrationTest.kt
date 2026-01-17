@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.compressphotofast.BaseInstrumentedTest
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -13,7 +12,6 @@ import org.junit.runner.RunWith
  *
  * Тестируют создание и парсинг URI
  */
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class UriIntegrationTest : BaseInstrumentedTest() {
 

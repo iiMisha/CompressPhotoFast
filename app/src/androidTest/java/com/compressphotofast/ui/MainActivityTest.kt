@@ -4,7 +4,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.ActivityTestRule
 import com.compressphotofast.R
 import com.compressphotofast.BaseInstrumentedTest
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +14,6 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.espresso.matcher.RootMatchers
 import org.hamcrest.Matchers.not
-import org.hamcrest.Matchers.hasChildCount
 
 /**
  * Instrumentation тесты для MainActivity
@@ -26,12 +24,11 @@ import org.hamcrest.Matchers.hasChildCount
  * - Взаимодействие с переключателями
  * - Изменение настроек качества
  */
-@HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest : BaseInstrumentedTest() {
 
     @get:Rule
-    val activityRule = ActivityTestRule(MainActivity::class.java, initialTouchMode = false)
+    val activityRule = ActivityTestRule(MainActivity::class.java)
 
     /**
      * Тест 1: Проверка запуска приложения
@@ -111,7 +108,7 @@ class MainActivityTest : BaseInstrumentedTest() {
         onView(withId(R.id.btnSelectPhotos))
             .check(matches(isDisplayed()))
             .check(matches(isEnabled()))
-            .check(matches(withText(R.string.select_photos)))
+            .check(matches(withText(R.string.select_photos_button)))
     }
 
     /**
@@ -305,8 +302,17 @@ class MainActivityTest : BaseInstrumentedTest() {
      */
     @Test
     fun test_qualityRadioGroup_containsAllRadioButtons() {
+        // Проверяем, что RadioGroup отображается
         onView(withId(R.id.radioGroupQuality))
-            .check(matches(hasChildCount(3)))
+            .check(matches(isDisplayed()))
+
+        // Проверяем, что все три радио-кнопки отображаются
+        onView(withId(R.id.rbQualityLow))
+            .check(matches(isDisplayed()))
+        onView(withId(R.id.rbQualityMedium))
+            .check(matches(isDisplayed()))
+        onView(withId(R.id.rbQualityHigh))
+            .check(matches(isDisplayed()))
     }
 
     /**
@@ -448,7 +454,7 @@ class MainActivityTest : BaseInstrumentedTest() {
     @Test
     fun test_selectPhotoButton_correctText() {
         onView(withId(R.id.btnSelectPhotos))
-            .check(matches(withText(R.string.select_photos)))
+            .check(matches(withText(R.string.select_photos_button)))
     }
 
     /**

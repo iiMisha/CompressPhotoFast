@@ -316,6 +316,15 @@ object MediaStoreUtil {
     
     /**
      * Сохраняет сжатое изображение из потока
+     *
+     * @param context Контекст приложения
+     * @param inputStream Входной поток с сжатым изображением
+     * @param fileName Имя файла для сохранения
+     * @param directory Директория для сохранения
+     * @param originalUri URI исходного файла
+     * @param quality Качество сжатия
+     * @param exifDataMemory EXIF данные для сохранения
+     * @param mimeType MIME тип для сохранения (по умолчанию "image/jpeg")
      */
     suspend fun saveCompressedImageFromStream(
         context: Context,
@@ -324,14 +333,16 @@ object MediaStoreUtil {
         directory: String,
         originalUri: Uri,
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
-        exifDataMemory: Map<String, Any>? = null
+        exifDataMemory: Map<String, Any>? = null,
+        mimeType: String = "image/jpeg"
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             LogUtil.debug("FileUtil", "Директория для сохранения: $directory")
             LogUtil.processInfo("[MediaStoreUtil] Создание записи MediaStore для файла: $fileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(context)})")
+            LogUtil.debug("FileUtil", "MIME тип для сохранения: $mimeType")
 
-            // Централизованное создание записи в MediaStore
-            val uri = createMediaStoreEntry(context, fileName, directory, originalUri = originalUri)
+            // Централизованное создание записи в MediaStore с правильным MIME типом
+            val uri = createMediaStoreEntry(context, fileName, directory, mimeType, originalUri)
             
             if (uri == null) {
                 LogUtil.error(originalUri, "Сохранение", "Не удалось создать запись в MediaStore")

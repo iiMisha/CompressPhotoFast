@@ -35,26 +35,71 @@ object FileOperationsUtil {
     /**
      * Создает имя файла для сжатой версии
      * В режиме замены возвращает оригинальное имя, иначе добавляет суффикс _compressed
+     *
+     * Очищает двойные расширения (например, image.HEIC.jpg -> image_compressed.jpg)
      */
     fun createCompressedFileName(context: Context, originalName: String): String {
         // В режиме замены используем оригинальное имя файла
         if (isSaveModeReplace(context)) {
             LogUtil.processInfo("[FileOperationsUtil] Режим замены включён, используем оригинальное имя: $originalName")
-            return originalName
+            // Очищаем двойные расширения даже в режиме замены
+            return cleanDoubleExtensions(originalName)
         }
-        
+
         // В режиме отдельного сохранения добавляем суффикс
-        val dotIndex = originalName.lastIndexOf('.')
-        val compressedName = if (dotIndex > 0) {
-            val baseName = originalName.substring(0, dotIndex)
-            val extension = originalName.substring(dotIndex) // включая точку
-            "${baseName}${Constants.COMPRESSED_FILE_SUFFIX}$extension"
+        // Сначала очищаем двойные расширения
+        val cleanName = cleanDoubleExtensions(originalName)
+        val extension = getLastExtension(originalName)
+
+        val compressedName = if (extension.isNotEmpty()) {
+            "${cleanName}${Constants.COMPRESSED_FILE_SUFFIX}$extension"
         } else {
-            "${originalName}${Constants.COMPRESSED_FILE_SUFFIX}"
+            "${cleanName}${Constants.COMPRESSED_FILE_SUFFIX}"
         }
-        
-        LogUtil.processInfo("[FileOperationsUtil] Режим отдельного сохранения, добавляем суффикс: $originalName → $compressedName")
+
+        LogUtil.processInfo("[FileOperationsUtil] Режим отдельного сохранения: $originalName → $compressedName")
         return compressedName
+    }
+
+    /**
+     * Очищает двойные расширения в имени файла
+     * Например: image.HEIC.jpg -> image, photo.heif.jpeg -> photo
+     *
+     * @param fileName Исходное имя файла
+     * @return Имя файла без двойных расширений (только базовое имя)
+     */
+    private fun cleanDoubleExtensions(fileName: String): String {
+        val lastDotIndex = fileName.lastIndexOf('.')
+        if (lastDotIndex <= 0) return fileName
+
+        val beforeLastDot = fileName.substring(0, lastDotIndex)
+        val secondLastDot = beforeLastDot.lastIndexOf('.')
+
+        return if (secondLastDot > 0) {
+            // Есть двойное расширение, возвращаем имя до второй точки
+            val cleanName = beforeLastDot.substring(0, secondLastDot)
+            LogUtil.debug("FileOperationsUtil", "Очистка двойного расширения: $fileName -> $cleanName")
+            cleanName
+        } else {
+            // Двойного расширения нет, возвращаем как есть
+            beforeLastDot
+        }
+    }
+
+    /**
+     * Извлекает последнее расширение из имени файла
+     * Например: image.HEIC.jpg -> .jpg, photo.png -> .png
+     *
+     * @param fileName Имя файла
+     * @return Последнее расширение с точкой или пустая строка
+     */
+    private fun getLastExtension(fileName: String): String {
+        val lastDotIndex = fileName.lastIndexOf('.')
+        return if (lastDotIndex > 0) {
+            fileName.substring(lastDotIndex)
+        } else {
+            ""
+        }
     }
 
     /**
