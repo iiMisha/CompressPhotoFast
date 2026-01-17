@@ -1,68 +1,26 @@
-# QWEN.md
+# Agent Rules Standard (AGENTS.md):
 
-Этот файл предоставляет руководство для Qwen Code при работе с кодом в данном репозитории.
+## Обязательные файлы для чтения
 
-## Обзор проекта
+При работе с проектом CompressPhotoFast необходимо обращаться к следующим файлам:
 
-CompressPhotoFast — это Android приложение (API 29+) для быстрого и эффективного сжатия фотографий. Приложение использует Kotlin с современными архитектурными компонентами Android, включая Hilt для внедрения зависимостей, WorkManager для фоновой обработки и паттерн MVVM.
+### 1. Правила разработки
+**Файл:** [`.kilocode/rules/rules.md`](.kilocode/rules/rules.md)
 
-## Команды сборки
+Содержит основные правила разработки:
+- Настройки (язык общения, ОС)
+- Требования к сборке (обязательная сборка после каждого изменения кода)
+- Планирование разработки с указанием необходимости сборки
 
-- `./gradlew assembleDebug` - сборка debug версии
-- `./gradlew assembleRelease` - сборка release версии
-- `./gradlew clean` - очистка артефактов сборки
+### 2. Memory Bank
+**Папка:** [`.kilocode/rules/memory-bank/`](.kilocode/rules/memory-bank/)
 
-## Архитектура кода
+Содержит документацию проекта:
+- [`brief.md`](.kilocode/rules/memory-bank/brief.md) - краткое описание проекта
+- [`product.md`](.kilocode/rules/memory-bank/product.md) - описание продукта и функций
+- [`context.md`](.kilocode/rules/memory-bank/context.md) - текущий контекст и последние изменения
+- [`architecture.md`](.kilocode/rules/memory-bank/architecture.md) - архитектура приложения
+- [`tech.md`](.kilocode/rules/memory-bank/tech.md) - технологический стек
+- [`memory-bank-instructions.md`](.kilocode/rules/memory-bank/memory-bank-instructions.md) - инструкции по работе с Memory Bank
 
-### Основные компоненты
-
-- **Класс приложения**: `CompressPhotoApp.kt` - точка входа Hilt приложения с конфигурацией WorkManager и настройкой каналов уведомлений
-- **Внедрение зависимостей**: Единственный `AppModule.kt` предоставляет экземпляры SharedPreferences, DataStore и WorkManager
-- **Главная активность**: `MainActivity.kt` - обрабатывает UI, обработку интентов (ACTION_SEND/ACTION_SEND_MULTIPLE) и управление фоновыми службами
-- **ViewModel**: `MainViewModel.kt` - управляет состоянием UI, настройками и оркестрацией обработки изображений
-
-### Архитектура фоновой обработки
-
-Приложение использует многоуровневую систему фоновой обработки:
-
-1. **WorkManager**: `ImageCompressionWorker.kt` - выполняет фактическую работу по сжатию изображений
-2. **Foreground Service**: `BackgroundMonitoringService.kt` - поддерживает приложение активным для непрерывного мониторинга
-3. **JobService**: `ImageDetectionJobService.kt` - планирует периодическую работу
-4. **Boot Receiver**: `BootCompletedReceiver.kt` - перезапускает службы при загрузке устройства
-
-### Основные утилиты
-
-- **Обработка изображений**: `ImageCompressionUtil.kt`, `ImageProcessingUtil.kt`, `SequentialImageProcessor.kt`
-- **Файловые операции**: `FileOperationsUtil.kt`, `UriUtil.kt` - обрабатывает операции MediaStore и обработку URI
-- **Управление настройками**: `SettingsManager.kt` - настройки на основе DataStore
-- **Разрешения**: `PermissionsManager.kt` - обработка runtime разрешений
-- **Логирование**: `LogUtil.kt` - централизованное логирование с Timber
-
-### Ключевые паттерны
-
-- Использует Hilt для внедрения зависимостей повсеместно
-- Паттерн MVVM с ViewBinding
-- Корутины + Flow для асинхронных операций
-- MediaStore API для файловых операций (Android 10+ scoped storage)
-- BroadcastReceiver для межкомпонентной коммуникации
-
-### Обработка интентов
-
-Приложение обрабатывает изображения, переданные из других приложений через интенты ACTION_SEND и ACTION_SEND_MULTIPLE, поддерживая пакетную обработку нескольких изображений.
-
-## Зависимости
-
-Используемые ключевые библиотеки:
-- Dagger Hilt (внедрение зависимостей)
-- WorkManager (фоновые задачи)
-- Coil (загрузка изображений)
-- Compressor (сжатие изображений)
-- DataStore (настройки)
-- Timber (логирование)
-- ExifInterface (метаданные)
-
-## Правила
-- Отвечать на русском языке.
-- Пользователь использует Linux Mint.
-- Сборку производить с таймаутом 600 секунд.
-- При серьезных изменениях в коде необходимо производить сборку проекта: `./gradlew assembleDebug`
+**ВАЖНО:** В начале КАЖДОЙ задачи необходимо читать ВСЕ файлы из Memory Bank.
