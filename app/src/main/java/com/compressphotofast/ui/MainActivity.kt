@@ -868,9 +868,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePhotoPickerButtonVisibility() {
-        if (Build.VERSION.SDK_INT >= 34 &&
-            !permissionsManager.hasStoragePermissions() &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        if (permissionsManager.hasStoragePermissions() ||
+            (Build.VERSION.SDK_INT >= 34 && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == android.content.pm.PackageManager.PERMISSION_GRANTED)) {
             binding.btnSelectPhotos.visibility = View.VISIBLE
         } else {
             binding.btnSelectPhotos.visibility = View.GONE

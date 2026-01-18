@@ -191,9 +191,9 @@ class ConstantsIntegrationTest : BaseInstrumentedTest() {
      */
     @Test
     fun test_qualityLevels() {
-        val lowQuality = 50
-        val mediumQuality = 70
-        val highQuality = 90
+        val lowQuality = Constants.COMPRESSION_QUALITY_LOW
+        val mediumQuality = Constants.COMPRESSION_QUALITY_MEDIUM
+        val highQuality = Constants.COMPRESSION_QUALITY_HIGH
 
         org.junit.Assert.assertTrue(
             "Низкое качество должно быть в диапазоне 1-100",
@@ -227,23 +227,16 @@ class ConstantsIntegrationTest : BaseInstrumentedTest() {
     @Test
     fun test_defaultBooleanValues() {
         // Проверяем, что дефолтные значения для настроек определены правильно
-        val defaultAutoCompression = false
-        val defaultSaveMode = false
-        val defaultIgnoreMessenger = false
-
+        // В Constants.kt нет дефолтных булевых значений напрямую, 
+        // но мы можем проверить другие важные константы
         org.junit.Assert.assertNotNull(
-            "Дефолтное значение автосжатия должно быть определено",
-            defaultAutoCompression
+            "Минимальный шанс экономии должен быть определен",
+            Constants.MIN_COMPRESSION_SAVING_PERCENT
         )
-
-        org.junit.Assert.assertNotNull(
-            "Дефолтное значение режима сохранения должно быть определено",
-            defaultSaveMode
-        )
-
-        org.junit.Assert.assertNotNull(
-            "Дефолтное значение игнорирования мессенджеров должно быть определено",
-            defaultIgnoreMessenger
+        
+        org.junit.Assert.assertTrue(
+            "Минимальный шанс экономии должен быть положительным",
+            Constants.MIN_COMPRESSION_SAVING_PERCENT > 0
         )
     }
 }
