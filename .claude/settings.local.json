@@ -18,7 +18,8 @@
       "Bash(docker:*)",
       "Bash(./scripts/run_unit_tests.sh:*)",
       "Bash(cat:*)",
-      "Bash(./scripts/generate_test_images.sh:*)"
+      "Bash(./scripts/generate_test_images.sh:*)",
+      "Bash(tee:*)"
     ]
   }
 }
