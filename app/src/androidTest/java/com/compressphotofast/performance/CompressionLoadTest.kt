@@ -16,7 +16,6 @@ import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.compressphotofast.BaseInstrumentedTest
 import com.compressphotofast.util.Constants
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.delay
@@ -39,7 +38,7 @@ import java.io.FileOutputStream
  * - Проверку создания сжатых версий
  */
 @RunWith(AndroidJUnit4::class)
-class CompressionLoadTest : BaseInstrumentedTest() {
+class CompressionLoadTest {
 
     private lateinit var context: Context
     private val generatedUris = mutableListOf<Uri>()
@@ -47,14 +46,12 @@ class CompressionLoadTest : BaseInstrumentedTest() {
     private val duplicateErrors = mutableListOf<String>()
 
     @Before
-    override fun setUp() {
-        super.setUp()
+    fun setUp() {
         context = InstrumentationRegistry.getInstrumentation().targetContext
     }
 
     @After
-    override fun tearDown() {
-        super.tearDown()
+    fun tearDown() {
 
         // Очистка: удаляем созданные файлы
         generatedUris.forEach { uri ->

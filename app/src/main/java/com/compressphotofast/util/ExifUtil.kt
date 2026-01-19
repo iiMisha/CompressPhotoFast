@@ -382,7 +382,7 @@ object ExifUtil {
             ExifInterface.TAG_F_NUMBER,
             ExifInterface.TAG_FOCAL_LENGTH
         )
-        
+
         var criticalTagCopied = false
         for (tag in criticalTags) {
             val sourceValue = sourceExif.getAttribute(tag)
@@ -392,10 +392,11 @@ object ExifUtil {
                 break
             }
         }
-        
+
         // Подсчитываем общее количество скопированных тегов
         var tagsCopied = 0
         var totalTags = 0
+        var tagsMismatched = 0
         for (tag in TAG_LIST) {
             val sourceValue = sourceExif.getAttribute(tag)
             if (sourceValue != null) {
@@ -403,14 +404,18 @@ object ExifUtil {
                 val destValue = destExif.getAttribute(tag)
                 if (sourceValue == destValue) {
                     tagsCopied++
+                } else if (destValue != null) {
+                    // Тег есть в обоих, но значения разные
+                    tagsMismatched++
                 }
             }
         }
-        
+
         // Копирование успешно, если:
         // 1. Скопирован хотя бы один критический тег, ИЛИ
-        // 2. Скопировано более половины всех тегов
-        return criticalTagCopied || (totalTags > 0 && tagsCopied >= totalTags / 2)
+        // 2. Скопировано более половины всех тегов, ИЛИ
+        // 3. В исходном файле нет тегов для копирования (totalTags = 0) - операция completed успешно
+        return criticalTagCopied || (totalTags > 0 && tagsCopied >= totalTags / 2) || totalTags == 0
     }
     
     /**
