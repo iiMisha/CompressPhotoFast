@@ -28,6 +28,48 @@ import com.compressphotofast.util.PerformanceMonitor
 object ImageProcessingChecker {
 
     private val TAG = "ImageProcessingChecker"
+
+    /**
+     * Нормализует путь к файлу для надежного сравнения
+     * Унифицирует разделители, убирает дубли, приводит к lowercase
+     */
+    private fun normalizePath(path: String): String {
+        return path
+            .trim()
+            .replace("\\", "/")  // Унифицируем разделители
+            .replace("//", "/")  // Убираем дубли
+            .lowercase()         // Case-insensitive
+    }
+
+    /**
+     * Проверяет, находится ли файл в директории приложения с нормализованным путем
+     * Использует более надежную проверку чем простое contains()
+     */
+    private fun isInAppDirectoryNormalized(path: String?): Boolean {
+        if (path == null) return false
+
+        val normalized = normalizePath(path)
+
+        // Проверяем точное совпадение patterns
+        val appDirPatterns = listOf(
+            "/pictures/compressphotofast/",
+            "/storage/emulated/0/pictures/compressphotofast/",
+            "compressphotofast"
+        )
+
+        // Проверяем каждый pattern
+        for (pattern in appDirPatterns) {
+            if (normalized.contains(pattern)) {
+                // Дополнительная проверка: не должно быть "documents"
+                // Это предотвращает false positives для файлов в /documents/
+                if (!normalized.contains("/documents/")) {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
     
     /**
      * ОСНОВНОЙ ПУБЛИЧНЫЙ МЕТОД
@@ -94,10 +136,10 @@ object ImageProcessingChecker {
             }
             
             // Проверяем, не находится ли файл в директории приложения
-            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
-            val (isInAppDir, _) = OptimizedCacheUtil.checkDirectoryStatus(path, Constants.APP_DIRECTORY)
-            if (isInAppDir) {
-                LogUtil.processDebug("Файл находится в директории приложения: $path")
+            // Используем улучшенную проверку с нормализацией путей
+            val path = UriUtil.getFilePathFromUri(context, uri)
+            if (isInAppDirectoryNormalized(path)) {
+                LogUtil.processDebug("Файл находится в директории приложения: ${normalizePath(path ?: "null")}")
                 return@withContext false
             }
             

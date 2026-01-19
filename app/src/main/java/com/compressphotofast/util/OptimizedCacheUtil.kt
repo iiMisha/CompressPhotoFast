@@ -195,18 +195,41 @@ object OptimizedCacheUtil {
 
     /**
      * Получает кэшированные EXIF-данные
+     * Улучшенная версия с инвалидацией при изменении файла
      */
     fun getCachedExifData(uri: Uri, currentModificationTime: Long): CachedExifData? {
         val cacheKey = uri.toString()
-        
+
         exifCacheLock.read {
             val cached = exifCache.get(cacheKey)
-            if (cached != null && !cached.isExpired() && !cached.isStaleFor(currentModificationTime)) {
-                LogUtil.processDebug("EXIF-данные получены из кэша для $uri")
-                return cached
+
+            // Если кэш есть, проверяем актуальность
+            if (cached != null && !cached.isExpired()) {
+
+                // НОВАЯ ПРОВЕРКА: файл модифицирован после кэширования?
+                if (currentModificationTime > 0L && cached.isStaleFor(currentModificationTime)) {
+                    // Файл был модифицирован - кэш устарел, удаляем
+                    LogUtil.processDebug("EXIF-кэш устарел (файл модифицирован): $uri")
+                    // Выходим из read lock для получения write lock
+                } else {
+                    // Кэш актуален
+                    LogUtil.processDebug("EXIF-данные получены из кэша для $uri")
+                    return cached
+                }
             }
         }
-        
+
+        // Если мы здесь, значит нужно удалить устаревший кэш или его нет
+        if (currentModificationTime > 0L) {
+            exifCacheLock.write {
+                val cached = exifCache.get(cacheKey)
+                if (cached != null && cached.isStaleFor(currentModificationTime)) {
+                    exifCache.remove(cacheKey)
+                    LogUtil.processDebug("EXIF-кэш удален (файл модифицирован): $uri")
+                }
+            }
+        }
+
         return null
     }
 

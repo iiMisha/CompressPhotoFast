@@ -187,6 +187,22 @@ class SettingsManager @Inject constructor(
     fun setIgnoreMessengerPhotos(ignore: Boolean) {
         sharedPreferences.edit().putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, ignore).apply()
     }
+
+    /**
+     * Проверяет, нужно ли показывать Toast сообщения о результатах сжатия
+     * @return true если нужно показывать Toast, false в противном случае (по умолчанию false)
+     */
+    fun shouldShowCompressionToast(): Boolean {
+        return sharedPreferences.getBoolean(Constants.PREF_SHOW_COMPRESSION_TOAST, false)
+    }
+
+    /**
+     * Устанавливает настройку показа Toast сообщений о результатах сжатия
+     * @param show true если нужно показывать Toast, false в противном случае
+     */
+    fun setShowCompressionToast(show: Boolean) {
+        sharedPreferences.edit().putBoolean(Constants.PREF_SHOW_COMPRESSION_TOAST, show).apply()
+    }
     
     companion object {
         /**

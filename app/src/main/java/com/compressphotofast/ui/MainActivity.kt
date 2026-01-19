@@ -47,6 +47,7 @@ import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.worker.ImageCompressionWorker
 import com.compressphotofast.util.StatsTracker
@@ -152,6 +153,13 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast с результатами сжатия
      */
     private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
+        // Проверяем настройку перед показом Toast
+        val settingsManager = SettingsManager.getInstance(this)
+        if (!settingsManager.shouldShowCompressionToast()) {
+            LogUtil.debug("MainActivity", "Toast о сжатии отключен в настройках")
+            return
+        }
+
         val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
         NotificationUtil.showCompressionResultToast(this, "🖼️ $truncatedFileName", originalSize, compressedSize)
     }

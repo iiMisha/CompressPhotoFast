@@ -270,11 +270,18 @@ object NotificationUtil {
      * Показывает Toast с результатом сжатия 
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, reduction: Float) {
+        // Проверяем настройку перед показом Toast
+        val settingsManager = SettingsManager.getInstance(context)
+        if (!settingsManager.shouldShowCompressionToast()) {
+            LogUtil.debug("NotificationUtil", "Toast о сжатии отключен в настройках")
+            return
+        }
+
         val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
         val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
         val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
         val reductionStr = String.format("%.1f", reduction)
-        
+
         val message = "🖼️ $truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
         showToast(context, message, Toast.LENGTH_LONG)
     }
@@ -283,15 +290,22 @@ object NotificationUtil {
      * Показывает Toast с результатом сжатия (вариант с вычислением процента сокращения)
      */
     fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, duration: Int = Toast.LENGTH_LONG) {
+        // Проверяем настройку перед показом Toast
+        val settingsManager = SettingsManager.getInstance(context)
+        if (!settingsManager.shouldShowCompressionToast()) {
+            LogUtil.debug("NotificationUtil", "Toast о сжатии отключен в настройках")
+            return
+        }
+
         val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
         val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
-        
+
         val reductionPercent = if (originalSize > 0) {
             ((originalSize - compressedSize) * 100.0 / originalSize).roundToInt()
         } else {
             0
         }
-        
+
         val message = "$fileName: $originalSizeStr → $compressedSizeStr (-$reductionPercent%)"
         showToast(context, message, duration)
     }

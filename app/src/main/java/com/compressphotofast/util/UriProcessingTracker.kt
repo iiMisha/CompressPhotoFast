@@ -49,14 +49,37 @@ object UriProcessingTracker {
     
     // Время игнорирования URI после обработки (5 секунд)
     private const val IGNORE_PERIOD = 5000L
-    
+
+    // Карта для отслеживания времени добавления URI
+    private val uriProcessingTime = ConcurrentHashMap<String, Long>()
+
+    // Максимальное количество URI в обработке
+    private const val MAX_PROCESSING_URIS = 50
+
+    // Время после которого URI считается stale (5 минут)
+    private const val STALE_URI_THRESHOLD = 5 * 60 * 1000L
+
     /**
      * Добавляет URI в список обрабатываемых
+     * Проверяет на дубликаты и добавляет трекинг времени
      */
     fun addProcessingUri(uri: Uri) {
         val uriString = uri.toString()
+
+        // Проверяем перед добавлением - предотвращаем дубликаты
+        if (processingUris.contains(uriString)) {
+            LogUtil.processDebug("URI уже в списке обрабатываемых: $uriString")
+            return
+        }
+
         processingUris.add(uriString)
+        uriProcessingTime[uriString] = System.currentTimeMillis()
         LogUtil.processDebug("URI добавлен в список обрабатываемых: $uriString (всего: ${processingUris.size})")
+
+        // Автоматическая очистка если слишком много
+        if (processingUris.size > MAX_PROCESSING_URIS) {
+            cleanupStaleUris()
+        }
     }
     
     /**
@@ -72,7 +95,34 @@ object UriProcessingTracker {
     fun removeProcessingUri(uri: Uri) {
         val uriString = uri.toString()
         processingUris.remove(uriString)
+        uriProcessingTime.remove(uriString) // Удаляем время
         LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось: ${processingUris.size})")
+    }
+
+    /**
+     * Удаляет URIs которые находятся в обработке слишком долго (stale)
+     * Вызывается автоматически при достижении лимита MAX_PROCESSING_URIS
+     */
+    private fun cleanupStaleUris() {
+        val currentTime = System.currentTimeMillis()
+        val toRemove = mutableListOf<String>()
+
+        processingUris.forEach { uri ->
+            val addedTime = uriProcessingTime[uri]
+            if (addedTime != null && (currentTime - addedTime) > STALE_URI_THRESHOLD) {
+                toRemove.add(uri)
+            }
+        }
+
+        toRemove.forEach { uri ->
+            processingUris.remove(uri)
+            uriProcessingTime.remove(uri)
+            LogUtil.processDebug("Удален stale URI из обработки: $uri")
+        }
+
+        if (toRemove.isNotEmpty()) {
+            LogUtil.processDebug("Очистка ${toRemove.size} stale URIs")
+        }
     }
 
     /**

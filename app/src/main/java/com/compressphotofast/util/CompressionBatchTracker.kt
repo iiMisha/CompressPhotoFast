@@ -229,6 +229,13 @@ object CompressionBatchTracker {
      * Показывает групповой Toast для нескольких файлов
      */
     private fun showBatchToast(context: Context, successfulResults: List<CompressionResult>, skippedCount: Int) {
+        // Проверяем настройку перед показом Toast
+        val settingsManager = SettingsManager.getInstance(context)
+        if (!settingsManager.shouldShowCompressionToast()) {
+            LogUtil.debug("CompressionBatchTracker", "Toast о батче сжатия отключен в настройках")
+            return
+        }
+
         val message = if (successfulResults.isNotEmpty()) {
             // Считаем общую статистику для Toast
             val totalOriginalSize = successfulResults.sumOf { it.originalSize }
@@ -236,13 +243,13 @@ object CompressionBatchTracker {
             val totalReduction = if (totalOriginalSize > 0) {
                 ((totalOriginalSize - totalCompressedSize).toFloat() / totalOriginalSize) * 100
             } else 0f
-            
+
             val originalSizeStr = FileOperationsUtil.formatFileSize(totalOriginalSize)
             val compressedSizeStr = FileOperationsUtil.formatFileSize(totalCompressedSize)
             val reductionStr = String.format("%.1f", totalReduction)
-            
+
             val baseMessage = "Сжато ${successfulResults.size} фото: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
-            
+
             if (skippedCount > 0) {
                 "$baseMessage\nПропущено: $skippedCount фото"
             } else {
@@ -252,7 +259,7 @@ object CompressionBatchTracker {
             // Только пропущенные файлы
             "Пропущено: $skippedCount фото (уже сжаты или малый размер)"
         }
-        
+
         NotificationUtil.showToast(context, message, android.widget.Toast.LENGTH_LONG)
     }
     
