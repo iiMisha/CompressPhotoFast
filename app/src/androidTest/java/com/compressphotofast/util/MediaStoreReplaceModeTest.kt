@@ -37,6 +37,8 @@ class MediaStoreReplaceModeTest : BaseInstrumentedTest() {
     override fun setUp() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
+        // КРИТИЧЕСКО: Устанавливаем режим замены для всех тестов
+        SettingsManager.getInstance(context).setSaveMode(true)
     }
 
     @After

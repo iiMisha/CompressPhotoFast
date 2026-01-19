@@ -200,11 +200,46 @@ object MediaStoreUtil {
         try {
             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
 
+            // КРИТИЧЕСКО: Вычисляем targetRelativePath СРАЗУ, чтобы использовать в запросах
+            // Это устраняет дублирование кода и обеспечивает правильный поиск файла
+            val targetRelativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var path = if (isReplaceMode && originalUri != null) {
+                    val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
+                    LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
+                    originalDirectory
+                } else if (directory.isEmpty()) {
+                    Environment.DIRECTORY_PICTURES
+                } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
+                    directory
+                } else if (directory.contains("/")) {
+                    "${Environment.DIRECTORY_PICTURES}/$directory"
+                } else {
+                    "${Environment.DIRECTORY_PICTURES}/$directory"
+                }
+
+                // КРИТИЧЕСКО: Нормализуем путь - добавляем слеш в конце, если его нет
+                // MediaStore хранит RELATIVE_PATH с завершающим слешем (например "Pictures/")
+                if (!path.endsWith("/")) {
+                    path = "$path/"
+                }
+
+                path
+            } else {
+                "" // Не используется для Android < 10
+            }
+
             // Проверяем наличие файла с таким же именем (только для Android 10+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-                    val selectionArgs = arrayOf(fileName)
+                    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ищем файл С УЧЕТОМ директории (DISPLAY_NAME + RELATIVE_PATH)
+                    // Используем OR условие для проверки обоих вариантов пути (со слешем и без)
+                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
+                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+
+                    LogUtil.debug("MediaStore", "Поиск файла: fileName='$fileName', pathWithSlash='$pathWithSlash', pathWithoutSlash='$pathWithoutSlash'")
+
+                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+                    val selectionArgs = arrayOf(fileName, pathWithSlash, pathWithoutSlash)
 
                     var existingUri: Uri? = null
                     context.contentResolver.query(
@@ -219,7 +254,7 @@ object MediaStoreUtil {
                             if (idColumn != -1 && !cursor.isNull(idColumn)) {
                                 val id = cursor.getLong(idColumn)
                                 existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                                LogUtil.debug("MediaStore", "Найден существующий файл: $existingUri")
+                                LogUtil.debug("MediaStore", "Найден существующий файл в директории $targetRelativePath: $existingUri")
                             }
                         }
                     }
@@ -248,22 +283,9 @@ object MediaStoreUtil {
                 put(MediaStore.Images.Media.MIME_TYPE, mimeType)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val relativePath = if (isReplaceMode && originalUri != null) {
-                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                        LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
-                        originalDirectory
-                    } else if (directory.isEmpty()) {
-                        Environment.DIRECTORY_PICTURES
-                    } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
-                        directory
-                    } else if (directory.contains("/")) {
-                        "${Environment.DIRECTORY_PICTURES}/$directory"
-                    } else {
-                        "${Environment.DIRECTORY_PICTURES}/$directory"
-                    }
-
-                    LogUtil.processInfo("Использую относительный путь для сохранения: $relativePath")
-                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
+                    // ИСПРАВЛЕНИЕ: Используем targetRelativePath, вычисленный выше
+                    LogUtil.processInfo("Использую относительный путь для сохранения: $targetRelativePath")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 } else {
                     // Для API < 29
@@ -290,8 +312,12 @@ object MediaStoreUtil {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isReplaceMode) {
                 try {
                     var existingUri: Uri? = null
-                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-                    val selectionArgs = arrayOf(fileName)
+                    // ИСПРАВЛЕНИЕ: Используем OR условие для проверки обоих вариантов пути
+                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
+                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+
+                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+                    val selectionArgs = arrayOf(fileName, pathWithSlash, pathWithoutSlash)
 
                     context.contentResolver.query(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -319,8 +345,9 @@ object MediaStoreUtil {
                         while (isFileExists && index < 100) {
                             val newFileName = "${fileNameWithoutExt}_${index}${extension}"
 
-                            val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-                            val existsArgs = arrayOf(newFileName)
+                            // ИСПРАВЛЕНИЕ: Проверяем существование файла с новым именем в той же директории
+                            val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+                            val existsArgs = arrayOf(newFileName, pathWithSlash, pathWithoutSlash)
                             val existsCursor = context.contentResolver.query(
                                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                                 arrayOf(MediaStore.Images.Media._ID),
