@@ -44,12 +44,25 @@
 
 *   **Unit тесты**: Расположены в `app/src/test/java/com/compressphotofast/`. Используют JUnit, Robolectric и MockK.
 *   **Instrumentation тесты**: Расположены в `app/src/androidTest/java/com/compressphotofast/`. Используют Espresso и UIAutomator.
+*   **Базовые классы для тестов**:
+    *   [`BaseUnitTest.kt`](app/src/test/java/com/compressphotofast/BaseUnitTest.kt) - базовый класс для всех unit тестов с поддержкой корутин
+    *   [`BaseInstrumentedTest.kt`](app/src/androidTest/java/com/compressphotofast/BaseInstrumentedTest.kt) - базовый класс для всех instrumentation тестов с Hilt и Espresso
+    *   [`CoroutinesTestRule.kt`](app/src/test/java/com/compressphotofast/CoroutinesTestRule.kt) - JUnit Rule для тестирования корутин
+*   **Инфраструктура тестирования**:
+    *   [`TestImageGenerator.kt`](app/src/test/java/com/compressphotofast/util/TestImageGenerator.kt) - генератор тестовых изображений
+    *   [`TestUtilities.kt`](app/src/test/java/com/compressphotofast/util/TestUtilities.kt) - вспомогательные функции для тестов
+    *   [`WorkManagerTestModule.kt`](app/src/test/java/com/compressphotofast/di/WorkManagerTestModule.kt) - модуль для тестирования WorkManager
+    *   [`robolectric.properties`](app/src/test/resources/robolectric.properties) - конфигурация Robolectric
 *   **Скрипты тестирования**:
-    *   `scripts/check_device.sh`: Проверка подключения устройства
-    *   `scripts/run_unit_tests.sh`: Запуск только unit тестов
-    *   `scripts/run_all_tests.sh`: Полный цикл тестирования (Unit + Instrumentation + Coverage)
-    *   `scripts/run_instrumentation_tests.sh`: Запуск только instrumentation тестов
-    *   `scripts/generate_test_images.sh`: Генерация тестовых изображений для тестов
+    *   [`scripts/check_device.sh`](scripts/check_device.sh) - Проверка подключения устройства
+    *   [`scripts/run_unit_tests.sh`](scripts/run_unit_tests.sh) - Запуск только unit тестов
+    *   [`scripts/run_all_tests.sh`](scripts/run_all_tests.sh) - Полный цикл тестирования (Unit + Instrumentation + Coverage)
+    *   [`scripts/run_instrumentation_tests.sh`](scripts/run_instrumentation_tests.sh) - Запуск только instrumentation тестов
+    *   [`scripts/generate_test_images.sh`](scripts/generate_test_images.sh) - Генерация тестовых изображений для тестов
+    *   [`scripts/quick_test.sh`](scripts/quick_test.sh) - Быстрый запуск тестов с опциями (unit|instrumentation|all)
+    *   [`scripts/run_e2e_tests.sh`](scripts/run_e2e_tests.sh) - E2E тестирование с категориями (manualcompression, batchcompression, autocompression, shareintent, settings)
+    *   [`scripts/run_performance_tests.sh`](scripts/run_performance_tests.sh) - Тестирование производительности (compression, memory, throughput)
+    *   [`scripts/start_emulator.sh`](scripts/start_emulator.sh) - Автоматический запуск эмулятора Android
 *   **JaCoCo**: Инструмент для измерения покрытия кода тестами. HTML отчет: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
 *   **Статистика тестирования (январь 2026)**:
     *   Всего unit тестов: 251
@@ -57,6 +70,11 @@
     *   Instrumentation тестов: 96
     *   Всего тестов: 347 (251 unit + 96 instrumentation)
     *   Общее покрытие: ~8-10%
+*   **Категории тестов**:
+    *   **Unit тесты**: Тесты утилит, UI компонентов, Worker'ов, сервисов, DI модулей
+    *   **Instrumentation тесты**: UI тесты (Espresso), интеграционные тесты утилит, тесты сервисов на устройстве
+    *   **E2E тесты**: Полные сценарии использования (manualcompression, batchcompression, autocompression, shareintent, settings)
+    *   **Performance тесты**: Тесты производительности (compression, memory, throughput)
 
 ## Диаграмма компонентов
 
