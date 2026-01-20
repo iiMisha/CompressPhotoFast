@@ -443,6 +443,55 @@ object UriProcessingTracker {
     }
 
     /**
+     * Повторно проверяет недоступные URI и удаляет их из списка, если они снова доступны
+     * Проверяет URI, которые были помечены как недоступные более 30 секунд назад
+     * @return Количество URI, которые снова стали доступны
+     */
+    suspend fun retryUnavailableUris(context: Context): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val urisToCheck = mutableListOf<String>()
+        val recoveredUris = mutableListOf<String>()
+
+        // Находим URI, которые были помечены как недоступные более 30 секунд назад
+        for ((uri, timestamp) in unavailableUris) {
+            if (now - timestamp > 30000L) { // 30 секунд
+                urisToCheck.add(uri)
+            }
+        }
+
+        if (urisToCheck.isNotEmpty()) {
+            LogUtil.processDebug("Проверяем ${urisToCheck.size} ранее недоступных URI на доступность")
+        }
+
+        for (uriString in urisToCheck) {
+            try {
+                val uri = android.net.Uri.parse(uriString)
+                val exists = UriUtil.isUriExistsSuspend(context, uri)
+
+                if (exists) {
+                    // Дополнительная проверка is_pending
+                    val isPending = UriUtil.isFilePending(context, uri)
+                    if (!isPending) {
+                        unavailableUris.remove(uriString)
+                        recoveredUris.add(uriString)
+                        LogUtil.processDebug("URI $uriString снова доступен и не имеет is_pending")
+                    } else {
+                        LogUtil.processDebug("URI $uriString доступен, но все еще имеет is_pending=1")
+                    }
+                }
+            } catch (e: Exception) {
+                LogUtil.debug("retryUnavailableUris", "Ошибка при проверке URI $uriString: ${e.message}")
+            }
+        }
+
+        if (recoveredUris.isNotEmpty()) {
+            LogUtil.processDebug("Восстановлено ${recoveredUris.size} URI из списка недоступных")
+        }
+
+        return@withContext recoveredUris.size
+    }
+
+    /**
      * Атомарно удаляет URI из обработки, выполняет действие и добавляет в недавно обработанные
      * Безопасная обертка для предотвращения гонок состояний
      */

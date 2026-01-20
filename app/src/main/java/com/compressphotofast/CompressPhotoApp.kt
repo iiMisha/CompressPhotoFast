@@ -46,10 +46,17 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         FileInfoUtil.cleanupCache()
 
         // Инициализация WorkManager с конфигурацией
-        WorkManager.initialize(
-            applicationContext,
-            workManagerConfiguration
-        )
+        // Проверяем, что WorkManager еще не инициализирован (например, в тестах)
+        try {
+            WorkManager.initialize(
+                applicationContext,
+                workManagerConfiguration
+            )
+        } catch (e: IllegalStateException) {
+            // WorkManager уже инициализирован (например, в тестах с WorkManagerTestInitHelper)
+            // Игнорируем ошибку и продолжаем
+            Log.w("CompressPhotoApp", "WorkManager already initialized, skipping initialization")
+        }
     }
 
     /**

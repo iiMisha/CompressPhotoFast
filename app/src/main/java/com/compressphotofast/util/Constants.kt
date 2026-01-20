@@ -60,7 +60,7 @@ object Constants {
     
     // Интервалы
     const val BACKGROUND_SCAN_INTERVAL_MINUTES = 30L
-    const val RECENT_SCAN_WINDOW_SECONDS = 5 * 60L // 5 минут в секундах
+    const val RECENT_SCAN_WINDOW_SECONDS = 15 * 60L // 15 минут в секундах (увеличено с 5 для обработки копируемых файлов)
     const val CONTENT_OBSERVER_DELAY_SECONDS = 10L // 10 секунд задержки при обнаружении файла
     
     // Коды запросов

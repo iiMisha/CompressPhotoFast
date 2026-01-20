@@ -67,11 +67,11 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-device-check     Пропустить проверку устройства"
             echo "  --category CAT          Запустить только определенную категорию тестов"
             echo "                          Доступные категории:"
-            echo "                            - manualcompression: Ручное сжатие"
-            echo "                            - batchcompression: Пакетное сжатие"
-            echo "                            - autocompression: Автоматическое сжатие"
-            echo "                            - shareintent: Обработка через 'Поделиться'"
-            echo "                            - settings: Изменение настроек"
+            echo "                            - manualcompression: Ручное сжатие (15 тестов)"
+            echo "                            - batchcompression: Пакетное сжатие (15 тестов)"
+            echo "                            - autocompression: Автоматическое сжатие (15 тестов)"
+            echo "                            - shareintent: Обработка через 'Поделиться' (10 тестов)"
+            echo "                            - settings: Изменение настроек (15 тестов)"
             echo "  --clean                 Очистить кэш перед сборкой"
             echo "  --help                  Показать эту справку"
             echo ""
@@ -123,28 +123,28 @@ if [ -n "$CATEGORY" ]; then
 
     case "$CATEGORY" in
         manualcompression)
-            TEST_CLASS="com.compressphotofast.e2e.manualcompression.*"
+            TEST_CLASS="com.compressphotofast.e2e.ManualCompressionE2ETest"
             ;;
         batchcompression)
-            TEST_CLASS="com.compressphotofast.e2e.batchcompression.*"
+            TEST_CLASS="com.compressphotofast.e2e.BatchCompressionE2ETest"
             ;;
         autocompression)
-            TEST_CLASS="com.compressphotofast.e2e.autocompression.*"
+            TEST_CLASS="com.compressphotofast.e2e.AutoCompressionE2ETest"
             ;;
         shareintent)
-            TEST_CLASS="com.compressphotofast.e2e.shareintent.*"
+            TEST_CLASS="com.compressphotofast.e2e.ShareIntentE2ETest"
             ;;
         settings)
-            TEST_CLASS="com.compressphotofast.e2e.settings.*"
+            TEST_CLASS="com.compressphotofast.e2e.SettingsE2ETest"
             ;;
         *)
             log_error "Неизвестная категория: $CATEGORY"
             echo "Доступные категории:"
-            echo "  - manualcompression"
-            echo "  - batchcompression"
-            echo "  - autocompression"
-            echo "  - shareintent"
-            echo "  - settings"
+            echo "  - manualcompression: Ручное сжатие (15 тестов)"
+            echo "  - batchcompression: Пакетное сжатие (15 тестов)"
+            echo "  - autocompression: Автоматическое сжатие (15 тестов)"
+            echo "  - shareintent: Обработка через 'Поделиться' (10 тестов)"
+            echo "  - settings: Изменение настроек (15 тестов)"
             exit 1
             ;;
     esac

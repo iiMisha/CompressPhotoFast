@@ -85,13 +85,23 @@ class MediaStoreObserver @Inject constructor(
                     // Создаем новую задачу с задержкой
                     val delayTask = Runnable {
                         LogUtil.processDebug("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
+
                         // Проверяем, является ли URI недоступным перед обработкой
                         if (uriProcessingTracker.isUriUnavailable(it)) {
                             LogUtil.processDebug("MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: $uriString")
                             pendingTasks.remove(uriString)
                             return@Runnable
                         }
-                        
+
+                        // Проверяем is_pending перед проверкой существования
+                        val isPending = UriUtil.isFilePending(context, it)
+                        if (isPending) {
+                            LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, откладываем обработку: $uriString")
+                            // Не помечаем как недоступный, просто пропускаем - файл скоро будет доступен
+                            pendingTasks.remove(uriString)
+                            return@Runnable
+                        }
+
                         // Проверяем существование URI перед передачей в обработчик
                         val exists = kotlinx.coroutines.runBlocking {
                             UriUtil.isUriExistsSuspend(context, it)
@@ -99,8 +109,14 @@ class MediaStoreObserver @Inject constructor(
                         if (exists) {
                             imageChangeListener?.invoke(it)
                         } else {
-                            LogUtil.processDebug("MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: $uriString")
-                            uriProcessingTracker.markUriUnavailable(it)
+                            // Дополнительная проверка is_pending перед пометкой как недоступный
+                            val isPendingRecheck = UriUtil.isFilePending(context, it)
+                            if (isPendingRecheck) {
+                                LogUtil.processDebug("MediaStoreObserver: файл не существует НО имеет is_pending=1, НЕ помечаем как недоступный: $uriString")
+                            } else {
+                                LogUtil.processDebug("MediaStoreObserver: URI не существует и НЕ имеет is_pending, помечаем как недоступный: $uriString")
+                                uriProcessingTracker.markUriUnavailable(it)
+                            }
                         }
                         pendingTasks.remove(uriString)
                     }

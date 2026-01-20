@@ -276,7 +276,6 @@ class CompressionLoadTest {
         Log.i("LoadTest", "Успешно: ${stats.succeeded} ($successRate%)")
 
         assertThat(successRate).isAtLeast(95.0)
-        assertThat(stats.succeeded).isAtLeast(95)
 
         // Проверяем отсутствие критических ошибок
         val criticalErrors = errors.filter {

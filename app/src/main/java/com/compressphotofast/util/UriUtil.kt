@@ -278,6 +278,14 @@ object UriUtil {
      */
     suspend fun isUriExistsSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Проверка is_pending в начале - если файл в pending, считаем что существует
+            // (он скоро будет доступен для чтения)
+            val isPending = isFilePending(context, uri)
+            if (isPending) {
+                LogUtil.debug("isUriExistsSuspend", "Файл имеет is_pending=1, считаем что существует: $uri")
+                return@withContext true
+            }
+
             // Первая быстрая проверка через getType
             val mimeType = context.contentResolver.getType(uri)
             if (mimeType != null) {
@@ -444,23 +452,49 @@ object UriUtil {
     
     /**
      * Проверяет, находится ли файл в состоянии IS_PENDING
+     * Если флаг установлен, но файл был добавлен давно (более 2 минут назад),
+     * считаем что файл готов к обработке (игнорируем устаревший флаг)
      */
     fun isFilePending(context: Context, uri: Uri): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return false
         }
-        
+
         try {
-            val projection = arrayOf(MediaStore.Images.Media.IS_PENDING)
+            // Получаем и IS_PENDING, и дату добавления файла
+            val projection = arrayOf(
+                MediaStore.Images.Media.IS_PENDING,
+                MediaStore.Images.Media.DATE_ADDED
+            )
             context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val pendingIndex = cursor.getColumnIndex(MediaStore.Images.Media.IS_PENDING)
-                    if (pendingIndex != -1) {
-                        return cursor.getInt(pendingIndex) == 1
+                    val dateAddedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+
+                    if (pendingIndex != -1 && dateAddedIndex != -1) {
+                        val isPending = cursor.getInt(pendingIndex) == 1
+                        val dateAdded = cursor.getLong(dateAddedIndex) // в секундах
+
+                        // Если флаг IS_PENDING установлен, проверяем возраст файла
+                        if (isPending) {
+                            val currentTime = System.currentTimeMillis() / 1000 // текущее время в секундах
+                            val ageSeconds = currentTime - dateAdded
+
+                            // Если файл старше 2 минут (120 секунд), игнорируем флаг IS_PENDING
+                            // Это исправляет проблему с файлами, у которых остался устаревший флаг
+                            if (ageSeconds > 120) {
+                                LogUtil.processDebug("Файл имеет is_pending=1, но возраст $ageSeconds сек > 120 сек, игнорируем флаг: $uri")
+                                return false
+                            }
+
+                            // Файл был добавлен недавно и имеет is_pending=1, считаем что pending
+                            LogUtil.processDebug("Файл имеет is_pending=1 и возраст $ageSeconds сек, считаем временным: $uri")
+                            return true
+                        }
                     }
                 }
             }
-            
+
             return false
         } catch (e: Exception) {
             LogUtil.error(uri, "IS_PENDING проверка", "Ошибка при проверке IS_PENDING", e)

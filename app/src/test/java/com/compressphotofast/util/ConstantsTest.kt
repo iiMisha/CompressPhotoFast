@@ -143,7 +143,7 @@ class ConstantsTest : BaseUnitTest() {
     @Test
     fun `проверка окна недавнего сканирования`() {
         // Arrange & Act & Assert
-        assertEquals(5 * 60L, Constants.RECENT_SCAN_WINDOW_SECONDS)
+        assertEquals(15 * 60L, Constants.RECENT_SCAN_WINDOW_SECONDS)
     }
 
     @Test

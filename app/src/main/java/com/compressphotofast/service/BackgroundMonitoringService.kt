@@ -280,6 +280,16 @@ class BackgroundMonitoringService : Service() {
     private fun scanForNewImages() {
         executorService.execute {
             kotlinx.coroutines.runBlocking {
+                // Периодически проверяем недоступные URI и восстанавливаем их
+                try {
+                    val recoveredCount = uriProcessingTracker.retryUnavailableUris(applicationContext)
+                    if (recoveredCount > 0) {
+                        LogUtil.processDebug("BackgroundMonitoringService: восстановлено $recoveredCount URI из списка недоступных")
+                    }
+                } catch (e: Exception) {
+                    LogUtil.error(null, "Ошибка при восстановлении недоступных URI", e)
+                }
+
                 // Используем централизованную логику сканирования
                 val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
                 
