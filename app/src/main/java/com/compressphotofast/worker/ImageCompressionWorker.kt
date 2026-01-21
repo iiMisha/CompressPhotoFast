@@ -81,6 +81,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val batchId = inputData.getString(Constants.WORK_BATCH_ID)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        var testResult: ImageCompressionUtil.CompressionTestResult? = null
         try {
             // Получаем параметры задачи
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
@@ -189,20 +190,22 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.uriInfo(imageUri, "Изображение требует обработки")
             LogUtil.uriInfo(imageUri, "Начало тестового сжатия в RAM")
             
-            val testCompressionResult = ImageCompressionUtil.testCompression(
+            testResult = ImageCompressionUtil.testCompression(
                 appContext,
                 imageUri, 
                 sourceSize,
-                compressionQuality
+                compressionQuality,
+                keepStream = true // Сохраняем поток для повторного использования
             )
             
-            if (testCompressionResult == null) {
+            if (testResult == null) {
                 LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
                 setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                 return@withContext Result.failure()
             }
             
+            val testCompressionResult = testResult.stats
             val sourceSizeKB = testCompressionResult.originalSize / 1024
             val compressedSizeKB = testCompressionResult.compressedSize / 1024
             val compressionSavingPercent = testCompressionResult.sizeReduction
@@ -210,7 +213,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.imageCompression(imageUri, "${sourceSizeKB}KB → ${compressedSizeKB}KB (-${compressionSavingPercent}%)")
 
             // Определяем, нужно ли пропускать сжатие
-            val shouldSkipCompression = !testCompressionResult.isEfficient() ||
+            val shouldSkipCompression = !testResult.isEfficient() ||
                     processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO
 
             // Если сжатие эффективно и это не фото из мессенджера, продолжаем
@@ -265,55 +268,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                     return@withContext Result.failure()
                 }
 
-                // Безопасное получение потока с изображением
-                val imageStream = try {
-                    appContext.contentResolver.openInputStream(imageUri)
-                } catch (e: java.io.FileNotFoundException) {
-                    LogUtil.error(imageUri, "Открытие потока", "Файл не найден при открытии потока: ${e.message}")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
-                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    return@withContext Result.failure()
-                } catch (e: java.io.IOException) {
-                    LogUtil.error(imageUri, "Открытие потока", "Ошибка ввода/вывода при открытии потока: ${e.message}")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
-                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    return@withContext Result.failure()
-                } catch (e: java.lang.SecurityException) {
-                    LogUtil.error(imageUri, "Открытие потока", "Нет прав доступа к файлу: ${e.message}")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
-                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    return@withContext Result.failure()
-                } catch (e: Exception) {
-                    LogUtil.error(imageUri, "Открытие потока", "Неожиданная ошибка при открытии потока: ${e.message}")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
-                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    return@withContext Result.failure()
-                }
-
-                if (imageStream == null) {
-                    LogUtil.error(imageUri, "Открытие потока", "Не удалось открыть поток изображения (поток null)")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
-                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    return@withContext Result.failure()
-                }
-                
-                // Сжимаем изображение
-                val compressedImageStream = ImageCompressionUtil.compressImageToStream(
-                    appContext,
-                    imageUri,
-                    compressionQuality
-                )
-                    
-                // Закрываем исходный поток
-                imageStream.close()
+                // Используем уже сжатый поток из параметров теста
+                val compressedImageStream = testResult.compressedStream
                 
                 if (compressedImageStream == null) {
-                    LogUtil.error(imageUri, "Сжатие", "Ошибка при сжатии изображения")
+                    LogUtil.error(imageUri, "Сжатие", "Сжатый поток утерян (null)")
                     setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
@@ -399,7 +358,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     LogUtil.processInfo("[ПРОЦЕСС] Изображение из мессенджера, сжатие пропущено, но EXIF будет обновлен")
                     appContext.getString(R.string.notification_skipping_messenger_photo)
                 } else {
-                    LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия $compressionSavingPercent%), пропускаем")
+                    LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия ${testResult.stats.sizeReduction}%), пропускаем")
                     qualityForMarker = 99 // Устанавливаем маркер для неэффективного сжатия
                     null
                 }
@@ -413,17 +372,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Получаем имя файла для уведомления
                 val fileName = getFileNameSafely(imageUri)
                 
-                // Получаем более точную статистику о результатах тестового сжатия
-                val stats = ImageCompressionUtil.testCompression(
-                    appContext,
-                    imageUri,
-                    sourceSize,
-                    compressionQuality
-                )
+                // Используем статистику из уже выполненного теста
+                val stats = testResult.stats
                 
                 // Определяем размер сжатого файла и процент сокращения
-                val estimatedCompressedSize = if (stats != null) stats.compressedSize else (sourceSize - (sourceSize * 0.08f).toLong())
-                val estimatedSizeReduction = if (stats != null) stats.sizeReduction else 8.0f
+                val estimatedCompressedSize = stats.compressedSize
+                val estimatedSizeReduction = stats.sizeReduction
                 
                 // Проверяем использование памяти и форсируем GC при необходимости
                 val usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
@@ -462,6 +416,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             return@withContext Result.failure()
+        } finally {
+            testResult?.compressedStream?.close()
         }
     }
 

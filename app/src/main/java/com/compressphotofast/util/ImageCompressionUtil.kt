@@ -94,20 +94,22 @@ object ImageCompressionUtil {
     }
     
     /**
-     * Тестирует эффективность сжатия изображения
-     * 
+     * Тестирует эффективность сжатия изображения и возвращает результат вместе с потоком данных
+     *
      * @param context Контекст приложения
      * @param uri URI изображения
      * @param originalSize Размер оригинального файла в байтах
      * @param quality Качество сжатия (0-100)
-     * @return CompressionStats с результатами сжатия или null при ошибке
+     * @param keepStream Сохранять ли поток данных открытым в результате
+     * @return CompressionTestResult с результатами сжатия или null при ошибке
      */
     suspend fun testCompression(
         context: Context,
         uri: Uri,
         originalSize: Long,
-        quality: Int
-    ): CompressionStats? = withContext(Dispatchers.IO) {
+        quality: Int,
+        keepStream: Boolean = false
+    ): CompressionTestResult? = withContext(Dispatchers.IO) {
         try {
             // Сжимаем изображение в поток
             val outputStream = compressImageToStream(context, uri, quality) ?: return@withContext null
@@ -117,15 +119,19 @@ object ImageCompressionUtil {
             
             // Вычисляем процент сокращения размера
             val sizeReduction = if (originalSize > 0) {
-                ((originalSize - compressedSize).toFloat() / originalSize) * 100
+                ((originalSize - compressedSize).toLong().toFloat() / originalSize) * 100
             } else 0f
             
             LogUtil.compression(uri, originalSize, compressedSize, sizeReduction.toInt())
             
-            // Закрываем поток
-            outputStream.close()
+            val stats = CompressionStats(originalSize, compressedSize, sizeReduction)
             
-            return@withContext CompressionStats(originalSize, compressedSize, sizeReduction)
+            return@withContext if (keepStream) {
+                CompressionTestResult(stats, outputStream)
+            } else {
+                outputStream.close()
+                CompressionTestResult(stats, null)
+            }
         } catch (e: Exception) {
             LogUtil.error(uri, "Тестирование сжатия", e)
             return@withContext null
@@ -201,10 +207,10 @@ object ImageCompressionUtil {
             var bestRatio = 1.0f
             
             for (quality in qualities) {
-                val stats = testCompression(context, uri, originalSize, quality)
+                val testResult = testCompression(context, uri, originalSize, quality)
                 
-                if (stats != null) {
-                    val ratio = stats.compressedSize.toFloat() / originalSize.toFloat()
+                if (testResult != null) {
+                    val ratio = testResult.stats.compressedSize.toFloat() / originalSize.toFloat()
                     
                     // Если новое соотношение лучше предыдущего, обновляем результат
                     if (ratio < bestRatio && ratio >= Constants.MIN_COMPRESSION_RATIO) {
@@ -448,7 +454,22 @@ object ImageCompressionUtil {
     }
     
     /**
-     * Модель для хранения результатов сжатия
+     * Модель для хранения результатов тестового сжатия
+     */
+    data class CompressionTestResult(
+        val stats: CompressionStats,
+        val compressedStream: ByteArrayOutputStream?
+    ) {
+        /**
+         * Проверяет, было ли сжатие эффективным
+         */
+        fun isEfficient(): Boolean {
+            return stats.isEfficient()
+        }
+    }
+
+    /**
+     * Модель для хранения статистики сжатия
      */
     data class CompressionStats(
         val originalSize: Long,
