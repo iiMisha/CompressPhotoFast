@@ -1,16 +1,24 @@
-17:57:37.085 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000011153, обработка через 10 сек
-17:57:47.088 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000011153 после задержки
-17:57:47.089 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/1000011153
-17:57:49.370 LogUtil    [ПРОЦЕСС] Запуск периодического сканирования галереи
-17:57:49.375 LogUtil    [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
-17:57:49.376 LogUtil    [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-17:57:49.377 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
-17:58:49.430 LogUtil    [ПРОЦЕСС] Запуск периодического сканирования галереи
-17:58:49.441 LogUtil    [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
-17:58:49.441 LogUtil    [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-17:58:49.443 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
-17:59:49.437 LogUtil    [ПРОЦЕСС] Запуск периодического сканирования галереи
-17:59:49.446 LogUtil    [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 5 минут
-17:59:49.446 LogUtil    [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-17:59:49.449 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: сканирование
- завершено. Обработано: 0, Пропущено: 0
+18:34:08.166 EGL_...ion app_time_stats: avg=173.55ms min=7.21ms max=1407.99ms count=9
+18:34:16.402 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000011171, обработка через 10 сек
+18:34:16.892 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: onStartJob вызван
+18:34:16.892 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: получено 1 URI для обработки
+18:34:16.893 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: добавлены 1 URI к батчу, общий размер: 1
+18:34:18.897 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начинаем обработку дебаунсного батча из 1 URI
+18:34:18.897 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Debounced batch processed with 1 items
+18:34:18.904 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и возраст 2 сек, считаем временным: content://media/external/images/media/1000011171
+18:34:18.906 LogUtil    [isUriExistsSuspend] Файл имеет is_pending=1, считаем что существует: content://media/external/images/media/1000011171
+18:34:18.914 LogUtil    [ПРОЦЕСС] Пакетное получение метаданных завершено: 1 URI, 1 запросов к MediaStore
+18:34:18.914 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: оптимизированная пакетная обработка 1 URI (из 1 изначально)
+18:34:18.920 LogUtil    [ПРОЦЕСС] Предзагружен кэш для 1 директорий (1 файлов)
+18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: после быстрой фильтрации осталось 0 из 1 URI
+18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: обработка завершена. Обработано: 0, Пропущено: 1
+18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
+18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
+18:34:18.922 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
+18:34:26.409 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000011171 после задержки
+18:34:26.414 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и возраст 10 сек, считаем временным: content://media/external/images/media/1000011171
+18:34:26.415 LogUtil    [ПРОЦЕСС] MediaStoreObserver: файл имеет is_pending=1, откладываем обработку: content://media/external/images/media/1000011171
+18:34:34.548 LogUtil    [ПРОЦЕСС] Запуск периодического сканирования галереи
+18:34:34.559 LogUtil    [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 15 минут
+18:34:34.560 LogUtil    [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
+18:34:34.561 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0

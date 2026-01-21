@@ -314,4 +314,53 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         // Проверяем, что файл добавлен (так как не проверяем processable)
         assertEquals("Файл должен быть добавлен при checkProcessable=false", 1, result.processedCount)
     }
+
+    /**
+     * Тест 9: Проверка обработки файлов, добавленных менее 3 секунд назад
+     *
+     * Сценарий:
+     * - Файл добавлен 2 секунды назад
+     * - Файл имеет корректный размер
+     *
+     * Ожидание: Файл обрабатывается (не пропускается из-за 3-секундного окна)
+     *
+     * Цель: Проверить, что после удаления избыточной 3-секундной проверки,
+     * файлы, добавленные недавно, корректно обрабатываются
+     */
+    @Test
+    fun scanRecentImages_processesFilesAddedWithin3Seconds() = runTest {
+        val currentTime = System.currentTimeMillis() / 1000
+        val recentAddedTime = currentTime - 2 // 2 секунды назад
+
+        // Создаем mock cursor с файлом, добавленным недавно
+        val cursor = LegacyFilesTestHelpers.createMediaStoreCursor(
+            id = 1L,
+            dateAddedSeconds = recentAddedTime,
+            dateModifiedSeconds = recentAddedTime,
+            isPending = 0, // Нет флага pending
+            displayName = "recent_photo.jpg",
+            size = 5 * 1024 * 1024 // 5 MB
+        )
+
+        val contentResolver = LegacyFilesTestHelpers.createMockContentResolverWithCursor(cursor)
+        every { mockContext.contentResolver } returns contentResolver
+
+        // Мокаем SettingsManager
+        mockkObject(SettingsManager)
+        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+
+        // Выполняем сканирование без проверки processable
+        val result = GalleryScanUtil.scanRecentImages(
+            context = mockContext,
+            timeWindowSeconds = 300,
+            checkProcessable = false
+        )
+
+        // Проверяем, что файл найден и не пропущен из-за недавнего добавления
+        assertTrue("Файлы, добавленные менее 3 секунд назад, должны обрабатываться",
+            result.foundUris.isNotEmpty())
+        assertEquals("Файл должен быть найден", 1, result.processedCount)
+        assertEquals("Файл не должен быть пропущен", 0, result.skippedCount)
+    }
 }
+

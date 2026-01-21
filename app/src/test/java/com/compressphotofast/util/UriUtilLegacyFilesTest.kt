@@ -60,16 +60,16 @@ class UriUtilLegacyFilesTest : BaseUnitTest() {
      *
      * Сценарий:
      * - IS_PENDING = 1
-     * - DATE_ADDED = сейчас - 180 секунд (> 120 секунд)
+     * - DATE_ADDED = сейчас - 90 секунд (> 60 секунд)
      *
      * Ожидание: return false (файл не считается pending)
      *
-     * Цель: Проверить, что 120-секундное окно работает корректно
+     * Цель: Проверить, что 60-секундное окно работает корректно
      */
     @Test
     fun isFilePending_ignoresStaleFlag() {
         val currentTime = System.currentTimeMillis() / 1000
-        val oldAddedTime = currentTime - 180 // 180 секунд назад
+        val oldAddedTime = currentTime - 90 // 90 секунд назад
 
         // Настраиваем cursor с устаревшим IS_PENDING флагом
         setupCursorWithPending(oldAddedTime, 1) // isPending = 1
@@ -86,7 +86,7 @@ class UriUtilLegacyFilesTest : BaseUnitTest() {
      *
      * Сценарий:
      * - IS_PENDING = 1
-     * - DATE_ADDED = сейчас - 30 секунд (< 120 секунд)
+     * - DATE_ADDED = сейчас - 30 секунд (< 60 секунд)
      *
      * Ожидание: return true (файл считается pending)
      *

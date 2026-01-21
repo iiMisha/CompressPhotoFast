@@ -480,10 +480,10 @@ object UriUtil {
                             val currentTime = System.currentTimeMillis() / 1000 // текущее время в секундах
                             val ageSeconds = currentTime - dateAdded
 
-                            // Если файл старше 2 минут (120 секунд), игнорируем флаг IS_PENDING
+                            // Если файл старше 1 минуты (60 секунд), игнорируем флаг IS_PENDING
                             // Это исправляет проблему с файлами, у которых остался устаревший флаг
-                            if (ageSeconds > 120) {
-                                LogUtil.processDebug("Файл имеет is_pending=1, но возраст $ageSeconds сек > 120 сек, игнорируем флаг: $uri")
+                            if (ageSeconds > 60) {
+                                LogUtil.processDebug("Файл имеет is_pending=1, но возраст $ageSeconds сек > 60 сек, игнорируем флаг: $uri")
                                 return false
                             }
 
