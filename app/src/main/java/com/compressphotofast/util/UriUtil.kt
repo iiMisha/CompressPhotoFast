@@ -461,24 +461,43 @@ object UriUtil {
         }
 
         try {
-            // Получаем и IS_PENDING, и дату добавления файла
+            // Получаем и IS_PENDING, и дату добавления файла, и размер
             val projection = arrayOf(
                 MediaStore.Images.Media.IS_PENDING,
-                MediaStore.Images.Media.DATE_ADDED
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.SIZE
             )
             context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val pendingIndex = cursor.getColumnIndex(MediaStore.Images.Media.IS_PENDING)
                     val dateAddedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                    val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
 
-                    if (pendingIndex != -1 && dateAddedIndex != -1) {
+                    if (pendingIndex != -1 && dateAddedIndex != -1 && sizeIndex != -1) {
                         val isPending = cursor.getInt(pendingIndex) == 1
                         val dateAdded = cursor.getLong(dateAddedIndex) // в секундах
+                        val sizeIsNull = cursor.isNull(sizeIndex)
+                        val size = if (sizeIsNull) 0L else cursor.getLong(sizeIndex)
 
                         // Если флаг IS_PENDING установлен, проверяем возраст файла
                         if (isPending) {
                             val currentTime = System.currentTimeMillis() / 1000 // текущее время в секундах
                             val ageSeconds = currentTime - dateAdded
+
+                            // Если _size=NULL и файл физически существует - игнорируем is_pending
+                            // (типичная ситуация для файлов, добавленных через adb/shell)
+                            if (sizeIsNull || size == 0L) {
+                                try {
+                                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                                        if (stream.available() > 0) {
+                                            LogUtil.processDebug("Файл имеет is_pending=1 и _size=${if (sizeIsNull) "NULL" else "0"}, но физически существует, игнорируем флаг: $uri")
+                                            return false
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    // Файл не читается, продолжаем стандартную проверку по возрасту
+                                }
+                            }
 
                             // Если файл старше 1 минуты (60 секунд), игнорируем флаг IS_PENDING
                             // Это исправляет проблему с файлами, у которых остался устаревший флаг

@@ -31,6 +31,11 @@ class MediaStoreObserver @Inject constructor(
     // Очередь отложенных задач для ContentObserver
     private val pendingTasks = ConcurrentHashMap<String, Runnable>()
     
+    // Счетчик попыток для каждого URI, чтобы избежать бесконечных циклов
+    private val retryCounts = ConcurrentHashMap<String, Int>()
+    private val maxRetries = 3 // Максимальное количество попыток для is_pending
+    private val retryDelayMs = 5000L // Задержка между попытками (5 секунд)
+    
     // ContentObserver для отслеживания изменений в MediaStore
     private val contentObserver: ContentObserver = object : ContentObserver(handler) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
@@ -96,11 +101,27 @@ class MediaStoreObserver @Inject constructor(
                         // Проверяем is_pending перед проверкой существования
                         val isPending = UriUtil.isFilePending(context, it)
                         if (isPending) {
-                            LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, откладываем обработку: $uriString")
-                            // Не помечаем как недоступный, просто пропускаем - файл скоро будет доступен
-                            pendingTasks.remove(uriString)
-                            return@Runnable
+                            val currentRetries = retryCounts.getOrDefault(uriString, 0)
+                            if (currentRetries < maxRetries) {
+                                val nextRetry = currentRetries + 1
+                                retryCounts[uriString] = nextRetry
+                                LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, планируем повтор #$nextRetry через ${retryDelayMs/1000} сек: $uriString")
+                                
+                                // Перепланируем ту же задачу с задержкой
+                                handler.postDelayed({
+                                    pendingTasks[uriString]?.run()
+                                }, retryDelayMs)
+                                return@Runnable
+                            } else {
+                                LogUtil.processDebug("MediaStoreObserver: файл все еще is_pending=1 после $maxRetries попыток, пропускаем: $uriString")
+                                retryCounts.remove(uriString)
+                                pendingTasks.remove(uriString)
+                                return@Runnable
+                            }
                         }
+
+                        // Если дошли сюда, значит файл больше не pending или мы решили его обработать
+                        retryCounts.remove(uriString)
 
                         // Проверяем существование URI перед передачей в обработчик
                         val exists = kotlinx.coroutines.runBlocking {

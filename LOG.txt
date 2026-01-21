@@ -1,24 +1,98 @@
-18:34:08.166 EGL_...ion app_time_stats: avg=173.55ms min=7.21ms max=1407.99ms count=9
-18:34:16.402 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000011171, обработка через 10 сек
-18:34:16.892 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: onStartJob вызван
-18:34:16.892 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: получено 1 URI для обработки
-18:34:16.893 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: добавлены 1 URI к батчу, общий размер: 1
-18:34:18.897 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начинаем обработку дебаунсного батча из 1 URI
-18:34:18.897 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Debounced batch processed with 1 items
-18:34:18.904 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и возраст 2 сек, считаем временным: content://media/external/images/media/1000011171
-18:34:18.906 LogUtil    [isUriExistsSuspend] Файл имеет is_pending=1, считаем что существует: content://media/external/images/media/1000011171
-18:34:18.914 LogUtil    [ПРОЦЕСС] Пакетное получение метаданных завершено: 1 URI, 1 запросов к MediaStore
-18:34:18.914 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: оптимизированная пакетная обработка 1 URI (из 1 изначально)
-18:34:18.920 LogUtil    [ПРОЦЕСС] Предзагружен кэш для 1 директорий (1 файлов)
-18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: после быстрой фильтрации осталось 0 из 1 URI
-18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: обработка завершена. Обработано: 0, Пропущено: 1
-18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
-18:34:18.921 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
-18:34:18.922 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
-18:34:26.409 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000011171 после задержки
-18:34:26.414 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и возраст 10 сек, считаем временным: content://media/external/images/media/1000011171
-18:34:26.415 LogUtil    [ПРОЦЕСС] MediaStoreObserver: файл имеет is_pending=1, откладываем обработку: content://media/external/images/media/1000011171
-18:34:34.548 LogUtil    [ПРОЦЕСС] Запуск периодического сканирования галереи
-18:34:34.559 LogUtil    [ПРОЦЕСС] GalleryScanUtil: найдено 0 изображений за последние 15 минут
-18:34:34.560 LogUtil    [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 0, Пропущено: 0
-18:34:34.561 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 0, Пропущено: 0
+19:20:19.070 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/1000011169, обработка через 10 сек
+19:20:19.562 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: onStartJob вызван
+19:20:19.562 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: получено 1 URI для обработки
+19:20:19.564 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: добавлены 1 URI к батчу, общий размер: 1
+19:20:21.567 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начинаем обработку дебаунсного батча из 1 URI
+19:20:21.567 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Debounced batch processed with 1 items
+19:20:21.578 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:21.613 LogUtil    [ПРОЦЕСС] Пакетное получение метаданных завершено: 1 URI, 1 запросов к MediaStore
+19:20:21.613 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: оптимизированная пакетная обработка 1 URI (из 1 изначально)
+19:20:21.620 LogUtil    [ПРОЦЕСС] Предзагружен кэш для 1 директорий (1 файлов)
+19:20:21.620 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: после быстрой фильтрации осталось 0 из 1 URI
+19:20:21.620 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: обработка завершена. Обработано: 0, Пропущено: 1
+19:20:21.620 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
+19:20:21.620 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
+19:20:21.621 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
+19:20:29.078 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/1000011169 после задержки
+19:20:29.084 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.091 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.120 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/1000011169
+19:20:29.124 LogUtil    [URI:1169] URI scheme: content, authority: media, path: /external/images/media/1000011169
+19:20:29.130 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.158 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/1000011169 (всего: 1)
+19:20:29.167 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.207 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.221 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.257 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+19:20:29.294 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/1000011169
+19:20:29.308 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.341 LogUtil    [ПРОЦЕСС] Создан автобатч: auto_batch_1_1769012429341
+19:20:29.352 LogUtil    [СЖАТИЕ:1169] Запущена работа по сжатию для content://media/external/images/media/1000011169 с тегом compress_1769012429300_P1200172.JPG в батче auto_batch_1_1769012429341
+19:20:29.353 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+19:20:29.367 WM-S...ler Scheduling work ID 545d2922-bc7f-408d-bfc5-5420a5b9d2b5Job ID 0
+19:20:29.370 WM-G...ler Starting work for 545d2922-bc7f-408d-bfc5-5420a5b9d2b5
+19:20:29.373 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=545d2922-bc7f-408d-bfc5-5420a5b9d2b5, generation=0)
+19:20:29.382 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=545d2922-bc7f-408d-bfc5-5420a5b9d2b5, generation=0)
+19:20:29.385 WM-P...sor Work WorkGenerationalId(workSpecId=545d2922-bc7f-408d-bfc5-5420a5b9d2b5, generation=0) is already enqueued for processing
+19:20:29.396 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+19:20:29.399 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+19:20:29.409 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.545 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.576 WM-P...sor Moving WorkSpec (545d2922-bc7f-408d-bfc5-5420a5b9d2b5) to the foreground
+19:20:29.585 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+19:20:29.585 WM-S...her Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+19:20:29.585 WM-S...her Notifying with (id:1, workSpecId: 545d2922-bc7f-408d-bfc5-5420a5b9d2b5, notificationType :1)
+19:20:29.586 LogUtil    [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/1000011169 в память (кэш не найден)
+19:20:29.589 WM-S...her Notifying with (id:1, workSpecId: 545d2922-bc7f-408d-bfc5-5420a5b9d2b5, notificationType :1)
+19:20:29.595 LogUtil    [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/1000011169:
+19:20:29.595 LogUtil    [РАЗРЕШЕНИЯ]   - Android версия: 35 (15)
+19:20:29.595 LogUtil    [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+19:20:29.596 LogUtil    [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+19:20:29.596 LogUtil    [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+19:20:29.596 LogUtil    [ПРОЦЕСС] 🔍 GPS результат: null
+19:20:29.596 LogUtil    [ПРОЦЕСС] ⚠️ GPS данные не найдены в EXIF
+19:20:29.596 LogUtil    [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+19:20:29.596 LogUtil    [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2005:07:20 20:20:33
+19:20:29.596 LogUtil    [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+19:20:29.596 LogUtil    [ПРОЦЕСС] Прочитано 27 EXIF-тегов, сохраняем в кэш
+19:20:29.597 LogUtil    [URI:1169] [ПРОЦЕСС] Загружены EXIF данные в память: 27 тегов
+19:20:29.604 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.648 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.661 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.694 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/1000011169
+19:20:29.694 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+19:20:29.700 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.728 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/1000011169 (всего: 1)
+19:20:29.733 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.735 LogUtil    [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/1000011169
+19:20:29.745 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.775 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+19:20:29.775 LogUtil    [URI:1169] Изображение требует обработки
+19:20:29.776 LogUtil    [URI:1169] Начало тестового сжатия в RAM
+19:20:29.778 LogUtil    [URI:1169] Сжатие изображения в поток
+19:20:29.785 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.904 LogUtil    [СЖАТИЕ:1169] 269KB → 320KB (--18%)
+19:20:29.905 LogUtil    [СЖАТИЕ:1169] 269KB → 320KB (--18.638681%)
+19:20:29.905 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 1000011169 неэффективно (экономия -18.638681%), пропускаем
+19:20:29.905 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Сохраняем обновленные EXIF-данные (качество для маркера: 99)
+19:20:29.913 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:29.947 LogUtil    [ПРОЦЕСС] Сохранена исходная дата модификации: 0
+19:20:29.952 mpre...ast Background concurrent mark compact GC freed 3109KB AllocSpace bytes, 16(1056KB) LOS objects, 49% free, 5596KB/10MB, paused 181us,13.764ms total 50.796ms
+19:20:29.954 LogUtil    [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:99:1769012429954
+19:20:29.971 LogUtil    [ПРОЦЕСС] Применено 27 EXIF-тегов к content://media/external/images/media/1000011169
+19:20:29.973 WM-P...sor Moving WorkSpec (545d2922-bc7f-408d-bfc5-5420a5b9d2b5) to the foreground
+19:20:29.974 WM-S...her Notifying with (id:1, workSpecId: 545d2922-bc7f-408d-bfc5-5420a5b9d2b5, notificationType :1)
+19:20:29.979 LogUtil    [URI:1169] Сжатие изображения в поток
+19:20:29.986 LogUtil    [ПРОЦЕСС] Файл имеет is_pending=1 и _size=NULL, но физически существует, игнорируем флаг: content://media/external/images/media/1000011169
+19:20:30.092 LogUtil    [СЖАТИЕ:1169] 269KB → 320KB (--18%)
+19:20:30.092 LogUtil    [ПРОЦЕСС] Использование памяти после тестового сжатия: 6MB
+19:20:30.092 LogUtil    [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1769012429341: P1200172.JPG (1)
+19:20:30.093 LogUtil    [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/1000011169
+19:20:30.094 WM-W...per Worker result SUCCESS for Work [ id=545d2922-bc7f-408d-bfc5-5420a5b9d2b5, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769012429300_P1200172.JPG } ]
+19:20:30.097 WM-P...sor Processor 545d2922-bc7f-408d-bfc5-5420a5b9d2b5 executed; reschedule = false
+19:20:30.097 WM-S...ice 545d2922-bc7f-408d-bfc5-5420a5b9d2b5 executed on JobScheduler
+19:20:30.097 WM-S...her Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=545d2922-bc7f-408d-bfc5-5420a5b9d2b5, generation=0), notificationType: 1
+19:20:30.098 WM-S...her Stopping foreground service
+19:20:30.098 WM-S...ice Shutting down.
+19:20:30.099 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+19:20:30.101 WM-G...ler Cancelling work ID 545d2922-bc7f-408d-bfc5-5420a5b9d2b5

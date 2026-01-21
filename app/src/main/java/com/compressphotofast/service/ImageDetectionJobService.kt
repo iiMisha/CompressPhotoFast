@@ -214,11 +214,11 @@ class ImageDetectionJobService : JobService() {
             OptimizedCacheUtil.preloadDirectoryCache(filePaths, Constants.APP_DIRECTORY)
             
             // Фильтруем URI, оставляя только те, которые требуют обработки
+            // Включаем файлы с isPending для возможности их краткосрочного ожидания внутри процесса
             val validUris = batchMetadata.filter { entry ->
                 val metadata = entry.value
                 metadata != null &&
-                !metadata.isPending &&
-                metadata.size > 0 &&
+                (metadata.size > 0 || metadata.isPending) &&
                 OptimizedCacheUtil.isProcessableMimeType(metadata.mimeType)
             }.keys.toList()
             
@@ -300,12 +300,28 @@ class ImageDetectionJobService : JobService() {
                 return@withContext ProcessingResult(skipped = true)
             }
             
-            if (metadata.isPending) {
-                LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания, пропускаем: $uri")
+            // Обработка isPending с ожиданием
+            var currentMetadata = metadata
+            if (currentMetadata?.isPending == true) {
+                LogUtil.processDebug("ImageDetectionJobService: файл в процессе создания, пробуем подождать: $uri")
+                delay(5000)
+                // Получаем свежие метаданные
+                val refreshedMetadata = BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, listOf(uri))
+                currentMetadata = refreshedMetadata[uri]
+                
+                if (currentMetadata?.isPending == true) {
+                    LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания после ожидания, пропускаем: $uri")
+                    return@withContext ProcessingResult(skipped = true)
+                }
+                LogUtil.processDebug("ImageDetectionJobService: файл готов после ожидания: $uri")
+            }
+            
+            if (currentMetadata == null) {
+                LogUtil.processDebug("ImageDetectionJobService: метаданные недоступны для URI: $uri")
                 return@withContext ProcessingResult(skipped = true)
             }
             
-            if (metadata.size <= 0) {
+            if (currentMetadata.size <= 0) {
                 LogUtil.processDebug("ImageDetectionJobService: файл пуст или недоступен: $uri")
                 return@withContext ProcessingResult(skipped = true)
             }
@@ -329,7 +345,7 @@ class ImageDetectionJobService : JobService() {
             }
             
             // Проверяем необходимость обработки с оптимизированным кэшированием
-            if (shouldProcessImageOptimized(uri, metadata)) {
+            if (shouldProcessImageOptimized(uri, currentMetadata)) {
                 // Регистрируем URI как обрабатываемый
                 UriProcessingTracker.addProcessingUri(uri)
                 
