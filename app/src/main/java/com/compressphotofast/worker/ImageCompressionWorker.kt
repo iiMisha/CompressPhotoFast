@@ -87,7 +87,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Получаем параметры задачи
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString.isNullOrEmpty()) {
-                LogUtil.processInfo("URI не установлен для компрессии")
+                LogUtil.processInfo("URI не задан")
                 return@withContext Result.failure()
             }
 
@@ -95,7 +95,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Если URI помечен как недоступный, проверяем его повторно перед выходом
             if (uriProcessingTracker.isUriUnavailable(imageUri)) {
-                LogUtil.processDebug("ImageCompressionWorker: URI ранее был помечен как недоступный, проверяем повторно: $imageUri")
+                LogUtil.processDebug("Повторная проверка недоступного URI: $imageUri")
                 
                 val exists = try {
                     UriUtil.isUriExistsSuspend(appContext, imageUri)
@@ -106,10 +106,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val isPending = UriUtil.isFilePending(appContext, imageUri)
                 
                 if (exists && !isPending) {
-                    LogUtil.processDebug("ImageCompressionWorker: URI снова доступен и не pending, убираем метку недоступности: $imageUri")
+                    LogUtil.processDebug("URI снова доступен: $imageUri")
                     uriProcessingTracker.removeUnavailable(imageUri)
                 } else {
-                    LogUtil.processDebug("ImageCompressionWorker: URI все еще недоступен (exists=$exists, pending=$isPending), завершаем: $imageUri")
+                    LogUtil.processDebug("URI все еще недоступен: $imageUri")
                     return@withContext Result.failure()
                 }
             }
@@ -124,7 +124,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             } catch (e: PendingItemException) {
                 // Если файл pending, возвращаем failure но НЕ помечаем как unavailable
                 // это позволит GalleryScan или MediaStoreObserver попробовать позже еще раз
-                LogUtil.processDebug("ImageCompressionWorker: файл существует но pending (SecurityException), пропускаем пока: $imageUri")
+                LogUtil.processDebug("Файл pending, пропуск: $imageUri")
                 return@withContext Result.failure()
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
@@ -144,7 +144,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Обновляем уведомление
             setForeground(createForegroundInfo("🔧 ${appContext.getString(R.string.notification_compression_in_progress)}"))
 
-            LogUtil.processInfo("[ПРОЦЕСС] Используется качество сжатия: $compressionQuality")
+            LogUtil.processInfo("Качество: $compressionQuality")
 
             // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
             val exifDataMemory = try {
@@ -161,7 +161,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 LogUtil.error(imageUri, "Чтение EXIF", "Не удалось прочитать EXIF-данные, отмена задачи.", e)
                 return@withContext Result.failure()
             }
-            LogUtil.uriInfo(imageUri, "[ПРОЦЕСС] Загружены EXIF данные в память: ${exifDataMemory.size} тегов")
+            LogUtil.uriInfo(imageUri, "Загружено EXIF: ${exifDataMemory.size}")
             
             // Используем централизованную логику для проверки необходимости обработки
             val processingCheckResult = ImageProcessingChecker.isProcessingRequired(appContext, imageUri, forceProcess = true)
@@ -174,7 +174,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.success()
             } else if (processingCheckResult.hasCompressionMarker) {
                 // Если файл имеет маркер сжатия, но требует повторной обработки
-                LogUtil.uriInfo(imageUri, "Изображение было модифицировано после сжатия, требуется повторная обработка")
+                LogUtil.uriInfo(imageUri, "Изменено после сжатия, пересжатие")
             }
             
             // Проверка существования файла
@@ -212,9 +212,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Выполняем тестовое сжатие для оценки эффективности
-            LogUtil.processInfo("[ПРОЦЕСС] Выполняем тестовое сжатие в RAM")
-            LogUtil.uriInfo(imageUri, "Изображение требует обработки")
-            LogUtil.uriInfo(imageUri, "Начало тестового сжатия в RAM")
+            LogUtil.processInfo("Тестовое сжатие в RAM")
             
             testResult = ImageCompressionUtil.testCompression(
                 appContext,
@@ -244,8 +242,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Если сжатие эффективно и это не фото из мессенджера, продолжаем
             if (!shouldSkipCompression) {
-                LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} эффективно (экономия $compressionSavingPercent%), выполняем полное сжатие")
-                LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие")
+                LogUtil.processInfo("Сжатие эффективно, запуск")
                 
                 // Получаем имя файла
                 val fileName = UriUtil.getFileNameFromUri(appContext, imageUri)
@@ -261,7 +258,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Определяем правильное имя файла в зависимости от режима сохранения
                 val finalFileName = FileOperationsUtil.createCompressedFileName(appContext, fileName)
-                LogUtil.processInfo("[ПРОЦЕСС] Итоговое имя файла для сохранения: $finalFileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(appContext)})")
+                LogUtil.processInfo("Сохранение: $finalFileName (замена: ${FileOperationsUtil.isSaveModeReplace(appContext)})")
                 
                 // Проверяем, является ли URI из MediaDocumentProvider
                 val isMediaDocumentsUri = imageUri.authority == "com.android.providers.media.documents"
@@ -367,7 +364,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     false
                 )
                 
-                LogUtil.processInfo("[ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=$finalFileName")
+                LogUtil.processInfo("Завершено: $finalFileName")
                 setForeground(createForegroundInfo("✅ ${appContext.getString(R.string.notification_compression_completed)}"))
                 
                 // Обновляем статус и возвращаем успех
@@ -381,16 +378,16 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
                 var qualityForMarker: Int? = null
                 val skipReason = if (processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO) {
-                    LogUtil.processInfo("[ПРОЦЕСС] Изображение из мессенджера, сжатие пропущено, но EXIF будет обновлен")
+                    LogUtil.processInfo("Фото из мессенджера, только EXIF")
                     appContext.getString(R.string.notification_skipping_messenger_photo)
                 } else {
-                    LogUtil.processInfo("[ПРОЦЕСС] Тестовое сжатие для ${imageUri.lastPathSegment} неэффективно (экономия ${testResult.stats.sizeReduction}%), пропускаем")
+                    LogUtil.processInfo("Сжатие неэффективно (-${testResult.stats.sizeReduction}%), пропуск")
                     qualityForMarker = 99 // Устанавливаем маркер для неэффективного сжатия
                     null
                 }
                 
                 // Сохраняем обновленные EXIF-данные и, если нужно, маркер сжатия
-                LogUtil.processInfo("[ПРОЦЕСС] Сохраняем обновленные EXIF-данные (качество для маркера: $qualityForMarker)")
+                LogUtil.processInfo("Обновление EXIF (маркер: $qualityForMarker)")
                 ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, qualityForMarker)
                 
                 setForeground(createForegroundInfo("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}"))
@@ -519,7 +516,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Добавляет запрос на удаление файла в список ожидающих
      */
     private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: IntentSender) {
-        LogUtil.processInfo("Требуется разрешение пользователя для удаления оригинального файла: $uri")
+        LogUtil.processInfo("Требуется разрешение на удаление: $uri")
         
         // Сохраняем URI в SharedPreferences для последующей обработки
         val prefs = appContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
@@ -542,7 +539,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     private fun addPendingRenameRequest(uri: Uri, renamePendingIntent: IntentSender) {
-        LogUtil.processInfo("Требуется разрешение пользователя для переименования оригинального файла: $uri")
+        LogUtil.processInfo("Требуется разрешение на переименование: $uri")
 
         // Сохраняем URI в SharedPreferences для последующей обработки
         val prefs = appContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)

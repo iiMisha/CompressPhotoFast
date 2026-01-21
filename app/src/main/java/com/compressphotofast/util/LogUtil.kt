@@ -18,13 +18,32 @@ object LogUtil {
     private const val CATEGORY_NOTIFICATION = "УВЕДОМЛЕНИЕ"
     private const val CATEGORY_URI = "URI"
     private const val CATEGORY_PERMISSIONS = "РАЗРЕШЕНИЯ"
-    private const val TAG = "LogUtil"
     
+    // Параметры дедупликации
+    private var lastMessage: String? = null
+    private var lastLogTime: Long = 0L
+    private const val DEDUPLICATION_INTERVAL_MS = 1000L // 1 секунда для одинаковых сообщений
+
     /**
-     * Общее логирование для различных категорий
+     * Проверяет, нужно ли выводить лог (дедупликация)
+     */
+    private fun shouldLog(fullMessage: String): Boolean {
+        val currentTime = System.currentTimeMillis()
+        if (fullMessage == lastMessage && currentTime - lastLogTime < DEDUPLICATION_INTERVAL_MS) {
+            return false
+        }
+        lastMessage = fullMessage
+        lastLogTime = currentTime
+        return true
+    }
+
+    /**
+     * Общее логирование (DEBUG)
      */
     fun log(tag: String, message: String) {
-        Timber.tag(tag).d(message)
+        if (shouldLog("[$tag] $message")) {
+            Timber.tag(tag).d(message)
+        }
     }
 
     /**
@@ -32,7 +51,10 @@ object LogUtil {
      */
     fun fileOperation(uri: Uri, operation: String, details: String) {
         val fileId = getFileId(uri)
-        Timber.i("[$CATEGORY_FILE:$fileId] $operation: $details")
+        val msg = "[$CATEGORY_FILE:$fileId] $operation: $details"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
     }
 
     /**
@@ -40,7 +62,10 @@ object LogUtil {
      */
     fun fileInfo(uri: Uri, info: String) {
         val fileId = getFileId(uri)
-        Timber.i("[$CATEGORY_FILE:$fileId] Инфо: $info")
+        val msg = "[$CATEGORY_FILE:$fileId] $info"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
     }
 
     /**
@@ -48,14 +73,20 @@ object LogUtil {
      */
     fun compression(uri: Uri, originalSize: Long, compressedSize: Long, reductionPercent: Int) {
         val fileId = getFileId(uri)
-        Timber.i("[$CATEGORY_COMPRESSION:$fileId] ${originalSize/1024}KB → ${compressedSize/1024}KB (-$reductionPercent%)")
+        val msg = "[$CATEGORY_COMPRESSION:$fileId] ${originalSize/1024}KB → ${compressedSize/1024}KB (-$reductionPercent%)"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
     }
 
     /**
      * Логирование информации о процессе (INFO)
      */
     fun processInfo(message: String) {
-        Timber.i("[$CATEGORY_PROCESS] $message")
+        val msg = "[$CATEGORY_PROCESS] $message"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
     }
 
     /**
@@ -63,149 +94,127 @@ object LogUtil {
      */
     fun skipImage(uri: Uri, reason: String) {
         val fileId = getFileId(uri)
-        Timber.i("[$CATEGORY_PROCESS:$fileId] Пропуск: $reason")
+        val msg = "[$CATEGORY_PROCESS:$fileId] Пропуск: $reason"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
     }
 
     /**
-     * Логирование EXIF операций (DEBUG уровень)
+     * Логирование EXIF операций (DEBUG)
      */
     fun exifOperation(uri: Uri, operation: String, success: Boolean, details: String = "") {
         val fileId = getFileId(uri)
-        val status = if (success) "успешно" else "неудачно"
-        Timber.d("[$CATEGORY_EXIF:$fileId] $operation: $status${if (details.isNotEmpty()) " ($details)" else ""}")
+        val status = if (success) "ОК" else "ОШИБКА"
+        val msg = "[$CATEGORY_EXIF:$fileId] $operation: $status${if (details.isNotEmpty()) " ($details)" else ""}"
+        if (shouldLog(msg)) {
+            Timber.d(msg)
+        }
     }
 
-    // ========== Логирование ошибок ==========
+    // ========== Логирование ошибок (без дедупликации для критичности) ==========
     
-    /**
-     * Базовая ошибка без URI (ERROR)
-     */
     fun errorSimple(operation: String, message: String) {
         Timber.e("[$CATEGORY_ERROR:$operation] $message")
     }
 
-    /**
-     * Базовая ошибка с исключением, без URI (ERROR)
-     */
     fun errorWithException(operation: String, throwable: Throwable) {
         Timber.e(throwable, "[$CATEGORY_ERROR:$operation]")
     }
 
-    /**
-     * Базовая ошибка с сообщением и исключением, без URI (ERROR)
-     */
     fun errorWithMessageAndException(operation: String, message: String, throwable: Throwable) {
         Timber.e(throwable, "[$CATEGORY_ERROR:$operation] $message")
     }
 
-    /**
-     * Ошибка с URI (ERROR)
-     */
     fun error(uri: Uri?, operation: String, message: String) {
-        val fileId = if (uri != null) getFileId(uri) else "null"
+        val fileId = uri?.let { getFileId(it) } ?: "null"
         Timber.e("[$CATEGORY_ERROR:$operation:$fileId] $message")
     }
 
-    /**
-     * Ошибка с URI и исключением (ERROR)
-     */
     fun error(uri: Uri?, operation: String, throwable: Throwable) {
-        val fileId = if (uri != null) getFileId(uri) else "null"
+        val fileId = uri?.let { getFileId(it) } ?: "null"
         Timber.e(throwable, "[$CATEGORY_ERROR:$operation:$fileId]")
     }
 
-    /**
-     * Ошибка с URI, сообщением и исключением (ERROR)
-     */
     fun error(uri: Uri?, operation: String, message: String, throwable: Throwable) {
-        val fileId = if (uri != null) getFileId(uri) else "null"
+        val fileId = uri?.let { getFileId(it) } ?: "null"
         Timber.e(throwable, "[$CATEGORY_ERROR:$operation:$fileId] $message")
     }
 
-    /**
-     * Ошибка с URI, операцией и исключением (ERROR)
-     * Для совместимости
-     */
     fun errorWithMessageAndException(uri: Uri?, operation: String, message: String, throwable: Throwable) {
         error(uri, operation, message, throwable)
     }
 
-    // ========== Логирование URI ==========
+    // ========== Прочие логи ==========
     
-    /**
-     * Логирование информации об URI (DEBUG)
-     */
     fun uriInfo(uri: Uri?, details: String) {
-        val fileId = if (uri != null) getFileId(uri) else "null"
-        Timber.d("[$CATEGORY_URI:$fileId] $details")
+        val fileId = uri?.let { getFileId(it) } ?: "null"
+        val msg = "[$CATEGORY_URI:$fileId] $details"
+        if (shouldLog(msg)) {
+            Timber.d(msg)
+        }
     }
 
-    /**
-     * Логирование уведомлений (INFO)
-     */
     fun notification(message: String) {
-        Timber.i("[$CATEGORY_NOTIFICATION] $message")
+        val msg = "[$CATEGORY_NOTIFICATION] $message"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
     }
 
-    /**
-     * Логирование для отладки (только в режиме DEBUG)
-     */
     fun debug(category: String, message: String) {
-        Timber.d("[$category] $message")
-    }
-    
-    /**
-     * Логирование отладочной информации о процессе
-     */
-    fun processDebug(message: String) {
-        Timber.d("[$CATEGORY_PROCESS] $message")
-    }
-    
-    /**
-     * Логирование предупреждений о процессе
-     */
-    fun processWarning(message: String) {
-        Timber.w("[$CATEGORY_PROCESS] $message")
-    }
-    
-    /**
-     * Логирование информации о сжатии изображения
-     */
-    fun imageCompression(uri: Uri, message: String) {
-        val fileId = getFileId(uri)
-        Timber.i("[$CATEGORY_COMPRESSION:$fileId] $message")
-    }
-    
-    /**
-     * Логирование информации о разрешениях
-     */
-    fun permissionsInfo(message: String) {
-        Timber.i("[$CATEGORY_PERMISSIONS] $message")
-    }
-    
-    /**
-     * Логирование предупреждений о разрешениях  
-     */
-    fun permissionsWarning(message: String) {
-        Timber.w("[$CATEGORY_PERMISSIONS] $message")
-    }
-    
-    /**
-     * Логирование ошибок разрешений
-     */
-    fun permissionsError(message: String, exception: Exception? = null) {
-        if (exception != null) {
-            Timber.e(exception, "[$CATEGORY_PERMISSIONS] $message")
-        } else {
-            Timber.e("[$CATEGORY_PERMISSIONS] $message")
+        val msg = "[$category] $message"
+        if (shouldLog(msg)) {
+            Timber.d(msg)
         }
     }
     
-    /**
-     * Создает короткий идентификатор файла на основе URI для идентификации в логах
-     */
+    fun processDebug(message: String) {
+        val msg = "[$CATEGORY_PROCESS] $message"
+        if (shouldLog(msg)) {
+            Timber.d(msg)
+        }
+    }
+    
+    fun processWarning(message: String) {
+        val msg = "[$CATEGORY_PROCESS] $message"
+        if (shouldLog(msg)) {
+            Timber.w(msg)
+        }
+    }
+    
+    fun imageCompression(uri: Uri, message: String) {
+        val fileId = getFileId(uri)
+        val msg = "[$CATEGORY_COMPRESSION:$fileId] $message"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
+    }
+    
+    fun permissionsInfo(message: String) {
+        val msg = "[$CATEGORY_PERMISSIONS] $message"
+        if (shouldLog(msg)) {
+            Timber.i(msg)
+        }
+    }
+    
+    fun permissionsWarning(message: String) {
+        val msg = "[$CATEGORY_PERMISSIONS] $message"
+        if (shouldLog(msg)) {
+            Timber.w(msg)
+        }
+    }
+    
+    fun permissionsError(message: String, exception: Exception? = null) {
+        val msg = "[$CATEGORY_PERMISSIONS] $message"
+        if (exception != null) {
+            Timber.e(exception, msg)
+        } else {
+            Timber.e(msg)
+        }
+    }
+    
     private fun getFileId(uri: Uri): String {
-        // Получаем последнюю часть пути или идентификатор
         return uri.lastPathSegment?.takeLast(4) ?: uri.toString().takeLast(4)
     }
 } 

@@ -43,7 +43,7 @@ object GalleryScanUtil {
         try {
             // Проверяем состояние автоматического сжатия
             if (checkProcessable && !SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
-                LogUtil.processDebug("GalleryScanUtil: автоматическое сжатие отключено, пропускаем сканирование")
+                LogUtil.processDebug("Автосжатие выключено, сканирование отменено")
                 return@withContext ScanResult(0, 0, emptyList())
             }
             
@@ -76,7 +76,7 @@ object GalleryScanUtil {
                 val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
                 
                 val totalImages = cursor.count
-                LogUtil.processDebug("GalleryScanUtil: найдено $totalImages изображений за последние ${timeWindowSeconds / 60} минут")
+                LogUtil.processDebug("Найдено $totalImages фото за ${timeWindowSeconds / 60} мин")
                 
                 // Сначала собираем все URI для пакетной обработки
                 val allUris = mutableListOf<Uri>()
@@ -90,14 +90,14 @@ object GalleryScanUtil {
                     
                     // Пропускаем слишком маленькие файлы
                     if (size < Constants.MIN_FILE_SIZE) {
-                        LogUtil.processDebug("GalleryScanUtil: пропуск маленького файла: $name ($size байт)")
+                        LogUtil.processDebug("Маленький файл: $name ($size B)")
                         skippedCount++
                         continue
                     }
                     
                     // Пропускаем слишком большие файлы
                     if (size > Constants.MAX_FILE_SIZE) {
-                        LogUtil.processDebug("GalleryScanUtil: пропуск большого файла: $name (${size / (1024 * 1024)} MB)")
+                        LogUtil.processDebug("Большой файл: $name (${size / (1024 * 1024)} MB)")
                         skippedCount++
                         continue
                     }
@@ -108,7 +108,7 @@ object GalleryScanUtil {
                     
                     // Проверяем, не находится ли URI уже в процессе обработки
                     if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri)) {
-                        LogUtil.processDebug("GalleryScanUtil: URI $contentUri уже в процессе обработки, пропускаем")
+                        LogUtil.processDebug("Уже в обработке: $contentUri")
                         skippedCount++
                         continue
                     }
@@ -120,7 +120,7 @@ object GalleryScanUtil {
                 
                 // Используем пакетную предзагрузку метаданных для оптимизации
                 if (checkProcessable && allUris.isNotEmpty()) {
-                    LogUtil.processDebug("GalleryScanUtil: пакетная предзагрузка метаданных для ${allUris.size} URI")
+                    LogUtil.processDebug("Предзагрузка метаданных для ${allUris.size} URI")
                     
                     // Предзагружаем метаданные пакетом для кэширования
                     PerformanceMonitor.measureBatchMetadata {
@@ -133,7 +133,7 @@ object GalleryScanUtil {
                             foundUris.add(uri)
                             processedCount++
                         } else {
-                            LogUtil.processDebug("GalleryScanUtil: изображение не требует обработки: $uri")
+                            LogUtil.processDebug("Оптимизировано: $uri")
                             skippedCount++
                         }
                     }
@@ -143,7 +143,7 @@ object GalleryScanUtil {
                     processedCount = allUris.size
                 }
                 
-                LogUtil.processDebug("GalleryScanUtil: сканирование завершено. Найдено: $processedCount, Пропущено: $skippedCount")
+                LogUtil.processDebug("Сканирование: +$processedCount, -$skippedCount")
             }
         } catch (e: Exception) {
             LogUtil.errorWithException("SCAN_GALLERY", e)

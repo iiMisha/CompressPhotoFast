@@ -42,8 +42,7 @@ object FileInfoUtil {
             val cachedInfo = fileInfoCache[uriString]
             if (cachedInfo != null && (System.currentTimeMillis() - cachedInfo.timestamp < fileInfoCacheExpiration)) {
                 // Используем кэшированную информацию
-                LogUtil.debug("FileInfoUtil", "Информация о файле (из кэша): ID=${cachedInfo.id}, Имя=${cachedInfo.name}, Размер=${cachedInfo.size}, Дата=${cachedInfo.date}, MIME=${cachedInfo.mime}, URI=$uri")
-                LogUtil.debug("FileInfoUtil", "Путь к файлу: ${cachedInfo.path}")
+                LogUtil.debug("FileInfoUtil", "Из кэша: ${cachedInfo.name}, ID=${cachedInfo.id}, Path=${cachedInfo.path}")
                 return cachedInfo
             }
             
@@ -83,8 +82,7 @@ object FileInfoUtil {
                     val fileInfo = FileInfo(id, name, size, date, mime, path)
                     fileInfoCache[uriString] = fileInfo
                     
-                    LogUtil.debug("FileInfoUtil", "Информация о файле: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
-                    LogUtil.debug("FileInfoUtil", "Путь к файлу: $path")
+                    LogUtil.debug("FileInfoUtil", "Файл: $name, ID=$id, Path=$path")
                     
                     return fileInfo
                 }
@@ -107,6 +105,6 @@ object FileInfoUtil {
             .map { it.key }
             
         entriesToRemove.forEach { key -> fileInfoCache.remove(key) }
-        LogUtil.processDebug("FileInfoUtil: Очищено ${entriesToRemove.size} устаревших записей в кэше")
+        LogUtil.processDebug("FileInfoUtil: Очищено ${entriesToRemove.size} записей")
     }
 } 
