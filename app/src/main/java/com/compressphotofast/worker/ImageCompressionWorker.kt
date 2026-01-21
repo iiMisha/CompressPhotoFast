@@ -28,6 +28,7 @@ import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.util.PendingItemException
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.NotificationUtil
@@ -92,16 +93,41 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             val imageUri = Uri.parse(uriString)
 
-            // Проверяем, является ли URI недоступным
+            // Если URI помечен как недоступный, проверяем его повторно перед выходом
             if (uriProcessingTracker.isUriUnavailable(imageUri)) {
-                LogUtil.processDebug("ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: $imageUri")
-                return@withContext Result.failure()
+                LogUtil.processDebug("ImageCompressionWorker: URI ранее был помечен как недоступный, проверяем повторно: $imageUri")
+                
+                val exists = try {
+                    UriUtil.isUriExistsSuspend(appContext, imageUri)
+                } catch (e: Exception) {
+                    false
+                }
+                
+                val isPending = UriUtil.isFilePending(appContext, imageUri)
+                
+                if (exists && !isPending) {
+                    LogUtil.processDebug("ImageCompressionWorker: URI снова доступен и не pending, убираем метку недоступности: $imageUri")
+                    uriProcessingTracker.removeUnavailable(imageUri)
+                } else {
+                    LogUtil.processDebug("ImageCompressionWorker: URI все еще недоступен (exists=$exists, pending=$isPending), завершаем: $imageUri")
+                    return@withContext Result.failure()
+                }
             }
 
             // Ранняя проверка существования файла перед любыми операциями
-            if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует (первая проверка)")
-                uriProcessingTracker.markUriUnavailable(imageUri)
+            try {
+                if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
+                    LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует (первая проверка)")
+                    uriProcessingTracker.markUriUnavailable(imageUri)
+                    return@withContext Result.failure()
+                }
+            } catch (e: PendingItemException) {
+                // Если файл pending, возвращаем failure но НЕ помечаем как unavailable
+                // это позволит GalleryScan или MediaStoreObserver попробовать позже еще раз
+                LogUtil.processDebug("ImageCompressionWorker: файл существует но pending (SecurityException), пропускаем пока: $imageUri")
+                return@withContext Result.failure()
+            } catch (e: Exception) {
+                LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
                 return@withContext Result.failure()
             }
 

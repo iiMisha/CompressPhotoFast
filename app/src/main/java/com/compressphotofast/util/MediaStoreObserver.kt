@@ -33,8 +33,8 @@ class MediaStoreObserver @Inject constructor(
     
     // Счетчик попыток для каждого URI, чтобы избежать бесконечных циклов
     private val retryCounts = ConcurrentHashMap<String, Int>()
-    private val maxRetries = 3 // Максимальное количество попыток для is_pending
-    private val retryDelayMs = 5000L // Задержка между попытками (5 секунд)
+    private val maxRetries = 6 // Максимальное количество попыток для is_pending (увеличено для серийной съемки)
+    private val retryDelayMs = 7000L // Задержка между попытками (7 секунд)
     
     // ContentObserver для отслеживания изменений в MediaStore
     private val contentObserver: ContentObserver = object : ContentObserver(handler) {
@@ -120,24 +120,39 @@ class MediaStoreObserver @Inject constructor(
                             }
                         }
 
-                        // Если дошли сюда, значит файл больше не pending или мы решили его обработать
+                        // Если дошли сюда, значит файл больше не pending по флагу MediaStore
+                        // или мы решили его проверить физически
                         retryCounts.remove(uriString)
 
                         // Проверяем существование URI перед передачей в обработчик
-                        val exists = kotlinx.coroutines.runBlocking {
-                            UriUtil.isUriExistsSuspend(context, it)
-                        }
-                        if (exists) {
-                            imageChangeListener?.invoke(it)
-                        } else {
-                            // Дополнительная проверка is_pending перед пометкой как недоступный
-                            val isPendingRecheck = UriUtil.isFilePending(context, it)
-                            if (isPendingRecheck) {
-                                LogUtil.processDebug("MediaStoreObserver: файл не существует НО имеет is_pending=1, НЕ помечаем как недоступный: $uriString")
+                        try {
+                            val exists = kotlinx.coroutines.runBlocking {
+                                UriUtil.isUriExistsSuspend(context, it)
+                            }
+                            if (exists) {
+                                imageChangeListener?.invoke(it)
                             } else {
-                                LogUtil.processDebug("MediaStoreObserver: URI не существует и НЕ имеет is_pending, помечаем как недоступный: $uriString")
+                                LogUtil.processDebug("MediaStoreObserver: URI не существует, помечаем как недоступный: $uriString")
                                 uriProcessingTracker.markUriUnavailable(it)
                             }
+                        } catch (e: PendingItemException) {
+                            // Файл физически есть, но доступен только владельцу (is_pending=1 в другом смысле)
+                            val currentRetries = retryCounts.getOrDefault(uriString, 0)
+                            if (currentRetries < maxRetries) {
+                                val nextRetry = currentRetries + 1
+                                retryCounts[uriString] = nextRetry
+                                LogUtil.processDebug("MediaStoreObserver: обнаружен PendingItemException (Only owner), планируем повтор #$nextRetry через ${retryDelayMs/1000} сек: $uriString")
+                                
+                                handler.postDelayed({
+                                    pendingTasks[uriString]?.run()
+                                }, retryDelayMs)
+                            } else {
+                                LogUtil.processDebug("MediaStoreObserver: файл все еще PendingItem после $maxRetries попыток, пропускаем: $uriString")
+                                retryCounts.remove(uriString)
+                                uriProcessingTracker.markUriUnavailable(it)
+                            }
+                        } catch (e: Exception) {
+                            LogUtil.error(it, "MediaStoreObserver", "Ошибка при первичной проверке существования", e)
                         }
                         pendingTasks.remove(uriString)
                     }

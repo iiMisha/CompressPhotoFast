@@ -410,6 +410,26 @@ object UriProcessingTracker {
         unavailableUris[uriString] = System.currentTimeMillis()
         LogUtil.processDebug("URI помечен как недоступный: $uriString")
     }
+
+    /**
+     * Удаляет URI из списка недоступных
+     */
+    fun removeUnavailable(uri: Uri) {
+        val uriString = uri.toString()
+        unavailableUris.remove(uriString)
+        LogUtil.processDebug("URI удален из списка недоступных: $uriString")
+    }
+    
+    /**
+     * Помечает URI как временно недоступный (pending)
+     * Используется когда файл существует, но еще не готов (is_pending=1)
+     */
+    fun markUriPending(uri: Uri) {
+        val uriString = uri.toString()
+        // Используем то же множество, но логируем иначе
+        unavailableUris[uriString] = System.currentTimeMillis()
+        LogUtil.processDebug("URI помечен как ожидающий (pending): $uriString")
+    }
     
     /**
      * Проверяет, является ли URI недоступным

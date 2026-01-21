@@ -1,0 +1,602 @@
+21:15:58.627 Awar...her handleReleaseCache: pid=27067
+21:15:58.627 Awar...her init lrucache size: 4194304 pid=27067
+21:16:02.801 Comp...ter Compat change id reported: 150939131; UID 10727; state: ENABLED
+21:16:02.931 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242393, обработка через 10 сек
+21:16:03.339 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: onStartJob вызван
+21:16:03.341 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: получено 1 URI для обработки
+21:16:03.367 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: добавлены 1 URI к батчу, общий размер: 1
+21:16:03.741 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242394, обработка через 10 сек
+21:16:04.738 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242397, обработка через 10 сек
+21:16:05.280 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242400, обработка через 10 сек
+21:16:05.417 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начинаем обработку дебаунсного батча из 1 URI
+21:16:05.420 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Debounced batch processed with 1 items
+21:16:05.430 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:05.759 LogUtil    [ПРОЦЕСС] Пакетное получение метаданных завершено: 1 URI, 1 запросов к MediaStore
+21:16:05.761 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: оптимизированная пакетная обработка 1 URI (из 1 изначально)
+21:16:05.921 LogUtil    [ПРОЦЕСС] Предзагружен кэш для 1 директорий (1 файлов)
+21:16:05.926 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242403, обработка через 10 сек
+21:16:05.930 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: после быстрой фильтрации осталось 1 из 1 URI
+21:16:05.950 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: обработка URI: content://media/external/images/media/242393
+21:16:05.956 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:06.106 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:06.594 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:06.596 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242406, обработка через 10 сек
+21:16:06.776 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:06.866 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242393
+21:16:06.871 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242393 (всего: 1)
+21:16:06.880 LogUtil    [ПРОЦЕСС] URI уже в списке обрабатываемых: content://media/external/images/media/242393
+21:16:06.889 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:07.066 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:07.209 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242409, обработка через 10 сек
+21:16:07.254 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242393
+21:16:07.255 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:07.265 Wind...ger trimMemory level: 15
+21:16:07.306 LogUtil    [ПРОЦЕСС] Создан автобатч: auto_batch_1_1769019367304
+21:16:07.368 LogUtil    [СЖАТИЕ:2393] Запущена работа по сжатию для content://media/external/images/media/242393 с тегом compress_1769019367285_IMG_20260121_211602.jpg в батче auto_batch_1_1769019367304
+21:16:07.371 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: запрос на обработку изображения отправлен: content://media/external/images/media/242393
+21:16:07.383 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: обработка завершена. Обработано: 1, Пропущено: 0
+21:16:07.385 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: начало планирования задания
+21:16:07.394 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: состояние автоматического сжатия: включено
+21:16:07.402 LogUtil    [ПРОЦЕСС] ImageDetectionJobService: задание уже запланировано, пропускаем
+21:16:07.713 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242412, обработка через 10 сек
+21:16:07.782 WM-S...ler Scheduling work ID 1ad5c74f-647a-408b-aa4f-dcb28e829a10Job ID 2483
+21:16:07.800 WM-G...ler Starting work for 1ad5c74f-647a-408b-aa4f-dcb28e829a10
+21:16:07.817 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=1ad5c74f-647a-408b-aa4f-dcb28e829a10, generation=0)
+21:16:07.844 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=1ad5c74f-647a-408b-aa4f-dcb28e829a10, generation=0)
+21:16:07.886 WM-P...sor Work WorkGenerationalId(workSpecId=1ad5c74f-647a-408b-aa4f-dcb28e829a10, generation=0) is already enqueued for processing
+21:16:07.981 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:08.012 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:08.019 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+21:16:08.213 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:08.320 WM-P...sor Moving WorkSpec (1ad5c74f-647a-408b-aa4f-dcb28e829a10) to the foreground
+21:16:08.327 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242416, обработка через 10 сек
+21:16:08.371 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Используется качество сжатия: 60
+21:16:08.380 LogUtil    [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/242393 в память (кэш не найден)
+21:16:08.415 WM-S...her Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+21:16:08.423 WM-S...her Notifying with (id:1, workSpecId: 1ad5c74f-647a-408b-aa4f-dcb28e829a10, notificationType :1)
+21:16:08.443 WM-S...her Notifying with (id:1, workSpecId: 1ad5c74f-647a-408b-aa4f-dcb28e829a10, notificationType :1)
+21:16:08.496 LogUtil    [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/242393:
+21:16:08.498 LogUtil    [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+21:16:08.499 LogUtil    [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+21:16:08.501 LogUtil    [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+21:16:08.502 LogUtil    [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+21:16:08.512 LogUtil    [ПРОЦЕСС] 🔍 GPS результат: lat=55.49969100944445, lng=36.91699981666667
+21:16:08.517 LogUtil    [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.49969100944445, lng=36.91699981666667
+21:16:08.518 LogUtil    [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+21:16:08.519 LogUtil    [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2026:01:21 21:16:02
+21:16:08.520 LogUtil    [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+21:16:08.521 LogUtil    [ПРОЦЕСС] Прочитано 39 EXIF-тегов, сохраняем в кэш
+21:16:08.527 LogUtil    [URI:2393] [ПРОЦЕСС] Загружены EXIF данные в память: 39 тегов
+21:16:08.534 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:08.634 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:08.677 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242393
+21:16:08.678 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:08.682 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:08.754 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых из ImageCompressionWorker: content://media/external/images/media/242393 (всего: 1)
+21:16:08.774 LogUtil    [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/242393
+21:16:08.789 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Выполняем тестовое сжатие в RAM
+21:16:08.790 LogUtil    [URI:2393] Изображение требует обработки
+21:16:08.792 LogUtil    [URI:2393] Начало тестового сжатия в RAM
+21:16:08.801 LogUtil    [URI:2393] Сжатие изображения в поток
+21:16:08.804 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:08.975 HwGa...mpl mIsEffect:false
+21:16:08.985 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242418, обработка через 10 сек
+21:16:09.645 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242421, обработка через 10 сек
+21:16:10.149 LogUtil    [СЖАТИЕ:2393] 4118KB → 443KB (-89%)
+21:16:10.153 LogUtil    [СЖАТИЕ:2393] 4118KB → 443KB (-89.24242%)
+21:16:10.156 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие для 242393 эффективно (экономия 89.24242%), выполняем полное сжатие
+21:16:10.157 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Тестовое сжатие эффективно, начинаем полное сжатие
+21:16:10.173 LogUtil    [URI:2393] Имя файла: IMG_20260121_211602.jpg
+21:16:10.175 LogUtil    [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20260121_211602.jpg
+21:16:10.178 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Итоговое имя файла для сохранения: IMG_20260121_211602 (режим замены: true)
+21:16:10.194 LogUtil    [URI:2393] Директория для сохранения: DCIM/Camera
+21:16:10.198 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:10.209 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242425, обработка через 10 сек
+21:16:10.363 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:10.463 LogUtil    [URI:2393] Сжатие изображения в поток
+21:16:10.465 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:10.847 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242427, обработка через 10 сек
+21:16:11.537 LogUtil    [FileUtil] Директория для сохранения: DCIM/Camera
+21:16:11.539 LogUtil    [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20260121_211602 (режим замены: true)
+21:16:11.541 LogUtil    [FileUtil] MIME тип для сохранения: image/jpeg
+21:16:11.558 LogUtil    [ПРОЦЕСС] Режим замены, использую оригинальную директорию: DCIM/Camera
+21:16:11.566 LogUtil    [MediaStore] Поиск файла: fileName='IMG_20260121_211602', pathWithSlash='DCIM/Camera/', pathWithoutSlash='DCIM/Camera'
+21:16:11.631 LogUtil    [ПРОЦЕСС] Использую относительный путь для сохранения: DCIM/Camera/
+21:16:11.651 LogUtil    [MediaStore] Создан новый URI: content://media/external/images/media/242430
+21:16:11.652 LogUtil    [ПРОЦЕСС] [MediaStore] Режим отдельной папки: создаем новый файл
+21:16:11.654 LogUtil    [ПРОЦЕСС] [MediaStore] Используем режим создания для URI: content://media/external/images/media/242430
+21:16:11.675 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242430, обработка через 10 сек
+21:16:11.683 LogUtil    [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/242430
+21:16:11.731 LogUtil    [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/242430
+21:16:11.736 LogUtil    [FileUtil] Ожидание доступности URI: content://media/external/images/media/242430, максимальное время: 2000 мс
+21:16:11.748 LogUtil    [FileUtil] URI стал доступен через 11 мс, размер: 453690 байт
+21:16:11.768 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:11.931 LogUtil    [ПРОЦЕСС] Сохранена исходная дата модификации: 1769019371000
+21:16:12.154 LogUtil    [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.49969100944445, lng=36.91699981666667
+21:16:12.158 LogUtil    [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1769019372154
+21:16:12.273 LogUtil    [ПРОЦЕСС] Применено 35 EXIF-тегов к content://media/external/images/media/242430
+21:16:12.288 LogUtil    [ПРОЦЕСС] Не удалось восстановить исходную дату модификации через ContentResolver.
+21:16:12.293 LogUtil    [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+21:16:12.455 LogUtil    [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+21:16:12.458 LogUtil    [FileUtil] Обработка EXIF данных: успешно
+21:16:12.460 LogUtil    [ФАЙЛ:2393] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/242430
+21:16:12.646 LogUtil    [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/242430 до Wed Jan 21 21:16:17 GMT+03:00 2026
+21:16:12.647 LogUtil    [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/242393 (осталось: 0)
+21:16:12.654 LogUtil    [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/242393
+21:16:12.657 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:12.803 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:12.841 LogUtil    [ПРОЦЕСС] Удаляем файл через MediaStore (Android 10+)
+21:16:12.856 LogUtil    [ПРОЦЕСС] Результат удаления через MediaStore: true
+21:16:12.860 LogUtil    [ФАЙЛ:2393] Удаление: Оригинальный файл успешно удален
+21:16:12.871 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242393, обработка через 10 сек
+21:16:12.873 LogUtil    [ПРОЦЕСС] MediaStoreObserver: предыдущая задача для content://media/external/images/media/242393 отменена
+21:16:12.878 LogUtil    [ПРОЦЕСС] Добавлен результат в батч auto_batch_1_1769019367304: IMG_20260121_211602 (1)
+21:16:12.880 LogUtil    [ПРОЦЕСС] [ПРОЦЕСС] Уведомление о завершении сжатия отправлено: Файл=IMG_20260121_211602
+21:16:12.914 WM-P...sor Moving WorkSpec (1ad5c74f-647a-408b-aa4f-dcb28e829a10) to the foreground
+21:16:12.927 LogUtil    [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/242393
+21:16:12.929 LogUtil    [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/242393
+21:16:12.930 WM-S...her Notifying with (id:1, workSpecId: 1ad5c74f-647a-408b-aa4f-dcb28e829a10, notificationType :1)
+21:16:12.970 WM-W...per Worker result SUCCESS for Work [ id=1ad5c74f-647a-408b-aa4f-dcb28e829a10, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019367285_IMG_20260121_211602.jpg } ]
+21:16:12.998 WM-P...sor Processor 1ad5c74f-647a-408b-aa4f-dcb28e829a10 executed; reschedule = false
+21:16:13.000 WM-S...ice 1ad5c74f-647a-408b-aa4f-dcb28e829a10 executed on JobScheduler
+21:16:13.002 WM-S...her Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=1ad5c74f-647a-408b-aa4f-dcb28e829a10, generation=0), notificationType: 1
+21:16:13.004 Noti...ger com.compressphotofast: cancel(1)
+21:16:13.007 WM-S...her Stopping foreground service
+21:16:13.007 WM-S...ice Shutting down.
+21:16:13.018 WM-S...ice onStopJob for WorkGenerationalId(workSpecId=1ad5c74f-647a-408b-aa4f-dcb28e829a10, generation=0)
+21:16:13.022 WM-G...ler Cancelling work ID 1ad5c74f-647a-408b-aa4f-dcb28e829a10
+21:16:13.066 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+21:16:13.784 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242394 после задержки
+21:16:13.793 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242394
+21:16:13.970 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242394): Only owner is able to interact with pending item content://media/external/images/media/242394
+21:16:13.974 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242394
+21:16:13.977 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242394
+21:16:14.004 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242394, обработка через 10 сек
+21:16:14.780 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242397 после задержки
+21:16:14.790 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242397
+21:16:14.901 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242397): Only owner is able to interact with pending item content://media/external/images/media/242397
+21:16:14.904 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242397
+21:16:14.905 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242397
+21:16:15.321 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242400 после задержки
+21:16:15.332 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242400
+21:16:15.406 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242400): Only owner is able to interact with pending item content://media/external/images/media/242400
+21:16:15.411 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242400
+21:16:15.412 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242400
+21:16:15.541 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242397, обработка через 10 сек
+21:16:15.965 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242403 после задержки
+21:16:15.980 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242403
+21:16:16.056 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242403): Only owner is able to interact with pending item content://media/external/images/media/242403
+21:16:16.060 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242403
+21:16:16.061 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242403
+21:16:16.620 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242406 после задержки
+21:16:16.633 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242406
+21:16:16.687 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242406): Only owner is able to interact with pending item content://media/external/images/media/242406
+21:16:16.691 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242406
+21:16:16.692 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242406
+21:16:17.246 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242409 после задержки
+21:16:17.262 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242409
+21:16:17.359 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242409): Only owner is able to interact with pending item content://media/external/images/media/242409
+21:16:17.363 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242409
+21:16:17.364 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242409
+21:16:17.387 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242400, обработка через 10 сек
+21:16:17.750 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242412 после задержки
+21:16:17.761 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242412
+21:16:17.831 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242412): Only owner is able to interact with pending item content://media/external/images/media/242412
+21:16:17.836 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242412
+21:16:17.838 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242412
+21:16:18.369 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242416 после задержки
+21:16:18.380 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242416
+21:16:18.544 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242416): Only owner is able to interact with pending item content://media/external/images/media/242416
+21:16:18.549 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242416
+21:16:18.550 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242416
+21:16:18.575 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242403, обработка через 10 сек
+21:16:19.025 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242418 после задержки
+21:16:19.037 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242418
+21:16:19.116 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242418): Only owner is able to interact with pending item content://media/external/images/media/242418
+21:16:19.120 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242418
+21:16:19.121 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242418
+21:16:19.685 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242421 после задержки
+21:16:19.695 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242421
+21:16:19.766 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242421): Only owner is able to interact with pending item content://media/external/images/media/242421
+21:16:19.769 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242421
+21:16:19.770 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242421
+21:16:20.059 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242406, обработка через 10 сек
+21:16:20.250 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242425 после задержки
+21:16:20.262 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242425
+21:16:20.322 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242425): Only owner is able to interact with pending item content://media/external/images/media/242425
+21:16:20.327 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242425
+21:16:20.328 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242425
+21:16:20.879 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242427 после задержки
+21:16:20.893 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242427
+21:16:20.969 LogUtil    [Проверка существования] Неожиданная ошибка (content://media/external/images/media/242427): Only owner is able to interact with pending item content://media/external/images/media/242427
+21:16:20.974 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242427
+21:16:20.988 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242427
+21:16:21.702 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242430 после задержки
+21:16:21.715 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:21.816 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242430
+21:16:21.819 LogUtil    [URI:2430] URI scheme: content, authority: media, path: /external/images/media/242430
+21:16:21.825 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:21.833 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242409, обработка через 10 сек
+21:16:21.917 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242430 (всего: 1)
+21:16:21.923 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:22.022 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:22.056 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:22.079 LogUtil    [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1769019372154 для URI: content://media/external/images/media/242430
+21:16:22.081 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242430
+21:16:22.082 LogUtil    [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:16:22.083 LogUtil    [ПРОЦЕСС] URI удален из списка обрабатываемых: content://media/external/images/media/242430 (осталось: 0)
+21:16:22.086 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Изображение уже оптимизировано
+21:16:22.909 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242393 после задержки
+21:16:22.919 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242393
+21:16:22.934 Cont...ver Failed to get type for: content://media/external/images/media/242393 (No item at content://media/external/images/media/242393)
+21:16:22.938 LogUtil    [Проверка существования] Файл не найден (content://media/external/images/media/242393): java.io.FileNotFoundException: No item at content://media/external/images/media/242393
+21:16:22.944 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI не существует, пропускаем обработку и помечаем как недоступный: content://media/external/images/media/242393
+21:16:22.945 LogUtil    [ПРОЦЕСС] URI помечен как недоступный: content://media/external/images/media/242393
+21:16:23.006 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242412, обработка через 10 сек
+21:16:24.045 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242394 после задержки
+21:16:24.048 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242394
+21:16:24.705 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242416, обработка через 10 сек
+21:16:25.581 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242397 после задержки
+21:16:25.584 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242397
+21:16:26.306 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242418, обработка через 10 сек
+21:16:27.428 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242400 после задержки
+21:16:27.431 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242400
+21:16:27.527 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242421, обработка через 10 сек
+21:16:28.596 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242403 после задержки
+21:16:28.598 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242403
+21:16:29.310 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242425, обработка через 10 сек
+21:16:30.097 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242406 после задержки
+21:16:30.100 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242406
+21:16:30.805 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/242427, обработка через 10 сек
+21:16:31.837 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242409 после задержки
+21:16:31.841 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242409
+21:16:33.022 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242412 после задержки
+21:16:33.027 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242412
+21:16:34.727 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242416 после задержки
+21:16:34.730 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242416
+21:16:36.346 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242418 после задержки
+21:16:36.349 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242418
+21:16:37.550 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242421 после задержки
+21:16:37.552 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242421
+21:16:39.337 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242425 после задержки
+21:16:39.339 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242425
+21:16:40.823 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/242427 после задержки
+21:16:40.825 LogUtil    [ПРОЦЕСС] MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: content://media/external/images/media/242427
+21:16:48.052 LogUtil    [ПРОЦЕСС] Запуск периодического сканирования галереи
+21:16:48.141 LogUtil    [ПРОЦЕСС] GalleryScanUtil: найдено 13 изображений за последние 5 минут
+21:16:48.271 LogUtil    [ПРОЦЕСС] GalleryScanUtil: пакетная предзагрузка метаданных для 13 URI
+21:16:48.375 LogUtil    [ПРОЦЕСС] Пакетное получение метаданных завершено: 13 URI, 13 запросов к MediaStore
+21:16:48.381 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:48.465 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242430
+21:16:48.494 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242430
+21:16:48.495 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:48.496 LogUtil    [ПРОЦЕСС] Изображение не требует обработки: ALREADY_COMPRESSED
+21:16:48.497 LogUtil    [ПРОЦЕСС] GalleryScanUtil: изображение не требует обработки: content://media/external/images/media/242430
+21:16:48.502 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242425
+21:16:48.587 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242425
+21:16:48.619 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:48.650 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242425
+21:16:48.656 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242427
+21:16:48.725 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242427
+21:16:48.756 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:48.785 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242427
+21:16:48.791 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242421
+21:16:48.869 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242421
+21:16:48.896 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:48.927 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242421
+21:16:48.933 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242416
+21:16:49.035 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242416
+21:16:49.066 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.095 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242416
+21:16:49.101 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242418
+21:16:49.172 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242418
+21:16:49.202 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.231 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242418
+21:16:49.237 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242409
+21:16:49.328 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242409
+21:16:49.359 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.389 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242409
+21:16:49.395 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242412
+21:16:49.463 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242412
+21:16:49.496 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.524 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242412
+21:16:49.529 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242406
+21:16:49.631 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242406
+21:16:49.661 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.688 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242406
+21:16:49.694 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242400
+21:16:49.776 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242400
+21:16:49.807 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.835 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242400
+21:16:49.841 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242403
+21:16:49.920 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242403
+21:16:49.949 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:49.975 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242403
+21:16:49.981 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242397
+21:16:50.050 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242397
+21:16:50.081 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:50.109 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242397
+21:16:50.115 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242394
+21:16:50.193 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242394
+21:16:50.223 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+21:16:50.248 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/242394
+21:16:50.250 LogUtil    [ПРОЦЕСС] GalleryScanUtil: сканирование завершено. Найдено: 12, Пропущено: 1
+21:16:50.256 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242425
+21:16:50.257 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242425
+21:16:50.258 LogUtil    [URI:2425] URI scheme: content, authority: media, path: /external/images/media/242425
+21:16:50.262 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242425
+21:16:50.318 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242425 (всего: 1)
+21:16:50.322 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242425
+21:16:50.430 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242425
+21:16:50.466 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242425
+21:16:50.466 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:50.486 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:50.506 LogUtil    [СЖАТИЕ:2425] Запущена работа по сжатию для content://media/external/images/media/242425 с тегом compress_1769019410476_IMG_20260121_211609.jpg в батче auto_batch_1_1769019367304
+21:16:50.510 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:50.511 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242427
+21:16:50.511 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242427
+21:16:50.512 LogUtil    [URI:2427] URI scheme: content, authority: media, path: /external/images/media/242427
+21:16:50.517 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242427
+21:16:50.604 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242427 (всего: 2)
+21:16:50.612 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242427
+21:16:50.631 WM-S...ler Scheduling work ID 74eb2dee-f5c6-4f14-9c40-be7f4d0ce989Job ID 2484
+21:16:50.643 WM-G...ler Starting work for 74eb2dee-f5c6-4f14-9c40-be7f4d0ce989
+21:16:50.666 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=74eb2dee-f5c6-4f14-9c40-be7f4d0ce989, generation=0)
+21:16:50.677 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=74eb2dee-f5c6-4f14-9c40-be7f4d0ce989, generation=0)
+21:16:50.702 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242427
+21:16:50.711 WM-P...sor Work WorkGenerationalId(workSpecId=74eb2dee-f5c6-4f14-9c40-be7f4d0ce989, generation=0) is already enqueued for processing
+21:16:50.732 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242427
+21:16:50.732 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:50.749 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:50.765 LogUtil    [СЖАТИЕ:2427] Запущена работа по сжатию для content://media/external/images/media/242427 с тегом compress_1769019410741_IMG_20260121_211610.jpg в батче auto_batch_1_1769019367304
+21:16:50.767 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:50.768 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242421
+21:16:50.768 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242421
+21:16:50.769 LogUtil    [URI:2421] URI scheme: content, authority: media, path: /external/images/media/242421
+21:16:50.771 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:50.784 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242425
+21:16:50.797 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242421
+21:16:50.847 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242421 (всего: 3)
+21:16:50.852 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242421
+21:16:50.914 WM-S...ler Scheduling work ID 5a6dae2a-2992-4321-a089-b219ceba4b92Job ID 2485
+21:16:50.923 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=5a6dae2a-2992-4321-a089-b219ceba4b92, generation=0)
+21:16:50.926 WM-G...ler Starting work for 5a6dae2a-2992-4321-a089-b219ceba4b92
+21:16:50.932 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+21:16:50.949 WM-W...per Worker result FAILURE for Work [ id=74eb2dee-f5c6-4f14-9c40-be7f4d0ce989, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019410476_IMG_20260121_211609.jpg } ]
+21:16:50.962 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242421
+21:16:50.977 WM-P...sor Processor 74eb2dee-f5c6-4f14-9c40-be7f4d0ce989 executed; reschedule = false
+21:16:50.983 WM-S...ice 74eb2dee-f5c6-4f14-9c40-be7f4d0ce989 executed on JobScheduler
+21:16:51.004 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242421
+21:16:51.004 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:51.026 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:51.034 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=5a6dae2a-2992-4321-a089-b219ceba4b92, generation=0)
+21:16:51.041 LogUtil    [СЖАТИЕ:2421] Запущена работа по сжатию для content://media/external/images/media/242421 с тегом compress_1769019411015_IMG_20260121_211608_1.jpg в батче auto_batch_1_1769019367304
+21:16:51.043 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:51.044 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242416
+21:16:51.045 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242416
+21:16:51.046 LogUtil    [URI:2416] URI scheme: content, authority: media, path: /external/images/media/242416
+21:16:51.050 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242416
+21:16:51.061 WM-P...sor Work WorkGenerationalId(workSpecId=5a6dae2a-2992-4321-a089-b219ceba4b92, generation=0) is already enqueued for processing
+21:16:51.065 WM-G...ler Cancelling work ID 74eb2dee-f5c6-4f14-9c40-be7f4d0ce989
+21:16:51.122 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242416 (всего: 4)
+21:16:51.127 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242416
+21:16:51.162 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:51.174 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242427
+21:16:51.229 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242416
+21:16:51.258 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242416
+21:16:51.259 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:51.266 WM-S...ler Scheduling work ID 4f7c23c7-a6c7-4a4e-93f9-3178e9545e5eJob ID 2486
+21:16:51.275 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e, generation=0)
+21:16:51.279 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:51.279 WM-G...ler Starting work for 4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e
+21:16:51.294 LogUtil    [СЖАТИЕ:2416] Запущена работа по сжатию для content://media/external/images/media/242416 с тегом compress_1769019411267_IMG_20260121_211607_1.jpg в батче auto_batch_1_1769019367304
+21:16:51.296 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:51.297 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242418
+21:16:51.297 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242418
+21:16:51.298 LogUtil    [URI:2418] URI scheme: content, authority: media, path: /external/images/media/242418
+21:16:51.303 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242418
+21:16:51.313 WM-W...per Worker result FAILURE for Work [ id=5a6dae2a-2992-4321-a089-b219ceba4b92, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019410741_IMG_20260121_211610.jpg } ]
+21:16:51.337 WM-P...sor Processor 5a6dae2a-2992-4321-a089-b219ceba4b92 executed; reschedule = false
+21:16:51.339 WM-S...ice 5a6dae2a-2992-4321-a089-b219ceba4b92 executed on JobScheduler
+21:16:51.361 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e, generation=0)
+21:16:51.383 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242418 (всего: 5)
+21:16:51.388 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242418
+21:16:51.390 WM-P...sor Work WorkGenerationalId(workSpecId=4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e, generation=0) is already enqueued for processing
+21:16:51.462 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242418
+21:16:51.497 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242418
+21:16:51.497 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:51.509 WM-S...ler Scheduling work ID e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85Job ID 2487
+21:16:51.518 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85, generation=0)
+21:16:51.519 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:51.521 WM-G...ler Starting work for e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85
+21:16:51.534 LogUtil    [СЖАТИЕ:2418] Запущена работа по сжатию для content://media/external/images/media/242418 с тегом compress_1769019411508_IMG_20260121_211608.jpg в батче auto_batch_1_1769019367304
+21:16:51.535 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:51.537 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242409
+21:16:51.537 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242409
+21:16:51.538 LogUtil    [URI:2409] URI scheme: content, authority: media, path: /external/images/media/242409
+21:16:51.543 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242409
+21:16:51.549 WM-G...ler Cancelling work ID 5a6dae2a-2992-4321-a089-b219ceba4b92
+21:16:51.624 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:51.627 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242409 (всего: 6)
+21:16:51.640 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242409
+21:16:51.658 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85, generation=0)
+21:16:51.659 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242421
+21:16:51.682 WM-P...sor Work WorkGenerationalId(workSpecId=e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85, generation=0) is already enqueued for processing
+21:16:51.748 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242409
+21:16:51.779 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242409
+21:16:51.780 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:51.797 WM-S...ler Scheduling work ID 3577d960-27ae-47b0-97b2-b76975d9275fJob ID 2488
+21:16:51.799 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:51.805 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=3577d960-27ae-47b0-97b2-b76975d9275f, generation=0)
+21:16:51.808 WM-G...ler Starting work for 3577d960-27ae-47b0-97b2-b76975d9275f
+21:16:51.814 LogUtil    [СЖАТИЕ:2409] Запущена работа по сжатию для content://media/external/images/media/242409 с тегом compress_1769019411790_IMG_20260121_211606.jpg в батче auto_batch_1_1769019367304
+21:16:51.816 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:51.817 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242412
+21:16:51.818 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242412
+21:16:51.818 LogUtil    [URI:2412] URI scheme: content, authority: media, path: /external/images/media/242412
+21:16:51.825 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242412
+21:16:51.868 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:51.880 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242416
+21:16:51.881 WM-W...per Worker result FAILURE for Work [ id=4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019411015_IMG_20260121_211608_1.jpg } ]
+21:16:51.907 WM-P...sor Processor 4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e executed; reschedule = false
+21:16:51.908 WM-S...ice 4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e executed on JobScheduler
+21:16:51.917 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242412 (всего: 7)
+21:16:51.923 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242412
+21:16:51.932 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=3577d960-27ae-47b0-97b2-b76975d9275f, generation=0)
+21:16:51.952 WM-P...sor Work WorkGenerationalId(workSpecId=3577d960-27ae-47b0-97b2-b76975d9275f, generation=0) is already enqueued for processing
+21:16:52.024 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242412
+21:16:52.054 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242412
+21:16:52.055 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:52.056 WM-S...ler Scheduling work ID 5ae5768c-2519-466c-903a-a09aaacf3ad8Job ID 2489
+21:16:52.065 WM-G...ler Starting work for 5ae5768c-2519-466c-903a-a09aaacf3ad8
+21:16:52.070 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=5ae5768c-2519-466c-903a-a09aaacf3ad8, generation=0)
+21:16:52.087 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:52.101 WM-W...per Worker result FAILURE for Work [ id=e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019411267_IMG_20260121_211607_1.jpg } ]
+21:16:52.102 LogUtil    [СЖАТИЕ:2412] Запущена работа по сжатию для content://media/external/images/media/242412 с тегом compress_1769019412077_IMG_20260121_211607.jpg в батче auto_batch_1_1769019367304
+21:16:52.103 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:52.104 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242406
+21:16:52.105 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242406
+21:16:52.106 LogUtil    [URI:2406] URI scheme: content, authority: media, path: /external/images/media/242406
+21:16:52.112 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242406
+21:16:52.124 WM-P...sor Processor e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85 executed; reschedule = false
+21:16:52.125 WM-S...ice e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85 executed on JobScheduler
+21:16:52.129 WM-G...ler Cancelling work ID 4f7c23c7-a6c7-4a4e-93f9-3178e9545e5e
+21:16:52.159 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242406 (всего: 8)
+21:16:52.165 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242406
+21:16:52.198 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:52.207 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242418
+21:16:52.219 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=5ae5768c-2519-466c-903a-a09aaacf3ad8, generation=0)
+21:16:52.239 WM-P...sor Work WorkGenerationalId(workSpecId=5ae5768c-2519-466c-903a-a09aaacf3ad8, generation=0) is already enqueued for processing
+21:16:52.268 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242406
+21:16:52.297 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242406
+21:16:52.297 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:52.314 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:52.327 LogUtil    [СЖАТИЕ:2406] Запущена работа по сжатию для content://media/external/images/media/242406 с тегом compress_1769019412306_IMG_20260121_211605_1.jpg в батче auto_batch_1_1769019367304
+21:16:52.329 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:52.330 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242400
+21:16:52.330 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242400
+21:16:52.331 LogUtil    [URI:2400] URI scheme: content, authority: media, path: /external/images/media/242400
+21:16:52.336 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242400
+21:16:52.344 WM-S...ler Scheduling work ID df4a5396-c516-4971-95e5-64d98b7c8046Job ID 2490
+21:16:52.353 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=df4a5396-c516-4971-95e5-64d98b7c8046, generation=0)
+21:16:52.353 WM-G...ler Starting work for df4a5396-c516-4971-95e5-64d98b7c8046
+21:16:52.368 WM-G...ler Cancelling work ID e5ae8ba3-7cc0-435e-9db6-a0b4d5be6d85
+21:16:52.402 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242400 (всего: 9)
+21:16:52.404 WM-W...per Worker result FAILURE for Work [ id=3577d960-27ae-47b0-97b2-b76975d9275f, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019411508_IMG_20260121_211608.jpg } ]
+21:16:52.406 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242400
+21:16:52.424 WM-P...sor Processor 3577d960-27ae-47b0-97b2-b76975d9275f executed; reschedule = false
+21:16:52.425 WM-S...ice 3577d960-27ae-47b0-97b2-b76975d9275f executed on JobScheduler
+21:16:52.458 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:52.467 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242409
+21:16:52.512 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242400
+21:16:52.540 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242400
+21:16:52.541 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:52.556 WM-S...ler Scheduling work ID 346ec04b-655c-4606-bcf9-e69c8a5a67ceJob ID 2491
+21:16:52.557 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:52.565 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=346ec04b-655c-4606-bcf9-e69c8a5a67ce, generation=0)
+21:16:52.568 WM-G...ler Starting work for 346ec04b-655c-4606-bcf9-e69c8a5a67ce
+21:16:52.570 LogUtil    [СЖАТИЕ:2400] Запущена работа по сжатию для content://media/external/images/media/242400 с тегом compress_1769019412549_IMG_20260121_211604.jpg в батче auto_batch_1_1769019367304
+21:16:52.574 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:52.575 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242403
+21:16:52.576 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242403
+21:16:52.576 LogUtil    [URI:2403] URI scheme: content, authority: media, path: /external/images/media/242403
+21:16:52.581 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242403
+21:16:52.590 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=df4a5396-c516-4971-95e5-64d98b7c8046, generation=0)
+21:16:52.604 WM-P...sor Work WorkGenerationalId(workSpecId=df4a5396-c516-4971-95e5-64d98b7c8046, generation=0) is already enqueued for processing
+21:16:52.623 WM-G...ler Cancelling work ID 3577d960-27ae-47b0-97b2-b76975d9275f
+21:16:52.657 WM-W...per Worker result FAILURE for Work [ id=5ae5768c-2519-466c-903a-a09aaacf3ad8, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019411790_IMG_20260121_211606.jpg } ]
+21:16:52.663 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242403 (всего: 10)
+21:16:52.670 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242403
+21:16:52.677 WM-P...sor Processor 5ae5768c-2519-466c-903a-a09aaacf3ad8 executed; reschedule = false
+21:16:52.679 WM-S...ice 5ae5768c-2519-466c-903a-a09aaacf3ad8 executed on JobScheduler
+21:16:52.695 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=346ec04b-655c-4606-bcf9-e69c8a5a67ce, generation=0)
+21:16:52.709 WM-P...sor Work WorkGenerationalId(workSpecId=346ec04b-655c-4606-bcf9-e69c8a5a67ce, generation=0) is already enqueued for processing
+21:16:52.770 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242403
+21:16:52.792 WM-S...ler Scheduling work ID 8ef7966a-e9a5-4855-b6ea-d0746ada26beJob ID 2492
+21:16:52.801 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=8ef7966a-e9a5-4855-b6ea-d0746ada26be, generation=0)
+21:16:52.803 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242403
+21:16:52.803 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:52.804 WM-G...ler Starting work for 8ef7966a-e9a5-4855-b6ea-d0746ada26be
+21:16:52.822 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:52.834 LogUtil    [СЖАТИЕ:2403] Запущена работа по сжатию для content://media/external/images/media/242403 с тегом compress_1769019412813_IMG_20260121_211605.jpg в батче auto_batch_1_1769019367304
+21:16:52.836 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:52.837 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242397
+21:16:52.838 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242397
+21:16:52.839 LogUtil    [URI:2397] URI scheme: content, authority: media, path: /external/images/media/242397
+21:16:52.842 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:52.844 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242397
+21:16:52.852 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242412
+21:16:52.873 WM-G...ler Cancelling work ID 5ae5768c-2519-466c-903a-a09aaacf3ad8
+21:16:52.929 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:52.939 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242406
+21:16:52.946 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242397 (всего: 11)
+21:16:52.950 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242397
+21:16:52.951 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=8ef7966a-e9a5-4855-b6ea-d0746ada26be, generation=0)
+21:16:52.965 WM-P...sor Work WorkGenerationalId(workSpecId=8ef7966a-e9a5-4855-b6ea-d0746ada26be, generation=0) is already enqueued for processing
+21:16:53.043 WM-S...ler Scheduling work ID 61af0bcb-63ab-4776-b214-87441b13ec34Job ID 2493
+21:16:53.048 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242397
+21:16:53.052 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=61af0bcb-63ab-4776-b214-87441b13ec34, generation=0)
+21:16:53.053 WM-G...ler Starting work for 61af0bcb-63ab-4776-b214-87441b13ec34
+21:16:53.067 WM-W...per Worker result FAILURE for Work [ id=df4a5396-c516-4971-95e5-64d98b7c8046, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019412077_IMG_20260121_211607.jpg } ]
+21:16:53.082 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242397
+21:16:53.083 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:53.085 WM-P...sor Processor df4a5396-c516-4971-95e5-64d98b7c8046 executed; reschedule = false
+21:16:53.089 WM-S...ice df4a5396-c516-4971-95e5-64d98b7c8046 executed on JobScheduler
+21:16:53.105 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:53.116 LogUtil    [СЖАТИЕ:2397] Запущена работа по сжатию для content://media/external/images/media/242397 с тегом compress_1769019413093_IMG_20260121_211603.jpg в батче auto_batch_1_1769019367304
+21:16:53.119 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:53.120 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: обработка изображения: content://media/external/images/media/242394
+21:16:53.120 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: начало обработки нового изображения: content://media/external/images/media/242394
+21:16:53.120 WM-W...per Worker result FAILURE for Work [ id=346ec04b-655c-4606-bcf9-e69c8a5a67ce, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019412306_IMG_20260121_211605_1.jpg } ]
+21:16:53.121 LogUtil    [URI:2394] URI scheme: content, authority: media, path: /external/images/media/242394
+21:16:53.125 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242394
+21:16:53.142 WM-P...sor Processor 346ec04b-655c-4606-bcf9-e69c8a5a67ce executed; reschedule = false
+21:16:53.143 WM-S...ice 346ec04b-655c-4606-bcf9-e69c8a5a67ce executed on JobScheduler
+21:16:53.177 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:53.186 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242400
+21:16:53.213 LogUtil    [ПРОЦЕСС] URI добавлен в список обрабатываемых: content://media/external/images/media/242394 (всего: 12)
+21:16:53.217 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=61af0bcb-63ab-4776-b214-87441b13ec34, generation=0)
+21:16:53.223 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242394
+21:16:53.235 WM-P...sor Work WorkGenerationalId(workSpecId=61af0bcb-63ab-4776-b214-87441b13ec34, generation=0) is already enqueued for processing
+21:16:53.239 WM-G...ler Cancelling work ID df4a5396-c516-4971-95e5-64d98b7c8046
+21:16:53.330 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/242394
+21:16:53.355 WM-S...ler Scheduling work ID b97c7c74-fe26-4fb6-909a-cd136d7f67cbJob ID 2494
+21:16:53.360 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/242394
+21:16:53.360 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+21:16:53.365 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=b97c7c74-fe26-4fb6-909a-cd136d7f67cb, generation=0)
+21:16:53.371 WM-G...ler Starting work for b97c7c74-fe26-4fb6-909a-cd136d7f67cb
+21:16:53.381 LogUtil    [ПРОЦЕСС] Используется существующий автобатч: auto_batch_1_1769019367304
+21:16:53.389 WM-G...ler Cancelling work ID 346ec04b-655c-4606-bcf9-e69c8a5a67ce
+21:16:53.397 LogUtil    [СЖАТИЕ:2394] Запущена работа по сжатию для content://media/external/images/media/242394 с тегом compress_1769019413372_IMG_20260121_211602_1.jpg в батче auto_batch_1_1769019367304
+21:16:53.399 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: результат обработки изображения: Сжатие запущено
+21:16:53.400 LogUtil    [ПРОЦЕСС] BackgroundMonitoringService: сканирование завершено. Обработано: 12, Пропущено: 1
+21:16:53.427 WM-W...per Worker result FAILURE for Work [ id=8ef7966a-e9a5-4855-b6ea-d0746ada26be, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019412549_IMG_20260121_211604.jpg } ]
+21:16:53.442 WM-P...sor Processor 8ef7966a-e9a5-4855-b6ea-d0746ada26be executed; reschedule = false
+21:16:53.444 WM-S...ice 8ef7966a-e9a5-4855-b6ea-d0746ada26be executed on JobScheduler
+21:16:53.472 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:53.481 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242403
+21:16:53.495 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=b97c7c74-fe26-4fb6-909a-cd136d7f67cb, generation=0)
+21:16:53.509 WM-P...sor Work WorkGenerationalId(workSpecId=b97c7c74-fe26-4fb6-909a-cd136d7f67cb, generation=0) is already enqueued for processing
+21:16:53.579 WM-S...ler Scheduling work ID 6b491646-30cf-4127-b637-4b84bd932112Job ID 2495
+21:16:53.589 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=6b491646-30cf-4127-b637-4b84bd932112, generation=0)
+21:16:53.589 WM-G...ler Starting work for 6b491646-30cf-4127-b637-4b84bd932112
+21:16:53.602 WM-G...ler Cancelling work ID 8ef7966a-e9a5-4855-b6ea-d0746ada26be
+21:16:53.632 WM-W...per Worker result FAILURE for Work [ id=61af0bcb-63ab-4776-b214-87441b13ec34, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019412813_IMG_20260121_211605.jpg } ]
+21:16:53.647 WM-P...sor Processor 61af0bcb-63ab-4776-b214-87441b13ec34 executed; reschedule = false
+21:16:53.650 WM-S...ice 61af0bcb-63ab-4776-b214-87441b13ec34 executed on JobScheduler
+21:16:53.675 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:53.683 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242397
+21:16:53.697 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=6b491646-30cf-4127-b637-4b84bd932112, generation=0)
+21:16:53.709 WM-P...sor Work WorkGenerationalId(workSpecId=6b491646-30cf-4127-b637-4b84bd932112, generation=0) is already enqueued for processing
+21:16:53.725 WM-G...ler Cancelling work ID 61af0bcb-63ab-4776-b214-87441b13ec34
+21:16:53.752 WM-W...per Worker result FAILURE for Work [ id=b97c7c74-fe26-4fb6-909a-cd136d7f67cb, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019413093_IMG_20260121_211603.jpg } ]
+21:16:53.768 WM-P...sor Processor b97c7c74-fe26-4fb6-909a-cd136d7f67cb executed; reschedule = false
+21:16:53.769 WM-S...ice b97c7c74-fe26-4fb6-909a-cd136d7f67cb executed on JobScheduler
+21:16:53.797 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+21:16:53.805 LogUtil    [ПРОЦЕСС] ImageCompressionWorker: URI помечен как недоступный, возвращаем failure: content://media/external/images/media/242394
+21:16:53.817 WM-G...ler Cancelling work ID b97c7c74-fe26-4fb6-909a-cd136d7f67cb
+21:16:53.842 WM-W...per Worker result FAILURE for Work [ id=6b491646-30cf-4127-b637-4b84bd932112, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1769019413372_IMG_20260121_211602_1.jpg } ]
+21:16:53.857 WM-P...sor Processor 6b491646-30cf-4127-b637-4b84bd932112 executed; reschedule = false
+21:16:53.858 WM-S...ice 6b491646-30cf-4127-b637-4b84bd932112 executed on JobScheduler
+21:16:53.874 WM-G...ler Cancelling work ID 6b491646-30cf-4127-b637-4b84bd932112
+21:16:53.904 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver disabled

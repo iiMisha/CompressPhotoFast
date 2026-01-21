@@ -19,6 +19,12 @@ import java.util.Date
 /**
  * Утилитарный класс для работы с URI и получения информации о файлах
  */
+/**
+ * Исключение, выбрасываемое когда файл существует, но находится в состоянии pending
+ * и недоступен для чтения в данный момент (Only owner is able to interact with pending item).
+ */
+class PendingItemException(val uri: Uri, cause: Throwable) : Exception(cause.message, cause)
+
 object UriUtil {
     /**
      * Получает полный путь к файлу из URI
@@ -313,7 +319,24 @@ object UriUtil {
                 LogUtil.debug("Проверка существования", "Ошибка ввода/вывода (${uri}): ${e.message}")
                 return@withContext false
             } catch (e: java.lang.SecurityException) {
+                // Проверяем, не является ли это "Only owner is able to interact with pending item"
+                val message = e.message ?: ""
+                if (message.contains("pending item", ignoreCase = true) || 
+                    message.contains("Only owner", ignoreCase = true)) {
+                    LogUtil.debug("Проверка существования", "Файл существует но pending (SecurityException): $uri")
+                    throw PendingItemException(uri, e)
+                }
                 LogUtil.debug("Проверка существования", "Нет прав доступа (${uri}): ${e.message}")
+                return@withContext false
+            } catch (e: java.lang.IllegalStateException) {
+                // Android 11+ иногда выбрасывает IllegalStateException для pending items
+                val message = e.message ?: ""
+                if (message.contains("pending item", ignoreCase = true) || 
+                    message.contains("Only owner", ignoreCase = true)) {
+                    LogUtil.debug("Проверка существования", "Файл существует но pending (IllegalStateException): $uri")
+                    throw PendingItemException(uri, e)
+                }
+                LogUtil.debug("Проверка существования", "Ошибка состояния (${uri}): ${e.message}")
                 return@withContext false
             } catch (e: Exception) {
                 LogUtil.debug("Проверка существования", "Неожиданная ошибка (${uri}): ${e.message}")
