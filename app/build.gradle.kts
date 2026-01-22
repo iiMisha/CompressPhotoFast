@@ -294,12 +294,21 @@ tasks.register<JacocoReport>("jacocoCombinedTestReport") {
     })
 }
 
-// Параллельный запуск тестов
+// Параллельный запуск тестов с поддержкой режимов
 tasks.withType<Test> {
     maxHeapSize = "2048m"
     jvmArgs("-XX:MaxMetaspaceSize=512m")
-    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtMost(4)
-    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+    
+    // Определение режима через переменную окружения GRADLE_MODE
+    // Возможные значения: "eco" (по умолчанию) или "fast"
+    val gradleMode = System.getenv("GRADLE_MODE") ?: "eco"
+    
+    maxParallelForks = when (gradleMode) {
+        "fast" -> (Runtime.getRuntime().availableProcessors() / 2).coerceAtMost(4)  // Параллельное выполнение для быстрой сборки
+        else -> 1  // Последовательное выполнение для экономии CPU (по умолчанию)
+    }
+    
+    systemProperty("junit.jupiter.execution.parallel.enabled", gradleMode == "fast")
 }
 
 // Полная проверка всех тестов

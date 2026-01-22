@@ -30,6 +30,10 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
 
         // Создаем mock Context
         mockContext = mockk<android.content.Context>(relaxed = true)
+        
+        // Настраиваем mock для SharedPreferences
+        val mockSharedPreferences = mockk<android.content.SharedPreferences>(relaxed = true)
+        every { mockContext.getSharedPreferences(any(), any()) } returns mockSharedPreferences
     }
 
     /**

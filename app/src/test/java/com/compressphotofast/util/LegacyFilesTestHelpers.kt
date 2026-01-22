@@ -172,10 +172,14 @@ object LegacyFilesTestHelpers {
      * @return content:// URI для изображения
      */
     fun createMediaStoreUri(id: Long = 1L): Uri {
-        return ContentUris.withAppendedId(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            id
-        )
+        // Используем mock Uri для Robolectric тестов
+        val mockUri = mockk<Uri>()
+        every { mockUri.toString() } returns "content://media/external/images/media/$id"
+        every { mockUri.scheme } returns "content"
+        every { mockUri.authority } returns "media"
+        every { mockUri.path } returns "/external/images/media/$id"
+        every { mockUri.lastPathSegment } returns id.toString()
+        return mockUri
     }
 
     /**

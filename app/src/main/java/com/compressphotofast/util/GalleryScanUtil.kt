@@ -102,9 +102,10 @@ object GalleryScanUtil {
                         continue
                     }
                     
-                    val contentUri = ContentUris.withAppendedId(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
-                    )
+                    // ContentUris.withAppendedId() может возвращать null в некоторых случаях
+                    // Создаем URI через ContentUris.withAppendedId() с fallback на Uri.parse()
+                    val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                        ?: Uri.parse("${MediaStore.Images.Media.EXTERNAL_CONTENT_URI}/$id")
                     
                     // Проверяем, не находится ли URI уже в процессе обработки
                     if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri)) {

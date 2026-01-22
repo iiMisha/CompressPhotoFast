@@ -22,6 +22,10 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         mockContext = mockk()
         every { mockContext.applicationContext } returns mockContext
 
+        // Настраиваем mock для SharedPreferences
+        val mockSharedPreferences = mockk<android.content.SharedPreferences>(relaxed = true)
+        every { mockContext.getSharedPreferences(any(), any()) } returns mockSharedPreferences
+
         // Очищаем все батчи перед каждым тестом
         CompressionBatchTracker.clearAllBatches()
     }

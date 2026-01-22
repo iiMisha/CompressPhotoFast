@@ -1,6 +1,7 @@
 package com.compressphotofast.util
 
 import android.net.Uri
+import android.os.Build
 import com.compressphotofast.BaseUnitTest
 import io.mockk.every
 import io.mockk.mockk
@@ -8,6 +9,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.robolectric.annotation.Config
 
 /**
  * Unit тесты для UriUtil, проверяющие обработку старых файлов.
@@ -17,6 +19,7 @@ import org.junit.Test
  * 2. IS_PENDING флага с недавним значением
  * 3. Получение старой даты модификации для скопированных файлов
  */
+@Config(sdk = [Build.VERSION_CODES.Q])
 class UriUtilLegacyFilesTest : BaseUnitTest() {
 
     private lateinit var mockContext: android.content.Context
@@ -42,6 +45,7 @@ class UriUtilLegacyFilesTest : BaseUnitTest() {
         )
 
         val contentResolver = mockk<android.content.ContentResolver>(relaxed = true)
+        // Настраиваем mock для всех возможных query вызовов в UriUtil.isFilePending()
         every {
             contentResolver.query(
                 any<android.net.Uri>(),
@@ -102,6 +106,8 @@ class UriUtilLegacyFilesTest : BaseUnitTest() {
 
         // Проверяем
         val result = UriUtil.isFilePending(mockContext, testUri)
+
+        println("DEBUG: recentAddedTime=$recentAddedTime, currentTime=$currentTime, age=${currentTime - recentAddedTime}s, result=$result")
 
         // Ожидаем, что недавний флаг учитывается
         assertTrue("Недавний флаг IS_PENDING должен возвращать true", result)

@@ -127,7 +127,12 @@ class CompressionLoadTest {
             TestImageFormat.HEIC -> ".heic"
         }
 
-        val file = File(testImageDir, "load_test_5mb_${System.currentTimeMillis()}_$extension")
+        val file = File(testImageDir, "load_test_5mb_${System.currentTimeMillis()}_${System.nanoTime()}_$extension")
+
+        // Убеждаемся, что директория существует
+        if (!testImageDir.exists()) {
+            testImageDir.mkdirs()
+        }
 
         FileOutputStream(file).use { out ->
             when (format) {
