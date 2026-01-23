@@ -1,6 +1,5 @@
 package com.compressphotofast.e2e
 
-import android.Manifest
 import android.app.ActivityManager
 import android.app.job.JobInfo
 import android.app.job.JobScheduler
@@ -17,8 +16,7 @@ import androidx.test.espresso.action.ViewActions
 import androidx.test.espresso.assertion.ViewAssertions
 import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.rule.GrantPermissionRule
-import com.compressphotofast.BaseInstrumentedTest
+import com.compressphotofast.BaseE2ETest
 import com.compressphotofast.R
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
@@ -33,7 +31,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -50,20 +47,7 @@ import org.junit.Test
  * - Работа после перезагрузки устройства
  */
 @HiltAndroidTest
-class AutoCompressionE2ETest : BaseInstrumentedTest() {
-
-    @get:Rule
-    val grantPermissionRule: GrantPermissionRule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        GrantPermissionRule.grant(
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO
-        )
-    } else {
-        GrantPermissionRule.grant(
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        )
-    }
+class AutoCompressionE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context
     private val testUris = mutableListOf<Uri>()
