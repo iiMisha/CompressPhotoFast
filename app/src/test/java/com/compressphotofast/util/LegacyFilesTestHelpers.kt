@@ -24,9 +24,16 @@ import java.util.Calendar
 object LegacyFilesTestHelpers {
 
     /**
+     * Настраиваемое текущее время в секундах (для DATE_ADDED)
+     * Может быть переопределено для тестов с фиксированным временем
+     */
+    var currentTimeForTests: Long = System.currentTimeMillis() / 1000
+
+    /**
      * Константа для текущего времени в секундах (для DATE_ADDED)
      */
-    val CURRENT_TIME_SECONDS: Long = System.currentTimeMillis() / 1000
+    val CURRENT_TIME_SECONDS: Long
+        get() = currentTimeForTests
 
     /**
      * Константа для времени файла из 2020 года (для DATE_MODIFIED старых файлов)
@@ -94,7 +101,7 @@ object LegacyFilesTestHelpers {
     fun createMockContentResolverWithCursor(cursor: MatrixCursor): ContentResolver {
         val mockResolver = mockk<ContentResolver>(relaxed = true)
 
-        // Используем relaxed = true, поэтому нам нужно указать только то, что возвращает cursor
+        // Настроили query() для возврата cursor
         every {
             mockResolver.query(
                 any<Uri>(),
@@ -104,6 +111,12 @@ object LegacyFilesTestHelpers {
                 any()
             )
         } returns cursor
+
+        // Настроили openInputStream() для возврата null (файл не доступен для чтения)
+        // Это предотвращает ошибки в isFilePending() при проверке физического существования файла
+        every {
+            mockResolver.openInputStream(any<Uri>())
+        } returns null
 
         return mockResolver
     }
@@ -127,6 +140,11 @@ object LegacyFilesTestHelpers {
                 any()
             )
         } returns cursors.first()
+
+        // Настроили openInputStream() для возврата null
+        every {
+            mockResolver.openInputStream(any<Uri>())
+        } returns null
 
         return mockResolver
     }

@@ -28,6 +28,15 @@
 ./scripts/run_all_tests.sh
 ```
 
+**Для запуска instrumentation тестов нужен эмулятор Small_Phone:**
+- Откройте Android Studio → Device Manager
+- Запустите AVD "Small_Phone"
+- Или через командную строку (требует настроенный ANDROID_HOME):
+```bash
+export ANDROID_HOME=~/Android/Sdk
+$ANDROID_HOME/emulator/emulator -avd Small_Phone
+```
+
 **Проверка покрытия кода:**
 ```bash
 ./gradlew jacocoTestReport
