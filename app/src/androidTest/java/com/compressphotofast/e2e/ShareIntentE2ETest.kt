@@ -19,7 +19,6 @@ import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.google.common.truth.Truth.assertThat
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -28,7 +27,7 @@ import org.junit.Test
 
 /**
  * E2E тесты для обработки Share Intent.
- * 
+ *
  * Тестирует полный сценарий обработки изображений через Share Intent:
  * - Получение изображения через ACTION_SEND
  * - Получение нескольких изображений через ACTION_SEND_MULTIPLE
@@ -37,7 +36,6 @@ import org.junit.Test
  * - Сохранение результата
  * - Обработка не поддерживаемых форматов
  */
-@HiltAndroidTest
 class ShareIntentE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context

@@ -26,7 +26,6 @@ import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.google.common.truth.Truth.assertThat
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -35,7 +34,7 @@ import org.junit.Test
 
 /**
  * E2E тесты для автоматического сжатия изображений.
- * 
+ *
  * Тестирует полный сценарий автоматического сжатия:
  * - Включение авто-сжатия
  * - Запуск BackgroundMonitoringService
@@ -46,7 +45,6 @@ import org.junit.Test
  * - Остановка авто-сжатия
  * - Работа после перезагрузки устройства
  */
-@HiltAndroidTest
 class AutoCompressionE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context

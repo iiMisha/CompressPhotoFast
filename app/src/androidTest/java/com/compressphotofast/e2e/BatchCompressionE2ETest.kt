@@ -21,7 +21,6 @@ import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.google.common.truth.Truth.assertThat
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -30,7 +29,7 @@ import org.junit.Test
 
 /**
  * E2E тесты для пакетного сжатия изображений.
- * 
+ *
  * Тестирует полный сценарий пакетного сжатия:
  * - Выбор нескольких изображений
  * - Пакетное сжатие с разными настройками
@@ -38,7 +37,6 @@ import org.junit.Test
  * - Итоговая сводка
  * - Обработка скриншотов и фото из мессенджеров
  */
-@HiltAndroidTest
 class BatchCompressionE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context

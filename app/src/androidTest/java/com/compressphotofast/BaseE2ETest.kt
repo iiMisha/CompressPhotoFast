@@ -3,7 +3,6 @@ package com.compressphotofast
 import android.Manifest
 import android.os.Build
 import androidx.test.rule.GrantPermissionRule
-import dagger.hilt.android.testing.HiltAndroidRule
 import org.junit.Before
 import org.junit.Rule
 
@@ -12,7 +11,6 @@ import org.junit.Rule
  *
  * Предоставляет общую настройку для:
  * - Автоматического предоставления всех необходимых разрешений
- * - Настройки Hilt для внедрения зависимостей
  * - Общих утилит для E2E тестирования
  *
  * Разрешения автоматически предоставляются:
@@ -20,9 +18,6 @@ import org.junit.Rule
  * - Android 10-12 (API 29-32): READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, POST_NOTIFICATIONS, ACCESS_MEDIA_LOCATION
  */
 abstract class BaseE2ETest : BaseInstrumentedTest() {
-
-    @get:Rule
-    val hiltRule = HiltAndroidRule(this)
 
     @get:Rule
     val grantPermissionRule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -49,6 +44,5 @@ abstract class BaseE2ETest : BaseInstrumentedTest() {
     @Before
     override fun setUp() {
         super.setUp()
-        hiltRule.inject()
     }
 }

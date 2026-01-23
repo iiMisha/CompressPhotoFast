@@ -14,14 +14,13 @@ import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.SettingsManager
 import com.google.common.truth.Truth.assertThat
-import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
 /**
  * E2E тесты для управления настройками приложения.
- * 
+ *
  * Тестирует полный сценарий управления настройками:
  * - Изменение качества сжатия
  * - Изменение режима сохранения
@@ -32,7 +31,6 @@ import org.junit.Test
  * - Восстановление настроек после перезапуска
  * - Сброс настроек
  */
-@HiltAndroidTest
 class SettingsE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context

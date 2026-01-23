@@ -18,7 +18,6 @@ import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.google.common.truth.Truth.assertThat
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -27,7 +26,7 @@ import org.junit.Test
 
 /**
  * E2E тесты для ручного сжатия изображений.
- * 
+ *
  * Тестирует полный сценарий ручного сжатия:
  * - Выбор одного изображения через галерею
  * - Выбор качества сжатия
@@ -40,7 +39,6 @@ import org.junit.Test
  * - Проверка обработки уже сжатых файлов
  * - Проверка обработки файлов меньше 100 КБ
  */
-@HiltAndroidTest
 class ManualCompressionE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context
