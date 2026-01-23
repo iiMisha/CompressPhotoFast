@@ -244,8 +244,9 @@ class ExifUtilInstrumentedTest {
      * - Маркеры сжатия (test05-08)
      * - Применение EXIF из памяти (test10-14)
      * - Edge cases (test15-17)
+     *
+     * ПРИМЕЧАНИЕ: @Ignore убран для проверки текущего состояния функциональности
      */
-    @Ignore("copyExifData returns false despite correct EXIF data - needs investigation")
     @Test
     fun test09_copyExifData_copiesExifSuccessfully() = runBlocking {
         // Arrange

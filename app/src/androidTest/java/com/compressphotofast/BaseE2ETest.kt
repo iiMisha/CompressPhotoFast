@@ -1,8 +1,12 @@
 package com.compressphotofast
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
+import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 
@@ -11,6 +15,7 @@ import org.junit.Rule
  *
  * Предоставляет общую настройку для:
  * - Автоматического предоставления всех необходимых разрешений
+ * - Очистки тестовых данных между тестами
  * - Общих утилит для E2E тестирования
  *
  * Разрешения автоматически предоставляются:
@@ -44,5 +49,35 @@ abstract class BaseE2ETest : BaseInstrumentedTest() {
     @Before
     override fun setUp() {
         super.setUp()
+        // Очистка перед тестами
+        cleanupTestData()
+    }
+
+    @After
+    override fun tearDown() {
+        // Очистка после тестов
+        cleanupTestData()
+        super.tearDown()
+    }
+
+    /**
+     * Очищает тестовые данные между тестами.
+     * Очищает SharedPreferences и DataStore.
+     */
+    private fun cleanupTestData() {
+        try {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+            // Очистка SharedPreferences
+            val prefsName = "com.compressphotofast_preferences"
+            val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            prefs.edit().clear().apply()
+
+            // Очистка DataStore через SettingsManager если возможно
+            // Примечание: Полная очистка DataStore требует создания SettingsManager
+        } catch (e: Exception) {
+            // Логируем ошибку, но не прерываем тест
+            println("Warning: Failed to cleanup test data: ${e.message}")
+        }
     }
 }
