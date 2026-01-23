@@ -99,23 +99,28 @@ object LegacyFilesTestHelpers {
      * @return Mock ContentResolver
      */
     fun createMockContentResolverWithCursor(cursor: MatrixCursor): ContentResolver {
-        val mockResolver = mockk<ContentResolver>(relaxed = true)
+        // Не используем relaxed mode, чтобы точно контролировать поведение
+        val mockResolver = mockk<ContentResolver>(relaxed = false)
 
         // Настроили query() для возврата cursor
+        // Используем any() без указания конкретных типов, чтобы избежать проблем с nullable
         every {
             mockResolver.query(
-                any<Uri>(),
+                any(),
                 any(),
                 any(),
                 any(),
                 any()
             )
-        } returns cursor
+        } answers {
+            // Возвращаем курсор
+            cursor
+        }
 
         // Настроили openInputStream() для возврата null (файл не доступен для чтения)
         // Это предотвращает ошибки в isFilePending() при проверке физического существования файла
         every {
-            mockResolver.openInputStream(any<Uri>())
+            mockResolver.openInputStream(any())
         } returns null
 
         return mockResolver
@@ -128,22 +133,28 @@ object LegacyFilesTestHelpers {
      * @return Mock ContentResolver
      */
     fun createMockContentResolverWithMultipleCursors(vararg cursors: MatrixCursor): ContentResolver {
-        val mockResolver = mockk<ContentResolver>(relaxed = true)
+        // Не используем relaxed mode
+        val mockResolver = mockk<ContentResolver>(relaxed = false)
+
+        val firstCursor = cursors.first()
 
         // Используем первый cursor для всех вызовов
         every {
             mockResolver.query(
-                any<Uri>(),
+                any(),
                 any(),
                 any(),
                 any(),
                 any()
             )
-        } returns cursors.first()
+        } answers {
+            // Возвращаем курсор
+            firstCursor
+        }
 
         // Настроили openInputStream() для возврата null
         every {
-            mockResolver.openInputStream(any<Uri>())
+            mockResolver.openInputStream(any())
         } returns null
 
         return mockResolver

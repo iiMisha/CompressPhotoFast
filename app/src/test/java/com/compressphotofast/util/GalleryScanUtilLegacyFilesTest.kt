@@ -31,10 +31,17 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
 
         // Создаем mock Context
         mockContext = mockk<android.content.Context>(relaxed = true)
-        
+
         // Настраиваем mock для SharedPreferences
         val mockSharedPreferences = mockk<android.content.SharedPreferences>(relaxed = true)
         every { mockContext.getSharedPreferences(any(), any()) } returns mockSharedPreferences
+    }
+
+    @After
+    override fun tearDown() {
+        // Очищаем все static mocks, включая SettingsManager
+        io.mockk.unmockkAll()
+        super.tearDown()
     }
 
     /**
@@ -122,7 +129,8 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
             checkProcessable = false // Не проверяем processable
         )
 
-        // Временно убрали проверки assert для диагностики
+        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
+        // TODO: Испправить mock ContentResolver для корректной работы с MatrixCursor
         // assertEquals("Маленький файл не должен обрабатываться", 0, result.processedCount)
         // assertTrue("Маленький файл должен быть в списке пропущенных", result.skippedCount > 0)
     }
@@ -163,7 +171,8 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         // Выполняем сканирование за 24 часа
         val result = GalleryScanUtil.scanDayOldImages(mockContext)
 
-        // Временно убрали проверки assert для диагностики
+        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
+        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
         // assertEquals("Файл должен быть найден при 24-часовом сканировании", 1, result.processedCount)
         // assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
     }
@@ -231,7 +240,8 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
             checkProcessable = false
         )
 
-        // Временно убрали проверки assert для диагностики
+        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
+        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
         // assertEquals("Большой файл не должен обрабатываться", 0, result.processedCount)
         // assertTrue("Большой файл должен быть в списке пропущенных", result.skippedCount > 0)
     }
@@ -274,7 +284,8 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
             checkProcessable = false
         )
 
-        // Временно убрали проверки assert для диагностики
+        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
+        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
         // assertEquals("Нормальный файл должен быть обработан", 1, result.processedCount)
         // assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
     }
@@ -315,7 +326,8 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
             checkProcessable = false // Не проверяем processable, поэтому IS_PENDING не учитывается
         )
 
-        // Временно убрали проверки assert для диагностики
+        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
+        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
         // assertEquals("Файл должен быть добавлен при checkProcessable=false", 1, result.processedCount)
     }
 
@@ -360,7 +372,8 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
             checkProcessable = false
         )
 
-        // Временно убрали проверки assert для диагностики
+        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
+        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
         // assertTrue("Файлы, добавленные менее 3 секунд назад, должны обрабатываться",
         //     result.foundUris.isNotEmpty())
         // assertEquals("Файл должен быть найден", 1, result.processedCount)

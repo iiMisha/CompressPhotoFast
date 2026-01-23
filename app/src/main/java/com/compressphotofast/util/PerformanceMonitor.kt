@@ -199,7 +199,7 @@ object PerformanceMonitor {
             |Получение метаданных:
             |  Пакетные запросы: $batchRequests (среднее время: ${avgBatchTime}ms)
             |  Индивидуальные запросы: $individualRequests (среднее время: ${avgIndividualTime}ms)
-            |  Эффективность пакетной обработки: ${if (avgIndividualTime > 0) String.format("%.1f", avgIndividualTime.toDouble() / avgBatchTime * 100) else "N/A"}%
+            |  Эффективность пакетной обработки: ${if (avgBatchTime > 0) String.format("%.1f", avgIndividualTime.toDouble() / avgBatchTime * 100) else "N/A"}%
             |
             |Кэширование:
             |  Попадания: $hits
