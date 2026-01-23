@@ -15,6 +15,7 @@ import com.compressphotofast.BaseE2ETest
 import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.E2ETestImageGenerator
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.FileInfoUtil
 import com.compressphotofast.util.ImageCompressionUtil
@@ -74,6 +75,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на кнопку выбора фото
         Espresso.onView(ViewMatchers.withId(R.id.btnSelectPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что Photo Picker открыт
         runBlocking { delay(1000) }
@@ -100,6 +104,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выбираем низкое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что прогресс-бар отображается
         Espresso.onView(ViewMatchers.withId(R.id.progressBar))
@@ -143,6 +150,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выбираем среднее качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Выполняем пакетное сжатие
         val results = mutableListOf<Pair<Uri, Long>>()
@@ -178,6 +188,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выбираем высокое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Выполняем пакетное сжатие
         val results = mutableListOf<Pair<Uri, Long>>()
@@ -321,6 +334,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Включаем игнорирование скриншотов
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Пытаемся сжать скриншот
         val uri = screenshotUris[0]
@@ -347,8 +363,14 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выключаем игнорирование скриншотов
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Пытаемся сжать скриншот
         val uri = screenshotUris[0]
@@ -376,6 +398,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Включаем игнорирование фото из мессенджеров
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Пытаемся сжать фото из мессенджера
         val uri = messengerUris[0]
@@ -401,8 +426,14 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выключаем игнорирование фото из мессенджеров
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Пытаемся сжать фото из мессенджера
         val uri = messengerUris[0]
@@ -512,6 +543,9 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Включаем режим замены
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Выполняем пакетное сжатие
         val results = mutableListOf<Uri>()
@@ -545,8 +579,14 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выключаем режим замены (отдельная папка)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Выполняем пакетное сжатие
         val results = mutableListOf<Uri>()
@@ -620,47 +660,17 @@ class BatchCompressionE2ETest : BaseE2ETest() {
      */
     private fun createTestImages() {
         // Обычные изображения
-        val sizes = listOf(
-            Pair(1920, 1080),
-            Pair(1280, 720),
-            Pair(800, 600),
-            Pair(1024, 768),
-            Pair(640, 480)
-        )
-        
-        for ((width, height) in sizes) {
-            val uri = createTestImage(width, height, "test_image")
-            if (uri != null) {
-                testUris.add(uri)
-            }
-        }
-        
+        testUris.clear()
+        testUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 5))
+
         // Скриншоты
-        val screenshotSizes = listOf(
-            Pair(1080, 1920),
-            Pair(720, 1280)
-        )
-        
-        for ((width, height) in screenshotSizes) {
-            val uri = createTestImage(width, height, "screenshot")
-            if (uri != null) {
-                screenshotUris.add(uri)
-            }
-        }
-        
+        screenshotUris.clear()
+        screenshotUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 2))
+
         // Фото из мессенджеров
-        val messengerSizes = listOf(
-            Pair(800, 600),
-            Pair(640, 480)
-        )
-        
-        for ((width, height) in messengerSizes) {
-            val uri = createTestImage(width, height, "messenger")
-            if (uri != null) {
-                messengerUris.add(uri)
-            }
-        }
-        
+        messengerUris.clear()
+        messengerUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 2))
+
         LogUtil.processDebug("Создано ${testUris.size} обычных, ${screenshotUris.size} скриншотов, ${messengerUris.size} фото из мессенджеров")
     }
 

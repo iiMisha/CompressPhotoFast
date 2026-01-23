@@ -22,6 +22,7 @@ import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.E2ETestImageGenerator
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
@@ -85,7 +86,13 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
-        
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        // Ждем обновления UI
+        waitForUI(300)
+
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
@@ -101,6 +108,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         runBlocking { delay(2000) }
@@ -123,6 +133,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -160,6 +173,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -181,6 +197,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем планирования задачи
         runBlocking { delay(2000) }
@@ -202,6 +221,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Создаем новое изображение
         val newUri = createTestImage(1920, 1080)
@@ -225,7 +247,13 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
-        
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        // Ждем обновления UI
+        waitForUI(300)
+
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
@@ -233,6 +261,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Выключаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выключен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
@@ -263,6 +294,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
+        // Ждем обновления UI
+        waitForUI(300)
+
         // ПРИМЕЧАНИЕ: Нельзя отправить BOOT_COMPLETED broadcast из instrumentation тестов
         // Это вызовет SecurityException: Permission Denial
         // Вместо этого просто проверяем, что состояние включено
@@ -283,10 +317,19 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Устанавливаем низкое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
-        
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        // Ждем обновления UI
+        waitForUI(200)
+
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -313,10 +356,16 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем режим замены
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -343,12 +392,26 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Выключаем режим замены (отдельная папка)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        waitForUI(200)
+
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        waitForUI(200)
         
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -375,10 +438,19 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем игнорирование скриншотов
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
-        
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        // Ждем обновления UI
+        waitForUI(200)
+
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -405,10 +477,19 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем игнорирование фото из мессенджеров
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
-        
+
+        // Ждем обновления UI
+        waitForUI(300)
+
+        // Ждем обновления UI
+        waitForUI(200)
+
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -435,6 +516,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -471,6 +555,9 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Ждем запуска службы
         delay(2000)
@@ -513,21 +600,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      * Создает тестовые изображения для тестирования
      */
     private fun createTestImages() {
-        val sizes = listOf(
-            Pair(1920, 1080),
-            Pair(1280, 720),
-            Pair(800, 600),
-            Pair(1024, 768),
-            Pair(640, 480)
-        )
-        
-        for ((width, height) in sizes) {
-            val uri = createTestImage(width, height)
-            if (uri != null) {
-                testUris.add(uri)
-            }
-        }
-        
+        testUris.clear()
+        testUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 5))
         LogUtil.processDebug("Создано ${testUris.size} тестовых изображений")
     }
 

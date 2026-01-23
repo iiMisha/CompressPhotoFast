@@ -269,7 +269,14 @@ object ImageCompressionUtil {
                 LogUtil.error(uri, "Обработка", "Файл не существует (вторая проверка)")
                 return@withContext Triple(false, null, "Файл стал недоступен")
             }
-            
+
+            // НОВАЯ ПРОВЕРКА: Пропускаем уже сжатые файлы
+            val (hasMarker, _, _) = ExifUtil.getCompressionMarker(context, uri)
+            if (hasMarker) {
+                LogUtil.processDebug("Файл уже сжат, пропускаем: $uri")
+                return@withContext Triple(false, uri, "Файл уже сжат")
+            }
+
             // Получение имени и размера файла с безопасной обработкой
             val fileName = UriUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
 

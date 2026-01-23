@@ -698,7 +698,17 @@ object ExifUtil {
                 } catch (gpsE: Exception) {
                     LogUtil.processInfo("❌ Ошибка проверки GPS после сохранения: ${gpsE.message}")
                 } */
-                
+
+                // НОВАЯ ПРОВЕРКА: Верифицируем что маркер сжатия сохранен
+                if (quality != null) {
+                    val (markerSaved, _, _) = getCompressionMarker(context, uri)
+                    if (!markerSaved) {
+                        LogUtil.error(uri, "Запись EXIF", "EXIF маркер не был сохранен")
+                        return@withContext false
+                    }
+                    LogUtil.processInfo("✅ EXIF маркер успешно сохранен и верифицирован")
+                }
+
                 return@withContext true
             }
             

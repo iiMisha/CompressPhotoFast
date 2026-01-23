@@ -66,6 +66,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Выбираем низкое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выбран
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
@@ -86,6 +89,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Выбираем среднее качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выбран
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
@@ -106,6 +112,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Выбираем высокое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выбран
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
@@ -129,6 +138,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Включаем режим замены
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
@@ -149,8 +161,14 @@ class SettingsE2ETest : BaseE2ETest() {
         // Выключаем режим замены (отдельная папка)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выключен
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
@@ -178,6 +196,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
@@ -198,6 +219,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
@@ -206,6 +230,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Выключаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выключен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
@@ -233,6 +260,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Включаем игнорирование фото из мессенджеров
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
@@ -253,6 +283,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Включаем игнорирование фото из мессенджеров
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
@@ -261,6 +294,9 @@ class SettingsE2ETest : BaseE2ETest() {
         // Выключаем игнорирование фото из мессенджеров
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выключен
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
@@ -281,15 +317,27 @@ class SettingsE2ETest : BaseE2ETest() {
         // Изменяем несколько настроек
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что настройки сохранены
         val quality = settingsManager.getCompressionQuality()
@@ -313,12 +361,21 @@ class SettingsE2ETest : BaseE2ETest() {
         // Изменяем настройки
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Перезапускаем Activity
         mainActivityScenario.close()
@@ -354,15 +411,27 @@ class SettingsE2ETest : BaseE2ETest() {
         // Изменяем настройки
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Сбрасываем настройки
         resetSettings()
@@ -393,24 +462,36 @@ class SettingsE2ETest : BaseE2ETest() {
         // Низкое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         var quality = settingsManager.getCompressionQuality()
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_LOW)
         
         // Среднее качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         quality = settingsManager.getCompressionQuality()
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_MEDIUM)
         
         // Высокое качество
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         quality = settingsManager.getCompressionQuality()
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_HIGH)
         
         // Возврат к среднему качеству
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         quality = settingsManager.getCompressionQuality()
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_MEDIUM)
         
@@ -425,18 +506,27 @@ class SettingsE2ETest : BaseE2ETest() {
         // Режим замены
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         var saveMode = settingsManager.getSaveMode()
         assertThat(saveMode).isEqualTo(Constants.SAVE_MODE_REPLACE)
         
         // Режим отдельной папки
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         saveMode = settingsManager.getSaveMode()
         assertThat(saveMode).isEqualTo(Constants.SAVE_MODE_SEPARATE)
         
         // Возврат к режиму замены
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         saveMode = settingsManager.getSaveMode()
         assertThat(saveMode).isEqualTo(Constants.SAVE_MODE_REPLACE)
         
@@ -451,15 +541,27 @@ class SettingsE2ETest : BaseE2ETest() {
         // Изменяем все настройки
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем все настройки
         val quality = settingsManager.getCompressionQuality()

@@ -182,4 +182,4 @@ compressphotofast-cli/.venv/
 compressphotofast-cli/test_images/
 compressphotofast-cli/*.bak
 compressphotofast-cli/test_*.jpg
-compressphotofast-cli/src/__pycache__/
+compressphotofast-cli/src/__pycache__/.claude/

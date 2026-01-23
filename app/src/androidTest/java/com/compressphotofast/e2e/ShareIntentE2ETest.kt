@@ -15,6 +15,7 @@ import com.compressphotofast.BaseE2ETest
 import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.E2ETestImageGenerator
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
@@ -435,21 +436,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
      * Создает тестовые изображения для тестирования
      */
     private fun createTestImages() {
-        val sizes = listOf(
-            Pair(1920, 1080),
-            Pair(1280, 720),
-            Pair(800, 600),
-            Pair(1024, 768),
-            Pair(640, 480)
-        )
-        
-        for ((width, height) in sizes) {
-            val uri = createTestImage(width, height)
-            if (uri != null) {
-                testUris.add(uri)
-            }
-        }
-        
+        testUris.clear()
+        testUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 5))
         LogUtil.processDebug("Создано ${testUris.size} тестовых изображений")
     }
 

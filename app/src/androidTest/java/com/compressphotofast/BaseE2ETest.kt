@@ -3,6 +3,10 @@ package com.compressphotofast
 import android.Manifest
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import androidx.test.espresso.IdlingRegistry
+import androidx.test.espresso.idling.CountingIdlingResource
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import kotlinx.coroutines.runBlocking
@@ -17,12 +21,18 @@ import org.junit.Rule
  * - Автоматического предоставления всех необходимых разрешений
  * - Очистки тестовых данных между тестами
  * - Общих утилит для E2E тестирования
+ * - Idling Resources для синхронизации UI тестов
  *
  * Разрешения автоматически предоставляются:
  * - Android 13+ (API 33+): READ_MEDIA_IMAGES, POST_NOTIFICATIONS, ACCESS_MEDIA_LOCATION
  * - Android 10-12 (API 29-32): READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, POST_NOTIFICATIONS, ACCESS_MEDIA_LOCATION
  */
 abstract class BaseE2ETest : BaseInstrumentedTest() {
+
+    /**
+     * IdlingResource для синхронизации UI операций в тестах
+     */
+    protected val idlingResource = CountingIdlingResource("UI_IDLING_RESOURCE")
 
     @get:Rule
     val grantPermissionRule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -49,15 +59,32 @@ abstract class BaseE2ETest : BaseInstrumentedTest() {
     @Before
     override fun setUp() {
         super.setUp()
+        // Регистрируем IdlingResource для синхронизации UI
+        IdlingRegistry.getInstance().register(idlingResource)
         // Очистка перед тестами
         cleanupTestData()
     }
 
     @After
     override fun tearDown() {
+        // Удаляем IdlingResource
+        IdlingRegistry.getInstance().unregister(idlingResource)
         // Очистка после тестов
         cleanupTestData()
         super.tearDown()
+    }
+
+    /**
+     * Ждет обновления UI перед проверками assertions.
+     * Используйте этот метод после кликов по UI элементам.
+     *
+     * @param ms Время ожидания в миллисекундах (по умолчанию 300ms)
+     */
+    protected fun waitForUI(ms: Long = 300) {
+        idlingResource.increment()
+        Handler(Looper.getMainLooper()).postDelayed({
+            idlingResource.decrement()
+        }, ms)
     }
 
     /**

@@ -15,6 +15,7 @@ import com.compressphotofast.BaseE2ETest
 import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.E2ETestImageGenerator
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
@@ -75,6 +76,9 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на кнопку выбора фото
         Espresso.onView(ViewMatchers.withId(R.id.btnSelectPhotos))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что Photo Picker открыт
         runBlocking { delay(1000) }
@@ -97,6 +101,9 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на переключатель низкого качества
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выбран
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
@@ -116,6 +123,9 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на переключатель среднего качества
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выбран
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
@@ -135,6 +145,9 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на переключатель высокого качества
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выбран
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
@@ -154,6 +167,9 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на переключатель режима сохранения
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель включен (режим замены)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
@@ -173,8 +189,14 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         // Нажимаем на переключатель режима сохранения дважды (отключаем)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
+
+        // Ждем обновления UI
+        waitForUI(300)
         
         // Проверяем, что переключатель выключен (режим отдельной папки)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
@@ -480,21 +502,8 @@ class ManualCompressionE2ETest : BaseE2ETest() {
      * Создает тестовые изображения для тестирования
      */
     private fun createTestImages() {
-        val sizes = listOf(
-            Pair(1920, 1080),
-            Pair(1280, 720),
-            Pair(800, 600),
-            Pair(1024, 768),
-            Pair(640, 480)
-        )
-        
-        for ((width, height) in sizes) {
-            val uri = createTestImage(width, height)
-            if (uri != null) {
-                testUris.add(uri)
-            }
-        }
-        
+        testUris.clear()
+        testUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 5))
         LogUtil.processDebug("Создано ${testUris.size} тестовых изображений")
     }
 
