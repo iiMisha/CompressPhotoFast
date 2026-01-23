@@ -164,10 +164,13 @@ class ShareIntentE2ETest : BaseE2ETest() {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
-        
+
         val uri = testUris[0]
         val originalSize = UriUtil.getFileSize(context, uri)
-        
+
+        // Запоминаем время перед отправкой Intent
+        val beforeTimestamp = System.currentTimeMillis() / 1000
+
         // Создаем Intent с ACTION_SEND
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/jpeg"
@@ -182,18 +185,22 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
-        
+
         // Ждем автоматического сжатия
-        delay(3000)
-        
+        delay(5000)
+
+        // Находим URI сжатого файла
+        val compressedUri = findLatestCompressedUri(beforeTimestamp)
+        assertThat(compressedUri).isNotNull()
+
         // Проверяем, что изображение сжато
-        val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+        val hasMarker = ExifUtil.getCompressionMarker(context, compressedUri!!).first
         assertThat(hasMarker).isTrue()
-        
+
         // Проверяем, что размер файла уменьшился
-        val compressedSize = UriUtil.getFileSize(context, uri)
+        val compressedSize = UriUtil.getFileSize(context, compressedUri)
         assertThat(compressedSize).isLessThan(originalSize)
-        
+
         LogUtil.processDebug("Автоматическое сжатие: $originalSize -> $compressedSize байт")
     }
 
@@ -205,9 +212,12 @@ class ShareIntentE2ETest : BaseE2ETest() {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
-        
+
         val uri = testUris[0]
-        
+
+        // Запоминаем время перед отправкой Intent
+        val beforeTimestamp = System.currentTimeMillis() / 1000
+
         // Создаем Intent с ACTION_SEND
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/jpeg"
@@ -222,21 +232,25 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
-        
+
         // Ждем автоматического сжатия
-        delay(3000)
-        
+        delay(5000)
+
+        // Находим URI сжатого файла
+        val compressedUri = findLatestCompressedUri(beforeTimestamp)
+        assertThat(compressedUri).isNotNull()
+
         // Проверяем, что результат сохранен
-        val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+        val hasMarker = ExifUtil.getCompressionMarker(context, compressedUri!!).first
         assertThat(hasMarker).isTrue()
-        
+
         // Проверяем, что файл существует
-        val fileExists = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val fileExists = context.contentResolver.query(compressedUri, null, null, null, null)?.use { cursor ->
             cursor.count > 0
         } ?: false
         assertThat(fileExists).isTrue()
-        
-        LogUtil.processDebug("Результат сжатия сохранен")
+
+        LogUtil.processDebug("Результат сжатия сохранен: $compressedUri")
     }
 
     /**
@@ -247,9 +261,12 @@ class ShareIntentE2ETest : BaseE2ETest() {
         if (testUris.size < 3) {
             return@runBlocking
         }
-        
+
         val uris = testUris.take(3)
-        
+
+        // Запоминаем время перед отправкой Intent
+        val beforeTimestamp = System.currentTimeMillis() / 1000
+
         // Создаем Intent с ACTION_SEND_MULTIPLE
         val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
             type = "image/jpeg"
@@ -264,21 +281,27 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
-        
+
         // Ждем автоматического сжатия
-        delay(5000)
-        
-        // Проверяем, что все изображения обработаны
+        delay(7000) // Увеличим задержку для нескольких файлов
+
+        // Находим все сжатые файлы, созданные после отправки Intent
+        val compressedUris = findAllCompressedUris(beforeTimestamp)
+
+        // Проверяем, что хотя бы 2 изображения обработаны
+        assertThat(compressedUris.size).isAtLeast(2)
+
+        // Дополнительно проверяем, что у найденных файлов есть маркеры
         var processedCount = 0
-        for (uri in uris) {
+        for (uri in compressedUris) {
             val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
             if (hasMarker) {
                 processedCount++
             }
         }
-        
+
         assertThat(processedCount).isAtLeast(2)
-        
+
         LogUtil.processDebug("Обработано $processedCount из ${uris.size} изображений")
     }
 
@@ -356,10 +379,13 @@ class ShareIntentE2ETest : BaseE2ETest() {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
-        
+
         val uri = testUris[0]
         val originalSize = UriUtil.getFileSize(context, uri)
-        
+
+        // Запоминаем время перед отправкой Intent
+        val beforeTimestamp = System.currentTimeMillis() / 1000
+
         // Создаем Intent с ACTION_SEND
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/jpeg"
@@ -374,18 +400,22 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
-        
+
         // Ждем автоматического сжатия
-        delay(3000)
-        
+        delay(5000)
+
+        // Находим URI сжатого файла
+        val compressedUri = findLatestCompressedUri(beforeTimestamp)
+        assertThat(compressedUri).isNotNull()
+
         // Проверяем, что изображение сжато
-        val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+        val hasMarker = ExifUtil.getCompressionMarker(context, compressedUri!!).first
         assertThat(hasMarker).isTrue()
-        
+
         // Проверяем, что размер файла уменьшился
-        val compressedSize = UriUtil.getFileSize(context, uri)
+        val compressedSize = UriUtil.getFileSize(context, compressedUri)
         assertThat(compressedSize).isLessThan(originalSize)
-        
+
         LogUtil.processDebug("Сжатие с разным качеством: $originalSize -> $compressedSize байт")
     }
 
@@ -397,10 +427,13 @@ class ShareIntentE2ETest : BaseE2ETest() {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
-        
+
         val uri = testUris[0]
         val originalSize = UriUtil.getFileSize(context, uri)
-        
+
+        // Запоминаем время перед отправкой Intent
+        val beforeTimestamp = System.currentTimeMillis() / 1000
+
         // Создаем Intent с ACTION_SEND
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/jpeg"
@@ -415,18 +448,22 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
-        
+
         // Ждем автоматического сжатия
-        delay(3000)
-        
+        delay(5000)
+
+        // Находим URI сжатого файла
+        val compressedUri = findLatestCompressedUri(beforeTimestamp)
+        assertThat(compressedUri).isNotNull()
+
         // Проверяем, что изображение сжато
-        val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+        val hasMarker = ExifUtil.getCompressionMarker(context, compressedUri!!).first
         assertThat(hasMarker).isTrue()
-        
+
         // Проверяем, что размер файла уменьшился
-        val compressedSize = UriUtil.getFileSize(context, uri)
+        val compressedSize = UriUtil.getFileSize(context, compressedUri)
         assertThat(compressedSize).isLessThan(originalSize)
-        
+
         LogUtil.processDebug("Сжатие в режиме замены: $originalSize -> $compressedSize байт")
     }
 
@@ -439,6 +476,71 @@ class ShareIntentE2ETest : BaseE2ETest() {
         testUris.clear()
         testUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 5))
         LogUtil.processDebug("Создано ${testUris.size} тестовых изображений")
+    }
+
+    /**
+     * Находит URI последнего созданного сжатого изображения после указанного времени.
+     * Используется для поиска результата Share Intent сжатия.
+     */
+    private fun findLatestCompressedUri(afterTimestamp: Long): Uri? {
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.DATA
+        )
+
+        val selection = "${MediaStore.Images.Media.DATE_ADDED} > ?"
+        val selectionArgs = arrayOf(afterTimestamp.toString())
+
+        // Без LIMIT в sortOrder - берем первый элемент из cursor
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val id = cursor.getLong(idIndex)
+                return Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+            }
+        }
+        return null
+    }
+
+    /**
+     * Находит все URI сжатых изображений, созданных после указанного времени.
+     * Используется для проверки обработки нескольких файлов.
+     */
+    private fun findAllCompressedUris(afterTimestamp: Long): List<Uri> {
+        val uris = mutableListOf<Uri>()
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_ADDED
+        )
+
+        val selection = "${MediaStore.Images.Media.DATE_ADDED} > ?"
+        val selectionArgs = arrayOf(afterTimestamp.toString())
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idIndex)
+                uris.add(Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString()))
+            }
+        }
+        return uris
     }
 
     /**

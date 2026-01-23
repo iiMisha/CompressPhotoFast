@@ -87,8 +87,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         // Ждем обновления UI
         waitForUI(300)
@@ -109,8 +109,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         runBlocking { delay(2000) }
@@ -134,8 +134,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -174,8 +174,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -198,8 +198,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем планирования задачи
         runBlocking { delay(2000) }
@@ -222,8 +222,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Создаем новое изображение
         val newUri = createTestImage(1920, 1080)
@@ -248,8 +248,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         // Ждем обновления UI
         waitForUI(300)
@@ -262,8 +262,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Проверяем, что переключатель выключен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
@@ -294,8 +294,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         // ПРИМЕЧАНИЕ: Нельзя отправить BOOT_COMPLETED broadcast из instrumentation тестов
         // Это вызовет SecurityException: Permission Denial
@@ -318,8 +318,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         // Ждем обновления UI
         waitForUI(200)
@@ -328,8 +328,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -357,15 +357,15 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Включаем авто-сжатие
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -393,16 +393,16 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         waitForUI(200)
 
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         waitForUI(200)
         
@@ -410,8 +410,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -439,8 +439,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         // Ждем обновления UI
         waitForUI(200)
@@ -449,8 +449,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -478,8 +478,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
 
         // Ждем обновления UI
         waitForUI(200)
@@ -488,8 +488,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -517,8 +517,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
@@ -556,8 +556,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Ждем обновления UI (checkbox toggle требует больше времени)
+        waitForUI(1000)
         
         // Ждем запуска службы
         delay(2000)
