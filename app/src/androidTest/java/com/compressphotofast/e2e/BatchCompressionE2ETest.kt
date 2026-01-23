@@ -43,14 +43,15 @@ class BatchCompressionE2ETest : BaseE2ETest() {
     private val testUris = mutableListOf<Uri>()
     private val screenshotUris = mutableListOf<Uri>()
     private val messengerUris = mutableListOf<Uri>()
-    private lateinit var mainActivityScenario: ActivityScenario<MainActivity>
-    
+
     @Before
     override fun setUp() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
-        mainActivityScenario = ActivityScenario.launch(MainActivity::class.java)
-        
+
+        // Используем activityScenario из базового класса
+        activityScenario = ActivityScenario.launch(MainActivity::class.java)
+
         // Создаем тестовые изображения
         createTestImages()
     }
@@ -80,7 +81,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // В реальном тесте здесь нужно выбрать несколько изображений через UIAutomator
         // Для E2E теста мы используем программный выбор
         if (testUris.size >= 3) {
-            mainActivityScenario.onActivity { activity ->
+            activityScenario?.onActivity { activity ->
                 // Симулируем выбор нескольких изображений
                 LogUtil.processDebug("Выбрано ${testUris.size} изображений")
             }
@@ -217,7 +218,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         val urisToCompress = testUris.take(3)
         
         // Симулируем начало сжатия
-        activityScenario.onActivity { activity ->
+        activityScenario?.onActivity { activity ->
             // В реальном приложении это запускается через ViewModel
             LogUtil.processDebug("Начало пакетного сжатия ${urisToCompress.size} изображений")
         }

@@ -40,13 +40,12 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
     private lateinit var context: Context
     private val testUris = mutableListOf<Uri>()
-    private lateinit var mainActivityScenario: ActivityScenario<MainActivity>
 
     @Before
     override fun setUp() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
-        
+
         // Создаем тестовые изображения
         createTestImages()
     }
@@ -74,10 +73,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Проверяем, что Activity запущена
         assertViewDisplayed(R.id.mainContainer)
@@ -101,10 +105,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Проверяем, что Activity запущена
         assertViewDisplayed(R.id.mainContainer)
@@ -128,10 +137,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Проверяем, что изображение отображается
         // В реальном тесте здесь нужно проверить ImageView через Espresso
@@ -158,10 +172,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Ждем автоматического сжатия
         delay(3000)
@@ -193,10 +212,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Ждем автоматического сжатия
         delay(3000)
@@ -230,10 +254,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Ждем автоматического сжатия
         delay(5000)
@@ -268,10 +297,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, pngUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Ждем обработки
         delay(3000)
@@ -297,10 +331,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "text/plain"
             putExtra(Intent.EXTRA_STREAM, textUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Проверяем, что Activity запущена (но изображение не отображается)
         assertViewDisplayed(R.id.mainContainer)
@@ -325,10 +364,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Ждем автоматического сжатия
         delay(3000)
@@ -361,10 +405,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Добавить explicit component для избежания system:ui
+            setClassName(
+                "com.compressphotofast",
+                "com.compressphotofast.ui.MainActivity"
+            )
         }
-        
+
         // Запускаем Activity с Intent
-        mainActivityScenario = ActivityScenario.launch<MainActivity>(intent)
+        activityScenario = ActivityScenario.launch<MainActivity>(intent)
         
         // Ждем автоматического сжатия
         delay(3000)

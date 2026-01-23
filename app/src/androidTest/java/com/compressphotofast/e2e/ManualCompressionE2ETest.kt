@@ -13,6 +13,7 @@ import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.platform.app.InstrumentationRegistry
 import com.compressphotofast.BaseE2ETest
 import com.compressphotofast.R
+import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.LogUtil
@@ -48,16 +49,19 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     override fun setUp() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
-        
+
+        // Добавить запуск Activity
+        activityScenario = ActivityScenario.launch(MainActivity::class.java)
+
         // Создаем тестовые изображения
         createTestImages()
     }
 
     @After
     override fun tearDown() {
-        super.tearDown()
         // Удаляем тестовые изображения
         cleanupTestImages()
+        super.tearDown()  // Закроет activityScenario
     }
 
     /**

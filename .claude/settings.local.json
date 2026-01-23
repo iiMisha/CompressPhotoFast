@@ -19,7 +19,11 @@
       "Bash(./scripts/run_unit_tests.sh:*)",
       "Bash(cat:*)",
       "Bash(./scripts/generate_test_images.sh:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(./scripts/check_device.sh:*)",
+      "Bash(./scripts/start_emulator.sh:*)",
+      "Bash(export:*)",
+      "Bash($ANDROID_HOME/platform-tools/adb:*)"
     ]
   }
 }

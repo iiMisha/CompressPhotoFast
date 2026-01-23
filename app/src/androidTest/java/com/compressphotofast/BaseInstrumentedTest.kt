@@ -25,12 +25,23 @@ import org.junit.Before
  *     @Before
  *     override fun setUp() {
  *         super.setUp()
+ *         // Инициализируем nullable activityScenario
  *         activityScenario = ActivityScenario.launch(MainActivity::class.java)
  *     }
  *
  *     @Test
  *     fun testButtonDisplayed() {
+ *         // Используем безопасный вызов через ?.
+ *         activityScenario?.onActivity { activity ->
+ *             // Код с activity
+ *         }
  *         assertViewDisplayed(R.id.myButton)
+ *     }
+ *
+ *     @After
+ *     override fun tearDown() {
+ *         // Базовый класс автоматически закроет activityScenario
+ *         super.tearDown()
  *     }
  * }
  * ```
@@ -39,8 +50,9 @@ abstract class BaseInstrumentedTest {
 
     /**
      * ActivityScenario для управления жизненным циклом Activity.
+     * Сделан nullable для безопасности в tearDown().
      */
-    protected lateinit var activityScenario: ActivityScenario<ComponentActivity>
+    protected var activityScenario: ActivityScenario<out ComponentActivity>? = null
 
     /**
      * Настройка перед каждым тестом.
@@ -49,16 +61,15 @@ abstract class BaseInstrumentedTest {
     open fun setUp() {
         // Пустая реализация для переопределения в дочерних классах
     }
-    
+
     /**
      * Очистка после каждого теста.
-     * Закрывает ActivityScenario.
+     * Закрывает ActivityScenario безопасно.
      */
     @After
     open fun tearDown() {
-        if (::activityScenario.isInitialized) {
-            activityScenario.close()
-        }
+        activityScenario?.close()
+        activityScenario = null
     }
     
     /**
