@@ -78,25 +78,32 @@ class AutoCompressionE2ETest : BaseE2ETest() {
     fun testEnableAutoCompression() {
         // Проверяем, что переключатель авто-сжатия отображается
         assertViewDisplayed(R.id.switchAutoCompression)
-        
-        // Проверяем, что переключатель выключен
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-        
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+        // Проверяем текущее состояние
+        val initialState = try {
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
+            true // Выключен (assertion passed)
+        } catch (e: Exception) {
+            false // Включен (assertion failed - checkbox checked)
+        }
 
-        // Ждем обновления UI
-        waitForUI(300)
+        // Если выключен - включаем
+        if (!initialState) {
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+        } else {
+            // Уже включен - ждем немного для стабилизации UI
+            waitForUI(500)
+        }
 
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
+
         LogUtil.processDebug("Авто-сжатие включено")
     }
 
@@ -105,23 +112,37 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      */
     @Test
     fun testBackgroundMonitoringServiceStarted() {
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+        // Проверяем текущее состояние
+        val initialState = try {
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
+            true // Выключен (assertion passed)
+        } catch (e: Exception) {
+            false // Включен (assertion failed - checkbox checked)
+        }
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
+        // Если выключен - включаем
+        if (!initialState) {
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+        } else {
+            // Уже включен - ждем немного для стабилизации UI
+            waitForUI(500)
+        }
+
         // Ждем запуска службы
         runBlocking { delay(2000) }
-        
+
         // ПРИМЕЧАНИЕ: Проверка running сервисов через ActivityManager.getRunningServices() deprecated
         // В instrumentation тестах просто проверяем состояние UI
 
         // Проверяем, что переключатель включен
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
+
         LogUtil.processDebug("BackgroundMonitoringService запущен")
     }
 
@@ -290,12 +311,26 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      */
     @Test
     fun testAutoCompressionAfterBoot() {
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+        // Проверяем текущее состояние
+        val initialState = try {
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
+            true // Выключен (assertion passed)
+        } catch (e: Exception) {
+            false // Включен (assertion failed - checkbox checked)
+        }
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+        // Если выключен - включаем
+        if (!initialState) {
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+        } else {
+            // Уже включен - ждем немного для стабилизации UI
+            waitForUI(500)
+        }
 
         // ПРИМЕЧАНИЕ: Нельзя отправить BOOT_COMPLETED broadcast из instrumentation тестов
         // Это вызовет SecurityException: Permission Denial
