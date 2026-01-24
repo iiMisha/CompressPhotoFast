@@ -442,29 +442,49 @@ class ManualCompressionE2ETest : BaseE2ETest() {
      */
     @Test
     fun testCompressionWithHighQuality() = runBlocking {
-        if (testUris.isEmpty()) {
+        // Создаём новый тестовый файл, чтобы избежать конфликта с предыдущими тестами
+        val uri = E2ETestImageGenerator.createLargeTestImage(
+            context,
+            width = 1920,
+            height = 1080,
+            quality = 90
+        )
+
+        if (uri == null) {
+            LogUtil.processDebug("Не удалось создать тестовый файл")
             return@runBlocking
         }
-        
-        val uri = testUris[0]
+
+        // Ждем сохранения файла
+        delay(2000)
+
         val originalSize = UriUtil.getFileSize(context, uri)
-        
+        LogUtil.processDebug("Исходный размер: $originalSize байт")
+
         // Выполняем сжатие с высоким качеством
         val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
             context,
             uri,
             Constants.COMPRESSION_QUALITY_HIGH
         )
-        
+
         // Проверяем, что сжатие выполнено успешно
+        assertThat(result.first).isTrue()
         assertThat(result.second).isNotNull()
-        
+
         // Проверяем, что размер файла уменьшился, но меньше чем при низком качестве
         val compressedSize = UriUtil.getFileSize(context, result.second!!)
         val savingsPercent = ((originalSize - compressedSize).toFloat() / originalSize * 100).toInt()
         assertThat(savingsPercent).isAtLeast(20)
-        
+
         LogUtil.processDebug("Сжатие с высоким качеством: экономия $savingsPercent%")
+
+        // Удаляем тестовый файл
+        try {
+            context.contentResolver.delete(uri, null, null)
+        } catch (e: Exception) {
+            LogUtil.processDebug("Не удалось удалить тестовый файл: ${e.message}")
+        }
     }
 
     /**

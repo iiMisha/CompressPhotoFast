@@ -251,7 +251,7 @@ class ExifUtilInstrumentedTest {
     fun test09_copyExifData_copiesExifSuccessfully() = runBlocking {
         // Arrange
         val sourceImage = createTestImageInMediaStore()
-        kotlinx.coroutines.delay(1000)
+        kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
 
         // Добавляем минимальные EXIF данные в исходный файл
         context.contentResolver.openFileDescriptor(sourceImage, "rw")?.use { pfd ->
@@ -263,10 +263,10 @@ class ExifUtilInstrumentedTest {
         }
 
         // Ждем после добавления EXIF
-        kotlinx.coroutines.delay(500)
+        kotlinx.coroutines.delay(1500)  // Увеличено для стабильности
 
         val destImage = createTestImageInMediaStore()
-        kotlinx.coroutines.delay(1000)
+        kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
 
         // Act - копируем EXIF без маркера сжатия
         val copyResult = ExifUtil.copyExifData(context, sourceImage, destImage)

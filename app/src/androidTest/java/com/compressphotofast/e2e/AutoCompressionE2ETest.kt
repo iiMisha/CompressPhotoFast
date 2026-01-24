@@ -69,6 +69,34 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         stopBackgroundServices()
         // Удаляем тестовые изображения
         cleanupTestImages()
+        // Сбрасываем состояние checkbox'а авто-сжатия
+        resetAutoCompressionSwitch()
+    }
+
+    /**
+     * Сбрасывает переключатель авто-сжатия в выключенное состояние
+     */
+    private fun resetAutoCompressionSwitch() {
+        try {
+            // Проверяем текущее состояние
+            val isChecked = try {
+                Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                    .check(ViewAssertions.matches(ViewMatchers.isChecked()))
+                true
+            } catch (e: Exception) {
+                false
+            }
+
+            // Если включен - выключаем
+            if (isChecked) {
+                Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                    .perform(ViewActions.click())
+                waitForUI(500)
+                LogUtil.processDebug("Авто-сжатие выключено в tearDown")
+            }
+        } catch (e: Exception) {
+            LogUtil.processDebug("Не удалось сбросить состояние авто-сжатия: ${e.message}")
+        }
     }
 
     /**
@@ -88,8 +116,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             false // Включен (assertion failed - checkbox checked)
         }
 
-        // Если выключен - включаем
-        if (!initialState) {
+        // Если выключен - включаем (исправлена логика)
+        if (initialState) {
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
                 .perform(ViewActions.click())
 
@@ -121,8 +149,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             false // Включен (assertion failed - checkbox checked)
         }
 
-        // Если выключен - включаем
-        if (!initialState) {
+        // Если выключен - включаем (исправлена логика)
+        if (initialState) {
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
                 .perform(ViewActions.click())
 
@@ -320,8 +348,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             false // Включен (assertion failed - checkbox checked)
         }
 
-        // Если выключен - включаем
-        if (!initialState) {
+        // Если выключен - включаем (исправлена логика)
+        if (initialState) {
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
                 .perform(ViewActions.click())
 

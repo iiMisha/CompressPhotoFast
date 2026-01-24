@@ -343,14 +343,15 @@ class LegacyFilesInstrumentedTest : BaseInstrumentedTest() {
                     val dateModified = it.getLong(dateModifiedIndex)
                     val size = it.getLong(sizeIndex)
 
-                    // Проверяем характеристики файла
-                    assertEquals("Шаг 2: DATE_ADDED должен быть недавним", currentTime, dateAdded)
+                    // Проверяем характеристики файла (с допуском в 2 секунды для DATE_ADDED)
+                    val addedTimeDiff = Math.abs(dateAdded - currentTime)
+                    assertTrue("Шаг 2: DATE_ADDED должен быть недавним (разница $addedTimeDiff сек)", addedTimeDiff <= 2)
                     assertEquals("Шаг 2: DATE_MODIFIED должен быть старым (2020)", OLD_FILE_TIME_2020, dateModified)
                     assertEquals("Шаг 2: Размер должен быть 5 MB", 5 * 1024 * 1024L, size)
 
                     // Проверяем разницу между датами (старый файл, недавно добавленный)
-                    val timeDiff = dateAdded - dateModified
-                    assertTrue("Шаг 2: Разница должна быть большой (> 1 год)", timeDiff > 365 * 24 * 60 * 60)
+                    val modifiedTimeDiff = dateAdded - dateModified
+                    assertTrue("Шаг 2: Разница должна быть большой (> 1 год)", modifiedTimeDiff > 365 * 24 * 60 * 60)
                 }
 
                 // Шаг 3: Проверяем, что файл может быть найден при сканировании

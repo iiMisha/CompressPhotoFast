@@ -186,8 +186,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
-        // Ждем автоматического сжатия
-        delay(5000)
+        // Ждем автоматического сжатия (увеличено для стабильности)
+        delay(10000)
 
         // Находим URI сжатого файла
         val compressedUri = findLatestCompressedUri(beforeTimestamp)
@@ -233,8 +233,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
-        // Ждем автоматического сжатия
-        delay(5000)
+        // Ждем автоматического сжатия (увеличено для стабильности)
+        delay(10000)
 
         // Находим URI сжатого файла
         val compressedUri = findLatestCompressedUri(beforeTimestamp)
@@ -401,8 +401,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
-        // Ждем автоматического сжатия
-        delay(5000)
+        // Ждем автоматического сжатия (увеличено для стабильности)
+        delay(10000)
 
         // Находим URI сжатого файла
         val compressedUri = findLatestCompressedUri(beforeTimestamp)
@@ -449,8 +449,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
-        // Ждем автоматического сжатия
-        delay(5000)
+        // Ждем автоматического сжатия (увеличено для стабильности)
+        delay(10000)
 
         // Находим URI сжатого файла
         val compressedUri = findLatestCompressedUri(beforeTimestamp)

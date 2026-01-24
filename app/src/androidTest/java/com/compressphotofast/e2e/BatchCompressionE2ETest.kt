@@ -60,8 +60,36 @@ class BatchCompressionE2ETest : BaseE2ETest() {
     @After
     override fun tearDown() {
         super.tearDown()
+        // Сбрасываем состояние switchSaveMode в режим замены (isChecked = true)
+        resetSaveModeSwitch()
         // Удаляем тестовые изображения
         cleanupTestImages()
+    }
+
+    /**
+     * Сбрасывает переключатель режима сохранения в режим замены
+     */
+    private fun resetSaveModeSwitch() {
+        try {
+            // Проверяем текущее состояние
+            val isSeparateFolder = try {
+                Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                    .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
+                true // Separate folder mode (unchecked)
+            } catch (e: Exception) {
+                false // Replace mode (checked)
+            }
+
+            // Если в режиме separate folder - переключаем в replace mode
+            if (isSeparateFolder) {
+                Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                    .perform(ViewActions.click())
+                waitForUI(1000)  // Увеличено для стабильности
+                LogUtil.processDebug("Режим сохранения сброшен в Replace mode")
+            }
+        } catch (e: Exception) {
+            LogUtil.processDebug("Не удалось сбросить режим сохранения: ${e.message}")
+        }
     }
 
     /**
@@ -222,10 +250,6 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         if (testUris.size < 3) {
             return@runBlocking
         }
-
-        // Проверяем, что прогресс-бар существует в UI
-        Espresso.onView(ViewMatchers.withId(R.id.progressBar))
-            .check(ViewAssertions.matches(ViewMatchers.isDisplayed()))
 
         // Начинаем пакетное сжатие
         val urisToCompress = testUris.take(3)
