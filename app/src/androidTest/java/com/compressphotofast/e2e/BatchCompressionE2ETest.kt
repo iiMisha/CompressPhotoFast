@@ -613,7 +613,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
             Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
                 .check(ViewAssertions.matches(ViewMatchers.isChecked()))
             true // Включен (replace mode)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             false // Выключен (separate folder mode)
         }
 

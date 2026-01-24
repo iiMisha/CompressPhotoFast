@@ -28,7 +28,9 @@
       "Bash(timeout 600 ./gradlew connectedAndroidTest:*)",
       "Bash(git add:*)",
       "Bash(GRADLE_MODE=eco timeout 600 ./gradlew connectedAndroidTest:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(GRADLE_MODE=eco ./gradlew assembleDebug:*)",
+      "Bash(GRADLE_MODE=eco timeout 600 ./gradlew connectedDebugAndroidTest:*)"
     ]
   }
 }

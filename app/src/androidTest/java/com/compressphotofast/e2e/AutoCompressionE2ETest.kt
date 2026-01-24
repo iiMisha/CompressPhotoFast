@@ -69,34 +69,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         stopBackgroundServices()
         // Удаляем тестовые изображения
         cleanupTestImages()
-        // Сбрасываем состояние checkbox'а авто-сжатия
-        resetAutoCompressionSwitch()
-    }
-
-    /**
-     * Сбрасывает переключатель авто-сжатия в выключенное состояние
-     */
-    private fun resetAutoCompressionSwitch() {
-        try {
-            // Проверяем текущее состояние
-            val isChecked = try {
-                Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                    .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-                true
-            } catch (e: Exception) {
-                false
-            }
-
-            // Если включен - выключаем
-            if (isChecked) {
-                Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                    .perform(ViewActions.click())
-                waitForUI(500)
-                LogUtil.processDebug("Авто-сжатие выключено в tearDown")
-            }
-        } catch (e: Exception) {
-            LogUtil.processDebug("Не удалось сбросить состояние авто-сжатия: ${e.message}")
-        }
+        // ПРИМЕЧАНИЕ: Не сбрасываем состояние переключателей, чтобы не влиять на следующие тесты
+        // Каждый тест должен сам устанавливать нужное состояние
     }
 
     /**
