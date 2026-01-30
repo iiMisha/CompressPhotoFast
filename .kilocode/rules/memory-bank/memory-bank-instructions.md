@@ -85,7 +85,7 @@ To execute Memory Bank update, I will:
 1. Review ALL project files
 2. Document current state
 3. Document Insights & Patterns
-4. If requested with additional context (e.g., "update memory bank using information from @/Makefile"), focus special attention on that source
+4. If requested with additional context (e.g., "update memory bank using information from @/Makefile"), focus special attention to that source
 
 Note: When triggered by **update memory bank**, I MUST review every memory bank file, even if some don't require updates. Focus particularly on context.md as it tracks current state.
 

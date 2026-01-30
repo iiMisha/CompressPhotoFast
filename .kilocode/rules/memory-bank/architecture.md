@@ -1,80 +1,47 @@
 # Архитектура приложения CompressPhotoFast
 
 ## Обзор
-
 Приложение построено на основе современных архитектурных компонентов Android и следует паттерну MVVM (Model-View-ViewModel).
 
 ## Ключевые компоненты
 
-*   **UI Layer (`app/src/main/java/com/compressphotofast/ui`)**:
-    *   `MainActivity.kt`: Единственная Activity в приложении, отвечающая за отображение пользовательского интерфейса и обработку взаимодействий.
-    *   `MainViewModel.kt`: ViewModel, которая управляет состоянием UI, обрабатывает бизнес-логику и взаимодействует с репозиториями и сервисами.
+### UI Layer (`app/src/main/java/com/compressphotofast/ui`)
+- `MainActivity.kt`: Единственная Activity в приложении
+- `MainViewModel.kt`: ViewModel для управления состоянием UI
 
-*   **Domain Layer**:
-    *   Логика сжатия инкапсулирована в `ImageCompressionUtil.kt` и `ImageCompressionWorker.kt`.
-    *   `SettingsManager.kt` управляет настройками приложения.
-    *   Утилиты в пакете `app/src/main/java/com/compressphotofast/util` предоставляют вспомогательные функции:
-        *   **Работа с MediaStore**: `MediaStoreUtil.kt`, `BatchMediaStoreUtil.kt`, `MediaStoreObserver.kt`, `GalleryScanUtil.kt`
-        *   **Обработка изображений**: `ImageCompressionUtil.kt`, `ImageProcessingUtil.kt`, `ImageProcessingChecker.kt`, `SequentialImageProcessor.kt`
-        *   **Работа с файлами и URI**: `FileOperationsUtil.kt`, `FileInfoUtil.kt`, `UriUtil.kt`, `UriProcessingTracker.kt`
-        *   **EXIF-метаданные**: `ExifUtil.kt`
-        *   **Отслеживание и статистика**: `CompressionBatchTracker.kt`, `StatsTracker.kt`, `UriProcessingTracker.kt`
-        *   **Производительность и кэширование**: `PerformanceMonitor.kt`, `OptimizedCacheUtil.kt`
-        *   **Уведомления**: `NotificationUtil.kt`
-        *   **Разрешения**: `PermissionsManager.kt`, `IPermissionsManager.kt`
-        *   **Очистка**: `TempFilesCleaner.kt`
-        *   **Логирование и события**: `LogUtil.kt`, `Event.kt`, `EventObserver.kt`
+### Domain Layer
+- Логика сжатия: `ImageCompressionUtil.kt`, `ImageCompressionWorker.kt`
+- `SettingsManager.kt`: Управление настройками
+- Утилиты в пакете `util` (24 файла):
+  - MediaStore: работа с галереей и наблюдение за изменениями
+  - Обработка изображений: сжатие, проверка, последовательная обработка
+  - Файлы и URI: операции, информация, отслеживание
+  - EXIF-метаданные: чтение/запись
+  - Статистика и отслеживание: batch tracker, stats tracker
+  - Производительность и кэширование
+  - Уведомления, разрешения, очистка, логирование
 
-*   **Data Layer**:
-    *   `DataStore` используется для хранения простых настроек.
-    *   `MediaStore` используется для доступа к изображениям на устройстве.
+### Data Layer
+- `DataStore`: Хранение настроек
+- `MediaStore`: Доступ к изображениям на устройстве
 
 ## Фоновая обработка
-
-*   **`WorkManager`**: Используется для выполнения задач сжатия изображений в фоновом режиме через `ImageCompressionWorker.kt`. Это обеспечивает надежное выполнение даже после закрытия приложения.
-*   **`BackgroundMonitoringService.kt`**: Сервис, который отслеживает новые изображения в фоновом режиме, когда включена функция автоматического сжатия.
-*   **`ImageDetectionJobService.kt`**: `JobService`, который периодически проверяет наличие новых изображений.
-*   **`BootCompletedReceiver.kt`**: `BroadcastReceiver`, который запускает фоновые службы после перезагрузки устройства.
+- **WorkManager**: Выполнение задач сжатия через `ImageCompressionWorker.kt`
+- **BackgroundMonitoringService.kt**: Отслеживание новых изображений в фоне
+- **ImageDetectionJobService.kt**: Периодическая проверка новых изображений
+- **BootCompletedReceiver.kt**: Запуск фоновых служб после перезагрузки
 
 ## Внедрение зависимостей
-
-*   **Hilt**: Используется для внедрения зависимостей во все компоненты приложения, включая `Activity`, `ViewModel` и `Worker`. `AppModule.kt` определяет, как предоставлять зависимости.
+- **Hilt**: Внедрение зависимостей во все компоненты (Activity, ViewModel, Worker)
 
 ## Тестирование
-
-*   **Unit тесты**: Расположены в `app/src/test/java/com/compressphotofast/`. Используют JUnit, Robolectric и MockK.
-*   **Instrumentation тесты**: Расположены в `app/src/androidTest/java/com/compressphotofast/`. Используют Espresso и UIAutomator.
-*   **Базовые классы для тестов**:
-    *   [`BaseUnitTest.kt`](app/src/test/java/com/compressphotofast/BaseUnitTest.kt) - базовый класс для всех unit тестов с поддержкой корутин
-    *   [`BaseInstrumentedTest.kt`](app/src/androidTest/java/com/compressphotofast/BaseInstrumentedTest.kt) - базовый класс для всех instrumentation тестов с Hilt и Espresso
-    *   [`CoroutinesTestRule.kt`](app/src/test/java/com/compressphotofast/CoroutinesTestRule.kt) - JUnit Rule для тестирования корутин
-*   **Инфраструктура тестирования**:
-    *   [`TestImageGenerator.kt`](app/src/test/java/com/compressphotofast/util/TestImageGenerator.kt) - генератор тестовых изображений
-    *   [`TestUtilities.kt`](app/src/test/java/com/compressphotofast/util/TestUtilities.kt) - вспомогательные функции для тестов
-    *   [`WorkManagerTestModule.kt`](app/src/test/java/com/compressphotofast/di/WorkManagerTestModule.kt) - модуль для тестирования WorkManager
-    *   [`robolectric.properties`](app/src/test/resources/robolectric.properties) - конфигурация Robolectric
-*   **Скрипты тестирования**:
-    *   [`scripts/check_device.sh`](scripts/check_device.sh) - Проверка подключения устройства
-    *   [`scripts/run_unit_tests.sh`](scripts/run_unit_tests.sh) - Запуск только unit тестов
-    *   [`scripts/run_all_tests.sh`](scripts/run_all_tests.sh) - Полный цикл тестирования (Unit + Instrumentation + Coverage)
-    *   [`scripts/run_instrumentation_tests.sh`](scripts/run_instrumentation_tests.sh) - Запуск только instrumentation тестов
-    *   [`scripts/generate_test_images.sh`](scripts/generate_test_images.sh) - Генерация тестовых изображений для тестов
-    *   [`scripts/quick_test.sh`](scripts/quick_test.sh) - Быстрый запуск тестов с опциями (unit|instrumentation|all)
-    *   [`scripts/run_e2e_tests.sh`](scripts/run_e2e_tests.sh) - E2E тестирование с категориями (manualcompression, batchcompression, autocompression, shareintent, settings)
-    *   [`scripts/run_performance_tests.sh`](scripts/run_performance_tests.sh) - Тестирование производительности (compression, memory, throughput)
-    *   [`scripts/start_emulator.sh`](scripts/start_emulator.sh) - Автоматический запуск эмулятора Android
-*   **JaCoCo**: Инструмент для измерения покрытия кода тестами. HTML отчет: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
-*   **Статистика тестирования (январь 2026)**:
-    *   Всего unit тестов: 251
-    *   Проходят успешно: 238 (94.8%)
-    *   Instrumentation тестов: 96
-    *   Всего тестов: 347 (251 unit + 96 instrumentation)
-    *   Общее покрытие: ~8-10%
-*   **Категории тестов**:
-    *   **Unit тесты**: Тесты утилит, UI компонентов, Worker'ов, сервисов, DI модулей
-    *   **Instrumentation тесты**: UI тесты (Espresso), интеграционные тесты утилит, тесты сервисов на устройстве
-    *   **E2E тесты**: Полные сценарии использования (manualcompression, batchcompression, autocompression, shareintent, settings)
-    *   **Performance тесты**: Тесты производительности (compression, memory, throughput)
+- **Unit тесты**: `app/src/test/` (JUnit, Robolectric, MockK)
+- **Instrumentation тесты**: `app/src/androidTest/` (Espresso, UIAutomator)
+- **Базовые классы**: `BaseUnitTest`, `BaseInstrumentedTest`, `CoroutinesTestRule`
+- **Инфраструктура**: `TestImageGenerator`, `TestUtilities`, `WorkManagerTestModule`
+- **Скрипты**: quick_test.sh, run_all_tests.sh, run_unit_tests.sh, run_instrumentation_tests.sh, run_e2e_tests.sh, run_performance_tests.sh, start_emulator.sh, check_device.sh, generate_test_images.sh
+- **JaCoCo**: Отчет покрытия в `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+- **Статистика (январь 2026)**: 347 тестов (251 unit + 96 instrumentation), покрытие ~8-10%
 
 ## Диаграмма компонентов
 
@@ -104,64 +71,22 @@ graph TD
 ## CLI-версия (Linux/Windows)
 
 ### Обзор
-
-CLI-версия написана на Python 3.10+ и использует идентичную логику сжатия с Android-приложением. Структура построена на модульном подходе с четким разделением ответственности.
+CLI-версия написана на Python 3.10+ и использует идентичную логику сжатия с Android-приложением.
 
 ### Ключевые компоненты
-
-*   **CLI Layer (`compressphotofast-cli/src/`)**:
-    *   `cli.py`: CLI интерфейс с использованием библиотеки Click. Включает команды `compress`, `stats`, `version` с богатым набором опций.
-    *   `__main__.py`: Точка входа для запуска через `python -m src.cli`.
-
-*   **Domain Layer**:
-    *   `compression.py`: Класс `ImageCompressor` для сжатия изображений с использованием Pillow. Включает методы тестирования эффективности сжатия, поддержку HEIC/HEIF через pillow-heif.
-    *   `exif_handler.py`: Класс `ExifHandler` для работы с EXIF-метаданными с библиотекой piexif. Обеспечивает чтение/запись EXIF, добавление маркеров сжатия, копирование метаданных.
-    *   `file_utils.py`: Утилиты для работы с файлами, рекурсивный обход папок, фильтрация изображений (скриншоты, мессенджеры).
-    *   `constants.py`: Константы приложения, идентичные Android-версии (уровни качества, размеры файлов, EXIF-маркеры).
-
-*   **Многопроцессорная обработка**:
-    *   `multiprocessing_utils.py`: Утилиты для многопроцессорной обработки изображений. Включает `ProcessSafeStats` для process-safe сбора статистики и worker-функции для обработки файлов в отдельных процессах. Использует `ProcessPoolExecutor` с контекстом `spawn` для параллельной обработки.
-
-*   **Статистика и вывод**:
-    *   `stats.py`: Класс `CompressionStats` для отслеживания и отображения статистики сжатия с использованием Rich для красивого табличного вывода.
-
-### Структура CLI-проекта
-
-```
-compressphotofast-cli/
-├── src/
-│   ├── __init__.py
-│   ├── __main__.py         # Точка входа
-│   ├── cli.py              # CLI интерфейс (Click) с многопроцессорной обработкой
-│   ├── compression.py      # Логика сжатия (Pillow + pillow-heif)
-│   ├── exif_handler.py     # EXIF метаданные (piexif)
-│   ├── file_utils.py       # Утилиты файлов
-│   ├── constants.py        # Константы (идентичны Android)
-│   ├── stats.py            # Статистика сжатия (Rich)
-│   └── multiprocessing_utils.py  # Многопроцессорная обработка
-├── install/
-│   ├── install.sh          # Автоматическая установка для Linux/macOS
-│   ├── install.ps1        # Автоматическая установка для Windows
-│   ├── install_common.sh   # Общие функции для Linux/macOS
-│   ├── install_common.ps1 # Общие функции для Windows
-│   ├── detect_python.sh   # Детекция версии Python
-│   └── install_deps.sh    # Установка системных зависимостей
-├── requirements.txt         # Зависимости Python
-├── setup.py              # Установка через pip
-├── pyproject.toml        # Современная конфигурация
-├── compressphotofast.sh  # Запуск на Linux/macOS
-└── compressphotofast.bat # Запуск на Windows
-```
+- **CLI Layer**: `cli.py` (Click), `__main__.py`
+- **Domain Layer**: `compression.py` (Pillow + pillow-heif), `exif_handler.py` (piexif), `file_utils.py`, `constants.py`
+- **Многопроцессорная обработка**: `multiprocessing_utils.py` (ProcessPoolExecutor, ProcessSafeStats)
+- **Статистика и вывод**: `stats.py` (Rich)
 
 ### Интеграция с Android-логикой
+- Идентичные константы: уровни качества (60, 70, 85), минимальный размер (100 КБ), минимальная экономия (30%)
+- Те же EXIF-маркеры: `CompressPhotoFast_Compressed:quality:timestamp`
+- Одинаковые правила: проверка маркеров, сравнение времени (20 сек), пропуск скриншотов и мессенджеров
+- Копирование EXIF: GPS, даты, камера, экспозиция
+- Поддержка HEIC/HEIF: конвертация в JPEG (требует pillow-heif)
 
-*   **Идентичные константы**: Уровни качества (60, 70, 85), минимальный размер файла (100 КБ), минимальная экономия (30%).
-*   **Те же EXIF-маркеры**: `CompressPhotoFast_Compressed:quality:timestamp` в теге UserComment (piexif.ExifIFD.UserComment).
-*   **Одинаковые правила**: Проверка маркеров, сравнение времени изменения (допустимая разница 20 секунд), пропуск скриншотов и мессенджеров.
-*   **Копирование EXIF**: Те же теги (GPS, даты, камера, экспозиция) сохраняются при сжатии.
-*   **Поддержка HEIC/HEIF**: Конвертация HEIC/HEIF файлов в JPEG при сжатии (требует pillow-heif).
-
-### Диаграмма CLI-компонентов
+## Диаграмма CLI-компонентов
 
 ```mermaid
 graph TD
