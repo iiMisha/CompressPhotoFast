@@ -6,6 +6,9 @@ plugins {
     id("jacoco")
 }
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 android {
     namespace = "com.compressphotofast"
     compileSdk = 36
@@ -15,7 +18,10 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 2
-        versionName = "2.2.10(30.01.2026)"
+
+        // Динамическое формирование версии с датой и временем
+        val baseVersion = project.findProperty("VERSION_NAME_BASE") as String? ?: "2.2.10"
+        versionName = getBuildVersion(baseVersion)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -80,6 +86,13 @@ android {
             }
         }
     }
+}
+
+// Функция для формирования версии с датой и временем сборки
+fun getBuildVersion(baseVersion: String): String {
+    val dateFormat = SimpleDateFormat("dd.MM.yyyy-HH:mm")
+    val dateTime = dateFormat.format(Date())
+    return "${baseVersion}(${dateTime})"
 }
 
 dependencies {
