@@ -40,38 +40,10 @@ object ImageCompressionUtil {
         try {
             LogUtil.uriInfo(uri, "Сжатие изображения в поток")
 
-            // Безопасное открытие потока с детальной обработкой ошибок и проверкой памяти
-            val inputBitmap = try {
+            // Сначала читаем все данные из потока в байтовый массив
+            val imageBytes = try {
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    // Сначала получаем размер изображения для проверки памяти
-                    val options = BitmapFactory.Options().apply {
-                        inJustDecodeBounds = true
-                    }
-                    BitmapFactory.decodeStream(input, null, options)
-
-                    // Проверяем размер изображения
-                    val width = options.outWidth
-                    val height = options.outHeight
-                    val estimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
-
-                    LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер: ${estimatedBytes / 1024 / 1024}MB")
-
-                    // Проверяем доступную память
-                    if (!FileOperationsUtil.hasEnoughMemory(context, estimatedBytes)) {
-                        LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения")
-                        return@withContext null
-                    }
-
-                    // Сбрасываем поток для повторного чтения
-                    input.resetOrCopy()
-
-                    // Декодируем с обработкой OutOfMemoryError
-                    try {
-                        BitmapFactory.decodeStream(input)
-                    } catch (e: OutOfMemoryError) {
-                        LogUtil.error(uri, "Сжатие в поток", "OutOfMemoryError при декодировании изображения", e)
-                        return@withContext null
-                    }
+                    input.readBytes()
                 }
             } catch (e: java.io.FileNotFoundException) {
                 LogUtil.error(uri, "Сжатие в поток", "Файл не найден при открытии потока: ${e.message}")
@@ -84,6 +56,43 @@ object ImageCompressionUtil {
                 return@withContext null
             } ?: run {
                 LogUtil.error(uri, "Сжатие в поток", "Не удалось открыть изображение (поток null)")
+                return@withContext null
+            }
+
+            // Проверяем размер изображения через ByteArrayInputStream (который можно сбрасывать)
+            val byteArrayInputStream = ByteArrayInputStream(imageBytes)
+
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeStream(byteArrayInputStream, null, options)
+
+            // Проверяем размер изображения
+            val width = options.outWidth
+            val height = options.outHeight
+            val estimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
+
+            LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер: ${estimatedBytes / 1024 / 1024}MB")
+
+            // Проверяем доступную память
+            if (!FileOperationsUtil.hasEnoughMemory(context, estimatedBytes)) {
+                LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения")
+                return@withContext null
+            }
+
+            // Сбрасываем ByteArrayInputStream для повторного чтения
+            byteArrayInputStream.reset()
+
+            // Декодируем с обработкой OutOfMemoryError
+            val inputBitmap = try {
+                BitmapFactory.decodeStream(byteArrayInputStream)
+            } catch (e: OutOfMemoryError) {
+                LogUtil.error(uri, "Сжатие в поток", "OutOfMemoryError при декодировании изображения", e)
+                return@withContext null
+            }
+
+            if (inputBitmap == null) {
+                LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение (BitmapFactory вернул null)")
                 return@withContext null
             }
 
