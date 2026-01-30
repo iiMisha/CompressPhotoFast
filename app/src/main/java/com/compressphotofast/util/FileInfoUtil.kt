@@ -68,12 +68,12 @@ object FileInfoUtil {
                     val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
                     val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
                     val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-                    
-                    val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
-                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
-                    val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
-                    val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
-                    val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
+
+                    val id = if (idIndex != -1 && !cursor.isNull(idIndex)) cursor.getLong(idIndex) else -1
+                    val name = if (nameIndex != -1 && !cursor.isNull(nameIndex)) cursor.getString(nameIndex) else "unknown"
+                    val size = if (sizeIndex != -1 && !cursor.isNull(sizeIndex)) cursor.getLong(sizeIndex) else -1
+                    val date = if (dateIndex != -1 && !cursor.isNull(dateIndex)) cursor.getLong(dateIndex) else -1
+                    val mime = if (mimeIndex != -1 && !cursor.isNull(mimeIndex)) cursor.getString(mimeIndex) else "unknown"
                     
                     // Получаем путь к файлу
                     val path = UriUtil.getFilePathFromUri(context, uri) ?: "неизвестно"

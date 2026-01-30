@@ -1,6 +1,7 @@
 package com.compressphotofast.util
 
 import android.content.Context
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -189,8 +190,10 @@ object BatchMediaStoreUtil {
                 } else -1
                 
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idColumn)
-                    
+                    val id = if (idColumn != -1 && !cursor.isNull(idColumn)) {
+                        cursor.getLong(idColumn)
+                    } else continue
+
                     // Находим соответствующий URI
                     val matchingUri = uris.find { uri ->
                         uri.lastPathSegment == id.toString()
@@ -463,5 +466,35 @@ object BatchMediaStoreUtil {
         val total = metadataCache.size
         val expired = metadataCache.values.count { it.isExpired() }
         return "Кэш метаданных: $total записей, $expired устарели"
+    }
+
+    /**
+     * Безопасное чтение Long из курсора с проверкой на null
+     */
+    private fun Cursor.getLongOrNull(index: Int): Long? {
+        return if (index != -1 && !isNull(index)) {
+            try {
+                getLong(index)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Безопасное чтение String из курсора с проверкой на null
+     */
+    private fun Cursor.getStringOrNull(index: Int): String? {
+        return if (index != -1 && !isNull(index)) {
+            try {
+                getString(index)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
     }
 }

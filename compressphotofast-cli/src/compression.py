@@ -65,6 +65,33 @@ class CompressionResult:
         return self.compressed_size <= self.original_size * MIN_COMPRESSION_RATIO
 
 
+def clean_double_extensions(file_name: str) -> str:
+    """
+    Очищает двойные расширения в имени файла.
+    Например: image.HEIC.jpg -> image, photo.heif.jpeg -> photo
+
+    Args:
+        file_name: Исходное имя файла
+
+    Returns:
+        Имя файла без двойных расширений (только базовое имя)
+    """
+    last_dot_index = file_name.rfind('.')
+    if last_dot_index <= 0:
+        return file_name
+
+    before_last_dot = file_name[:last_dot_index]
+    second_last_dot = before_last_dot.rfind('.')
+
+    if second_last_dot > 0:
+        # Есть двойное расширение, возвращаем имя до второй точки
+        logger.debug(f"Очистка двойного расширения: {file_name} -> {before_last_dot[:second_last_dot]}")
+        return before_last_dot[:second_last_dot]
+    else:
+        # Двойного расширения нет, возвращаем как есть
+        return before_last_dot
+
+
 class ImageCompressor:
     @staticmethod
     def is_supported_file(file_path: str) -> bool:
@@ -363,11 +390,19 @@ class ImageCompressor:
             os.makedirs(output_dir, exist_ok=True)
 
             base_name = os.path.basename(file_path)
-            name, ext = os.path.splitext(base_name)
-            # HEIC/HEIF файлы конвертируются в JPEG
-            if ext.lower() in {".heic", ".heif"}:
-                ext = ".jpg"
-            output_name = f"{name}_compressed{ext}"
+
+            # Сначала очищаем двойные расширения
+            clean_name = clean_double_extensions(base_name)
+
+            # Определяем расширение для сохранения
+            # HEIC/HEIF файлы всегда конвертируются в JPEG
+            _, last_ext = os.path.splitext(base_name)
+            if last_ext.lower() in {".heic", ".heif"}:
+                output_ext = ".jpg"
+            else:
+                output_ext = last_ext
+
+            output_name = f"{clean_name}_compressed{output_ext}"
             output_path = os.path.join(output_dir, output_name)
 
             # Process-safe filename generation with retry logic
@@ -378,9 +413,8 @@ class ImageCompressor:
                 if not os.path.exists(output_path):
                     break
 
-                # HEIC/HEIF файлы конвертируются в JPEG
-                file_ext = ".jpg" if ext.lower() in {".heic", ".heif"} else ext
-                output_name = f"{name}_compressed_{counter}{file_ext}"
+                # Используем то же расширение output_ext, что определено выше
+                output_name = f"{clean_name}_compressed_{counter}{output_ext}"
                 output_path = os.path.join(output_dir, output_name)
                 counter += 1
 

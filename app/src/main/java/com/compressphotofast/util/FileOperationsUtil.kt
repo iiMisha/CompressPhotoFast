@@ -1,5 +1,6 @@
 package com.compressphotofast.util
 
+import android.app.ActivityManager
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -7,6 +8,7 @@ import android.content.IntentSender
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.StatFs
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -218,7 +220,132 @@ object FileOperationsUtil {
             throw IOException("Не удалось создать временный файл", e)
         }
     }
-    
+
+    /**
+     * Проверяет наличие достаточного места на диске для операции
+     *
+     * @param context Контекст приложения
+     * @param requiredBytes Требуемое количество байт
+     * @param targetDir Целевая директория (по умолчанию cacheDir)
+     * @return true если достаточно места, иначе false
+     */
+    fun hasEnoughDiskSpace(
+        context: Context,
+        requiredBytes: Long,
+        targetDir: File? = null
+    ): Boolean {
+        return try {
+            val dir = targetDir ?: context.cacheDir
+            val stat = StatFs(dir.path)
+            val availableBytes = stat.availableBlocksLong * stat.blockSizeLong
+
+            // Оставляем запас 50MB
+            val minRequired = requiredBytes + (50 * 1024 * 1024)
+            val hasSpace = availableBytes >= minRequired
+
+            if (!hasSpace) {
+                LogUtil.error(
+                    null,
+                    "Проверка дискового пространства",
+                    "Недостаточно места: требуется ${minRequired / 1024 / 1024}MB, " +
+                            "доступно ${availableBytes / 1024 / 1024}MB"
+                )
+            }
+
+            hasSpace
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Проверка дискового пространства", e)
+            // При ошибке считаем что места достаточно (fail-safe)
+            true
+        }
+    }
+
+    /**
+     * Проверяет наличие достаточной памяти для декодирования изображения
+     *
+     * @param context Контекст приложения
+     * @param estimatedBytes Оценочный размер в байтах
+     * @return true если достаточно памяти, иначе false
+     */
+    fun hasEnoughMemory(context: Context, estimatedBytes: Long): Boolean {
+        return try {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            val memoryInfo = ActivityManager.MemoryInfo()
+            activityManager?.getMemoryInfo(memoryInfo)
+
+            val availableMem = memoryInfo.availMem
+            // Оставляем запас 100MB для системы
+            val minRequired = estimatedBytes + (100 * 1024 * 1024)
+            val hasMemory = availableMem >= minRequired
+
+            if (!hasMemory) {
+                LogUtil.error(
+                    null,
+                    "Проверка памяти",
+                    "Недостаточно памяти: требуется ${minRequired / 1024 / 1024}MB, " +
+                            "доступно ${availableMem / 1024 / 1024}MB"
+                )
+            }
+
+            hasMemory
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Проверка памяти", e)
+            true // fail-safe
+        }
+    }
+
+    /**
+     * Создает временный файл с валидацией ресурсов
+     *
+     * Проверяет доступное место на диске перед созданием файла.
+     * Использует Result pattern для детализации ошибок.
+     *
+     * @param context Контекст приложения
+     * @return FileOperationResult с временным файлом или ошибкой
+     */
+    suspend fun createTempImageFileValidated(context: Context): FileOperationResult<File> = withContext(Dispatchers.IO) {
+        try {
+            // Проверка доступности cacheDir
+            val cacheDir = context.cacheDir
+            if (!cacheDir.exists()) {
+                LogUtil.error(null, "Cache директория", "Cache директория не существует")
+                return@withContext FileOperationResult.Error(
+                    FileErrorType.IO_ERROR,
+                    "Cache директория недоступна"
+                )
+            }
+
+            // Проверка места на диске (ориентировочно 50MB для временного файла)
+            val estimatedSize = 50 * 1024 * 1024L
+            if (!hasEnoughDiskSpace(context, estimatedSize, cacheDir)) {
+                return@withContext FileOperationResult.Error(
+                    FileErrorType.DISK_FULL,
+                    "Недостаточно места на диске для создания временного файла"
+                )
+            }
+
+            // Создаем временный файл
+            val tempFile = File.createTempFile("temp_image_", ".jpg", cacheDir)
+            LogUtil.processInfo("Создан временный файл: ${tempFile.absolutePath}")
+
+            return@withContext FileOperationResult.Success(tempFile)
+        } catch (e: IOException) {
+            LogUtil.errorWithException("Создание временного файла", e)
+            return@withContext FileOperationResult.Error(
+                FileErrorType.IO_ERROR,
+                "Ошибка при создании временного файла: ${e.message}",
+                e
+            )
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Создание временного файла", e)
+            return@withContext FileOperationResult.Error(
+                FileErrorType.UNKNOWN,
+                "Неожиданная ошибка: ${e.message}",
+                e
+            )
+        }
+    }
+
     /**
      * Проверка валидности размера файла
      */

@@ -26,7 +26,7 @@ object ImageCompressionUtil {
 
     /**
      * Сжимает изображение из URI в ByteArrayOutputStream
-     * 
+     *
      * @param context Контекст приложения
      * @param uri URI изображения
      * @param quality Качество сжатия (0-100)
@@ -40,10 +40,38 @@ object ImageCompressionUtil {
         try {
             LogUtil.uriInfo(uri, "Сжатие изображения в поток")
 
-            // Безопасное открытие потока с детальной обработкой ошибок
+            // Безопасное открытие потока с детальной обработкой ошибок и проверкой памяти
             val inputBitmap = try {
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    BitmapFactory.decodeStream(input)
+                    // Сначала получаем размер изображения для проверки памяти
+                    val options = BitmapFactory.Options().apply {
+                        inJustDecodeBounds = true
+                    }
+                    BitmapFactory.decodeStream(input, null, options)
+
+                    // Проверяем размер изображения
+                    val width = options.outWidth
+                    val height = options.outHeight
+                    val estimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
+
+                    LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер: ${estimatedBytes / 1024 / 1024}MB")
+
+                    // Проверяем доступную память
+                    if (!FileOperationsUtil.hasEnoughMemory(context, estimatedBytes)) {
+                        LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения")
+                        return@withContext null
+                    }
+
+                    // Сбрасываем поток для повторного чтения
+                    input.resetOrCopy()
+
+                    // Декодируем с обработкой OutOfMemoryError
+                    try {
+                        BitmapFactory.decodeStream(input)
+                    } catch (e: OutOfMemoryError) {
+                        LogUtil.error(uri, "Сжатие в поток", "OutOfMemoryError при декодировании изображения", e)
+                        return@withContext null
+                    }
                 }
             } catch (e: java.io.FileNotFoundException) {
                 LogUtil.error(uri, "Сжатие в поток", "Файл не найден при открытии потока: ${e.message}")
@@ -258,8 +286,10 @@ object ImageCompressionUtil {
             val outputMimeType = "image/jpeg"
             LogUtil.debug("ImageCompression", "MIME тип для сохранения: $outputMimeType")
 
-            // Сохранение сжатого файла
-            val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
+            // Получаем байты из outputStream
+            val compressedBytes = outputStream.toByteArray()
+
+            // Сохранение сжатого файла с безопасным закрытием потока
             val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
                 UriUtil.getDirectoryFromUri(context, uri)
             } else {
@@ -267,16 +297,18 @@ object ImageCompressionUtil {
             }
 
             val savedFileResult = try {
-                MediaStoreUtil.saveCompressedImageFromStream(
-                    context,
-                    compressedInputStream,
-                    compressedFileName,
-                    directoryToSave,
-                    uri,
-                    quality,
-                    exifData,
-                    outputMimeType
-                )
+                ByteArrayInputStream(compressedBytes).use { compressedInputStream ->
+                    MediaStoreUtil.saveCompressedImageFromStream(
+                        context,
+                        compressedInputStream,
+                        compressedFileName,
+                        directoryToSave,
+                        uri,
+                        quality,
+                        exifData,
+                        outputMimeType
+                    )
+                }
             } catch (e: java.io.FileNotFoundException) {
                 LogUtil.error(uri, "Сохранение сжатого изображения", "Файл не найден при сохранении: ${e.message}")
                 null
@@ -284,10 +316,10 @@ object ImageCompressionUtil {
                 LogUtil.error(uri, "Сохранение сжатого изображения", "Ошибка при сохранении сжатого изображения", e)
                 null
             }
-            
-            compressedInputStream.close()
+
+            // Закрываем outputStream после использования
             outputStream.close()
-            
+
             if (savedFileResult == null) {
                 return@withContext Triple(false, null, "Ошибка при сохранении сжатого изображения")
             }
@@ -326,21 +358,30 @@ object ImageCompressionUtil {
         try {
             // Сжимаем изображение в поток
             val outputStream = compressImageToStream(context, uri, quality) ?: return@withContext null
-            
+
             // Создаем временный файл
             val tempFile = FileOperationsUtil.createTempImageFile(context)
-            
-            // Сохраняем сжатое изображение во временный файл
-            val compressedInputStream = ByteArrayInputStream(outputStream.toByteArray())
-            val fileOutputStream = FileOutputStream(tempFile)
-            compressedInputStream.copyTo(fileOutputStream)
-            fileOutputStream.close()
-            compressedInputStream.close()
-            
+
             // Получаем размер сжатого изображения
             val compressedSize = outputStream.size().toLong()
+
+            // Безопасная запись с использованием use{} (автоматическое закрытие)
+            try {
+                ByteArrayInputStream(outputStream.toByteArray()).use { compressedInputStream ->
+                    FileOutputStream(tempFile).use { fileOutputStream ->
+                        compressedInputStream.copyTo(fileOutputStream)
+                        fileOutputStream.flush()
+                    }
+                }
+                LogUtil.debug("Сжатие", "Сжатые данные записаны во временный файл")
+            } catch (e: IOException) {
+                LogUtil.error(null, "Запись файла", "Ошибка при записи сжатого файла во временный файл ${tempFile.absolutePath}: ${e.message}", e)
+                return@withContext null
+            }
+
+            // Закрываем outputStream после использования
             outputStream.close()
-            
+
             return@withContext Pair(tempFile, compressedSize)
         } catch (e: Exception) {
             LogUtil.error(uri, "Сжатие во временный файл", e)
@@ -445,6 +486,32 @@ object ImageCompressionUtil {
         } catch (e: Exception) {
             LogUtil.error(sourceUri, "Копирование EXIF данных", e)
             return@withContext false
+        }
+    }
+
+    /**
+     * Вспомогательный метод для сброса или копирования потока
+     *
+     * Пытается сбросить поток для повторного чтения.
+     * Если это невозможно, читает весь поток в байтовый массив и создает новый ByteArrayInputStream.
+     *
+     * @return this если сброс удался, или новый ByteArrayInputStream с копией данных
+     */
+    private fun InputStream.resetOrCopy(): InputStream {
+        return try {
+            // Пытаемся сбросить поток
+            if (this is ByteArrayInputStream) {
+                this.reset()
+                this
+            } else {
+                // Если нельзя сбросить, читаем в байтовый массив
+                val bytes = this.readBytes()
+                ByteArrayInputStream(bytes)
+            }
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Сброс потока", e)
+            // При ошибке возвращаем как есть (может не сработать повторное чтение)
+            this
         }
     }
 }
