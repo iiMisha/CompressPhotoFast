@@ -48,7 +48,6 @@ import id.zelory.compressor.constraint.quality
 import id.zelory.compressor.constraint.resolution
 import id.zelory.compressor.constraint.size
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -117,7 +116,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Ранняя проверка существования файла перед любыми операциями
             try {
                 if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                    LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует (первая проверка)")
+                    LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует")
                     uriProcessingTracker.markUriUnavailable(imageUri)
                     return@withContext Result.failure()
                 }
@@ -128,16 +127,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.failure()
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
-                return@withContext Result.failure()
-            }
-
-            // Небольшая задержка для предотвращения race condition
-            delay(100)
-
-            // Повторная проверка существования файла
-            if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует (вторая проверка)")
-                uriProcessingTracker.markUriUnavailable(imageUri)
                 return@withContext Result.failure()
             }
 
@@ -176,13 +165,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Если файл имеет маркер сжатия, но требует повторной обработки
                 LogUtil.uriInfo(imageUri, "Изменено после сжатия, пересжатие")
             }
-            
-            // Проверка существования файла
-            if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                LogUtil.error(imageUri, "Проверка файла", "Файл не существует")
-                return@withContext Result.failure()
-            }
-            
+
             // Добавляем URI в отслеживание обработки
             uriProcessingTracker.addProcessingUriWithDetails(imageUri, "ImageCompressionWorker")
             
@@ -271,22 +254,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                         // Иначе сохраняем в директории приложения
                         Constants.APP_DIRECTORY
                     }
-                
+
                 LogUtil.uriInfo(imageUri, "Директория для сохранения: $directory")
-                
-                // Дополнительная проверка существования файла перед открытием потока
+
+                // Проверка существования файла перед открытием потока
                 if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                     LogUtil.error(imageUri, "Проверка файла", "Файл не существует перед открытием потока")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    return@withContext Result.failure()
-                }
-
-                // Короткая задержка перед открытием потока
-                delay(50)
-
-                // Финальная проверка существования файла непосредственно перед открытием потока
-                if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                    LogUtil.error(imageUri, "Проверка файла", "Файл не существует перед открытием потока (финальная проверка)")
                     uriProcessingTracker.markUriUnavailable(imageUri)
                     return@withContext Result.failure()
                 }
@@ -397,20 +370,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Используем статистику из уже выполненного теста
                 val stats = testResult.stats
-                
+
                 // Определяем размер сжатого файла и процент сокращения
                 val estimatedCompressedSize = stats.compressedSize
                 val estimatedSizeReduction = stats.sizeReduction
-                
-                // Проверяем использование памяти и форсируем GC при необходимости
-                val usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-                LogUtil.processInfo("Использование памяти после тестового сжатия: ${usedMemory / 1024 / 1024}MB")
-                
-                if (usedMemory > 100 * 1024 * 1024) { // Если используется больше 100MB
-                    LogUtil.processInfo("Запрашиваем сборку мусора для освобождения памяти")
-                    System.gc()
-                }
-                
+
                 // Показываем уведомление о пропуске файла
                 sendCompressionStatusNotification(
                     fileName,

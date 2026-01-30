@@ -4,10 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.provider.MediaStore
-import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -43,15 +40,6 @@ object ImageCompressionUtil {
         try {
             LogUtil.uriInfo(uri, "Сжатие изображения в поток")
 
-            // Проверка существования файла перед открытием потока
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Сжатие в поток", "Файл не существует перед открытием потока")
-                return@withContext null
-            }
-
-            // Небольшая задержка для предотвращения race condition
-            delay(30)
-
             // Безопасное открытие потока с детальной обработкой ошибок
             val inputBitmap = try {
                 context.contentResolver.openInputStream(uri)?.use { input ->
@@ -70,22 +58,18 @@ object ImageCompressionUtil {
                 LogUtil.error(uri, "Сжатие в поток", "Не удалось открыть изображение (поток null)")
                 return@withContext null
             }
-            
+
             // Создаем ByteArrayOutputStream для сжатия в память
             val outputStream = ByteArrayOutputStream()
-            
+
             // Сжимаем Bitmap в ByteArrayOutputStream
             val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            
+
             if (!success) {
                 LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в поток")
-                inputBitmap.recycle() // Освобождаем ресурсы Bitmap
                 return@withContext null
             }
-            
-            // Освобождаем ресурсы Bitmap, но сохраняем поток
-            inputBitmap.recycle()
-            
+
             return@withContext outputStream
         } catch (e: Exception) {
             LogUtil.error(uri, "Сжатие в поток", e)
@@ -173,62 +157,14 @@ object ImageCompressionUtil {
             // Загружаем изображение в Bitmap
             val inputBitmap = BitmapFactory.decodeStream(inputStream)
                 ?: throw IOException("Не удалось декодировать изображение")
-            
+
             // Сжимаем Bitmap в выходной поток
             val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-            
-            // Освобождаем ресурсы Bitmap
-            inputBitmap.recycle()
-            
+
             return@withContext success
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие потока", e)
             return@withContext false
-        }
-    }
-    
-    /**
-     * Комплексно проверяет эффективность сжатия и возвращает оптимальный уровень качества
-     * 
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @param originalSize Размер оригинального файла
-     * @return Оптимальный уровень качества (0-100) или Constants.COMPRESSION_QUALITY_MEDIUM при ошибке
-     */
-    suspend fun findOptimalQuality(
-        context: Context,
-        uri: Uri,
-        originalSize: Long
-    ): Int = withContext(Dispatchers.IO) {
-        try {
-            // Тестируем разные уровни качества
-            val qualities = listOf(70, 60, 80, 50, 90)
-            var bestQuality = Constants.COMPRESSION_QUALITY_MEDIUM
-            var bestRatio = 1.0f
-            
-            for (quality in qualities) {
-                val testResult = testCompression(context, uri, originalSize, quality)
-                
-                if (testResult != null) {
-                    val ratio = testResult.stats.compressedSize.toFloat() / originalSize.toFloat()
-                    
-                    // Если новое соотношение лучше предыдущего, обновляем результат
-                    if (ratio < bestRatio && ratio >= Constants.MIN_COMPRESSION_RATIO) {
-                        bestRatio = ratio
-                        bestQuality = quality
-                    }
-                    
-                    // Если достигли достаточно хорошего сжатия, останавливаемся
-                    if (ratio < 0.3f) {
-                        break
-                    }
-                }
-            }
-            
-            return@withContext bestQuality
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Поиск оптимального качества", e)
-            return@withContext Constants.COMPRESSION_QUALITY_MEDIUM
         }
     }
     
@@ -250,27 +186,12 @@ object ImageCompressionUtil {
     ): Triple<Boolean, Uri?, String> = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
         try {
-            // Проверка URI
+            // Проверка URI (включает проверку существования файла)
             if (!isValidUri(context, uri)) {
                 return@withContext Triple(false, null, "Недействительный URI")
             }
 
-            // Двойная проверка существования файла
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Обработка", "Файл не существует (первая проверка)")
-                return@withContext Triple(false, null, "Файл не существует")
-            }
-
-            // Небольшая задержка для предотвращения race condition
-            delay(50)
-
-            // Повторная проверка существования файла перед критическими операциями
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Обработка", "Файл не существует (вторая проверка)")
-                return@withContext Triple(false, null, "Файл стал недоступен")
-            }
-
-            // НОВАЯ ПРОВЕРКА: Пропускаем уже сжатые файлы
+            // Пропускаем уже сжатые файлы
             val (hasMarker, _, _) = ExifUtil.getCompressionMarker(context, uri)
             if (hasMarker) {
                 LogUtil.processDebug("Файл уже сжат, пропускаем: $uri")
@@ -289,24 +210,18 @@ object ImageCompressionUtil {
                 LogUtil.error(uri, "Обработка", "Ошибка при получении размера файла: ${e.message}")
                 return@withContext Triple(false, null, "Ошибка доступа к файлу")
             }
-            
+
             if (fileSize <= 0) {
                 return@withContext Triple(false, null, "Не удалось получить размер файла или файл пуст")
             }
-            
+
             // Проверка на минимальный размер
             if (fileSize < Constants.MIN_PROCESSABLE_FILE_SIZE) {
                 return@withContext Triple(true, uri, "Файл слишком маленький для сжатия")
             }
-            
-            // Получение EXIF данных для сохранения (теперь они должны быть в кэше)
+
+            // Получение EXIF данных для сохранения
             val exifData = ExifUtil.readExifDataToMemory(context, uri)
-            
-            // Дополнительная проверка существования файла перед сжатием
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Сжатие", "Файл не существует перед сжатием")
-                return@withContext Triple(false, null, "Файл недоступен для сжатия")
-            }
 
             // Сжатие изображения в поток с усиленной обработкой ошибок
             val outputStream = try {
