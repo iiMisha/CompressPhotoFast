@@ -30,7 +30,8 @@
       "Bash(GRADLE_MODE=eco timeout 600 ./gradlew connectedAndroidTest:*)",
       "Bash(timeout:*)",
       "Bash(GRADLE_MODE=eco ./gradlew assembleDebug:*)",
-      "Bash(GRADLE_MODE=eco timeout 600 ./gradlew connectedDebugAndroidTest:*)"
+      "Bash(GRADLE_MODE=eco timeout 600 ./gradlew connectedDebugAndroidTest:*)",
+      "WebSearch"
     ]
   }
 }

@@ -34,7 +34,7 @@ object MediaStoreUtil {
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
                 put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-                
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val relativePath = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
                         // В режиме замены используем оригинальную директорию файла
@@ -54,7 +54,7 @@ object MediaStoreUtil {
                         // Если указана только поддиректория, добавляем "Pictures/"
                         "${Environment.DIRECTORY_PICTURES}/$directory"
                     }
-                    
+
                     LogUtil.processInfo("Использую относительный путь для сохранения: $relativePath")
                     put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
@@ -70,7 +70,7 @@ object MediaStoreUtil {
                             directory
                         )
                     }
-                    
+
                     if (!targetDir.exists()) {
                         targetDir.mkdirs()
                     }
@@ -78,6 +78,9 @@ object MediaStoreUtil {
                     LogUtil.processInfo("Использую полный путь для сохранения (API < 29): $filePath")
                     put(MediaStore.Images.Media.DATA, filePath)
                 }
+
+                // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
+                MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
             }
             
             // Проверяем нужно ли обрабатывать конфликты имен файлов
@@ -306,6 +309,9 @@ object MediaStoreUtil {
                     LogUtil.processInfo("Использую полный путь для сохранения (API < 29): $filePath")
                     put(MediaStore.Images.Media.DATA, filePath)
                 }
+
+                // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
+                MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
             }
 
             // Обработка конфликта имен для режима отдельной папки (Android 10+)
@@ -431,7 +437,7 @@ object MediaStoreUtil {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val relativePath = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
                         // В режиме замены используем оригинальную директорию файла
@@ -453,6 +459,9 @@ object MediaStoreUtil {
                     put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
+
+                // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
+                MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
             }
             
             val uri = context.contentResolver.insert(

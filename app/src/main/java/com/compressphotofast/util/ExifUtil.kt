@@ -672,19 +672,7 @@ object ExifUtil {
                 
                 // 3. Восстанавливаем исходную дату модификации
                 if (originalLastModified > 0) {
-                    try {
-                        val values = android.content.ContentValues()
-                        // MediaStore ожидает время в секундах
-                        values.put(MediaStore.MediaColumns.DATE_MODIFIED, originalLastModified / 1000)
-                        val updatedRows = context.contentResolver.update(uri, values, null, null)
-                        if (updatedRows > 0) {
-                            LogUtil.processInfo("Исходная дата модификации успешно восстановлена.")
-                        } else {
-                            LogUtil.processWarning("Не удалось восстановить исходную дату модификации через ContentResolver.")
-                        }
-                    } catch (e: Exception) {
-                        LogUtil.error(uri, "Восстановление даты модификации", e)
-                    }
+                    MediaStoreDateUtil.restoreModifiedDate(context, uri, originalLastModified)
                 }
 
                 // === ДИАГНОСТИКА GPS ДАННЫХ ПОСЛЕ СОХРАНЕНИЯ ===
