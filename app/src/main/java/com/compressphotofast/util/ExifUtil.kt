@@ -106,7 +106,98 @@ object ExifUtil {
     private const val EXIF_CACHE_EXPIRATION = 5 * 60 * 1000L
     // Время последнего обновления кэша
     private val exifCacheTimestamps = Collections.synchronizedMap(HashMap<String, Long>())
-    
+
+    // Суффикс для HEIC файлов, которым не удалось добавить EXIF-маркер
+    private const val HEIC_COMPRESSED_SUFFIX = "_compressed"
+
+    /**
+     * Проверяет, является ли файл HEIC/HEIF форматом
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @return true если файл HEIC/HEIF
+     */
+    private fun isHeicFile(context: Context, uri: Uri): Boolean {
+        val mimeType = UriUtil.getMimeType(context, uri)
+        return mimeType?.equals("image/heic", ignoreCase = true) == true ||
+               mimeType?.equals("image/heif", ignoreCase = true) == true
+    }
+
+    /**
+     * Проверяет, есть ли у HEIC файла суффикс _compressed
+     * @param displayName Имя файла (displayName из MediaStore)
+     * @return true если имя содержит суффикс _compressed перед расширением
+     */
+    private fun hasHeicCompressedSuffix(displayName: String?): Boolean {
+        if (displayName == null) return false
+
+        // Проверяем наличие суффикса _compressed перед расширением .heic или .heif
+        return displayName.contains(Regex("""_compressed\.(heic|heif)$""", RegexOption.IGNORE_CASE))
+    }
+
+    /**
+     * Добавляет суффикс _compressed к имени HEIC файла через MediaStore
+     * Используется как fallback, когда не удается сохранить EXIF-маркер в HEIC
+     * @param context Контекст приложения
+     * @param uri URI HEIC файла
+     * @return true если переименование успешно
+     */
+    private suspend fun markHeicFileAsCompressed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            LogUtil.processInfo("Попытка сохранить EXIF для HEIC не удалась, переименовываем файл")
+
+            // Получаем текущий displayName из MediaStore
+            val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
+            var currentDisplayName: String? = null
+
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                    currentDisplayName = cursor.getString(nameIndex)
+                }
+            }
+
+            if (currentDisplayName == null) {
+                LogUtil.error(uri, "Переименование HEIC", "Не удалось получить текущее имя файла")
+                return@withContext false
+            }
+
+            // Проверяем, нет ли уже суффикса
+            if (hasHeicCompressedSuffix(currentDisplayName)) {
+                LogUtil.processInfo("У файла уже есть суффикс _compressed: $currentDisplayName")
+                return@withContext true
+            }
+
+            // Формируем новое имя: добавляем _compressed перед расширением
+            val dotIndex = currentDisplayName!!.lastIndexOf('.')
+            val newDisplayName = if (dotIndex > 0) {
+                val nameWithoutExt = currentDisplayName!!.substring(0, dotIndex)
+                val extension = currentDisplayName!!.substring(dotIndex)
+                "$nameWithoutExt$HEIC_COMPRESSED_SUFFIX$extension"
+            } else {
+                "$currentDisplayName$HEIC_COMPRESSED_SUFFIX"
+            }
+
+            LogUtil.processInfo("Переименование: $currentDisplayName -> $newDisplayName")
+
+            // Обновляем MediaStore
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, newDisplayName)
+            }
+
+            val updated = context.contentResolver.update(uri, values, null, null)
+            if (updated > 0) {
+                LogUtil.processInfo("✅ HEIC файл успешно переименован: $newDisplayName")
+                return@withContext true
+            } else {
+                LogUtil.error(uri, "Переименование HEIC", "Не удалось обновить MediaStore")
+                return@withContext false
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Переименование HEIC", e)
+            return@withContext false
+        }
+    }
+
     /**
      * Получает объект ExifInterface для заданного URI
      * @param context Контекст приложения
@@ -739,6 +830,24 @@ object ExifUtil {
             return@withContext false
         } catch (e: Exception) {
             LogUtil.error(uri, "Применение EXIF из памяти", e)
+
+            // Если это HEIC файл и ошибка связана с невозможностью сохранить EXIF,
+            // используем fallback - переименование файла
+            if (isHeicFile(context, uri) &&
+                (e.message?.contains("only supports saving attributes for JPEG, PNG, and WebP") == true ||
+                 e is java.io.IOException)) {
+
+                LogUtil.processInfo("HEIC файл: попытка добавить маркер через переименование")
+                val renameSuccess = markHeicFileAsCompressed(context, uri)
+
+                if (renameSuccess) {
+                    // Для HEIC считаем операцию успешной, даже если EXIF не применился
+                    // Маркер будет добавлен через суффикс в имени файла
+                    LogUtil.processInfo("✅ HEIC файл помечен как сжатый через переименование")
+                    return@withContext true
+                }
+            }
+
             return@withContext false
         }
     }
@@ -754,8 +863,32 @@ object ExifUtil {
      */
     suspend fun getCompressionInfo(context: Context, uri: Uri): Triple<Boolean, Int, Long> = withContext(Dispatchers.IO) {
         try {
+            // Сначала проверяем HEIC файлы с суффиксом _compressed
+            if (isHeicFile(context, uri)) {
+                val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_MODIFIED)
+                var displayName: String? = null
+                var dateModified: Long? = null
+
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                        val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
+                        displayName = cursor.getString(nameIndex)
+                        if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
+                            dateModified = cursor.getLong(dateIndex) * 1000
+                        }
+                    }
+                }
+
+                if (hasHeicCompressedSuffix(displayName)) {
+                    LogUtil.processDebug("Найден HEIC маркер сжатия в имени: $displayName")
+                    return@withContext Triple(true, 85, dateModified ?: System.currentTimeMillis())
+                }
+            }
+
+            // Стандартная проверка EXIF для всех форматов
             val exif = getExifInterface(context, uri) ?: return@withContext Triple(false, -1, 0L)
-            
+
             val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
             if (userComment != null && userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
                 val parts = userComment.split(":")
@@ -770,7 +903,7 @@ object ExifUtil {
                     }
                 }
             }
-            
+
             return@withContext Triple(false, -1, 0L)
         } catch (e: Exception) {
             LogUtil.error(uri, "Получение информации о сжатии", e)
@@ -832,14 +965,41 @@ object ExifUtil {
      */
     fun getCompressionMarker(context: Context, uri: Uri): Triple<Boolean, Int, Long> {
         try {
+            // Сначала проверяем HEIC файлы с суффиксом _compressed в имени
+            if (isHeicFile(context, uri)) {
+                // Получаем displayName из MediaStore
+                val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_MODIFIED)
+                var displayName: String? = null
+                var dateModified: Long? = null
+
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                        val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
+                        displayName = cursor.getString(nameIndex)
+                        if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
+                            dateModified = cursor.getLong(dateIndex) * 1000 // Конвертируем секунды в миллисекунды
+                        }
+                    }
+                }
+
+                // Проверяем суффикс _compressed в имени HEIC файла
+                if (hasHeicCompressedSuffix(displayName)) {
+                    LogUtil.processDebug("Найден HEIC маркер сжатия в имени файла: $displayName для URI: $uri")
+                    // Для HEIC с суффиксом возвращаем качество по умолчанию (85) и дату модификации
+                    return Triple(true, 85, dateModified ?: System.currentTimeMillis())
+                }
+            }
+
+            // Стандартная проверка EXIF маркера для всех форматов
             val exifInterface = getExifInterface(context, uri) ?: return Triple(false, -1, 0L)
-            
+
             // Получаем UserComment
             val userComment = exifInterface.getAttribute(ExifInterface.TAG_USER_COMMENT)
             if (userComment.isNullOrEmpty()) {
                 return Triple(false, -1, 0L)
             }
-            
+
             // Проверяем, содержит ли UserComment наш маркер
             if (userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
                 // Разбираем информацию из маркера: CompressPhotoFast_Compressed:70:1742629672908
@@ -858,7 +1018,7 @@ object ExifUtil {
         } catch (e: Exception) {
             LogUtil.error(uri, "EXIF", "Ошибка при получении маркера сжатия", e)
         }
-        
+
         return Triple(false, -1, 0L)
     }
     
