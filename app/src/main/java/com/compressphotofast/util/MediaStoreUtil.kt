@@ -127,28 +127,28 @@ object MediaStoreUtil {
                         
                         while (isFileExists && index < 100) { // Ограничиваем до 100 попыток
                             val newFileName = "${fileNameWithoutExt}_${index}${extension}"
-                            
+
                             // Проверяем существует ли файл с таким именем
                             val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
                             val existsArgs = arrayOf(newFileName)
-                            val existsCursor = context.contentResolver.query(
+
+                            isFileExists = context.contentResolver.query(
                                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                                 arrayOf(MediaStore.Images.Media._ID),
                                 existsSelection,
                                 existsArgs,
                                 null
-                            )
-                            
-                            isFileExists = (existsCursor?.count ?: 0) > 0
-                            existsCursor?.close()
-                            
+                            )?.use { cursor ->
+                                (cursor.count ?: 0) > 0
+                            } ?: false
+
                             if (!isFileExists) {
                                 // Обновляем имя файла в contentValues
                                 contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
                                 LogUtil.debug("MediaStore", "Режим замены выключен, используем новое имя с индексом: $newFileName")
                                 break
                             }
-                            
+
                             index++
                         }
                         
@@ -348,16 +348,16 @@ object MediaStoreUtil {
                             // ИСПРАВЛЕНИЕ: Проверяем существование файла с новым именем в той же директории
                             val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
                             val existsArgs = arrayOf(newFileName, pathWithSlash, pathWithoutSlash)
-                            val existsCursor = context.contentResolver.query(
+
+                            isFileExists = context.contentResolver.query(
                                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                                 arrayOf(MediaStore.Images.Media._ID),
                                 existsSelection,
                                 existsArgs,
                                 null
-                            )
-
-                            isFileExists = (existsCursor?.count ?: 0) > 0
-                            existsCursor?.close()
+                            )?.use { cursor ->
+                                (cursor.count ?: 0) > 0
+                            } ?: false
 
                             if (!isFileExists) {
                                 contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
