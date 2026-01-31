@@ -81,17 +81,20 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         // Проверяем, что переключатель авто-сжатия отображается
         assertViewDisplayed(R.id.switchAutoCompression)
 
-        // Проверяем текущее состояние
-        val initialState = try {
+        // Проверяем текущее состояние переключателя
+        // Используем try-catch для Throwable, т.к. AssertionError может быть выброшен
+        val isInitiallyChecked = try {
+            // Пытаемся проверить, что переключатель включен
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-            true // Выключен (assertion passed)
-        } catch (e: Exception) {
-            false // Включен (assertion failed - checkbox checked)
+                .check(ViewAssertions.matches(ViewMatchers.isChecked()))
+            true // Переключатель включен
+        } catch (e: Throwable) {
+            // Переключатель выключен (или ошибка UI)
+            false
         }
 
-        // Если выключен - включаем (исправлена логика)
-        if (initialState) {
+        // Если переключатель выключен - включаем его
+        if (!isInitiallyChecked) {
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
                 .perform(ViewActions.click())
 
@@ -114,17 +117,20 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      */
     @Test
     fun testBackgroundMonitoringServiceStarted() {
-        // Проверяем текущее состояние
-        val initialState = try {
+        // Проверяем текущее состояние переключателя
+        // Используем try-catch для Throwable, т.к. AssertionError может быть выброшен
+        val isInitiallyChecked = try {
+            // Пытаемся проверить, что переключатель включен
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-            true // Выключен (assertion passed)
-        } catch (e: Exception) {
-            false // Включен (assertion failed - checkbox checked)
+                .check(ViewAssertions.matches(ViewMatchers.isChecked()))
+            true // Переключатель включен
+        } catch (e: Throwable) {
+            // Переключатель выключен (или ошибка UI)
+            false
         }
 
-        // Если выключен - включаем (исправлена логика)
-        if (initialState) {
+        // Если переключатель выключен - включаем его
+        if (!isInitiallyChecked) {
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
                 .perform(ViewActions.click())
 
@@ -313,17 +319,20 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      */
     @Test
     fun testAutoCompressionAfterBoot() {
-        // Проверяем текущее состояние
-        val initialState = try {
+        // Проверяем текущее состояние переключателя
+        // Используем try-catch для Throwable, т.к. AssertionError может быть выброшен
+        val isInitiallyChecked = try {
+            // Пытаемся проверить, что переключатель включен
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-            true // Выключен (assertion passed)
-        } catch (e: Exception) {
-            false // Включен (assertion failed - checkbox checked)
+                .check(ViewAssertions.matches(ViewMatchers.isChecked()))
+            true // Переключатель включен
+        } catch (e: Throwable) {
+            // Переключатель выключен (или ошибка UI)
+            false
         }
 
-        // Если выключен - включаем (исправлена логика)
-        if (initialState) {
+        // Если переключатель выключен - включаем его
+        if (!isInitiallyChecked) {
             Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
                 .perform(ViewActions.click())
 

@@ -152,31 +152,37 @@ object ExifUtil {
      * @return true если копирование успешно
      */
     suspend fun copyExifData(context: Context, sourceUri: Uri, destinationUri: Uri): Boolean = withContext(Dispatchers.IO) {
+        var pfd: android.os.ParcelFileDescriptor? = null
         try {
             LogUtil.processInfo("Копирование EXIF данных: $sourceUri -> $destinationUri")
-            
+
             // Получаем ExifInterface для исходного изображения
             val sourceExif = getExifInterface(context, sourceUri) ?: return@withContext false
-            
+
             // Получаем ExifInterface для целевого изображения
-            val destExif = try {
-                context.contentResolver.openFileDescriptor(destinationUri, "rw")?.use { pfd ->
-                    ExifInterface(pfd.fileDescriptor)
-                }
+            // ВАЖНО: Не закрываем ParcelFileDescriptor до завершения saveAttributes()
+            pfd = try {
+                context.contentResolver.openFileDescriptor(destinationUri, "rw")
             } catch (e: Exception) {
                 LogUtil.error(destinationUri, "Открытие ExifInterface", e)
                 return@withContext false
             } ?: return@withContext false
-            
+
+            val destExif = ExifInterface(pfd.fileDescriptor)
+
             // Копируем все теги
             copyExifTags(sourceExif, destExif)
-            
+
             // Сохраняем изменения
             try {
                 LogUtil.processInfo("Вызываем saveAttributes() для сохранения EXIF данных")
                 destExif.saveAttributes()
                 LogUtil.processInfo("saveAttributes() выполнен успешно")
-                
+
+                // Теперь можно закрыть дескриптор
+                pfd.close()
+                pfd = null
+
                 // Верификация GPS данных после сохранения
                 val savedExif = getExifInterface(context, destinationUri)
                 if (savedExif != null) {
@@ -190,26 +196,29 @@ object ExifUtil {
                 } else {
                     LogUtil.processWarning("Не удалось открыть сохраненный файл для верификации GPS")
                 }
-                
+
                 LogUtil.processInfo("EXIF данные успешно скопированы")
             } catch (e: Exception) {
                 LogUtil.error(destinationUri, "Сохранение EXIF", e)
                 return@withContext false
             }
-            
+
             // Проверяем успех копирования
             val verificationResult = verifyExifCopy(sourceExif, getExifInterface(context, destinationUri) ?: return@withContext false)
-            
+
             if (verificationResult) {
                 LogUtil.processInfo("Проверка EXIF копирования успешна")
             } else {
                 LogUtil.processInfo("Проверка EXIF копирования не прошла")
             }
-            
+
             return@withContext verificationResult
         } catch (e: Exception) {
             LogUtil.error(sourceUri, "Копирование EXIF", e)
             return@withContext false
+        } finally {
+            // Гарантированно закрываем дескриптор при любом исходе
+            pfd?.close()
         }
     }
     
@@ -384,38 +393,64 @@ object ExifUtil {
         )
 
         var criticalTagCopied = false
+        val verificationDetails = StringBuilder("Проверка критических тегов:\n")
+
         for (tag in criticalTags) {
             val sourceValue = sourceExif.getAttribute(tag)
             val destValue = destExif.getAttribute(tag)
+            val status = when {
+                sourceValue == null -> "отсутствует в источнике"
+                destValue == null -> "отсутствует в назначении"
+                sourceValue == destValue -> "✓ совпадает"
+                else -> "✗ не совпадает (источник: '$sourceValue', назначение: '$destValue')"
+            }
+            verificationDetails.append("  $tag: $status\n")
+
             if (sourceValue != null && sourceValue == destValue) {
                 criticalTagCopied = true
-                break
             }
         }
+
+        LogUtil.processInfo(verificationDetails.toString().trimEnd())
 
         // Подсчитываем общее количество скопированных тегов
         var tagsCopied = 0
         var totalTags = 0
         var tagsMismatched = 0
+        val tagsDetails = StringBuilder("Проверка всех тегов из TAG_LIST:\n")
+
         for (tag in TAG_LIST) {
             val sourceValue = sourceExif.getAttribute(tag)
             if (sourceValue != null) {
                 totalTags++
                 val destValue = destExif.getAttribute(tag)
-                if (sourceValue == destValue) {
-                    tagsCopied++
-                } else if (destValue != null) {
-                    // Тег есть в обоих, но значения разные
-                    tagsMismatched++
+                when {
+                    sourceValue == destValue -> {
+                        tagsCopied++
+                        tagsDetails.append("  ✓ $tag: совпадает\n")
+                    }
+                    destValue == null -> {
+                        tagsDetails.append("  ✗ $tag: отсутствует в назначении (был '$sourceValue')\n")
+                    }
+                    else -> {
+                        // Тег есть в обоих, но значения разные
+                        tagsMismatched++
+                        tagsDetails.append("  ✗ $tag: не совпадает (источник: '$sourceValue', назначение: '$destValue')\n")
+                    }
                 }
             }
         }
+
+        LogUtil.processInfo(tagsDetails.toString().trimEnd())
+        LogUtil.processInfo("Результат верификации: criticalTagCopied=$criticalTagCopied, totalTags=$totalTags, tagsCopied=$tagsCopied, tagsMismatched=$tagsMismatched")
 
         // Копирование успешно, если:
         // 1. Скопирован хотя бы один критический тег, ИЛИ
         // 2. Скопировано более половины всех тегов, ИЛИ
         // 3. В исходном файле нет тегов для копирования (totalTags = 0) - операция completed успешно
-        return criticalTagCopied || (totalTags > 0 && tagsCopied >= totalTags / 2) || totalTags == 0
+        val result = criticalTagCopied || (totalTags > 0 && tagsCopied >= totalTags / 2) || totalTags == 0
+        LogUtil.processInfo("Итоговая проверка верификации: $result")
+        return result
     }
     
     /**

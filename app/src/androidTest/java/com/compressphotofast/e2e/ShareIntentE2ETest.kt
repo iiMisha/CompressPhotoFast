@@ -421,6 +421,9 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
     /**
      * Тест 10: Проверка обработки изображений в режиме замены
+     *
+     * ВНИМАНИЕ: В режиме замены оригинального файла файл перезаписывается (не создается заново),
+     * поэтому DATE_ADDED не меняется. Используем DATE_MODIFIED для поиска обновленного файла.
      */
     @Test
     fun testCompressionInReplaceMode() = runBlocking {
@@ -428,11 +431,17 @@ class ShareIntentE2ETest : BaseE2ETest() {
             return@runBlocking
         }
 
+        // Включаем режим замены оригинала
+        val settingsManager = com.compressphotofast.util.SettingsManager.getInstance(context)
+        settingsManager.setSaveMode(true)
+        LogUtil.processDebug("Включен режим замены оригинальных файлов")
+
         val uri = testUris[0]
         val originalSize = UriUtil.getFileSize(context, uri)
 
         // Запоминаем время перед отправкой Intent
         val beforeTimestamp = System.currentTimeMillis() / 1000
+        LogUtil.processDebug("Время перед отправкой Intent: $beforeTimestamp")
 
         // Создаем Intent с ACTION_SEND
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -450,10 +459,13 @@ class ShareIntentE2ETest : BaseE2ETest() {
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
         // Ждем автоматического сжатия (увеличено для стабильности)
-        delay(10000)
+        delay(15000)
 
-        // Находим URI сжатого файла
-        val compressedUri = findLatestCompressedUri(beforeTimestamp)
+        // В режиме замены ищем по DATE_MODIFIED (файл обновляется, а не создается)
+        val compressedUri = findLatestCompressedUriByModifiedDate(beforeTimestamp)
+        LogUtil.processDebug("Найден URI сжатого файла: $compressedUri")
+
+        // В режиме замены файл должен быть найден
         assertThat(compressedUri).isNotNull()
 
         // Проверяем, что изображение сжато
@@ -465,6 +477,9 @@ class ShareIntentE2ETest : BaseE2ETest() {
         assertThat(compressedSize).isLessThan(originalSize)
 
         LogUtil.processDebug("Сжатие в режиме замены: $originalSize -> $compressedSize байт")
+
+        // Отключаем режим замены после теста
+        settingsManager.setSaveMode(false)
     }
 
     // ========== Вспомогательные методы ==========
@@ -481,6 +496,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
     /**
      * Находит URI последнего созданного сжатого изображения после указанного времени.
      * Используется для поиска результата Share Intent сжатия.
+     *
+     * Ищет по полю DATE_ADDED - подходит для режима создания нового файла.
      */
     private fun findLatestCompressedUri(afterTimestamp: Long): Uri? {
         val projection = arrayOf(
@@ -508,6 +525,67 @@ class ShareIntentE2ETest : BaseE2ETest() {
                 return Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
             }
         }
+        return null
+    }
+
+    /**
+     * Находит URI последнего измененного изображения после указанного времени.
+     * Используется для поиска сжатого изображения в режиме замены оригинала.
+     *
+     * В режиме замены файл не создается заново, а перезаписывается, поэтому DATE_ADDED
+     * не меняется. Вместо этого используем DATE_MODIFIED, который обновляется при
+     * перезаписи файла через openOutputStream().
+     *
+     * @param afterTimestamp Временная метка (в секундах) после которой ищем измененные файлы
+     * @return URI измененного файла или null, если файл не найден
+     */
+    private fun findLatestCompressedUriByModifiedDate(afterTimestamp: Long): Uri? {
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DISPLAY_NAME
+        )
+
+        // Ищем файлы, измененные после указанного времени
+        val selection = "${MediaStore.Images.Media.DATE_MODIFIED} > ?"
+        val selectionArgs = arrayOf(afterTimestamp.toString())
+
+        // Сортируем по DATE_MODIFIED по убыванию (сначала самые свежие)
+        val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+
+        LogUtil.processDebug("Поиск измененного файла после timestamp: $afterTimestamp")
+
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            val count = cursor.count
+            LogUtil.processDebug("Найдено файлов с DATE_MODIFIED > $afterTimestamp: $count")
+
+            if (cursor.moveToFirst()) {
+                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val dateModifiedIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+                val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+                val displayNameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+
+                val id = cursor.getLong(idIndex)
+                val dateModified = cursor.getLong(dateModifiedIndex)
+                val dateAdded = cursor.getLong(dateAddedIndex)
+                val displayName = cursor.getString(displayNameIndex)
+
+                LogUtil.processDebug("Найден файл: id=$id, name=$displayName, DATE_MODIFIED=$dateModified, DATE_ADDED=$dateAdded")
+
+                val uri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString())
+                return uri
+            }
+        }
+
+        LogUtil.processWarning("Не найдено измененных файлов после timestamp: $afterTimestamp")
         return null
     }
 
