@@ -1,8 +1,9 @@
 # Контекст
 
 ## Последние изменения
+*   **Обновление зависимостей (февраль 2026)**: Обновлен Android Gradle Plugin до 9.0.0, KSP до 2.3.2, базовая версия приложения до 2.2.10. Добавлены новые зависимости: AndroidX Core KTX 1.17.0, AndroidX Lifecycle 2.9.2, AndroidX Activity 1.10.1, Hilt Work 1.2.0.
 *   **Переход на экономичный режим (22.01.2026)**: Проект настроен на использование экономичного режима Gradle по умолчанию для снижения нагрузки на CPU. Документация: [`docs/GRADLE_ECO_MODE.md`](docs/GRADLE_ECO_MODE.md).
-*   **Расширенная система тестирования (январь 2026)**: Новые скрипты (quick_test.sh, run_e2e_tests.sh, run_performance_tests.sh, start_emulator.sh), базовые классы для тестов (BaseUnitTest, BaseInstrumentedTest, CoroutinesTestRule).
+*   **Расширенная система тестирования (январь 2026)**: Новые скрипты (quick_test.sh, run_e2e_tests.sh, run_performance_tests.sh, start_emulator.sh, check_device.sh, generate_test_images.sh), базовые классы для тестов (BaseUnitTest, BaseInstrumentedTest, CoroutinesTestRule).
 *   **Скрипты установки CLI**: Автоматические установщики для Linux/macOS и Windows с детекцией Python.
 *   **Проблема двойных расширений**: Выявлена проблема с созданием файлов с двойными расширениями (например, `image.HEIC.jpg`).
 *   **Тестирование HEIC форматов**: Созданы специальные тесты для проверки обработки HEIC/HEIF форматов (20 тестов).
@@ -10,13 +11,13 @@
 ## Текущее состояние проекта
 
 ### Android-версия
-*   Версия: 2.2.8 (31.08.2025), versionCode 2
-*   Kotlin: 2.2.10, Android Gradle Plugin: 8.13.2
+*   Версия: 2.2.10 (текущая), versionCode 2
+*   Kotlin: 2.2.10, Android Gradle Plugin: 9.0.0
 *   DataStore для хранения настроек
 *   Автоматическое сжатие в фоновом режиме
 *   Игнорирование фото из мессенджеров и скриншотов
 *   JaCoCo coverage: ~8-10% (целевой 50-70%)
-*   24 утилиты в пакете `util`
+*   28 утилит в пакете `util`
 
 ### CLI-версия
 *   Версия: 1.0.0

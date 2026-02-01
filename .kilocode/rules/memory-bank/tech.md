@@ -1,21 +1,22 @@
 # Технологический стек CompressPhotoFast
 
 ## Версия приложения
-- **Android**: 2.2.8 (31.08.2025), versionCode 2
+- **Android**: 2.2.10 (текущая), versionCode 2
 - **CLI**: 1.0.0
 
 ## Android-версия
 
 ### Язык и сборка
 - **Kotlin 2.2.10**: Основной язык с корутинами
-- **Android Gradle Plugin 8.13.2**: Плагин для сборки
-- **KSP 2.2.10-2.0.2**: Генерация кода (Hilt)
+- **Android Gradle Plugin 9.0.0**: Плагин для сборки
+- **KSP 2.3.2**: Генерация кода (Hilt)
 - **Java 17**: Версия для компиляции
 
 ### Архитектура
 - **MVVM**: Model-View-ViewModel паттерн
 - **Android Architecture Components**: ViewModel, LiveData, WorkManager
 - **Hilt 2.57.1**: Внедрение зависимостей
+- **Hilt Work 1.2.0**: Интеграция Hilt с WorkManager
 
 ### Работа с изображениями
 - **Compressor 3.0.1**: Сжатие изображений
@@ -25,6 +26,11 @@
 ### Хранение данных
 - **DataStore 1.1.7**: Хранение настроек
 - **MediaStore**: Доступ к медиафайлам
+
+### Core библиотеки
+- **AndroidX Core KTX 1.17.0**: Расширения Kotlin для AndroidX
+- **AndroidX Lifecycle 2.9.2**: Компоненты жизненного цикла
+- **AndroidX Activity 1.10.1**: Компоненты Activity
 
 ### UI
 - **Material Design 1.12.0**: Компоненты интерфейса
@@ -43,6 +49,8 @@
 - **kotlinx-coroutines-test 1.10.2**: Тестирование корутин
 - **androidx.arch.core:core-testing 2.2.0**: Тестирование архитектуры
 - **androidx.work:work-testing 2.10.3**: Тестирование WorkManager
+- **androidx.test:core-ktx 1.6.1**: AndroidX тестовые утилиты
+- **androidx.test.ext:junit 1.2.1**: JUnit расширения для AndroidX
 - **Truth 1.4.4**: Улучшенные assert'ы
 - **Hilt Testing 2.57.1**: Тестирование с DI
 

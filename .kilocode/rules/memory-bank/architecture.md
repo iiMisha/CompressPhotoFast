@@ -12,7 +12,7 @@
 ### Domain Layer
 - Логика сжатия: `ImageCompressionUtil.kt`, `ImageCompressionWorker.kt`
 - `SettingsManager.kt`: Управление настройками
-- Утилиты в пакете `util` (24 файла):
+- Утилиты в пакете `util` (28 файлов):
   - MediaStore: работа с галереей и наблюдение за изменениями
   - Обработка изображений: сжатие, проверка, последовательная обработка
   - Файлы и URI: операции, информация, отслеживание
@@ -41,7 +41,7 @@
 - **Инфраструктура**: `TestImageGenerator`, `TestUtilities`, `WorkManagerTestModule`
 - **Скрипты**: quick_test.sh, run_all_tests.sh, run_unit_tests.sh, run_instrumentation_tests.sh, run_e2e_tests.sh, run_performance_tests.sh, start_emulator.sh, check_device.sh, generate_test_images.sh
 - **JaCoCo**: Отчет покрытия в `app/build/reports/jacoco/jacocoTestReport/html/index.html`
-- **Статистика (январь 2026)**: 347 тестов (251 unit + 96 instrumentation), покрытие ~8-10%
+- **Статистика (февраль 2026)**: 29 unit тестов, 24 instrumentation тестов, покрытие ~8-10%
 
 ## Диаграмма компонентов
 
