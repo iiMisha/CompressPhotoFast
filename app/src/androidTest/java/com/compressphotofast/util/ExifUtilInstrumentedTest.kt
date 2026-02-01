@@ -575,11 +575,17 @@ class ExifUtilInstrumentedTest {
      * 2. При ошибке сохранения EXIF происходит переименование
      * 3. Проверяется что новый файл имеет суффикс
      *
-     * ВАЖНО: На реальном устройстве для тестирования нужны настоящие HEIC файлы
-     * Этот тест использует эмуляцию через отражение
+     * ВАЖНО: markHeicFileAsCompressed - private suspend-функция.
+     * Её функциональность тестируется через публичный метод setCompressionMarker.
+     * Тесты test18-test21 покрывают проверку HEIC файлов.
+     *
+     * @Ignore оставлен, так как:
+     * 1. Это тестирование private метода через рефлексию (плохая практика)
+     * 2. Метод является suspend-функцией, что требует специальной обработки
+     * 3. Функциональность уже покрывается другими тестами через публичный API
      */
     @Test
-    @Ignore("Требует настоящий HEIC файл на устройстве. Для запуска на реальном устройстве с HEIC файлами убрать @Ignore")
+    @Ignore("markHeicFileAsCompressed - private suspend метод. Тестируется через публичный API setCompressionMarker. Смотри тесты test18-test21.")
     fun test22_markHeicFileAsCompressed_renamesFileSuccessfully() {
         runBlocking {
         // Arrange - этот тест требует наличия HEIC файла на устройстве
@@ -651,9 +657,14 @@ class ExifUtilInstrumentedTest {
      *
      * Проверяет, что повторный вызов markHeicFileAsCompressed для файла
      * с уже имеющимся суффиксом не вызывает ошибок
+     *
+     * ВАЖНО: markHeicFileAsCompressed - private suspend-функция.
+     * Её функциональность тестируется через публичный метод setCompressionMarker.
+     *
+     * @Ignore оставлен по тем же причинам, что и в test22
      */
     @Test
-    @Ignore("Требует настоящий HEIC файл. Убрать @Ignore для теста на устройстве с HEIC")
+    @Ignore("markHeicFileAsCompressed - private suspend метод. Тестируется через публичный API setCompressionMarker.")
     fun test23_markHeicFileAsCompressed_idempotent() {
         runBlocking {
         // Arrange - создаем файл с суффиксом _compressed
@@ -730,7 +741,7 @@ class ExifUtilInstrumentedTest {
      * и должно произойти переименование файла
      */
     @Test
-    @Ignore("Требует специальную подготовку HEIC файла. Убрать @Ignore для теста на устройстве")
+    @Ignore("applyExifFromMemory для HEIC тестируется через публичный API setCompressionMarker.")
     fun test24_applyExifFromMemory_fallsBackToRenamingForHeic() = runBlocking {
         // Arrange - этот тест требует создания HEIC файла
         // На текущий момент мы используем JPEG для тестирования

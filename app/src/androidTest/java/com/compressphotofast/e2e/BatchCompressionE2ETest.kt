@@ -50,15 +50,8 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        // Используем activityScenario из базового класса
-        // Восстанавливаем activity если она закрыта (например, после предыдущего теста)
-        try {
-            activityScenario?.onActivity { }
-            // Activity существует и доступна
-        } catch (e: Exception) {
-            // Activity закрыта или недоступна, создаем новую
-            activityScenario = ActivityScenario.launch(MainActivity::class.java)
-        }
+        // После tearDown() activityScenario становится null, поэтому создаем новую Activity
+        activityScenario = ActivityScenario.launch(MainActivity::class.java)
 
         // Создаем тестовые изображения
         createTestImages()
@@ -80,14 +73,6 @@ class BatchCompressionE2ETest : BaseE2ETest() {
      */
     private fun resetSaveModeSwitch() {
         try {
-            // Восстанавливаем activity если нужно
-            try {
-                activityScenario?.onActivity { }
-            } catch (e: Exception) {
-                activityScenario = ActivityScenario.launch(MainActivity::class.java)
-                waitForUI(500)
-            }
-
             // Проверяем текущее состояние напрямую через activity
             var isInReplaceMode = false
             activityScenario?.onActivity { activity ->

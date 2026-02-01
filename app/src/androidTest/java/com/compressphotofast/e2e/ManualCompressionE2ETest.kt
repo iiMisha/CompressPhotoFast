@@ -51,11 +51,39 @@ class ManualCompressionE2ETest : BaseE2ETest() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        // Добавить запуск Activity
+        // Запускаем Activity
         activityScenario = ActivityScenario.launch(MainActivity::class.java)
+
+        // Сбрасываем состояние switchSaveMode в режим замены (isChecked = true)
+        // Это необходимо для предсказуемости начального состояния в тестах
+        resetSaveModeSwitch()
 
         // Создаем тестовые изображения
         createTestImages()
+    }
+
+    /**
+     * Сбрасывает переключатель режима сохранения в режим замены
+     */
+    private fun resetSaveModeSwitch() {
+        try {
+            // Проверяем текущее состояние напрямую через activity
+            var isInReplaceMode = false
+            activityScenario?.onActivity { activity ->
+                val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
+                isInReplaceMode = switch.isChecked
+            }
+
+            // Если в режиме separate folder (isChecked = false) - переключаем в replace mode
+            if (!isInReplaceMode) {
+                Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                    .perform(ViewActions.click())
+                waitForUI(500)
+                LogUtil.processDebug("Режим сохранения сброшен в Replace mode")
+            }
+        } catch (e: Exception) {
+            LogUtil.processDebug("Не удалось сбросить режим сохранения: ${e.message}")
+        }
     }
 
     @After
@@ -163,18 +191,25 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     fun testSelectReplaceMode() {
         // Проверяем, что переключатель режима сохранения отображается
         assertViewDisplayed(R.id.switchSaveMode)
-        
-        // Нажимаем на переключатель режима сохранения
+
+        // Начальное состояние: isChecked = true (Replace mode)
+        // Нажимаем для переключения в Separate folder mode
+        Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+            .perform(ViewActions.click())
+        waitForUI(300)
+
+        // Теперь isChecked = false (Separate folder mode)
+        // Нажимаем снова для возврата в Replace mode
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
 
         // Ждем обновления UI
         waitForUI(300)
-        
+
         // Проверяем, что переключатель включен (режим замены)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
+
         LogUtil.processDebug("Выбран режим замены")
     }
 
@@ -185,23 +220,19 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     fun testSelectSeparateFolderMode() {
         // Проверяем, что переключатель режима сохранения отображается
         assertViewDisplayed(R.id.switchSaveMode)
-        
-        // Нажимаем на переключатель режима сохранения дважды (отключаем)
+
+        // Начальное состояние: isChecked = true (Replace mode)
+        // Нажимаем один раз для переключения в Separate folder mode
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .perform(ViewActions.click())
 
         // Ждем обновления UI
         waitForUI(300)
-        Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-            .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
-        
         // Проверяем, что переключатель выключен (режим отдельной папки)
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-        
+
         LogUtil.processDebug("Выбран режим отдельной папки")
     }
 

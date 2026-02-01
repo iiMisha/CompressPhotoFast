@@ -19,12 +19,10 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Before
     override fun setUp() {
         super.setUp()
-        mockContext = mockk()
+        // Используем relaxed = true для автоматического мокания всех вызовов Context
+        // Это необходимо, так как CompressionBatchTracker -> NotificationUtil использует много ресурсов
+        mockContext = mockk(relaxed = true)
         every { mockContext.applicationContext } returns mockContext
-
-        // Настраиваем mock для SharedPreferences
-        val mockSharedPreferences = mockk<android.content.SharedPreferences>(relaxed = true)
-        every { mockContext.getSharedPreferences(any(), any()) } returns mockSharedPreferences
 
         // Очищаем все батчи перед каждым тестом
         CompressionBatchTracker.clearAllBatches()
