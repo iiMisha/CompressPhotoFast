@@ -51,7 +51,14 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         context = InstrumentationRegistry.getInstrumentation().targetContext
 
         // Используем activityScenario из базового класса
-        activityScenario = ActivityScenario.launch(MainActivity::class.java)
+        // Восстанавливаем activity если она закрыта (например, после предыдущего теста)
+        try {
+            activityScenario?.onActivity { }
+            // Activity существует и доступна
+        } catch (e: Exception) {
+            // Activity закрыта или недоступна, создаем новую
+            activityScenario = ActivityScenario.launch(MainActivity::class.java)
+        }
 
         // Создаем тестовые изображения
         createTestImages()
@@ -59,11 +66,13 @@ class BatchCompressionE2ETest : BaseE2ETest() {
 
     @After
     override fun tearDown() {
-        super.tearDown()
         // Сбрасываем состояние switchSaveMode в режим замены (isChecked = true)
+        // ВАЖНО: Делаем это ДО super.tearDown(), пока activity еще открыта
         resetSaveModeSwitch()
         // Удаляем тестовые изображения
         cleanupTestImages()
+        // Закрываем activity в базовом классе
+        super.tearDown()
     }
 
     /**
@@ -71,21 +80,29 @@ class BatchCompressionE2ETest : BaseE2ETest() {
      */
     private fun resetSaveModeSwitch() {
         try {
-            // Проверяем текущее состояние
-            val isSeparateFolder = try {
-                Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-                    .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-                true // Separate folder mode (unchecked)
+            // Восстанавливаем activity если нужно
+            try {
+                activityScenario?.onActivity { }
             } catch (e: Exception) {
-                false // Replace mode (checked)
+                activityScenario = ActivityScenario.launch(MainActivity::class.java)
+                waitForUI(500)
             }
 
-            // Если в режиме separate folder - переключаем в replace mode
-            if (isSeparateFolder) {
+            // Проверяем текущее состояние напрямую через activity
+            var isInReplaceMode = false
+            activityScenario?.onActivity { activity ->
+                val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
+                isInReplaceMode = switch.isChecked
+            }
+
+            // Если в режиме separate folder (isChecked = false) - переключаем в replace mode
+            if (!isInReplaceMode) {
                 Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
                     .perform(ViewActions.click())
                 waitForUI(1000)  // Увеличено для стабильности
                 LogUtil.processDebug("Режим сохранения сброшен в Replace mode")
+            } else {
+                LogUtil.processDebug("Режим сохранения уже в Replace mode")
             }
         } catch (e: Exception) {
             LogUtil.processDebug("Не удалось сбросить режим сохранения: ${e.message}")
@@ -571,14 +588,37 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         if (testUris.size < 3) {
             return@runBlocking
         }
-        
-        // Включаем режим замены
-        Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-            .perform(ViewActions.click())
+
+        // Восстанавливаем activity если нужно
+        try {
+            activityScenario?.onActivity { }
+        } catch (e: Exception) {
+            activityScenario = ActivityScenario.launch(MainActivity::class.java)
+            waitForUI(500)
+        }
+
+        // Принудительно переключаем в Replace mode (isChecked = true)
+        // Сначала проверяем текущее состояние
+        var isInReplaceMode = false
+        activityScenario?.onActivity { activity ->
+            val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
+            isInReplaceMode = switch.isChecked
+        }
+
+        // Если не в Replace mode, переключаем
+        if (!isInReplaceMode) {
+            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                .perform(ViewActions.click())
+            waitForUI(1000)
+            LogUtil.processDebug("Переключено в Replace mode")
+        } else {
+            waitForUI(500)
+            LogUtil.processDebug("Уже в Replace mode")
+        }
 
         // Ждем обновления UI
         waitForUI(300)
-        
+
         // Выполняем пакетное сжатие
         val results = mutableListOf<Uri>()
         for (uri in testUris.take(3)) {
@@ -587,15 +627,15 @@ class BatchCompressionE2ETest : BaseE2ETest() {
                 uri,
                 Constants.COMPRESSION_QUALITY_MEDIUM
             )
-            
+
             if (result.second != null) {
                 results.add(result.second!!)
             }
         }
-        
+
         // Проверяем, что все изображения сжаты
         assertThat(results.size).isAtLeast(2)
-        
+
         LogUtil.processDebug("Пакетное сжатие в режиме замены: ${results.size} изображений")
     }
 
@@ -608,22 +648,31 @@ class BatchCompressionE2ETest : BaseE2ETest() {
             return@runBlocking
         }
 
-        // Проверяем текущее состояние switchSaveMode
-        val initialState = try {
-            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-                .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-            true // Включен (replace mode)
-        } catch (e: Throwable) {
-            false // Выключен (separate folder mode)
+        // Восстанавливаем activity если нужно
+        try {
+            activityScenario?.onActivity { }
+        } catch (e: Exception) {
+            activityScenario = ActivityScenario.launch(MainActivity::class.java)
+            waitForUI(500)
         }
 
-        // Если включен режим замены, выключаем его (переключаем в separate folder mode)
-        if (initialState) {
+        // Принудительно переключаем в Separate Folder mode (isChecked = false)
+        // Сначала проверяем текущее состояние
+        var isInReplaceMode = false
+        activityScenario?.onActivity { activity ->
+            val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
+            isInReplaceMode = switch.isChecked
+        }
+
+        // Если в Replace mode, переключаем в Separate Folder mode
+        if (isInReplaceMode) {
             Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
                 .perform(ViewActions.click())
             waitForUI(1000)
+            LogUtil.processDebug("Переключено в Separate Folder mode")
         } else {
             waitForUI(500)
+            LogUtil.processDebug("Уже в Separate Folder mode")
         }
 
         // Выполняем пакетное сжатие
@@ -804,14 +853,24 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         val allUris = testUris + screenshotUris + messengerUris
         for (uri in allUris) {
             try {
-                context.contentResolver.delete(uri, null, null)
+                // На Android 13+ нужно использовать MediaStore.createDeleteRequest()
+                // но в тестах можно просто попытаться удалить и игнорировать ошибку
+                try {
+                    context.contentResolver.delete(uri, null, null)
+                } catch (e: SecurityException) {
+                    // RecoverableSecurityException - игнорируем, файл будет удален позже
+                    LogUtil.processDebug("Не удалось удалить $uri через contentResolver (SecurityException)")
+                } catch (e: Exception) {
+                    // Другие ошибки логируем, но не прерываем очистку
+                    LogUtil.errorWithException("Ошибка при удалении тестового изображения: $uri", e)
+                }
             } catch (e: Exception) {
-                LogUtil.errorWithException("Ошибка при удалении тестового изображения: $uri", e)
+                LogUtil.errorWithException("Критическая ошибка при очистке", e)
             }
         }
         testUris.clear()
         screenshotUris.clear()
         messengerUris.clear()
-        LogUtil.processDebug("Тестовые изображения удалены")
+        LogUtil.processDebug("Очистка тестовых изображений завершена")
     }
 }
