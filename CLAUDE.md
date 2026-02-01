@@ -16,38 +16,26 @@
 #### 2. Языковые субагенты (voltagent-lang:*)
 Используйте для работы с конкретным языком:
 
-- **`kotlin-specialist`** - Kotlin (корутины, KMP, Android)
-- **`java-architect`** - Java enterprise, Spring экосистема
-- **`typescript-pro`** - TypeScript с продвинутой типизацией
-- **`javascript-pro`** - ES2023+, Node.js, browser APIs
-- **`python-pro`** - Python 3.11+ (type safety, async, data science)
-- **`golang-pro`** - Go microservices, high-performance systems
-- **`rust-engineer`** - Rust (systems programming, memory safety)
-- **`cpp-pro`** - Modern C++20/23, template metaprogramming
-- **`csharp-developer`** / **`dotnet-core-expert`** - .NET/C# development
-- **`php-pro`** / **`laravel-specialist`** - PHP/Laravel
-- **`rails-expert`** - Ruby on Rails 8.1
-- **`swift-expert`** - Swift 5.9+, iOS/macOS development
-- **`flutter-expert`** - Flutter 3+, cross-platform mobile
-- **`react-specialist`** - React 18+ with modern patterns
-- **`vue-expert`** - Vue 3 with Composition API
-- **`nextjs-developer`** - Next.js 14+ with App Router
-- **`angular-architect`** - Angular 15+ enterprise apps
-- **`sql-pro`** - Complex query optimization, DB design
+- **`kotlin-specialist`** - Kotlin (корутины, KMP, Android) - ОСНОВНОЙ для проекта
+- **`java-architect`** - Java (для legacy кода или Android библиотек)
+- **`javascript-pro`** / **`typescript-pro`** - JS/TS (для build scripts, frontend частей)
+- **`python-pro`** - Python 3.11+ (для скриптов, автоматизации, тестов)
+- **`cpp-pro`** - C++ (для JNI/native кода)
+- **`rust-engineer`** - Rust (для native модулей)
+
+#### 2.1. Субагенты для тестирования
+Используйте для написания и улучшения тестов:
+
+- **`kotlin-specialist`** - для unit и instrumentation тестов (JUnit, MockK, Espresso)
+- **`general-purpose`** - для настройки тестовой инфраструктуры, CI/CD для тестов
 
 #### 3. Инфраструктурные субагенты (voltagent-infra:*)
 Используйте для DevOps/CI/CD/инфраструктуры:
 
 - **`devops-engineer`** - CI/CD, automation, bridging dev/ops
-- **`kubernetes-specialist`** - K8s deployments, orchestration
-- **`terraform-engineer`** - Infrastructure as Code
-- **`cloud-architect`** - Multi-cloud strategies, architecture
-- **`security-engineer`** - DevSecOps, vulnerability management
-- **`platform-engineer`** - Internal developer platforms
 - **`deployment-engineer`** - Release automation, deployments
-- **`sre-engineer`** - SLOs, monitoring, reliability
-- **`database-administrator`** - DB administration, HA, performance
-- **`incident-responder`** - Incident management, root cause analysis
+- **`platform-engineer`** - Internal developer platforms
+- **`security-engineer`** - DevSecOps, vulnerability management
 
 #### 4. Универсальные субагенты
 
