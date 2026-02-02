@@ -31,13 +31,14 @@ class ImageCompressionUtilBitmapTest {
         // Получаем доступ к приватной функции через рефлексию
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
-            BitmapFactory.Options::class.java,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType
         )
         method.isAccessible = true
 
-        val result = method.invoke(ImageCompressionUtil, options, reqWidth, reqHeight) as Int
+        val result = method.invoke(ImageCompressionUtil, options.outWidth, options.outHeight, reqWidth, reqHeight) as Int
 
         assertEquals("inSampleSize должен быть 1 для маленького изображения", 1, result)
     }
@@ -57,13 +58,14 @@ class ImageCompressionUtilBitmapTest {
 
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
-            BitmapFactory.Options::class.java,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType
         )
         method.isAccessible = true
 
-        val result = method.invoke(ImageCompressionUtil, options, reqWidth, reqHeight) as Int
+        val result = method.invoke(ImageCompressionUtil, options.outWidth, options.outHeight, reqWidth, reqHeight) as Int
 
         // Для 4096x3072:
         // halfHeight = 1536, halfWidth = 2048
@@ -87,13 +89,14 @@ class ImageCompressionUtilBitmapTest {
 
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
-            BitmapFactory.Options::class.java,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType
         )
         method.isAccessible = true
 
-        val result = method.invoke(ImageCompressionUtil, options, reqWidth, reqHeight) as Int
+        val result = method.invoke(ImageCompressionUtil, options.outWidth, options.outHeight, reqWidth, reqHeight) as Int
 
         // Для 8000x6000:
         // halfHeight = 3000, halfWidth = 4000
@@ -118,13 +121,14 @@ class ImageCompressionUtilBitmapTest {
 
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
-            BitmapFactory.Options::class.java,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType
         )
         method.isAccessible = true
 
-        val result = method.invoke(ImageCompressionUtil, options, reqWidth, reqHeight) as Int
+        val result = method.invoke(ImageCompressionUtil, options.outWidth, options.outHeight, reqWidth, reqHeight) as Int
 
         // Для 16384x12288:
         // halfHeight = 6144, halfWidth = 8192
@@ -150,13 +154,14 @@ class ImageCompressionUtilBitmapTest {
 
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
-            BitmapFactory.Options::class.java,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType
         )
         method.isAccessible = true
 
-        val result = method.invoke(ImageCompressionUtil, options, reqWidth, reqHeight) as Int
+        val result = method.invoke(ImageCompressionUtil, options.outWidth, options.outHeight, reqWidth, reqHeight) as Int
 
         assertEquals("inSampleSize должен быть 1 для точного соответствия", 1, result)
     }
@@ -177,7 +182,8 @@ class ImageCompressionUtilBitmapTest {
 
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
-            BitmapFactory.Options::class.java,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType
         )
@@ -186,12 +192,7 @@ class ImageCompressionUtilBitmapTest {
         testCases.forEach { testCase ->
             val (width, height, reqSize) = testCase
 
-            val options = BitmapFactory.Options().apply {
-                outWidth = width
-                outHeight = height
-            }
-
-            val result = method.invoke(ImageCompressionUtil, options, reqSize, reqSize) as Int
+            val result = method.invoke(ImageCompressionUtil, width, height, reqSize, reqSize) as Int
 
             // Проверяем, что результат является степенью 2
             val isPowerOfTwo = (result > 0) && ((result and (result - 1)) == 0)
