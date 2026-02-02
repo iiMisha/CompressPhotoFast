@@ -9,11 +9,14 @@ import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import java.util.UUID
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
@@ -77,6 +80,9 @@ class MainViewModel @Inject constructor(
     private val _isWarningExpanded = MutableStateFlow(false)
     val isWarningExpanded = _isWarningExpanded.asStateFlow()
 
+    // Map для хранения WorkInfo observers
+    private val workObservers = mutableMapOf<UUID, Observer<WorkInfo?>>()
+
     // StateFlows для счетчиков пропущенных и уже оптимизированных изображений
     private val _skippedCount = MutableStateFlow(0)
     private val _alreadyOptimizedCount = MutableStateFlow(0)
@@ -105,9 +111,9 @@ class MainViewModel @Inject constructor(
      */
     fun compressSelectedImage() {
         val uri = selectedImageUri.value ?: return
-        
+
         _isLoading.value = true
-        
+
         // Запуск worker для сжатия изображения
         val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
             .setInputData(workDataOf(
@@ -115,34 +121,38 @@ class MainViewModel @Inject constructor(
                 Constants.WORK_COMPRESSION_QUALITY to getCompressionQuality()
             ))
             .build()
-        
+
         workManager.enqueue(compressionWorkRequest)
-        
-        // Наблюдение за статусом работы
-        workManager.getWorkInfoByIdLiveData(compressionWorkRequest.id)
-            .observeForever { workInfo ->
-                if (workInfo != null && workInfo.state.isFinished) {
-                    _isLoading.postValue(false)
-                    
-                    val success = workInfo.outputData.getBoolean("success", false)
-                    val errorMessage = workInfo.outputData.getString("error_message")
-                    
-                    // Показываем результат
-                    _compressionResult.postValue(
-                        CompressionResult(
-                            success = success,
-                            errorMessage = if (!success) errorMessage else null,
-                            totalImages = 1,
-                            successfulImages = if (success) 1 else 0,
-                            failedImages = if (success) 0 else 1,
-                            allSuccessful = success
-                        )
+
+        // Создаем и сохраняем observer
+        val observer = Observer<WorkInfo?> { workInfo ->
+            if (workInfo != null && workInfo.state.isFinished) {
+                _isLoading.postValue(false)
+
+                val success = workInfo.outputData.getBoolean("success", false)
+                val errorMessage = workInfo.outputData.getString("error_message")
+
+                // Показываем результат
+                _compressionResult.postValue(
+                    CompressionResult(
+                        success = success,
+                        errorMessage = if (!success) errorMessage else null,
+                        totalImages = 1,
+                        successfulImages = if (success) 1 else 0,
+                        failedImages = if (success) 0 else 1,
+                        allSuccessful = success
                     )
-                    
-                    // Логируем результат сжатия для отладки
-                    LogUtil.processDebug("Результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
-                }
+                )
+
+                // Логируем результат сжатия для отладки
+                LogUtil.processDebug("Результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
             }
+        }
+
+        // Сохраняем observer в Map
+        workObservers[compressionWorkRequest.id] = observer
+        workManager.getWorkInfoByIdLiveData(compressionWorkRequest.id)
+            .observeForever(observer)
     }
 
     /**
@@ -431,6 +441,17 @@ class MainViewModel @Inject constructor(
     // Очистка ресурсов при уничтожении ViewModel
     override fun onCleared() {
         super.onCleared()
+
+        // Удаляем всех WorkInfo observers
+        workObservers.forEach { (workId, observer) ->
+            try {
+                workManager.getWorkInfoByIdLiveData(workId).removeObserver(observer)
+            } catch (e: Exception) {
+                LogUtil.errorWithException("MAIN_VIEWMODEL_ON_CLEARED: Failed to remove observer for $workId", e)
+            }
+        }
+        workObservers.clear()
+
         sequentialImageProcessor.destroy()
     }
 }

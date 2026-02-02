@@ -267,16 +267,23 @@ class MainActivity : AppCompatActivity() {
     
     override fun onStop() {
         // Отменяем регистрацию BroadcastReceiver при остановке активности
-        try {
-            unregisterReceiver(deletePermissionReceiver)
-           unregisterReceiver(renamePermissionReceiver)
-            unregisterReceiver(compressionCompletedReceiver)
-            unregisterReceiver(compressionSkippedReceiver)
-            unregisterReceiver(alreadyOptimizedReceiver)
-        } catch (e: Exception) {
-            LogUtil.errorWithException("BROADCAST_UNREGISTER", e)
+        // Используем forEach с индивидуальным try-catch для каждого receiver
+        listOf(
+            deletePermissionReceiver,
+            renamePermissionReceiver,
+            compressionCompletedReceiver,
+            compressionSkippedReceiver,
+            alreadyOptimizedReceiver
+        ).forEach { receiver ->
+            try {
+                unregisterReceiver(receiver)
+            } catch (e: IllegalArgumentException) {
+                LogUtil.debug("MainActivity", "Receiver already unregistered")
+            } catch (e: Exception) {
+                LogUtil.errorWithException("BROADCAST_UNREGISTER: $receiver", e)
+            }
         }
-        
+
         super.onStop()
     }
 
