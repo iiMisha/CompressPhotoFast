@@ -1,6 +1,7 @@
 ---
 name: android-optimization-analyzer
 description: Анализирует Android код на предмет проблем с производительностью и памятью, предлагая конкретные рекомендации по оптимизации
+user-invocable: true
 arguments:
   - name: scope
     description: Область анализа (whole_project, specific_module, specific_files)
