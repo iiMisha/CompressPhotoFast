@@ -60,6 +60,17 @@
 - **compileSdk**: 36
 - **Java**: 17
 
+### Скрипты тестирования
+- **quick_test.sh**: Быстрый запуск тестов
+- **run_all_tests.sh**: Полный цикл тестирования
+- **run_unit_tests.sh**: Только unit тесты
+- **run_instrumentation_tests.sh**: Только instrumentation тесты
+- **run_e2e_tests.sh**: E2E тесты
+- **run_performance_tests.sh**: Performance тесты
+- **start_emulator.sh**: Запуск эмулятора
+- **check_device.sh**: Проверка устройства
+- **generate_test_images.sh**: Генерация тестовых изображений
+
 ## CLI-версия (Python)
 
 ### Язык
@@ -97,3 +108,16 @@
 - **Linux**: `libheif-dev`, `libffi-dev` (apt-get)
 - **Windows**: только `pillow-heif` (pip)
 - **macOS**: `libheif` (Homebrew, не протестировано)
+
+## Документация
+
+### Основная документация
+- **docs/GRADLE_ECO_MODE.md**: Экономичный режим Gradle
+- **docs/MEDIASTORE_DATES_SAMSUNG_FIX.md**: Исправление для дат Samsung
+- **docs/TEST_BASE_CLASSES.md**: Базовые классы для тестов
+- **docs/TESTING_PLAN.md**: План тестирования
+- **docs/TESTING.md**: Документация по тестированию
+
+### Планы и задачи
+- **.docs/fix_plan.md**: План реализации массовой обработки изображений
+- **.docs/TASKS.txt**: Задачи по выявлению причин появления дубликатов
