@@ -133,6 +133,8 @@ object ImageCompressionUtil {
         uri: Uri,
         quality: Int
     ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
+        var inputBitmap: Bitmap? = null
+
         try {
             LogUtil.uriInfo(uri, "Сжатие изображения в поток")
 
@@ -176,14 +178,14 @@ object ImageCompressionUtil {
 
             // Декодируем изображение с поддержкой HEIC/HEIF
             // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
-            val inputBitmap = decodeImageBitmap(context, uri, mimeType, inSampleSize)
+            inputBitmap = decodeImageBitmap(context, uri, mimeType, inSampleSize)
 
             if (inputBitmap == null) {
                 LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение")
                 return@withContext null
             }
 
-            // Создаем ByteArrayOutputStream для сжатия в память
+            // Создаем ByteArrayOutputStream для сжатие в память
             val outputStream = ByteArrayOutputStream()
 
             // Сжимаем Bitmap в ByteArrayOutputStream
@@ -191,17 +193,16 @@ object ImageCompressionUtil {
 
             if (!success) {
                 LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в поток")
-                inputBitmap.recycle()
                 return@withContext null
             }
-
-            // Освобождаем память Bitmap
-            inputBitmap.recycle()
 
             return@withContext outputStream
         } catch (e: Exception) {
             LogUtil.error(uri, "Сжатие в поток", e)
             return@withContext null
+        } finally {
+            // Гарантированно освобождаем память Bitmap
+            inputBitmap?.recycle()
         }
     }
     
@@ -281,9 +282,11 @@ object ImageCompressionUtil {
         outputStream: OutputStream,
         quality: Int
     ): Boolean = withContext(Dispatchers.IO) {
+        var inputBitmap: Bitmap? = null
+
         try {
             // Загружаем изображение в Bitmap
-            val inputBitmap = BitmapFactory.decodeStream(inputStream)
+            inputBitmap = BitmapFactory.decodeStream(inputStream)
                 ?: throw IOException("Не удалось декодировать изображение")
 
             // Сжимаем Bitmap в выходной поток
@@ -293,6 +296,9 @@ object ImageCompressionUtil {
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие потока", e)
             return@withContext false
+        } finally {
+            // Гарантированно освобождаем память Bitmap
+            inputBitmap?.recycle()
         }
     }
     

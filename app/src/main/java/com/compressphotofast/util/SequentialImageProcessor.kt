@@ -165,15 +165,20 @@ class SequentialImageProcessor(
     fun cancelProcessing() {
         // Проверяем, была ли запущена обработка изображений
         val wasProcessing = !processingCancelled.get() && _isLoading.value
-        
+
         processingCancelled.set(true)
-        
+        processingScope.cancel()
+
         // Показываем уведомление об остановке только если действительно была запущена обработка
         if (wasProcessing) {
             NotificationUtil.showToast(context, "Обработка изображений остановлена")
         }
-        
+
         _isLoading.value = false
+
+        // Очищаем StateFlow
+        _progress.value = MultipleImagesProgress()
+        _result.value = null
     }
     
     /**
