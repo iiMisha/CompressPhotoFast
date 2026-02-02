@@ -3,7 +3,9 @@ package com.compressphotofast.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
@@ -17,12 +19,106 @@ import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.PerformanceMonitor
+import com.compressphotofast.util.Constants
 
 /**
  * Централизованная утилита для сжатия изображений
  * Объединяет дублирующуюся логику из CompressionTestUtil и других классов
  */
 object ImageCompressionUtil {
+
+    /**
+     * Проверяет, является ли MIME тип HEIC/HEIF
+     */
+    private fun isHeicFormat(mimeType: String?): Boolean {
+        return mimeType?.equals("image/heic", ignoreCase = true) == true ||
+               mimeType?.equals("image/heif", ignoreCase = true) == true
+    }
+
+    /**
+     * Декодирует границы изображения (ширина, высота) с поддержкой HEIC/HEIF
+     * Для HEIC/HEIF использует ImageDecoder, для остальных - BitmapFactory
+     */
+    private suspend fun decodeImageBounds(
+        context: Context,
+        uri: Uri,
+        mimeType: String?
+    ): Pair<Int, Int>? = withContext(Dispatchers.IO) {
+        try {
+            if (isHeicFormat(mimeType)) {
+                // Используем ImageDecoder для HEIC/HEIF (API 28+)
+                val source = ImageDecoder.createSource(context.contentResolver, uri)
+                var width = 0
+                var height = 0
+
+                ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
+                    width = info.size.width
+                    height = info.size.height
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                })
+
+                if (width > 0 && height > 0) {
+                    return@withContext Pair(width, height)
+                }
+            } else {
+                // Используем BitmapFactory для остальных форматов
+                val options = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream, null, options)
+                    if (options.outWidth > 0 && options.outHeight > 0) {
+                        return@withContext Pair(options.outWidth, options.outHeight)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Декодирование границ изображения", e)
+        }
+        return@withContext null
+    }
+
+    /**
+     * Декодирует изображение с поддержкой HEIC/HEIF
+     * Для HEIC/HEIF использует ImageDecoder, для остальных - BitmapFactory
+     */
+    private suspend fun decodeImageBitmap(
+        context: Context,
+        uri: Uri,
+        mimeType: String?,
+        inSampleSize: Int
+    ): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            if (isHeicFormat(mimeType)) {
+                // Используем ImageDecoder для HEIC/HEIF (API 28+)
+                val source = ImageDecoder.createSource(context.contentResolver, uri)
+
+                return@withContext ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
+                    // Применяем inSampleSize для уменьшения размеров
+                    if (inSampleSize > 1) {
+                        val targetWidth = info.size.width / inSampleSize
+                        val targetHeight = info.size.height / inSampleSize
+                        decoder.setTargetSize(targetWidth, targetHeight)
+                    }
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                })
+            } else {
+                // Используем BitmapFactory для остальных форматов
+                val options = BitmapFactory.Options().apply {
+                    this.inSampleSize = inSampleSize
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                }
+
+                return@withContext context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream, null, options)
+                }
+            }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Декодирование изображения", e)
+            return@withContext null
+        }
+    }
+
 
     /**
      * Сжимает изображение из URI в ByteArrayOutputStream
@@ -40,59 +136,50 @@ object ImageCompressionUtil {
         try {
             LogUtil.uriInfo(uri, "Сжатие изображения в поток")
 
-            // Сначала читаем все данные из потока в байтовый массив
-            val imageBytes = try {
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    input.readBytes()
-                }
-            } catch (e: java.io.FileNotFoundException) {
-                LogUtil.error(uri, "Сжатие в поток", "Файл не найден при открытии потока: ${e.message}")
-                return@withContext null
-            } catch (e: java.io.IOException) {
-                LogUtil.error(uri, "Сжатие в поток", "Ошибка ввода/вывода при открытии потока: ${e.message}")
-                return@withContext null
-            } catch (e: Exception) {
-                LogUtil.error(uri, "Сжатие в поток", "Ошибка при открытии потока: ${e.message}")
-                return@withContext null
-            } ?: run {
-                LogUtil.error(uri, "Сжатие в поток", "Не удалось открыть изображение (поток null)")
+            // Получаем MIME тип для выбора подходящего декодера
+            val mimeType = UriUtil.getMimeType(context, uri)
+
+            // Этап 1: Получаем размеры изображения без загрузки в память (decodeBounds)
+            // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
+            val (width, height) = decodeImageBounds(context, uri, mimeType) ?: run {
+                LogUtil.error(uri, "Сжатие в поток", "Не удалось получить размеры изображения")
                 return@withContext null
             }
 
-            // Проверяем размер изображения через ByteArrayInputStream (который можно сбрасывать)
-            val byteArrayInputStream = ByteArrayInputStream(imageBytes)
+            // Вычисляем исходный размер памяти с ARGB_8888
+            val originalEstimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
+            LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер (ARGB_8888): ${originalEstimatedBytes / 1024 / 1024}MB")
 
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-            }
-            BitmapFactory.decodeStream(byteArrayInputStream, null, options)
+            // Этап 2: Вычисляем inSampleSize для уменьшения разрешения
+            val inSampleSize = calculateInSampleSize(
+                width,
+                height,
+                Constants.MAX_IMAGE_WIDTH,
+                Constants.MAX_IMAGE_HEIGHT
+            )
 
-            // Проверяем размер изображения
-            val width = options.outWidth
-            val height = options.outHeight
-            val estimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
+            // Этап 3: Декодируем изображение с оптимизацией памяти
+            // Вычисляем оценочный размер после оптимизации
+            val decodedWidth = width / inSampleSize
+            val decodedHeight = height / inSampleSize
+            val optimizedEstimatedBytes = decodedWidth * decodedHeight * 2L // 2 bytes per pixel (RGB_565)
+            val memoryReduction = ((originalEstimatedBytes - optimizedEstimatedBytes).toFloat() / originalEstimatedBytes * 100)
 
-            LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер: ${estimatedBytes / 1024 / 1024}MB")
+            LogUtil.debug("Сжатие", "Оптимизированное декодирование: ${decodedWidth}x${decodedHeight}, inSampleSize=$inSampleSize")
+            LogUtil.debug("Сжатие", "Оценочный размер: ${optimizedEstimatedBytes / 1024 / 1024}MB, экономия памяти: ${"%.1f".format(memoryReduction)}%")
 
-            // Проверяем доступную память
-            if (!FileOperationsUtil.hasEnoughMemory(context, estimatedBytes)) {
-                LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения")
+            // Проверяем доступную память с оптимизированным размером
+            if (!FileOperationsUtil.hasEnoughMemory(context, optimizedEstimatedBytes)) {
+                LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения даже с оптимизацией")
                 return@withContext null
             }
 
-            // Сбрасываем ByteArrayInputStream для повторного чтения
-            byteArrayInputStream.reset()
-
-            // Декодируем с обработкой OutOfMemoryError
-            val inputBitmap = try {
-                BitmapFactory.decodeStream(byteArrayInputStream)
-            } catch (e: OutOfMemoryError) {
-                LogUtil.error(uri, "Сжатие в поток", "OutOfMemoryError при декодировании изображения", e)
-                return@withContext null
-            }
+            // Декодируем изображение с поддержкой HEIC/HEIF
+            // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
+            val inputBitmap = decodeImageBitmap(context, uri, mimeType, inSampleSize)
 
             if (inputBitmap == null) {
-                LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение (BitmapFactory вернул null)")
+                LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение")
                 return@withContext null
             }
 
@@ -104,8 +191,12 @@ object ImageCompressionUtil {
 
             if (!success) {
                 LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в поток")
+                inputBitmap.recycle()
                 return@withContext null
             }
+
+            // Освобождаем память Bitmap
+            inputBitmap.recycle()
 
             return@withContext outputStream
         } catch (e: Exception) {
@@ -522,5 +613,39 @@ object ImageCompressionUtil {
             // При ошибке возвращаем как есть (может не сработать повторное чтение)
             this
         }
+    }
+
+    /**
+     * Вычисляет оптимальный коэффициент downsampling (inSampleSize)
+     *
+     * inSampleSize должен быть степенью 2 (1, 2, 4, 8, 16, ...)
+     * Если inSampleSize = 2, то размеры изображения уменьшаются в 2 раза,
+     * а количество пикселей - в 4 раза
+     *
+     * @param options BitmapFactory.Options с уже загруженными bounds (outWidth, outHeight)
+     * @param reqWidth Требуемая ширина изображения
+     * @param reqHeight Требуемая высота изображения
+     * @return Оптимальное значение inSampleSize (степень 2)
+     */
+    private fun calculateInSampleSize(
+        width: Int,
+        height: Int,
+        reqWidth: Int,
+        reqHeight: Int
+    ): Int {
+        var inSampleSize = 1
+
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight = height / 2
+            val halfWidth = width / 2
+
+            // Вычисляем максимальную степень 2, которая не превышает требуемые размеры
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+
+        LogUtil.debug("Bitmap decoding", "inSampleSize = $inSampleSize (original: ${width}x${height})")
+        return inSampleSize
     }
 }

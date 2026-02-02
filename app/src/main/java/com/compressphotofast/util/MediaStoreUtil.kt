@@ -800,4 +800,95 @@ object MediaStoreUtil {
             ByteArrayInputStream(bytes)
         }
     }
+
+    /**
+     * Пакетная проверка конфликтов имен файлов в MediaStore
+     *
+     * Использует один запрос с IN clause для проверки всех файлов одновременно,
+     * что значительно снижает количество запросов при пакетной обработке.
+     *
+     * Пример: для 100 файлов выполняется 1 запрос вместо 100 отдельных запросов.
+     *
+     * @param context Контекст приложения
+     * @param fileNames Список имен файлов для проверки
+     * @param relativePath Относительный путь для фильтрации (только для Android 10+).
+     *                     Если null, проверяется без учета пути (может давать ложные срабатывания).
+     * @return Map где ключ = имя файла, значение = существующий Uri (или null если конфликта нет)
+     */
+    suspend fun checkFileNameConflictsBatch(
+        context: Context,
+        fileNames: List<String>,
+        relativePath: String? = null
+    ): Map<String, Uri?> = withContext(Dispatchers.IO) {
+        if (fileNames.isEmpty()) return@withContext emptyMap()
+
+        try {
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME
+            )
+
+            // Создаем плейсхолдеры для каждого имени файла (?, ?, ?, ...)
+            val placeholders = fileNames.map { "?" }.joinToString(",")
+
+            // Формируем условие выборки
+            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
+                // Для Android 10+ проверяем с учетом пути
+                val pathWithoutSlash = relativePath.trimEnd('/')
+                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+            } else {
+                // Для Android < 10 или если путь не указан
+                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
+            }
+
+            // Формируем аргументы выборки
+            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
+                val pathWithoutSlash = relativePath.trimEnd('/')
+                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+                fileNames.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
+            } else {
+                fileNames.toTypedArray()
+            }
+
+            val conflicts = mutableMapOf<String, Uri?>()
+
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(nameColumn)
+                    val id = cursor.getLong(idColumn)
+                    val uri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+                    conflicts[name] = uri
+                    LogUtil.debug("MediaStore", "Обнаружен конфликт имени файла: $name -> $uri")
+                }
+            }
+
+            // Для файлов без конфликтов добавляем null
+            fileNames.forEach { fileName ->
+                if (!conflicts.containsKey(fileName)) {
+                    conflicts[fileName] = null
+                }
+            }
+
+            LogUtil.debug("MediaStore", "Пакетная проверка завершена: проверено ${fileNames.size} файлов, найдено конфликтов: ${conflicts.values.count { it != null }}")
+
+            conflicts
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Пакетная проверка конфликтов имен", e)
+            // В случае ошибки возвращаем пустую карту (все файлы без конфликтов)
+            fileNames.associateWith { null }
+        }
+    }
 }

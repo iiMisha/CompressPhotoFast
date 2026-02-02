@@ -6,7 +6,9 @@ import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -19,6 +21,9 @@ object CompressionBatchTracker {
     private val batches = ConcurrentHashMap<String, CompressionBatch>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val batchIdCounter = AtomicInteger(1)
+
+    // Singleton coroutine scope для UI обновлений (требует Main thread)
+    private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Константы для автобатчей
     private const val AUTO_BATCH_TIMEOUT_MS = 60000L // 60 секунд для завершения автобатча
@@ -170,7 +175,7 @@ object CompressionBatchTracker {
             return
         }
         
-        CoroutineScope(Dispatchers.Main).launch {
+        batchScope.launch {
             if (results.size == 1) {
                 // Показываем индивидуальный результат
                 showIndividualResult(batch.context, results[0])
@@ -384,5 +389,13 @@ object CompressionBatchTracker {
         }
         batches.clear()
         LogUtil.processDebug("Все батчи очищены")
+    }
+
+    /**
+     * Очищает coroutine scope (должен вызываться при уничтожении приложения)
+     */
+    fun destroy() {
+        batchScope.cancel()
+        clearAllBatches()
     }
 }

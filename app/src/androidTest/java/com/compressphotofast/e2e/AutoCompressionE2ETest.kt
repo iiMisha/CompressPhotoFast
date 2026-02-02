@@ -67,6 +67,10 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         super.tearDown()
         // Останавливаем фоновые службы
         stopBackgroundServices()
+        // Закрываем Activity
+        if (::mainActivityScenario.isInitialized) {
+            mainActivityScenario.close()
+        }
         // Удаляем тестовые изображения
         cleanupTestImages()
         // ПРИМЕЧАНИЕ: Не сбрасываем состояние переключателей, чтобы не влиять на следующие тесты
@@ -628,8 +632,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
         for (uri in newUris) {
             val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
             if (hasMarker) {
-                val originalSize = UriUtil.getFileSize(context, uri)
-                val compressedSize = UriUtil.getFileSize(context, uri) // В режиме замены размер тот же
+                val originalSize = UriUtil.getFileSizeSync(context, uri)
+                val compressedSize = UriUtil.getFileSizeSync(context, uri) // В режиме замены размер тот же
                 totalOriginalSize += originalSize
                 totalCompressedSize += compressedSize
                 processedCount++

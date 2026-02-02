@@ -145,7 +145,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выполняем пакетное сжатие
         val results = mutableListOf<Pair<Uri, Long>>()
         for (uri in testUris.take(3)) {
-            val originalSize = UriUtil.getFileSize(context, uri)
+            val originalSize = UriUtil.getFileSizeSync(context, uri)
             val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
                 context,
                 uri,
@@ -153,7 +153,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
             )
             
             if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSize(context, compressedUri.second!!)
+                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
                 results.add(Pair(uri, originalSize - compressedSize))
             }
         }
@@ -187,7 +187,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выполняем пакетное сжатие
         val results = mutableListOf<Pair<Uri, Long>>()
         for (uri in testUris.take(3)) {
-            val originalSize = UriUtil.getFileSize(context, uri)
+            val originalSize = UriUtil.getFileSizeSync(context, uri)
             val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
                 context,
                 uri,
@@ -195,7 +195,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
             )
             
             if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSize(context, compressedUri.second!!)
+                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
                 results.add(Pair(uri, originalSize - compressedSize))
             }
         }
@@ -225,7 +225,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         // Выполняем пакетное сжатие
         val results = mutableListOf<Pair<Uri, Long>>()
         for (uri in testUris.take(3)) {
-            val originalSize = UriUtil.getFileSize(context, uri)
+            val originalSize = UriUtil.getFileSizeSync(context, uri)
             val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
                 context,
                 uri,
@@ -233,7 +233,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
             )
             
             if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSize(context, compressedUri.second!!)
+                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
                 results.add(Pair(uri, originalSize - compressedSize))
             }
         }
@@ -339,7 +339,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
                     }
                     else -> {
                         // Проверяем размер файла
-                        val fileSize = UriUtil.getFileSize(context, uri)
+                        val fileSize = UriUtil.getFileSizeSync(context, uri)
                         if (fileSize < 100 * 1024) {
                             skipped++
                         } else {
@@ -699,7 +699,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         
         // Выполняем пакетное сжатие
         for (uri in testUris.take(5)) {
-            val originalSize = UriUtil.getFileSize(context, uri)
+            val originalSize = UriUtil.getFileSizeSync(context, uri)
             val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
                 context,
                 uri,
@@ -707,7 +707,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
             )
             
             if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSize(context, compressedUri.second!!)
+                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
                 totalOriginalSize += originalSize
                 totalCompressedSize += compressedSize
             }

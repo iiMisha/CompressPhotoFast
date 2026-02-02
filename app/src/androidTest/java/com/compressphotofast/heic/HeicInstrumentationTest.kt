@@ -213,7 +213,7 @@ class HeicInstrumentationTest {
         }
 
         // Получаем размер файла
-        val fileSize = UriUtil.getFileSize(context, uri)
+        val fileSize = UriUtil.getFileSizeSync(context, uri)
         Log.d(TAG, "Создан HEIC файл: $uri (${fileSize / 1024} КБ)")
 
         createdUris.add(uri)
@@ -285,7 +285,7 @@ class HeicInstrumentationTest {
         )
 
         // 2. Получаем исходный размер
-        val originalSize = UriUtil.getFileSize(context, heicUri)
+        val originalSize = UriUtil.getFileSizeSync(context, heicUri)
         Log.d(TAG, "Исходный размер: ${originalSize / 1024} КБ")
 
         // 3. Проверяем MIME тип
@@ -507,7 +507,7 @@ class HeicInstrumentationTest {
             fileName = "test_replace_${System.currentTimeMillis()}.heic"
         )
 
-        val originalSize = UriUtil.getFileSize(context, heicUri)
+        val originalSize = UriUtil.getFileSizeSync(context, heicUri)
         Log.d(TAG, "Исходный размер: ${originalSize / 1024} КБ")
 
         // 4. Сжимаем файл
@@ -660,7 +660,7 @@ class HeicInstrumentationTest {
             quality = 95 // Высокое качество исходного файла
         )
 
-        val originalSize = UriUtil.getFileSize(context, heicUri)
+        val originalSize = UriUtil.getFileSizeSync(context, heicUri)
         val originalSizeKb = originalSize / 1024
         Log.d(TAG, "Исходный размер: ${originalSizeKb} КБ")
 

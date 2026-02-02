@@ -23,7 +23,9 @@ import androidx.work.ForegroundInfo
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import com.compressphotofast.util.FileOperationsUtil
 
 /**
@@ -31,6 +33,9 @@ import com.compressphotofast.util.FileOperationsUtil
  * Централизованная точка для всех операций с уведомлениями
  */
 object NotificationUtil {
+    // Singleton coroutine scope для Toast и UI обновлений (требует Main thread)
+    private val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     // Карта для отслеживания времени последнего показа конкретного сообщения
     private val lastMessageTime = ConcurrentHashMap<String, Long>()
     
@@ -316,8 +321,8 @@ object NotificationUtil {
      * Централизованный метод для всего приложения
      */
     fun showToast(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
-        // Запускаем на главном потоке
-        CoroutineScope(Dispatchers.Main).launch {
+        // Запускаем на главном потоке через singleton scope
+        notificationScope.launch {
             synchronized(toastLock) {
                 try {
                     // Проверяем разрешения на показ уведомлений (включая Toast на Android 13+)
@@ -843,5 +848,12 @@ object NotificationUtil {
         } catch (e: Exception) {
             LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия", e)
         }
+    }
+
+    /**
+     * Очищает coroutine scope (должен вызываться при уничтожении приложения)
+     */
+    fun destroy() {
+        notificationScope.cancel()
     }
 } 

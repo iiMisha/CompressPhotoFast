@@ -76,7 +76,8 @@ class SequentialImageProcessor(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
     // Корутинный скоуп для запуска и отмены обработки
-    private val processingScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    // Используем Default dispatcher для CPU-интенсивных операций сжатия изображений
+    private val processingScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     
     // Флаг для отмены обработки
     private val processingCancelled = AtomicBoolean(false)

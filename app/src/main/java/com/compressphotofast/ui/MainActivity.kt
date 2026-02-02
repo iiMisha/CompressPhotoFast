@@ -68,8 +68,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
-    private lateinit var prefs: SharedPreferences
-    private lateinit var permissionsManager: IPermissionsManager
+    private var prefs: SharedPreferences? = null
+    private var permissionsManager: IPermissionsManager? = null
 
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
@@ -662,7 +662,7 @@ class MainActivity : AppCompatActivity() {
      * Проверка необходимых разрешений
      */
     private fun checkAndRequestPermissions() {
-        permissionsManager.checkAndRequestAllPermissions {
+        permissionsManager?.checkAndRequestAllPermissions {
             checkMediaLocationPermission()
             updatePhotoPickerButtonVisibility()
         }
@@ -672,7 +672,7 @@ class MainActivity : AppCompatActivity() {
      * Проверка разрешения ACCESS_MEDIA_LOCATION для GPS данных
      */
     private fun checkMediaLocationPermission() {
-        if (!permissionsManager.hasMediaLocationPermission() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (!permissionsManager?.hasMediaLocationPermission()!! && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             showMediaLocationPermissionDialog()
         } else {
             initializeBackgroundServices()
@@ -688,7 +688,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage("Для сохранения GPS координат в сжатых фото требуется разрешение доступа к местоположению в медиафайлах.\n\nБез этого разрешения координаты будут потеряны при сжатии фото.")
             .setPositiveButton("Предоставить") { _, _ ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    permissionsManager.requestOtherPermissions { initializeBackgroundServices() }
+                    permissionsManager?.requestOtherPermissions { initializeBackgroundServices() }
                 }
             }
             .setNegativeButton("Пропустить") { _, _ ->
@@ -707,7 +707,7 @@ class MainActivity : AppCompatActivity() {
      * Показать диалог с объяснением необходимости разрешений
      */
     private fun showPermissionExplanationDialog() {
-        permissionsManager.showPermissionExplanationDialog(
+        permissionsManager?.showPermissionExplanationDialog(
             IPermissionsManager.PermissionType.ALL,
             onRetry = { checkAndRequestPermissions() },
             onSkip = {
@@ -788,7 +788,7 @@ class MainActivity : AppCompatActivity() {
     private fun checkPendingDeleteRequests() {
         // Получаем список URI, ожидающих удаления
         val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, null)
+        val pendingDeleteUris = prefs?.getStringSet(Constants.PREF_PENDING_DELETE_URIS, null)
         
         if (!pendingDeleteUris.isNullOrEmpty()) {
             LogUtil.processDebug("Найдено ${pendingDeleteUris.size} отложенных запросов на удаление файлов")
@@ -801,9 +801,9 @@ class MainActivity : AppCompatActivity() {
                     // Удаляем URI из списка ожидающих
                     val newSet = pendingDeleteUris.toMutableSet()
                     newSet.remove(uriString)
-                    prefs.edit()
-                        .putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
-                        .apply()
+                    prefs?.edit()
+                        ?.putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
+                        ?.apply()
                     
                     // Запрашиваем удаление файла
                     requestFileDelete(uri)
@@ -876,7 +876,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePhotoPickerButtonVisibility() {
-        if (permissionsManager.hasStoragePermissions() ||
+        if (permissionsManager?.hasStoragePermissions() ?: false ||
             (Build.VERSION.SDK_INT >= 34 && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == android.content.pm.PackageManager.PERMISSION_GRANTED)) {
             binding.btnSelectPhotos.visibility = View.VISIBLE
         } else {

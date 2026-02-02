@@ -316,12 +316,12 @@ object UriProcessingTracker {
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
      * Расширенная проверка с учетом всех состояний
      */
-    fun isImageBeingProcessed(uri: Uri): Boolean {
+    suspend fun isImageBeingProcessed(uri: Uri): Boolean {
         val uriString = uri.toString()
         val isProcessing = processingUris.contains(uriString)
         val isIgnored = shouldIgnoreUri(uriString)
         val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
-        
+
         // Дополнительная проверка: если файл был обработан совсем недавно, но уже вышел из кэша,
         // все равно временно игнорируем его
         if (!isRecentlyProcessed && !isIgnored && !isProcessing) {
@@ -329,9 +329,7 @@ object UriProcessingTracker {
             // возможно он все еще находится в процессе обработки другим процессом
             try {
                 val appContext = context ?: return isProcessing || isIgnored || isRecentlyProcessed
-                val lastModified = kotlinx.coroutines.runBlocking {
-                    UriUtil.getFileLastModified(appContext, uri)
-                }
+                val lastModified = UriUtil.getFileLastModified(appContext, uri)
                 val currentTime = System.currentTimeMillis()
                 if (lastModified > 0 && (currentTime - lastModified < 5000)) { // 5 секунд
                     return true
@@ -340,7 +338,7 @@ object UriProcessingTracker {
                 // Если не удается получить время модификации, продолжаем стандартную проверку
             }
         }
-        
+
         return isProcessing || isIgnored || isRecentlyProcessed
     }
     
@@ -357,12 +355,12 @@ object UriProcessingTracker {
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
      * Расширенная проверка с учетом времени модификации файла
      */
-    fun isImageBeingProcessed(uri: Uri, fileModifiedDate: Long = 0): Boolean {
+    suspend fun isImageBeingProcessed(uri: Uri, fileModifiedDate: Long = 0): Boolean {
         val uriString = uri.toString()
         val isProcessing = processingUris.contains(uriString)
         val isIgnored = shouldIgnoreUri(uriString)
         val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
-        
+
         // Если передано время модификации файла, используем его для дополнительной проверки
         if (fileModifiedDate > 0) {
             val currentTime = System.currentTimeMillis()
@@ -379,9 +377,7 @@ object UriProcessingTracker {
                 // возможно он все еще находится в процессе обработки другим процессом
                 try {
                     val appContext = context ?: return isProcessing || isIgnored || isRecentlyProcessed
-                    val lastModified = kotlinx.coroutines.runBlocking {
-                        UriUtil.getFileLastModified(appContext, uri)
-                    }
+                    val lastModified = UriUtil.getFileLastModified(appContext, uri)
                     val currentTime = System.currentTimeMillis()
                     if (lastModified > 0 && (currentTime - lastModified < 5000L)) { // 5 секунд
                         return true
@@ -391,7 +387,7 @@ object UriProcessingTracker {
                 }
             }
         }
-        
+
         return isProcessing || isIgnored || isRecentlyProcessed
     }
     
