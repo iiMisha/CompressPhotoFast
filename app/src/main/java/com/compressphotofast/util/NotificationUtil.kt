@@ -8,8 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import androidx.core.app.NotificationCompat
 import android.widget.Toast
 import com.compressphotofast.R
@@ -24,6 +22,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import com.compressphotofast.util.FileOperationsUtil
@@ -366,18 +365,22 @@ object NotificationUtil {
                         })
                     } else {
                         // Для API < 30 сбрасываем флаг через примерное время отображения
-                        Handler(Looper.getMainLooper()).postDelayed({
+                        // Используем корутину вместо Handler для предотвращения утечек памяти
+                        launch {
+                            delay(if (duration == Toast.LENGTH_LONG) 3500L else 2000L)
                             isToastShowing = false
-                        }, if (duration == Toast.LENGTH_LONG) 3500 else 2000)
+                        }
                     }
                     
                     toast.show()
                     LogUtil.debug("NotificationUtil", "Показан Toast: $message")
-                    
+
                     // Очищаем старые записи через двойное время интервала
-                    Handler(Looper.getMainLooper()).postDelayed({
+                    // Используем корутину вместо Handler для предотвращения утечек памяти
+                    launch {
+                        delay(MIN_TOAST_INTERVAL * 2)
                         lastMessageTime.remove(message)
-                    }, MIN_TOAST_INTERVAL * 2)
+                    }
                 } catch (e: SecurityException) {
                     // Обработка ошибки безопасности на Android 13+
                     LogUtil.error(android.net.Uri.EMPTY, "Toast", "SecurityException при показе Toast - отсутствует разрешение POST_NOTIFICATIONS: '$message'", e)
