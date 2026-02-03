@@ -490,8 +490,9 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Логирует подробную информацию о файле
+     * Выполняется в IO диспетчере для избежания блокировки главного потока
      */
-    private fun logFileDetails(uri: Uri) {
+    private suspend fun logFileDetails(uri: Uri) = withContext(Dispatchers.IO) {
         try {
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
@@ -500,7 +501,7 @@ class MainActivity : AppCompatActivity() {
                 MediaStore.Images.Media.DATE_ADDED,
                 MediaStore.Images.Media.MIME_TYPE
             )
-            
+
             contentResolver.query(
                 uri,
                 projection,
@@ -514,13 +515,13 @@ class MainActivity : AppCompatActivity() {
                     val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
                     val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
                     val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-                    
+
                     val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
                     val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
                     val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
                     val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
                     val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
-                    
+
                     LogUtil.processDebug("Файл: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
                 }
             }

@@ -1,5 +1,6 @@
 package com.compressphotofast.util
 
+import java.lang.ref.WeakReference
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
@@ -46,12 +47,18 @@ object CompressionBatchTracker {
      */
     private data class CompressionBatch(
         val batchId: String,
-        val context: Context,
+        val contextRef: WeakReference<Context>,
         val expectedCount: Int?, // Если null - автобатч, количество неизвестно
         val isIntentBatch: Boolean,
         var results: MutableList<CompressionResult> = mutableListOf(),
         var timeoutRunnable: Runnable? = null
     ) {
+        /**
+         * Безопасно получает контекст из WeakReference
+         * Возвращает null если контекст был собран GC
+         */
+        fun getContext(): Context? = contextRef.get()
+
         fun isComplete(): Boolean {
             return if (expectedCount != null) {
                 results.size >= expectedCount
@@ -66,19 +73,20 @@ object CompressionBatchTracker {
      */
     fun createIntentBatch(context: Context, expectedCount: Int): String {
         val batchId = "intent_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
+        // Используем Application Context для предотвращения утечек памяти
         val batch = CompressionBatch(
             batchId = batchId,
-            context = context,
+            contextRef = WeakReference(context.applicationContext),
             expectedCount = expectedCount,
             isIntentBatch = true
         )
-        
+
         batches[batchId] = batch
         LogUtil.processDebug("Создан Intent батч: $batchId, ожидается файлов: $expectedCount")
-        
+
         // Устанавливаем таймаут безопасности для Intent батчей (30 секунд)
         scheduleTimeout(batchId, 30000L)
-        
+
         cleanupOldBatches()
         return batchId
     }
@@ -88,29 +96,30 @@ object CompressionBatchTracker {
      */
     fun getOrCreateAutoBatch(context: Context): String {
         // Ищем активный автобатч
-        val activeBatch = batches.values.find { 
-            !it.isIntentBatch && System.currentTimeMillis() - getBatchTimestamp(it.batchId) < AUTO_BATCH_TIMEOUT_MS 
+        val activeBatch = batches.values.find {
+            !it.isIntentBatch && System.currentTimeMillis() - getBatchTimestamp(it.batchId) < AUTO_BATCH_TIMEOUT_MS
         }
-        
+
         if (activeBatch != null) {
             // Продлеваем таймаут существующего автобатча
             extendAutoBatchTimeout(activeBatch.batchId)
             LogUtil.processDebug("Используется существующий автобатч: ${activeBatch.batchId}")
             return activeBatch.batchId
         }
-        
+
         // Создаем новый автобатч
         val batchId = "auto_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
+        // Используем Application Context для предотвращения утечек памяти
         val batch = CompressionBatch(
             batchId = batchId,
-            context = context,
+            contextRef = WeakReference(context.applicationContext),
             expectedCount = null,
             isIntentBatch = false
         )
-        
+
         batches[batchId] = batch
         LogUtil.processDebug("Создан автобатч: $batchId")
-        
+
         scheduleTimeout(batchId, AUTO_BATCH_TIMEOUT_MS)
         cleanupOldBatches()
         return batchId
@@ -165,26 +174,33 @@ object CompressionBatchTracker {
      */
     private fun processBatch(batchId: String) {
         val batch = batches.remove(batchId) ?: return
-        
+
         // Отменяем таймаут
         batch.timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
-        
+
         val results = batch.results
         if (results.isEmpty()) {
             LogUtil.processDebug("Пустой батч $batchId, результат не показывается")
             return
         }
-        
+
+        val context = batch.getContext()
+        if (context == null) {
+            LogUtil.processDebug("Контекст для батча $batchId был собран GC, результат не показывается")
+            return
+        }
+
         batchScope.launch {
+            val ctx = context
             if (results.size == 1) {
                 // Показываем индивидуальный результат
-                showIndividualResult(batch.context, results[0])
+                showIndividualResult(ctx, results[0])
             } else {
                 // Показываем групповой результат
-                showBatchResult(batch.context, results, batch.isIntentBatch)
+                showBatchResult(ctx, results, batch.isIntentBatch)
             }
         }
-        
+
         LogUtil.processDebug("Обработан батч $batchId: ${results.size} результатов")
     }
 
