@@ -25,21 +25,21 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         every { mockContext.applicationContext } returns mockContext
 
         // Очищаем все батчи перед каждым тестом
-        CompressionBatchTracker.clearAllBatches()
+        CompressionBatchTracker.clearAllBatchesCompat()
     }
 
     @After
     override fun tearDown() {
         super.tearDown()
         // Очищаем все батчи после каждого теста
-        CompressionBatchTracker.clearAllBatches()
+        CompressionBatchTracker.clearAllBatchesCompat()
     }
 
     @Test
     fun `Инициализация трекера`() {
         // Arrange & Act & Assert
         // Проверяем, что при инициализации нет активных батчей
-        val activeBatchCount = CompressionBatchTracker.getActiveBatchCount()
+        val activeBatchCount = CompressionBatchTracker.getActiveBatchCountCompat()
         assert(activeBatchCount == 0) { "При инициализации не должно быть активных батчей" }
     }
 
@@ -49,23 +49,23 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val expectedCount = 5
 
         // Act
-        val batchId = CompressionBatchTracker.createIntentBatch(mockContext, expectedCount)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, expectedCount)
 
         // Assert
         assert(batchId.isNotEmpty()) { "BatchId не должен быть пустым" }
         assert(batchId.startsWith("intent_batch_")) { "BatchId должен начинаться с 'intent_batch_'" }
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Должен быть создан один батч" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Должен быть создан один батч" }
     }
 
     @Test
     fun `Создание автобатча`() {
         // Arrange & Act
-        val batchId = CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
+        val batchId = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
         // Assert
         assert(batchId.isNotEmpty()) { "BatchId не должен быть пустым" }
         assert(batchId.startsWith("auto_batch_")) { "BatchId должен начинаться с 'auto_batch_'" }
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Должен быть создан один батч" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Должен быть создан один батч" }
     }
 
     @Test
@@ -78,7 +78,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
 
         // Assert
         assert(firstBatchId == secondBatchId) { "Должен быть возвращен тот же самый батч" }
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Должен быть только один активный батч" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Должен быть только один активный батч" }
     }
 
     @Test
@@ -87,7 +87,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 3)
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test.jpg",
             originalSize = 1024000L,
@@ -98,7 +98,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
 
         // Assert
         // Батч не должен быть завершен, так как ожидается 3 файла
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Батч должен оставаться активным" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Батч должен оставаться активным" }
     }
 
     @Test
@@ -107,7 +107,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 3)
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "skipped.jpg",
             originalSize = 50000L,
@@ -118,7 +118,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         )
 
         // Assert
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Батч должен оставаться активным" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Батч должен оставаться активным" }
     }
 
     @Test
@@ -127,7 +127,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 2)
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test1.jpg",
             originalSize = 1024000L,
@@ -135,7 +135,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
             sizeReduction = 50.0f,
             skipped = false
         )
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test2.jpg",
             originalSize = 2048000L,
@@ -148,14 +148,14 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         // Батч должен быть завершен и удален из активных
         // Небольшая задержка для обработки корутины
         Thread.sleep(100)
-        assert(CompressionBatchTracker.getActiveBatchCount() == 0) { "Батч должен быть завершен и удален" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 0) { "Батч должен быть завершен и удален" }
     }
 
     @Test
     fun `Принудительное завершение батча`() {
         // Arrange
         val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 5)
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test.jpg",
             originalSize = 1024000L,
@@ -165,26 +165,26 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         )
 
         // Act
-        CompressionBatchTracker.finalizeBatch(batchId)
+        CompressionBatchTracker.finalizeBatchCompat(batchId)
 
         // Assert
         // Небольшая задержка для обработки корутины
         Thread.sleep(100)
-        assert(CompressionBatchTracker.getActiveBatchCount() == 0) { "Батч должен быть завершен" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 0) { "Батч должен быть завершен" }
     }
 
     @Test
     fun `Завершение несуществующего батча не вызывает ошибку`() {
         // Arrange & Act & Assert
         // Не должно выбрасываться исключение
-        CompressionBatchTracker.finalizeBatch("non_existent_batch_id")
+        CompressionBatchTracker.finalizeBatchCompat("non_existent_batch_id")
     }
 
     @Test
     fun `Добавление результата в несуществующий батч не вызывает ошибку`() {
         // Arrange & Act & Assert
         // Не должно выбрасываться исключение
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = "non_existent_batch_id",
             fileName = "test.jpg",
             originalSize = 1024000L,
@@ -202,10 +202,10 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         CompressionBatchTracker.createIntentBatch(mockContext, 2)
 
         // Act
-        CompressionBatchTracker.clearAllBatches()
+        CompressionBatchTracker.clearAllBatchesCompat()
 
         // Assert
-        assert(CompressionBatchTracker.getActiveBatchCount() == 0) { "Все батчи должны быть очищены" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 0) { "Все батчи должны быть очищены" }
     }
 
     @Test
@@ -216,7 +216,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val batchId3 = CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId1,
             fileName = "test1.jpg",
             originalSize = 1024000L,
@@ -226,7 +226,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         )
 
         // Assert
-        assert(CompressionBatchTracker.getActiveBatchCount() == 3) { "Должны быть активны 3 батча" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 3) { "Должны быть активны 3 батча" }
     }
 
     @Test
@@ -236,7 +236,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val batchId2 = CompressionBatchTracker.createIntentBatch(mockContext, 2)
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId1,
             fileName = "test1.jpg",
             originalSize = 1024000L,
@@ -248,16 +248,16 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         // Assert
         // Небольшая задержка для обработки корутины
         Thread.sleep(100)
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Должен остаться только один батч" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Должен остаться только один батч" }
     }
 
     @Test
     fun `Автобатч с несколькими результатами`() {
         // Arrange
-        val batchId = CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
+        val batchId = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test1.jpg",
             originalSize = 1024000L,
@@ -265,7 +265,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
             sizeReduction = 50.0f,
             skipped = false
         )
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test2.jpg",
             originalSize = 2048000L,
@@ -276,7 +276,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
 
         // Assert
         // Автобатч не завершается автоматически по количеству результатов
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Автобатч должен оставаться активным" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Автобатч должен оставаться активным" }
     }
 
     @Test
@@ -292,12 +292,12 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Проверка количества активных батчей`() {
         // Arrange
-        val initialCount = CompressionBatchTracker.getActiveBatchCount()
+        val initialCount = CompressionBatchTracker.getActiveBatchCountCompat()
 
         // Act
         CompressionBatchTracker.createIntentBatch(mockContext, 1)
         CompressionBatchTracker.createIntentBatch(mockContext, 2)
-        val newCount = CompressionBatchTracker.getActiveBatchCount()
+        val newCount = CompressionBatchTracker.getActiveBatchCountCompat()
 
         // Assert
         assert(initialCount == 0) { "Изначально не должно быть активных батчей" }
@@ -311,7 +311,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         // Добавляем только один результат из 10 ожидаемых
 
         // Act
-        CompressionBatchTracker.addResult(
+        CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test.jpg",
             originalSize = 1024000L,
@@ -322,6 +322,6 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
 
         // Assert
         // Батч должен быть активен (таймаут 30 секунд)
-        assert(CompressionBatchTracker.getActiveBatchCount() == 1) { "Батч должен быть активен до таймаута" }
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Батч должен быть активен до таймаута" }
     }
 }

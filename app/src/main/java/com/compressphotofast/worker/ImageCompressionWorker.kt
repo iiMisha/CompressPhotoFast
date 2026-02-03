@@ -67,7 +67,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val optimizedCacheUtil: OptimizedCacheUtil,
-    private val uriProcessingTracker: UriProcessingTracker
+    private val uriProcessingTracker: UriProcessingTracker,
+    private val compressionBatchTracker: CompressionBatchTracker
 ) : CoroutineWorker(context, workerParams) {
 
     // Переопределяем поле applicationContext для удобного доступа
@@ -435,7 +436,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (uriString != null) {
                 // Если есть batch ID, добавляем результат в батч-трекер вместо показа индивидуального Toast
                 if (!batchId.isNullOrEmpty()) {
-                    CompressionBatchTracker.addResult(
+                    compressionBatchTracker.addResult(
                         batchId = batchId,
                         fileName = fileName,
                         originalSize = originalSize,

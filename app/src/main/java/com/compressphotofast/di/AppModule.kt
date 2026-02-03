@@ -52,20 +52,21 @@ object AppModule {
     }
 
     /**
-     * Предоставляет синглтон экземпляр UriProcessingTracker
-     */
-    @Provides
-    @Singleton
-    fun provideUriProcessingTracker(): com.compressphotofast.util.UriProcessingTracker {
-        return com.compressphotofast.util.UriProcessingTracker
-    }
-
-    /**
      * Предоставляет синглтон экземпляр OptimizedCacheUtil
      */
     @Provides
     @Singleton
     fun provideOptimizedCacheUtil(): com.compressphotofast.util.OptimizedCacheUtil {
         return com.compressphotofast.util.OptimizedCacheUtil
+    }
+
+    /**
+     * Предоставляет синглтон экземпляр CompressionBatchTracker
+     * Использует Application Context для предотвращения утечек памяти
+     */
+    @Provides
+    @Singleton
+    fun provideCompressionBatchTracker(@ApplicationContext context: Context): com.compressphotofast.util.CompressionBatchTracker {
+        return com.compressphotofast.util.CompressionBatchTracker(context)
     }
 }

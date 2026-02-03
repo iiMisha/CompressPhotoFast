@@ -169,7 +169,7 @@ object PerformanceMonitor {
     /**
      * Получает подробную статистику производительности
      */
-    fun getDetailedStats(): String {
+    fun getDetailedStats(context: Context): String {
         val batchRequests = batchMetadataRequests.get()
         val individualRequests = individualMetadataRequests.get()
         val totalBatchTime = batchMetadataTime.get()
@@ -192,6 +192,8 @@ object PerformanceMonitor {
         val immediate = immediateProcessing.get()
         val totalEvents = debounced + immediate
         val debounceEfficiency = if (totalEvents > 0) (debounced * 100.0 / totalEvents) else 0.0
+
+        val uriTrackerStats = UriProcessingTracker.getInstance(context).getCacheStats()
 
         return """
             |=== СТАТИСТИКА ПРОИЗВОДИТЕЛЬНОСТИ ===
@@ -223,7 +225,7 @@ object PerformanceMonitor {
             |${getProcessingTimesBySize()}
             |
             |${OptimizedCacheUtil.getCacheStats()}
-            |${UriProcessingTracker.getCacheStats()}
+            |$uriTrackerStats
             |${BatchMediaStoreUtil.getCacheStats()}
         """.trimMargin()
     }
@@ -331,7 +333,7 @@ object PerformanceMonitor {
             |║
             |║  ОТЧЕТ О ПРОИЗВОДИТЕЛЬНОСТИ
             |║
-            |║${getDetailedStats()}
+            |║${getDetailedStats(context)}
             |║
             |║  Использование памяти: ${usedMemory}MB/${maxMemory}MB (свободно: ${freeMemory}MB)
             |║

@@ -73,7 +73,10 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
-    
+
+    @Inject
+    lateinit var compressionBatchTracker: CompressionBatchTracker
+
     // Запуск запроса разрешений
 
     // BroadcastReceiver для запросов на удаление файлов
@@ -446,7 +449,7 @@ class MainActivity : AppCompatActivity() {
             viewModel.resetBatchCounters()
 
             // Создаем batch ID для Intent-сжатий
-            val batchId = CompressionBatchTracker.createIntentBatch(this@MainActivity, validUris.size)
+            val batchId = compressionBatchTracker.createIntentBatch(validUris.size)
             LogUtil.processDebug("Создан Intent батч для ${validUris.size} изображений: $batchId")
 
             // Если есть хотя бы одно изображение, показываем первое в UI
@@ -482,7 +485,7 @@ class MainActivity : AppCompatActivity() {
                 LogUtil.processDebug("Запущено сжатие для $processedCount изображений в батче $batchId")
             } else {
                 // Если все изображения уже обработаны, завершаем батч и показываем сообщение
-                CompressionBatchTracker.finalizeBatch(batchId)
+                compressionBatchTracker.finalizeBatch(batchId)
                 showToast(getString(R.string.all_images_already_compressed))
             }
         }

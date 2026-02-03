@@ -1,10 +1,9 @@
 package com.compressphotofast.util
 
-import java.lang.ref.WeakReference
 import android.content.Context
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,12 +11,106 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Утилита для группировки результатов сжатия изображений
  * Определяет когда показать индивидуальный Toast (1 файл) или групповой (несколько файлов)
+ *
+ * Использует Application Context для предотвращения утечек памяти
  */
-object CompressionBatchTracker {
+@Singleton
+class CompressionBatchTracker @Inject constructor(
+    @ApplicationContext private val appContext: Context
+) {
+
+    companion object {
+        /**
+         * Статический экземпляр для обратной совместимости
+         * Используется в ImageProcessingUtil (object) который не может инжектировать зависимости
+         *
+         * TODO: Удалить после рефакторинга ImageProcessingUtil в injectable class
+         */
+        @Volatile
+        private var staticInstance: CompressionBatchTracker? = null
+
+        /**
+         * Получает экземпляр CompressionBatchTracker
+         * Для использования в object классах которые не поддерживают DI
+         */
+        @JvmStatic
+        fun getInstance(context: Context): CompressionBatchTracker {
+            return staticInstance ?: synchronized(this) {
+                staticInstance ?: CompressionBatchTracker(context.applicationContext).also {
+                    staticInstance = it
+                }
+            }
+        }
+
+        /**
+         * Создает Intent батч (статический метод для обратной совместимости)
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
+         */
+        @Deprecated("Use injected instance via Hilt instead")
+        fun createIntentBatchCompat(context: Context, expectedCount: Int): String {
+            return getInstance(context).createIntentBatch(expectedCount)
+        }
+
+        /**
+         * Создает или получает автобатч (статический метод для обратной совместимости)
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
+         */
+        @Deprecated("Use injected instance via Hilt instead")
+        fun getOrCreateAutoBatchCompat(context: Context): String {
+            return getInstance(context).getOrCreateAutoBatch()
+        }
+
+        /**
+         * Добавляет результат в батч (статический метод для обратной совместимости)
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
+         */
+        @Deprecated("Use injected instance via Hilt instead")
+        fun addResultCompat(
+            batchId: String,
+            fileName: String,
+            originalSize: Long,
+            compressedSize: Long,
+            sizeReduction: Float,
+            skipped: Boolean,
+            skipReason: String? = null
+        ) {
+            // Находим любой существующий экземпляр
+            staticInstance?.addResult(batchId, fileName, originalSize, compressedSize, sizeReduction, skipped, skipReason)
+        }
+
+        /**
+         * Завершает батч (статический метод для обратной совместимости)
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
+         */
+        @Deprecated("Use injected instance via Hilt instead")
+        fun finalizeBatchCompat(batchId: String) {
+            staticInstance?.finalizeBatch(batchId)
+        }
+
+        /**
+         * Возвращает количество активных батчей (для отладки)
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
+         */
+        @Deprecated("Use injected instance via Hilt instead")
+        fun getActiveBatchCountCompat(): Int {
+            return staticInstance?.getActiveBatchCount() ?: 0
+        }
+
+        /**
+         * Очищает все батчи (для тестирования)
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
+         */
+        @Deprecated("Use injected instance via Hilt instead")
+        fun clearAllBatchesCompat() {
+            staticInstance?.clearAllBatches()
+        }
+    }
 
     private val batches = ConcurrentHashMap<String, CompressionBatch>()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -27,8 +120,8 @@ object CompressionBatchTracker {
     private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Константы для автобатчей
-    private const val AUTO_BATCH_TIMEOUT_MS = 60000L // 60 секунд для завершения автобатча
-    private const val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
+    private val AUTO_BATCH_TIMEOUT_MS = 60000L // 60 секунд для завершения автобатча
+    private val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
 
     /**
      * Данные одного результата сжатия
@@ -47,18 +140,11 @@ object CompressionBatchTracker {
      */
     private data class CompressionBatch(
         val batchId: String,
-        val contextRef: WeakReference<Context>,
         val expectedCount: Int?, // Если null - автобатч, количество неизвестно
         val isIntentBatch: Boolean,
         var results: MutableList<CompressionResult> = mutableListOf(),
         var timeoutRunnable: Runnable? = null
     ) {
-        /**
-         * Безопасно получает контекст из WeakReference
-         * Возвращает null если контекст был собран GC
-         */
-        fun getContext(): Context? = contextRef.get()
-
         fun isComplete(): Boolean {
             return if (expectedCount != null) {
                 results.size >= expectedCount
@@ -71,12 +157,11 @@ object CompressionBatchTracker {
     /**
      * Создает новый батч для Intent-сжатия с известным количеством файлов
      */
-    fun createIntentBatch(context: Context, expectedCount: Int): String {
+    fun createIntentBatch(expectedCount: Int): String {
         val batchId = "intent_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
-        // Используем Application Context для предотвращения утечек памяти
+        // Application Context инжектируется через конструктор
         val batch = CompressionBatch(
             batchId = batchId,
-            contextRef = WeakReference(context.applicationContext),
             expectedCount = expectedCount,
             isIntentBatch = true
         )
@@ -94,7 +179,7 @@ object CompressionBatchTracker {
     /**
      * Получает или создает автобатч для автоматического сжатия
      */
-    fun getOrCreateAutoBatch(context: Context): String {
+    fun getOrCreateAutoBatch(): String {
         // Ищем активный автобатч
         val activeBatch = batches.values.find {
             !it.isIntentBatch && System.currentTimeMillis() - getBatchTimestamp(it.batchId) < AUTO_BATCH_TIMEOUT_MS
@@ -109,10 +194,9 @@ object CompressionBatchTracker {
 
         // Создаем новый автобатч
         val batchId = "auto_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
-        // Используем Application Context для предотвращения утечек памяти
+        // Application Context инжектируется через конструктор
         val batch = CompressionBatch(
             batchId = batchId,
-            contextRef = WeakReference(context.applicationContext),
             expectedCount = null,
             isIntentBatch = false
         )
@@ -184,20 +268,14 @@ object CompressionBatchTracker {
             return
         }
 
-        val context = batch.getContext()
-        if (context == null) {
-            LogUtil.processDebug("Контекст для батча $batchId был собран GC, результат не показывается")
-            return
-        }
-
+        // Используем Application Context из конструктора
         batchScope.launch {
-            val ctx = context
             if (results.size == 1) {
                 // Показываем индивидуальный результат
-                showIndividualResult(ctx, results[0])
+                showIndividualResult(appContext, results[0])
             } else {
                 // Показываем групповой результат
-                showBatchResult(ctx, results, batch.isIntentBatch)
+                showBatchResult(appContext, results, batch.isIntentBatch)
             }
         }
 
