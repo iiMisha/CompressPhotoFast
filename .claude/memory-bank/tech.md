@@ -71,6 +71,28 @@
 - **check_device.sh**: Проверка устройства
 - **generate_test_images.sh**: Генерация тестовых изображений
 
+## Оптимизация производительности
+
+### Image Compression
+- **inSampleSize**: Эффективное декодирование больших изображений
+- **RGB_565**: Использование 16-битного цветового пространства для снижения памяти
+- **ImageDecoder**: Поддержка HEIC/HEIF форматов
+
+### Background Monitoring
+- **Частота сканирования**: Уменьшена с 1 до 5 минут для снижения нагрузки
+- **CoroutineScope**: Замена `GlobalScope` на `CoroutineScope` (SupervisorJob) для лучшего управления жизненным циклом
+
+### MediaStore Interaction
+- **checkFileNameConflictsBatch**: Пакетная проверка конфликтов имен с SQL `IN` clauses
+- **Экспоненциальный бэкоф**: Для `MediaStoreObserver` (1s до 8s) для снижения нагрузки
+
+### Resource Management
+- **destroy() методы**: Для `CompressionBatchTracker` и `NotificationUtil` для освобождения ресурсов
+
+### UI Optimizations
+- **WorkInfo observers**: Хранение в `Map` для предотвращения утечек памяти
+- **observeForever()**: Исправлен для сохранения ссылки на observer
+
 ## CLI-версия (Python)
 
 ### Язык

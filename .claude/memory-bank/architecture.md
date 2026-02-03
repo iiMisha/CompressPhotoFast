@@ -21,6 +21,12 @@
   - Производительность и кэширование
   - Уведомления, разрешения, очистка, логирование
 
+### Оптимизации производительности
+- **ImageDecoder**: Эффективное декодирование с `inSampleSize` и `RGB_565`
+- **BackgroundMonitoring**: Уменьшенная частота сканирования (5 минут), CoroutineScope вместо GlobalScope
+- **MediaStore**: Пакетная проверка конфликтов (`checkFileNameConflictsBatch`), экспоненциальный бэкоф
+- **Resource Management**: Методы `destroy()` для трекеров и утилит
+
 ### Data Layer
 - `DataStore`: Хранение настроек
 - `MediaStore`: Доступ к изображениям на устройстве

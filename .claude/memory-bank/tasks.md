@@ -276,3 +276,30 @@ GRADLE_MODE=eco ./scripts/run_all_tests.sh
 - Изображения сохраняются в `app/src/test/resources/test_images/`
 - Скрипт перезаписывает существующие изображения
 - Для HEIC требуется поддержка pillow-heif
+
+## Исправление переполнения памяти при обновлении Memory Bank
+
+**Когда требуется**: При использовании скилла `memory-bank-updater` для обновления Memory Bank.
+
+**Проблема**: При инициализации или обновлении Memory Bank происходит переполнение кучи JavaScript (JavaScript heap out of memory).
+
+**Файлы для изменения**:
+- `.claude/skills/memory-bank-updater/SKILL.md` - Настройки скилла
+- `.claude/memory-bank/memory-bank-instructions.md` - Инструкции по работе с Memory Bank
+
+**Шаги**:
+1. Изменить thoroughness с `"very thorough"` на `"medium"` для операции initialize
+2. Изменить thoroughness с `"medium"` на `"quick"` для операции update
+3. Добавить инструкции о фокусировке на ключевых файлах (app/src/main, build.gradle)
+4. Добавить явное предупреждение о запрете использования `very thorough`
+
+**Важные замечания**:
+- `"very thorough"` заставляет агента читать максимально много файлов → переполнение кучи JavaScript
+- `"medium"` - сбалансированный анализ, достаточный для понимания структуры
+- `"quick"` - быстрый поиск изменений, идеально для обновлений
+- Всегда использовать `Task(Explore)` вместо прямого чтения файлов
+
+**Пример правильного вызова**:
+```
+Task(Explore, "medium", "Проанализировать проект CompressPhotoFast: архитектуру, основные компоненты (app/src/main), build систему (Gradle), тесты, используемые технологии и библиотеки")
+```

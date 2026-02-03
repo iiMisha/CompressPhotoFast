@@ -1,13 +1,16 @@
 # Контекст
 
 ## Последние изменения
-*   **Обновление зависимостей (февраль 2026)**: Обновлен Android Gradle Plugin до 9.0.0, KSP до 2.3.2, базовая версия приложения до 2.2.10. Добавлены новые зависимости: AndroidX Core KTX 1.17.0, AndroidX Lifecycle 2.9.2, AndroidX Activity 1.10.1, Hilt Work 1.2.0.
+*   **Оптимизация производительности и памяти (03.02.2026)**: Исправлена проблема с переполнением памяти при обновлении Memory Bank. Изменён thoroughness в скилле `memory-bank-updater` с `"very thorough"` на `"medium"` для инициализации и на `"quick"` для обновлений.
+*   **Оптимизация производительности (02.02.2026)**:
+    - **Image Compression**: Использование `inSampleSize` и `RGB_565` для эффективного декодирования, поддержка `ImageDecoder` для HEIC/HEIF
+    - **Background Monitoring**: Уменьшена частота сканирования галереи с 1 до 5 минут, замена `GlobalScope` на `CoroutineScope` (SupervisorJob)
+    - **MediaStore**: Добавлена `checkFileNameConflictsBatch` с SQL `IN` clauses, экспоненциальный бэкоф для `MediaStoreObserver`
+    - **Resource Management**: Методы `destroy()` для `CompressionBatchTracker` и `NotificationUtil`
+*   **Исправление UI компонентов (02.02.2026)**: Добавлен `Map` для хранения WorkInfo observers, исправлен `observeForever()` для устранения утечек памяти
+*   **Обновление зависимостей (январь 2026)**: Обновлен Android Gradle Plugin до 9.0.0, KSP до 2.3.2, базовая версия приложения до 2.2.10. Добавлены новые зависимости: AndroidX Core KTX 1.17.0, AndroidX Lifecycle 2.9.2, AndroidX Activity 1.10.1, Hilt Work 1.2.0.
 *   **Переход на экономичный режим (22.01.2026)**: Проект настроен на использование экономичного режима Gradle по умолчанию для снижения нагрузки на CPU. Документация: [`docs/GRADLE_ECO_MODE.md`](docs/GRADLE_ECO_MODE.md).
 *   **Расширенная система тестирования (январь 2026)**: Новые скрипты (quick_test.sh, run_e2e_tests.sh, run_performance_tests.sh, start_emulator.sh, check_device.sh, generate_test_images.sh), базовые классы для тестов (BaseUnitTest, BaseInstrumentedTest, CoroutinesTestRule).
-*   **Скрипты установки CLI**: Автоматические установщики для Linux/macOS и Windows с детекцией Python.
-*   **Проблема двойных расширений**: Выявлена проблема с созданием файлов с двойными расширениями (например, `image.HEIC.jpg`).
-*   **Тестирование HEIC форматов**: Созданы специальные тесты для проверки обработки HEIC/HEIF форматов (20 тестов).
-*   **Новые задачи (февраль 2026)**: Обнаружена проблема с дубликатами сжатых файлов при массовой обработке. Создан план реализации массовой обработки изображений через выбор папки (`.docs/fix_plan.md`).
 
 ## Текущее состояние проекта
 
@@ -67,3 +70,4 @@
 *   Реализовать E2E тесты для всех категорий
 *   Добавить performance тесты
 *   Интегрировать автоматический запуск эмулятора в CI/CD пайплайн
+*   Продолжить оптимизацию производительности и памяти приложения
