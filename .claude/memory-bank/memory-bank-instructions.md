@@ -58,15 +58,29 @@ Create additional files/folders within memory-bank/ when they help organize:
 
 The initialization step is CRITICALLY IMPORTANT and must be done with extreme thoroughness as it defines all future effectiveness of the Memory Bank. This is the foundation upon which all future interactions will be built.
 
-When user requests initialization of the memory bank (command `initialize memory bank`), I'll perform an exhaustive analysis of the project, including:
-- All source code files and their relationships
-- Configuration files and build system setup
-- Project structure and organization patterns
-- Documentation and comments
-- Dependencies and external integrations
-- Testing frameworks and patterns
+When user requests initialization of the memory bank (command `initialize memory bank`), I'll perform an exhaustive analysis of the project using **Task(Explore)** agent:
 
-I must be extremely thorough during initialization, spending extra time and effort to build a comprehensive understanding of the project. A high-quality initialization will dramatically improve all future interactions, while a rushed or incomplete initialization will permanently limit my effectiveness.
+**CRITICAL: Use Explore agent instead of direct file reading**
+```
+Task(Explore, "very thorough", "
+Проанализировать проект CompressPhotoFast:
+1. Архитектура и структура приложения
+2. Основные компоненты и их взаимосвязи
+3. Используемые технологии и библиотеки
+4. Build система (Gradle)
+5. Тестовая инфраструктура
+6. Паттерны проектирования
+")
+```
+
+Based on Explore results, create/update:
+- brief.md - Project description
+- product.md - Product requirements
+- architecture.md - System architecture
+- tech.md - Technologies used
+- context.md - Current context
+
+**NEVER** attempt to read all project files directly - always use Explore agent.
 
 After initialization, I will ask the user to read through the memory bank files and verify product description, used technologies and other information. I should provide a summary of what I've understood about the project to help the user verify the accuracy of the memory bank files. I should encourage the user to correct any misunderstandings or add missing information, as this will significantly improve future interactions.
 
@@ -82,10 +96,11 @@ If I notice significant changes that should be preserved but the user hasn't exp
 
 To execute Memory Bank update, I will:
 
-1. Review ALL project files
-2. Document current state
-3. Document Insights & Patterns
+1. **CRITICAL:** Use `Task(Explore, "medium", "Найти изменения в проекте")` instead of reading all files directly
+2. Review ONLY the memory bank files in `.claude/memory-bank/`
+3. Update based on Explore results and current context
 4. If requested with additional context (e.g., "update memory bank using information from @/Makefile"), focus special attention to that source
+5. **NEVER** attempt to read all project files at once - this will cause memory overflow
 
 Note: When triggered by **update memory bank**, I MUST review every memory bank file, even if some don't require updates. Focus particularly on context.md as it tracks current state.
 
