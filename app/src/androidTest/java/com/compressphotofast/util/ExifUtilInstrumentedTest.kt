@@ -125,107 +125,119 @@ class ExifUtilInstrumentedTest {
      * Тест 3: Чтение EXIF данных в память
      */
     @Test
-    fun test03_readExifDataToMemory_returnsExifData() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
+    fun test03_readExifDataToMemory_returnsExifData() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
 
-        // Act
-        val exifData = ExifUtil.readExifDataToMemory(context, testImage)
+            // Act
+            val exifData = ExifUtil.readExifDataToMemory(context, testImage)
 
-        // Assert
-        assertThat(exifData).isNotNull()
-        assertThat(exifData).isNotEmpty()
+            // Assert
+            assertThat(exifData).isNotNull()
+            assertThat(exifData).isNotEmpty()
+        }
     }
 
     /**
      * Тест 4: Проверка кэширования EXIF данных
      */
     @Test
-    fun test04_readExifDataToMemory_usesCacheOnSecondCall() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
+    fun test04_readExifDataToMemory_usesCacheOnSecondCall() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
 
-        // Act - первый вызов
-        val exifData1 = ExifUtil.readExifDataToMemory(context, testImage)
-        // Act - второй вызов (должен использовать кэш)
-        val exifData2 = ExifUtil.readExifDataToMemory(context, testImage)
+            // Act - первый вызов
+            val exifData1 = ExifUtil.readExifDataToMemory(context, testImage)
+            // Act - второй вызов (должен использовать кэш)
+            val exifData2 = ExifUtil.readExifDataToMemory(context, testImage)
 
-        // Assert
-        assertThat(exifData1).isNotNull()
-        assertThat(exifData2).isNotNull()
-        assertThat(exifData1.size).isEqualTo(exifData2.size)
+            // Assert
+            assertThat(exifData1).isNotNull()
+            assertThat(exifData2).isNotNull()
+            assertThat(exifData1.size).isEqualTo(exifData2.size)
+        }
     }
 
     /**
      * Тест 5: Добавление маркера сжатия
      */
     @Test
-    fun test05_markCompressedImage_addsMarker() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
-        val quality = 85
+    fun test05_markCompressedImage_addsMarker() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
+            val quality = 85
 
-        // Act
-        val markResult = ExifUtil.markCompressedImage(context, testImage, quality)
+            // Act
+            val markResult = ExifUtil.markCompressedImage(context, testImage, quality)
 
-        // Assert
-        assertThat(markResult).isTrue()
+            // Assert
+            assertThat(markResult).isTrue()
 
-        // Verify - проверяем, что маркер действительно добавлен
-        val (isCompressed, markedQuality, _) = ExifUtil.getCompressionInfo(context, testImage)
-        assertThat(isCompressed).isTrue()
-        assertThat(markedQuality).isEqualTo(quality)
+            // Verify - проверяем, что маркер действительно добавлен
+            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionInfo(context, testImage)
+            assertThat(isCompressed).isTrue()
+            assertThat(markedQuality).isEqualTo(quality)
+        }
     }
 
     /**
      * Тест 6: Проверка, было ли изображение сжато
      */
     @Test
-    fun test06_isImageCompressed_returnsTrueAfterMarking() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
-        ExifUtil.markCompressedImage(context, testImage, 80)
+    fun test06_isImageCompressed_returnsTrueAfterMarking() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
+            ExifUtil.markCompressedImage(context, testImage, 80)
 
-        // Act
-        val isCompressed = ExifUtil.isImageCompressed(context, testImage)
+            // Act
+            val isCompressed = ExifUtil.isImageCompressed(context, testImage)
 
-        // Assert
-        assertThat(isCompressed).isTrue()
+            // Assert
+            assertThat(isCompressed).isTrue()
+        }
     }
 
     /**
      * Тест 7: Проверка несжатого изображения
      */
     @Test
-    fun test07_isImageCompressed_returnsFalseForNewImage() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
+    fun test07_isImageCompressed_returnsFalseForNewImage() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
 
-        // Act
-        val isCompressed = ExifUtil.isImageCompressed(context, testImage)
+            // Act
+            val isCompressed = ExifUtil.isImageCompressed(context, testImage)
 
-        // Assert
-        assertThat(isCompressed).isFalse()
+            // Assert
+            assertThat(isCompressed).isFalse()
+        }
     }
 
     /**
      * Тест 8: Получение информации о сжатии
      */
     @Test
-    fun test08_getCompressionInfo_returnsCorrectInfo() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
-        val quality = 75
-        ExifUtil.markCompressedImage(context, testImage, quality)
+    fun test08_getCompressionInfo_returnsCorrectInfo() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
+            val quality = 75
+            ExifUtil.markCompressedImage(context, testImage, quality)
 
-        // Act
-        val (isCompressed, markedQuality, timestamp) =
-            ExifUtil.getCompressionInfo(context, testImage)
+            // Act
+            val (isCompressed, markedQuality, timestamp) =
+                ExifUtil.getCompressionInfo(context, testImage)
 
-        // Assert
-        assertThat(isCompressed).isTrue()
-        assertThat(markedQuality).isEqualTo(quality)
-        assertThat(timestamp).isGreaterThan(0L)
+            // Assert
+            assertThat(isCompressed).isTrue()
+            assertThat(markedQuality).isEqualTo(quality)
+            assertThat(timestamp).isGreaterThan(0L)
+        }
     }
 
     /**
@@ -241,232 +253,250 @@ class ExifUtilInstrumentedTest {
      * Решение: дескриптор теперь хранится в переменной и закрывается явно после saveAttributes().
      */
     @Test
-    fun test09_copyExifData_copiesExifSuccessfully() = runBlocking {
-        // Arrange
-        val sourceImage = createTestImageInMediaStore()
-        kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
+    fun test09_copyExifData_copiesExifSuccessfully() {
+        runBlocking {
+            // Arrange
+            val sourceImage = createTestImageInMediaStore()
+            kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
 
-        // Добавляем минимальные EXIF данные в исходный файл
-        context.contentResolver.openFileDescriptor(sourceImage, "rw")?.use { pfd ->
-            val exif = ExifInterface(pfd.fileDescriptor)
-            exif.setAttribute(ExifInterface.TAG_MAKE, "TestManufacturer")
-            exif.setAttribute(ExifInterface.TAG_MODEL, "TestModel")
-            exif.setAttribute(ExifInterface.TAG_ORIENTATION, "1")
-            exif.saveAttributes()
+            // Добавляем минимальные EXIF данные в исходный файл
+            context.contentResolver.openFileDescriptor(sourceImage, "rw")?.use { pfd ->
+                val exif = ExifInterface(pfd.fileDescriptor)
+                exif.setAttribute(ExifInterface.TAG_MAKE, "TestManufacturer")
+                exif.setAttribute(ExifInterface.TAG_MODEL, "TestModel")
+                exif.setAttribute(ExifInterface.TAG_ORIENTATION, "1")
+                exif.saveAttributes()
+            }
+
+            // Ждем после добавления EXIF
+            kotlinx.coroutines.delay(1500)  // Увеличено для стабильности
+
+            val destImage = createTestImageInMediaStore()
+            kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
+
+            // Act - копируем EXIF без маркера сжатия
+            val copyResult = ExifUtil.copyExifData(context, sourceImage, destImage)
+
+            // Assert
+            assertThat(copyResult).isTrue()
+
+            // Verify - проверяем, что теги скопированы
+            val destExif = ExifUtil.getExifInterface(context, destImage)
+            assertThat(destExif).isNotNull()
+            val make = destExif?.getAttribute(ExifInterface.TAG_MAKE)
+            val model = destExif?.getAttribute(ExifInterface.TAG_MODEL)
+            assertThat(make).isEqualTo("TestManufacturer")
+            assertThat(model).isEqualTo("TestModel")
         }
-
-        // Ждем после добавления EXIF
-        kotlinx.coroutines.delay(1500)  // Увеличено для стабильности
-
-        val destImage = createTestImageInMediaStore()
-        kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
-
-        // Act - копируем EXIF без маркера сжатия
-        val copyResult = ExifUtil.copyExifData(context, sourceImage, destImage)
-
-        // Assert
-        assertThat(copyResult).isTrue()
-
-        // Verify - проверяем, что теги скопированы
-        val destExif = ExifUtil.getExifInterface(context, destImage)
-        assertThat(destExif).isNotNull()
-        val make = destExif?.getAttribute(ExifInterface.TAG_MAKE)
-        val model = destExif?.getAttribute(ExifInterface.TAG_MODEL)
-        assertThat(make).isEqualTo("TestManufacturer")
-        assertThat(model).isEqualTo("TestModel")
     }
 
     /**
      * Тест 10: Применение EXIF из памяти
      */
     @Test
-    fun test10_applyExifFromMemory_appliesExifData() = runBlocking {
-        // Arrange
-        val sourceImage = createTestImageInMediaStore()
-        val destImage = createTestImageInMediaStore()
+    fun test10_applyExifFromMemory_appliesExifData() {
+        runBlocking {
+            // Arrange
+            val sourceImage = createTestImageInMediaStore()
+            val destImage = createTestImageInMediaStore()
 
-        // Читаем EXIF из исходного изображения
-        val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
+            // Читаем EXIF из исходного изображения
+            val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
 
-        // Act
-        val applyResult = ExifUtil.applyExifFromMemory(
-            context,
-            destImage,
-            exifData,
-            quality = 90
-        )
+            // Act
+            val applyResult = ExifUtil.applyExifFromMemory(
+                context,
+                destImage,
+                exifData,
+                quality = 90
+            )
 
-        // Assert
-        assertThat(applyResult).isTrue()
+            // Assert
+            assertThat(applyResult).isTrue()
 
-        // Verify - проверяем, что маркер добавлен
-        val (isCompressed, quality, _) = ExifUtil.getCompressionInfo(context, destImage)
-        assertThat(isCompressed).isTrue()
-        assertThat(quality).isEqualTo(90)
+            // Verify - проверяем, что маркер добавлен
+            val (isCompressed, quality, _) = ExifUtil.getCompressionInfo(context, destImage)
+            assertThat(isCompressed).isTrue()
+            assertThat(quality).isEqualTo(90)
+        }
     }
 
     /**
      * Тест 11: Обработка EXIF для сохраненного изображения (с заранее загруженными данными)
      */
     @Test
-    fun test11_handleExifForSavedImage_withPreloadedData() = runBlocking {
-        // Arrange
-        val sourceImage = createTestImageInMediaStore()
-        val destImage = createTestImageInMediaStore()
-        val quality = 80
+    fun test11_handleExifForSavedImage_withPreloadedData() {
+        runBlocking {
+            // Arrange
+            val sourceImage = createTestImageInMediaStore()
+            val destImage = createTestImageInMediaStore()
+            val quality = 80
 
-        // Предварительно загружаем EXIF данные
-        val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
+            // Предварительно загружаем EXIF данные
+            val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
 
-        // Act
-        val handleResult = ExifUtil.handleExifForSavedImage(
-            context,
-            sourceImage,
-            destImage,
-            quality,
-            exifData
-        )
+            // Act
+            val handleResult = ExifUtil.handleExifForSavedImage(
+                context,
+                sourceImage,
+                destImage,
+                quality,
+                exifData
+            )
 
-        // Assert
-        assertThat(handleResult).isTrue()
+            // Assert
+            assertThat(handleResult).isTrue()
 
-        // Verify
-        val (isCompressed, markedQuality, _) = ExifUtil.getCompressionInfo(context, destImage)
-        assertThat(isCompressed).isTrue()
-        assertThat(markedQuality).isEqualTo(quality)
+            // Verify
+            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionInfo(context, destImage)
+            assertThat(isCompressed).isTrue()
+            assertThat(markedQuality).isEqualTo(quality)
+        }
     }
 
     /**
      * Тест 12: Обработка EXIF для сохраненного изображения (без предварительной загрузки)
      */
     @Test
-    fun test12_handleExifForSavedImage_withoutPreloadedData() = runBlocking {
-        // Arrange
-        val sourceImage = createTestImageInMediaStore()
-        val destImage = createTestImageInMediaStore()
-        val quality = 85
+    fun test12_handleExifForSavedImage_withoutPreloadedData() {
+        runBlocking {
+            // Arrange
+            val sourceImage = createTestImageInMediaStore()
+            val destImage = createTestImageInMediaStore()
+            val quality = 85
 
-        // Act - без предварительной загрузки данных
-        val handleResult = ExifUtil.handleExifForSavedImage(
-            context,
-            sourceImage,
-            destImage,
-            quality,
-            exifDataMemory = null
-        )
+            // Act - без предварительной загрузки данных
+            val handleResult = ExifUtil.handleExifForSavedImage(
+                context,
+                sourceImage,
+                destImage,
+                quality,
+                exifDataMemory = null
+            )
 
-        // Assert
-        assertThat(handleResult).isTrue()
+            // Assert
+            assertThat(handleResult).isTrue()
+        }
     }
 
     /**
      * Тест 13: Получение маркера сжатия (не suspend вариант)
      */
     @Test
-    fun test13_getCompressionMarker_returnsMarkerForCompressedImage() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
-        val quality = 70
-        ExifUtil.markCompressedImage(context, testImage, quality)
+    fun test13_getCompressionMarker_returnsMarkerForCompressedImage() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
+            val quality = 70
+            ExifUtil.markCompressedImage(context, testImage, quality)
 
-        // Act - не suspend метод
-        val (isCompressed, markedQuality, timestamp) =
-            ExifUtil.getCompressionMarker(context, testImage)
+            // Act - не suspend метод
+            val (isCompressed, markedQuality, timestamp) =
+                ExifUtil.getCompressionMarker(context, testImage)
 
-        // Assert
-        assertThat(isCompressed).isTrue()
-        assertThat(markedQuality).isEqualTo(quality)
-        assertThat(timestamp).isGreaterThan(0L)
+            // Assert
+            assertThat(isCompressed).isTrue()
+            assertThat(markedQuality).isEqualTo(quality)
+            assertThat(timestamp).isGreaterThan(0L)
+        }
     }
 
     /**
      * Тест 14: Применение EXIF с качеством null (без маркера)
      */
     @Test
-    fun test14_applyExifFromMemory_withoutQuality() = runBlocking {
-        // Arrange
-        val sourceImage = createTestImageInMediaStore()
-        val destImage = createTestImageInMediaStore()
+    fun test14_applyExifFromMemory_withoutQuality() {
+        runBlocking {
+            // Arrange
+            val sourceImage = createTestImageInMediaStore()
+            val destImage = createTestImageInMediaStore()
 
-        val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
+            val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
 
-        // Act - без качества (не добавляем маркер)
-        val applyResult = ExifUtil.applyExifFromMemory(
-            context,
-            destImage,
-            exifData,
-            quality = null
-        )
+            // Act - без качества (не добавляем маркер)
+            val applyResult = ExifUtil.applyExifFromMemory(
+                context,
+                destImage,
+                exifData,
+                quality = null
+            )
 
-        // Assert
-        assertThat(applyResult).isTrue()
+            // Assert
+            assertThat(applyResult).isTrue()
 
-        // Verify - маркер не должен быть добавлен
-        val (isCompressed, _, _) = ExifUtil.getCompressionInfo(context, destImage)
-        assertThat(isCompressed).isFalse()
+            // Verify - маркер не должен быть добавлен
+            val (isCompressed, _, _) = ExifUtil.getCompressionInfo(context, destImage)
+            assertThat(isCompressed).isFalse()
+        }
     }
 
     /**
      * Тест 15: Несколько маркеров сжатия (последний перезаписывает предыдущий)
      */
     @Test
-    fun test15_markCompressedImage_overwritesPreviousMarker() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
+    fun test15_markCompressedImage_overwritesPreviousMarker() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
 
-        // Act - добавляем первый маркер
-        ExifUtil.markCompressedImage(context, testImage, 70)
-        val (compressed1, quality1, _) = ExifUtil.getCompressionInfo(context, testImage)
+            // Act - добавляем первый маркер
+            ExifUtil.markCompressedImage(context, testImage, 70)
+            val (compressed1, quality1, _) = ExifUtil.getCompressionInfo(context, testImage)
 
-        // Act - добавляем второй маркер
-        Thread.sleep(100) // чтобы timestamp отличался
-        ExifUtil.markCompressedImage(context, testImage, 90)
-        val (compressed2, quality2, timestamp2) = ExifUtil.getCompressionInfo(context, testImage)
+            // Act - добавляем второй маркер
+            Thread.sleep(100) // чтобы timestamp отличался
+            ExifUtil.markCompressedImage(context, testImage, 90)
+            val (compressed2, quality2, timestamp2) = ExifUtil.getCompressionInfo(context, testImage)
 
-        // Assert
-        assertThat(compressed1).isTrue()
-        assertThat(quality1).isEqualTo(70)
-        assertThat(compressed2).isTrue()
-        assertThat(quality2).isEqualTo(90) // качество обновлено
-        assertThat(timestamp2).isGreaterThan(0L)
+            // Assert
+            assertThat(compressed1).isTrue()
+            assertThat(quality1).isEqualTo(70)
+            assertThat(compressed2).isTrue()
+            assertThat(quality2).isEqualTo(90) // качество обновлено
+            assertThat(timestamp2).isGreaterThan(0L)
+        }
     }
 
     /**
      * Тест 16: Копирование EXIF с несуществующим исходным файлом
      */
     @Test
-    fun test16_copyExifData_returnsFalseForInvalidSourceUri() = runBlocking {
-        // Arrange
-        val destImage = createTestImageInMediaStore()
-        val invalidSourceUri = android.net.Uri.parse("content://invalid/source")
+    fun test16_copyExifData_returnsFalseForInvalidSourceUri() {
+        runBlocking {
+            // Arrange
+            val destImage = createTestImageInMediaStore()
+            val invalidSourceUri = android.net.Uri.parse("content://invalid/source")
 
-        // Act
-        val copyResult = ExifUtil.copyExifData(context, invalidSourceUri, destImage)
+            // Act
+            val copyResult = ExifUtil.copyExifData(context, invalidSourceUri, destImage)
 
-        // Assert
-        assertThat(copyResult).isFalse()
+            // Assert
+            assertThat(copyResult).isFalse()
+        }
     }
 
     /**
      * Тест 17: Применение EXIF к несуществующему файлу
      */
     @Test
-    fun test17_applyExifFromMemory_returnsFalseForInvalidUri() = runBlocking {
-        // Arrange
-        val testImage = createTestImageInMediaStore()
-        val exifData = ExifUtil.readExifDataToMemory(context, testImage)
-        val invalidUri = android.net.Uri.parse("content://invalid/dest")
+    fun test17_applyExifFromMemory_returnsFalseForInvalidUri() {
+        runBlocking {
+            // Arrange
+            val testImage = createTestImageInMediaStore()
+            val exifData = ExifUtil.readExifDataToMemory(context, testImage)
+            val invalidUri = android.net.Uri.parse("content://invalid/dest")
 
-        // Act
-        val applyResult = ExifUtil.applyExifFromMemory(
-            context,
-            invalidUri,
-            exifData,
-            quality = 85
-        )
+            // Act
+            val applyResult = ExifUtil.applyExifFromMemory(
+                context,
+                invalidUri,
+                exifData,
+                quality = 85
+            )
 
-        // Assert
-        assertThat(applyResult).isFalse()
+            // Assert
+            assertThat(applyResult).isFalse()
+        }
     }
 
     // ==================== HEIC ФАЙЛЫ ТЕСТЫ ====================
@@ -514,22 +544,24 @@ class ExifUtilInstrumentedTest {
      * Проверяет, что EXIF маркер корректно определяется для JPEG файлов
      */
     @Test
-    fun test20_getCompressionMarker_detectsMarkerInJpeg() = runBlocking {
-        // Arrange
-        val jpegImage = createTestImageInMediaStore()
-        val quality = 75
+    fun test20_getCompressionMarker_detectsMarkerInJpeg() {
+        runBlocking {
+            // Arrange
+            val jpegImage = createTestImageInMediaStore()
+            val quality = 75
 
-        // Добавляем маркер сжатия
-        val markResult = ExifUtil.markCompressedImage(context, jpegImage, quality)
-        assertThat(markResult).isTrue()
+            // Добавляем маркер сжатия
+            val markResult = ExifUtil.markCompressedImage(context, jpegImage, quality)
+            assertThat(markResult).isTrue()
 
-        // Act
-        val (isCompressed, detectedQuality, timestamp) = ExifUtil.getCompressionMarker(context, jpegImage)
+            // Act
+            val (isCompressed, detectedQuality, timestamp) = ExifUtil.getCompressionMarker(context, jpegImage)
 
-        // Assert
-        assertThat(isCompressed).isTrue()
-        assertThat(detectedQuality).isEqualTo(quality)
-        assertThat(timestamp).isGreaterThan(0L)
+            // Assert
+            assertThat(isCompressed).isTrue()
+            assertThat(detectedQuality).isEqualTo(quality)
+            assertThat(timestamp).isGreaterThan(0L)
+        }
     }
 
     /**
@@ -568,203 +600,307 @@ class ExifUtilInstrumentedTest {
     }
 
     /**
-     * Тест 22: Интеграционный тест - полный сценарий переименования HEIC
+     * Тест 22: Добавление маркера сжатия для HEIC файла через EXIF
      *
-     * Проверяет полный сценарий:
-     * 1. Создается HEIC файл (эмулируем через JPEG с MIME типом)
-     * 2. При ошибке сохранения EXIF происходит переименование
-     * 3. Проверяется что новый файл имеет суффикс
+     * Проверяет что для HEIC файла (эмулированного через MIME тип):
+     * 1. Маркер сжатия успешно добавляется через applyExifFromMemory
+     * 2. EXIF маркер корректно определяется через getCompressionMarker
+     * 3. Параметры маркера (isCompressed, quality, timestamp) корректны
      *
-     * ВАЖНО: markHeicFileAsCompressed - private suspend-функция.
-     * Её функциональность тестируется через публичный метод setCompressionMarker.
-     * Тесты test18-test21 покрывают проверку HEIC файлов.
+     * Примечание: Поскольку мы используем JPEG контент с MIME типом image/heic,
+     * ExifInterface успешно сохраняет EXIF в JPEG, поэтому переименование не происходит.
+     * Переименование (_compressed) происходит только при реальной ошибке сохранения EXIF.
      *
-     * @Ignore оставлен, так как:
-     * 1. Это тестирование private метода через рефлексию (плохая практика)
-     * 2. Метод является suspend-функцией, что требует специальной обработки
-     * 3. Функциональность уже покрывается другими тестами через публичный API
+     * Тестируется через публичный API:
+     * - ExifUtil.applyExifFromMemory() - добавление EXIF маркера сжатия
+     * - ExifUtil.getCompressionMarker() - чтение маркера из EXIF
      */
     @Test
-    @Ignore("markHeicFileAsCompressed - private suspend метод. Тестируется через публичный API setCompressionMarker. Смотри тесты test18-test21.")
-    fun test22_markHeicFileAsCompressed_renamesFileSuccessfully() {
+    fun test22_applyExifFromMemory_addsCompressionMarkerToHeic() {
         runBlocking {
-        // Arrange - этот тест требует наличия HEIC файла на устройстве
-        // Для эмуляции мы можем создать файл и переименовать его вручную
+            // Arrange - создаем файл и эмулируем HEIC через MIME тип
+            val resolver = context.contentResolver
+            val collection = android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val timeStamp = System.currentTimeMillis()
+            val originalName = "test_heic_$timeStamp.heic"
 
-        val resolver = context.contentResolver
-        val collection = android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val timeStamp = System.currentTimeMillis()
-        val originalName = "test_heic_$timeStamp.jpg" // Используем .jpg для создания, но эмулируем HEIC
+            val values = ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, originalName)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/heic")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/CompressPhotoFastTest")
+                put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+            }
 
-        val values = ContentValues().apply {
-            put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, originalName)
-            put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg") // Для создания используем JPEG
-            put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/CompressPhotoFastTest")
-            put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
-        }
+            val uri = resolver.insert(collection, values)!!
+            testUris.add(uri)
 
-        val uri = resolver.insert(collection, values)!!
-        testUris.add(uri)
+            // Создаем изображение (используем JPEG формат, но MIME type говорит HEIC)
+            val bitmap = Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.RED)
 
-        // Создаем простое изображение
-        val bitmap = Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        canvas.drawColor(Color.RED)
+            resolver.openOutputStream(uri)?.use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            bitmap.recycle()
 
-        resolver.openOutputStream(uri)?.use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
-        }
-        bitmap.recycle()
+            // Помечаем как готовое
+            values.clear()
+            values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
 
-        // Помечаем как готовое
-        values.clear()
-        values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
+            // Act - добавляем маркер сжатия через applyExifFromMemory
+            val quality = 85
+            val applyResult = ExifUtil.applyExifFromMemory(
+                context,
+                uri,
+                emptyMap(),  // Пустой EXIF - только добавляем маркер
+                quality
+            )
 
-        // Act - переименовываем через markHeicFileAsCompressed
-        val exifUtilClass = ExifUtil.javaClass
-        val markHeicFileAsCompressedMethod = exifUtilClass.getDeclaredMethod(
-            "markHeicFileAsCompressed",
-            Context::class.java,
-            android.net.Uri::class.java
-        )
-        markHeicFileAsCompressedMethod.isAccessible = true
+            // Assert - операция успешна
+            assertThat(applyResult).isTrue()
 
-        val renameResult = markHeicFileAsCompressedMethod.invoke(
-            ExifUtil,
-            context,
-            uri
-        ) as Boolean
+            // Verify - проверяем что маркер сжатия добавлен через EXIF (не через суффикс)
+            val (isCompressed, markedQuality, timestamp) = ExifUtil.getCompressionMarker(context, uri)
+            assertThat(isCompressed).isTrue()
+            assertThat(markedQuality).isEqualTo(quality)
+            assertThat(timestamp).isGreaterThan(0L)
 
-        // Assert
-        assertThat(renameResult).isTrue()
+            // Проверяем что имя файла НЕ изменилось (суффикс _compressed не добавлен)
+            val projection = arrayOf(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+            resolver.query(uri, projection, null, null, null)?.use { cursor ->
+                assertThat(cursor.moveToFirst()).isTrue()
+                val nameIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+                val newName = cursor.getString(nameIndex)
 
-        // Проверяем что файл действительно переименован
-        val projection = arrayOf(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
-        resolver.query(uri, projection, null, null, null)?.use { cursor ->
-            assertThat(cursor.moveToFirst()).isTrue()
-            val nameIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
-            val newName = cursor.getString(nameIndex)
-
-            assertThat(newName).contains("_compressed")
-            assertThat(newName).endsWith(".jpg")
-        }
+                // Имя не содержит суффикс _compressed (т.к. EXIF сохранился успешно)
+                assertThat(newName).doesNotContain("_compressed")
+                assertThat(newName).endsWith(".heic")
+            }
         }
     }
 
     /**
-     * Тест 23: Проверка повторного переименования
+     * Тест 23: Идемпотентность добавления маркера сжатия для HEIC файла
      *
-     * Проверяет, что повторный вызов markHeicFileAsCompressed для файла
-     * с уже имеющимся суффиксом не вызывает ошибок
+     * Проверяет что повторный вызов applyExifFromMemory для HEIC файла:
+     * 1. Первый вызов успешно добавляет маркер сжатия
+     * 2. Второй вызов также успешен и обновляет маркер (новый timestamp)
+     * 3. Оба вызова возвращают true (идемпотентность операции)
      *
-     * ВАЖНО: markHeicFileAsCompressed - private suspend-функция.
-     * Её функциональность тестируется через публичный метод setCompressionMarker.
+     * Сценарий:
+     * 1. Создается HEIC файл (эмулированный через MIME тип)
+     * 2. Первый вызов applyExifFromMemory добавляет маркер сжатия
+     * 3. Второй вызов applyExifFromMemory обновляет маркер (новый timestamp)
+     * 4. Проверяется что маркер корректен после каждого вызова
      *
-     * @Ignore оставлен по тем же причинам, что и в test22
+     * Тестируется через публичный API:
+     * - ExifUtil.applyExifFromMemory() - идемпотентное добавление маркера
+     * - ExifUtil.getCompressionMarker() - проверка маркера и timestamp
      */
     @Test
-    @Ignore("markHeicFileAsCompressed - private suspend метод. Тестируется через публичный API setCompressionMarker.")
-    fun test23_markHeicFileAsCompressed_idempotent() {
+    fun test23_applyExifFromMemory_isIdempotentForHeic() {
         runBlocking {
-        // Arrange - создаем файл с суффиксом _compressed
-        val resolver = context.contentResolver
-        val collection = android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val timeStamp = System.currentTimeMillis()
-        val originalName = "test_${timeStamp}_compressed.jpg"
+            // Arrange - создаем HEIC файл
+            val resolver = context.contentResolver
+            val collection = android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val timeStamp = System.currentTimeMillis()
+            val originalName = "test_${timeStamp}.heic"
 
-        val values = ContentValues().apply {
-            put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, originalName)
-            put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/CompressPhotoFastTest")
-            put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
-        }
+            val values = ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, originalName)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/heic")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/CompressPhotoFastTest")
+                put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+            }
 
-        val uri = resolver.insert(collection, values)!!
-        testUris.add(uri)
+            val uri = resolver.insert(collection, values)!!
+            testUris.add(uri)
 
-        val bitmap = Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        canvas.drawColor(Color.GREEN)
+            val bitmap = Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.GREEN)
 
-        resolver.openOutputStream(uri)?.use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
-        }
-        bitmap.recycle()
+            resolver.openOutputStream(uri)?.use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            bitmap.recycle()
 
-        values.clear()
-        values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
+            values.clear()
+            values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
 
-        // Act - пытаемся переименовать уже переименованный файл
-        val exifUtilClass = ExifUtil.javaClass
-        val markHeicFileAsCompressedMethod = exifUtilClass.getDeclaredMethod(
-            "markHeicFileAsCompressed",
-            Context::class.java,
-            android.net.Uri::class.java
-        )
-        markHeicFileAsCompressedMethod.isAccessible = true
+            // Act - первый вызов добавляет маркер
+            val quality = 85
+            val applyResult1 = ExifUtil.applyExifFromMemory(
+                context,
+                uri,
+                emptyMap(),
+                quality
+            )
 
-        val renameResult1 = markHeicFileAsCompressedMethod.invoke(
-            ExifUtil,
-            context,
-            uri
-        ) as Boolean
+            // Проверяем маркер после первого вызова
+            val (isCompressed1, markedQuality1, timestamp1) = ExifUtil.getCompressionMarker(context, uri)
 
-        val renameResult2 = markHeicFileAsCompressedMethod.invoke(
-            ExifUtil,
-            context,
-            uri
-        ) as Boolean
+            // Небольшая пауза чтобы timestamp отличался
+            kotlinx.coroutines.delay(100)
 
-        // Assert - оба вызова должны быть успешны
-        assertThat(renameResult1).isTrue()
-        assertThat(renameResult2).isTrue()
+            // Act - второй вызов обновляет маркер
+            val applyResult2 = ExifUtil.applyExifFromMemory(
+                context,
+                uri,
+                emptyMap(),
+                quality
+            )
 
-        // Проверяем что имя не изменилось после второго вызова
-        val projection = arrayOf(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
-        resolver.query(uri, projection, null, null, null)?.use { cursor ->
-            assertThat(cursor.moveToFirst()).isTrue()
-            val nameIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
-            val name = cursor.getString(nameIndex)
+            // Проверяем маркер после второго вызова
+            val (isCompressed2, markedQuality2, timestamp2) = ExifUtil.getCompressionMarker(context, uri)
 
-            // Имя все еще содержит _compressed только один раз
-            assertThat(name).isEqualTo(originalName)
-        }
+            // Assert - оба вызова успешны (идемпотентность)
+            assertThat(applyResult1).isTrue()
+            assertThat(applyResult2).isTrue()
+
+            // Проверяем что маркер присутствует после обоих вызовов
+            assertThat(isCompressed1).isTrue()
+            assertThat(isCompressed2).isTrue()
+            assertThat(markedQuality1).isEqualTo(quality)
+            assertThat(markedQuality2).isEqualTo(quality)
+
+            // Timestamp должен обновиться при втором вызове
+            assertThat(timestamp2).isAtLeast(timestamp1)
+
+            // Проверяем что имя файла НЕ изменилось (без суффикса _compressed)
+            val projection = arrayOf(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+            resolver.query(uri, projection, null, null, null)?.use { cursor ->
+                assertThat(cursor.moveToFirst()).isTrue()
+                val nameIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+                val finalName = cursor.getString(nameIndex)
+
+                assertThat(finalName).doesNotContain("_compressed")
+                assertThat(finalName).isEqualTo(originalName)
+            }
         }
     }
 
     /**
-     * Тест 24: Сценарий "Ошибка EXIF → Переименование"
+     * Тест 24: Сохранение EXIF данных с маркером сжатия для HEIC файла
      *
-     * Эмулирует сценарий, когда saveAttributes() для HEIC вызывает ошибку
-     * и должно произойти переименование файла
+     * Проверяет что для HEIC файла с EXIF метаданными:
+     * 1. EXIF данные успешно читаются через readExifDataToMemory
+     * 2. EXIF данные и маркер сжатия успешно применяются через applyExifFromMemory
+     * 3. Маркер сжатия корректно определяется через getCompressionMarker
+     * 4. Исходные EXIF данные сохраняются после применения
+     *
+     * Сценарий:
+     * 1. Создается HEIC файл (эмулированный через MIME тип) с EXIF данными
+     * 2. Вызывается readExifDataToMemory для чтения EXIF метаданных
+     * 3. Вызывается applyExifFromMemory с EXIF данными и качеством
+     * 4. Проверяется что:
+     *    - Маркер сжатия добавлен
+     *    - Исходные EXIF данные (MAKE, MODEL, ORIENTATION) сохранены
+     *    - Имя файла не изменилось
+     *
+     * Примечание: Поскольку используется JPEG контент с MIME типом image/heic,
+     * ExifInterface успешно сохраняет EXIF, поэтому fallback на переименование не происходит.
+     *
+     * Тестируется через публичный API:
+     * - ExifUtil.readExifDataToMemory() - чтение EXIF метаданных
+     * - ExifUtil.applyExifFromMemory() - применение EXIF с маркером сжатия
+     * - ExifUtil.getCompressionMarker() - проверка маркера
+     * - ExifUtil.getExifInterface() - верификация сохраненных EXIF данных
      */
     @Test
-    @Ignore("applyExifFromMemory для HEIC тестируется через публичный API setCompressionMarker.")
-    fun test24_applyExifFromMemory_fallsBackToRenamingForHeic() = runBlocking {
-        // Arrange - этот тест требует создания HEIC файла
-        // На текущий момент мы используем JPEG для тестирования
+    fun test24_applyExifFromMemory_preservesExifDataWithMarker() {
+        runBlocking {
+            // Arrange - создаем HEIC файл с EXIF данными
+            val resolver = context.contentResolver
+            val collection = android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val timeStamp = System.currentTimeMillis()
+            val originalName = "test_exif_heic_$timeStamp.heic"
 
-        val testImage = createTestImageInMediaStore()
-        val exifData = ExifUtil.readExifDataToMemory(context, testImage)
+            val values = ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, originalName)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/heic")
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/CompressPhotoFastTest")
+                put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+            }
 
-        // Act - пробуем применить EXIF с маркером
-        // Для JPEG это должно работать нормально
-        val applyResult = ExifUtil.applyExifFromMemory(
-            context,
-            testImage,
-            exifData,
-            quality = 85
-        )
+            val uri = resolver.insert(collection, values)!!
+            testUris.add(uri)
 
-        // Assert
-        assertThat(applyResult).isTrue()
+            // Создаем изображение с EXIF данными
+            val bitmap = Bitmap.createBitmap(400, 300, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.BLUE)
 
-        // Проверяем что маркер добавлен
-        val (isCompressed, quality, _) = ExifUtil.getCompressionInfo(context, testImage)
-        assertThat(isCompressed).isTrue()
-        assertThat(quality).isEqualTo(85)
+            resolver.openOutputStream(uri)?.use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            bitmap.recycle()
+
+            // Добавляем EXIF данные в исходный файл
+            val testMake = "TestManufacturer"
+            val testModel = "TestModel"
+            val testOrientation = "1"
+
+            context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
+                val exif = ExifInterface(pfd.fileDescriptor)
+                exif.setAttribute(ExifInterface.TAG_MAKE, testMake)
+                exif.setAttribute(ExifInterface.TAG_MODEL, testModel)
+                exif.setAttribute(ExifInterface.TAG_ORIENTATION, testOrientation)
+                exif.saveAttributes()
+            }
+
+            // Помечаем как готовое
+            values.clear()
+            values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+
+            // Читаем EXIF данные из файла
+            val exifData = ExifUtil.readExifDataToMemory(context, uri)
+
+            // Act - применяем EXIF данные с маркером сжатия
+            val quality = 75
+            val applyResult = ExifUtil.applyExifFromMemory(
+                context,
+                uri,
+                exifData,
+                quality
+            )
+
+            // Assert - операция успешна
+            assertThat(applyResult).isTrue()
+
+            // Verify - проверяем что маркер сжатия добавлен через EXIF
+            val (isCompressed, markedQuality, timestamp) = ExifUtil.getCompressionMarker(context, uri)
+            assertThat(isCompressed).isTrue()
+            assertThat(markedQuality).isEqualTo(quality)
+            assertThat(timestamp).isGreaterThan(0L)
+
+            // Verify - проверяем что исходные EXIF данные сохранены
+            val finalExif = ExifUtil.getExifInterface(context, uri)
+            assertThat(finalExif).isNotNull()
+
+            val savedMake = finalExif?.getAttribute(ExifInterface.TAG_MAKE)
+            val savedModel = finalExif?.getAttribute(ExifInterface.TAG_MODEL)
+            val savedOrientation = finalExif?.getAttribute(ExifInterface.TAG_ORIENTATION)
+
+            assertThat(savedMake).isEqualTo(testMake)
+            assertThat(savedModel).isEqualTo(testModel)
+            assertThat(savedOrientation).isEqualTo(testOrientation)
+
+            // Проверяем что имя файла НЕ изменилось (без суффикса _compressed)
+            val projection = arrayOf(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+            resolver.query(uri, projection, null, null, null)?.use { cursor ->
+                assertThat(cursor.moveToFirst()).isTrue()
+                val nameIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Images.Media.DISPLAY_NAME)
+                val finalName = cursor.getString(nameIndex)
+
+                assertThat(finalName).doesNotContain("_compressed")
+                assertThat(finalName).isEqualTo(originalName)
+            }
+        }
     }
 
     /**
