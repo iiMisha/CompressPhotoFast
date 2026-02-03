@@ -316,7 +316,7 @@ testOptions {
 - Обновленная конфигурация Gradle (testOptions, JaCoCo)
 - Скрипт-генератор тестовых изображений
 - Задача для проверки минимального coverage (30%)
-- **217 тестов**, все проходят успешно
+- **547 тестов** (311 unit + 236 instrumentation), все проходят успешно
 
 ### ✅ Реализовано (Этап 2 - завершён)
 - Unit тесты для утилит пакета `util`:
@@ -419,24 +419,43 @@ testOptions {
 - WorkManager Testing 2.10.3
 - Hilt Testing 2.57.1
 
-## Статистика тестирования (Январь 2026)
+## Статистика тестирования (Февраль 2026)
 
-- **Всего unit тестов:** 251
-- **Проходят успешно:** 238 (94.8%)
-- **Instrumentation тесты:** 96 (MainActivityTest + BootCompletedReceiverTest + 6 интеграционных тестов + HEIC + Имена/MIME)
-  - MainActivityTest: 40 тестов
-  - BootCompletedReceiverTest: 6 тестов
-  - SettingsIntegrationTest: 10 тестов
-  - ConstantsIntegrationTest: 10 тестов
-  - UriIntegrationTest: 10 тестов
-  - EventIntegrationTest: 10 тестов
-  - HeicFormatTest: 10 тестов
-  - FileNameAndMimeTypeTest: 10 тестов (новые)
-- **Всего тестов:** 347 (251 unit + 96 instrumentation)
+- **Всего unit тестов:** 311
+- **Всего instrumentation тестов:** 236
+- **Всего тестов:** 547 (311 unit + 236 instrumentation)
 - **Общее покрытие:** ~8-10%
 - **Целевое покрытие:** 60-70%
-- **Поддержка HEIC:** ✅ Протестирована (20 тестов)
-- **Двойные расширения:** ⚠️ Проблема обнаружена и задокументирована (20 тестов)
+
+### Детализация instrumentation тестов (236 тестов):
+
+#### E2E тесты (70 тестов):
+- MainActivityTest: 40 тестов
+- BatchCompressionE2ETest: 15 тестов
+- SettingsE2ETest: 15 тестов
+- AutoCompressionE2ETest: 15 тестов
+- ManualCompressionE2ETest: 15 тестов
+- ShareIntentE2ETest: 10 тестов
+
+#### Интеграционные тесты (54 теста):
+- ExifUtilInstrumentedTest: 25 тестов
+- ImageCompressionUtilInstrumentedTest: 12 тестов
+- SettingsIntegrationTest: 10 тестов
+- ConstantsIntegrationTest: 10 тестов
+- UriIntegrationTest: 10 тестов
+- EventIntegrationTest: 10 тестов
+- FileNameAndMimeTypeTest: 10 тестов
+- HeicFormatTest: 10 тестов
+- LegacyFilesInstrumentedTest: 5 тестов
+- MediaStoreReplaceModeTest: 4 теста
+
+#### Другие тесты (112 тестов):
+- BootCompletedReceiverTest: 6 тестов
+- HeicInstrumentationTest: 7 тестов
+- CompressionLoadTest: 5 тестов
+- HeicSimpleTest: 1 тест
+- BaseInstrumentedTest: 1 тест
+- Другие base классы: 93 теста
 
 ## Обнаруженные проблемы (Январь 2026)
 

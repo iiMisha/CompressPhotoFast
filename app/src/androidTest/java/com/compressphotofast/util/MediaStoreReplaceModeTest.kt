@@ -59,81 +59,89 @@ class MediaStoreReplaceModeTest : BaseInstrumentedTest() {
      * Тест 1: Базовый сценарий замены - файл НЕ должен иметь "~2" в имени
      */
     @Test
-    fun test_replace_mode_creates_file_without_tilde_suffix() = runBlocking {
-        // Arrange
-        val fileName = "test_image_${System.currentTimeMillis()}.jpg"
-        val originalUri = createTestImageInGallery(fileName)
+    fun test_replace_mode_creates_file_without_tilde_suffix() {
+        runBlocking {
+            // Arrange
+            val fileName = "test_image_${System.currentTimeMillis()}.jpg"
+            val originalUri = createTestImageInGallery(fileName)
 
-        // Act - сжимаем изображение в режиме замены
-        val compressedUri = compressImageInReplaceMode(originalUri, fileName)
+            // Act - сжимаем изображение в режиме замены
+            val compressedUri = compressImageInReplaceMode(originalUri, fileName)
 
-        // Assert
-        assertNotNull("Сжатый URI не должен быть null", compressedUri)
-        val compressedFileName = getFileNameFromUri(compressedUri!!)
+            // Assert
+            assertNotNull("Сжатый URI не должен быть null", compressedUri)
+            val compressedFileName = getFileNameFromUri(compressedUri!!)
 
-        assertFalse("Имя файла НЕ должно содержать '~': $compressedFileName", compressedFileName.contains("~"))
-        assertEquals("Имя файла должно совпадать с оригинальным", fileName, compressedFileName)
+            assertFalse("Имя файла НЕ должно содержать '~': $compressedFileName", compressedFileName.contains("~"))
+            assertEquals("Имя файла должно совпадать с оригинальным", fileName, compressedFileName)
+        }
     }
 
     /**
      * Тест 2: Отсутствие дубликатов файлов
      */
     @Test
-    fun test_replace_mode_does_not_create_duplicate_files() = runBlocking {
-        // Arrange
-        val fileName = "photo_no_duplicate_${System.currentTimeMillis()}.jpg"
-        val originalUri = createTestImageInGallery(fileName)
+    fun test_replace_mode_does_not_create_duplicate_files() {
+        runBlocking {
+            // Arrange
+            val fileName = "photo_no_duplicate_${System.currentTimeMillis()}.jpg"
+            val originalUri = createTestImageInGallery(fileName)
 
-        // Act
-        compressImageInReplaceMode(originalUri, fileName)
+            // Act
+            compressImageInReplaceMode(originalUri, fileName)
 
-        // Assert - ищем все файлы с таким именем
-        val allFiles = queryFilesWithName(fileName)
+            // Assert - ищем все файлы с таким именем
+            val allFiles = queryFilesWithName(fileName)
 
-        assertTrue("Должен быть найден хотя бы один файл", allFiles.isNotEmpty())
-        assertEquals("Должен быть только ОДИН файл", 1, allFiles.size)
-        assertFalse("Имя файла не должно содержать '~'", allFiles[0].contains("~"))
+            assertTrue("Должен быть найден хотя бы один файл", allFiles.isNotEmpty())
+            assertEquals("Должен быть только ОДИН файл", 1, allFiles.size)
+            assertFalse("Имя файла не должно содержать '~'", allFiles[0].contains("~"))
+        }
     }
 
     /**
      * Тест 3: Несколько последовательных сжатий
      */
     @Test
-    fun test_multiple_compressions_in_replace_mode() = runBlocking {
-        // Arrange
-        val fileName = "multi_compression_${System.currentTimeMillis()}.jpg"
-        val originalUri = createTestImageInGallery(fileName)
+    fun test_multiple_compressions_in_replace_mode() {
+        runBlocking {
+            // Arrange
+            val fileName = "multi_compression_${System.currentTimeMillis()}.jpg"
+            val originalUri = createTestImageInGallery(fileName)
 
-        // Act - сжимаем один и тот же файл несколько раз
-        repeat(3) {
-            compressImageInReplaceMode(originalUri, fileName)
-            delay(100)
+            // Act - сжимаем один и тот же файл несколько раз
+            repeat(3) {
+                compressImageInReplaceMode(originalUri, fileName)
+                delay(100)
+            }
+
+            // Assert
+            val allFiles = queryFilesWithName(fileName)
+            assertEquals("После нескольких сжатий должен остаться только ОДИН файл", 1, allFiles.size)
+            assertFalse("Имя файла не должно содержать '~'", allFiles[0].contains("~"))
         }
-
-        // Assert
-        val allFiles = queryFilesWithName(fileName)
-        assertEquals("После нескольких сжатий должен остаться только ОДИН файл", 1, allFiles.size)
-        assertFalse("Имя файла не должно содержать '~'", allFiles[0].contains("~"))
     }
 
     /**
      * Тест 4: Режим отдельной папки не затронут
      */
     @Test
-    fun test_separate_mode_creates_file_with_suffix() = runBlocking {
-        // Arrange
-        val originalName = "image_separate_${System.currentTimeMillis()}.jpg"
-        val originalUri = createTestImageInGallery(originalName)
+    fun test_separate_mode_creates_file_with_suffix() {
+        runBlocking {
+            // Arrange
+            val originalName = "image_separate_${System.currentTimeMillis()}.jpg"
+            val originalUri = createTestImageInGallery(originalName)
 
-        // Act - сжимаем в режиме отдельной папки
-        val compressedUri = compressImageInSeparateMode(originalUri, originalName)
+            // Act - сжимаем в режиме отдельной папки
+            val compressedUri = compressImageInSeparateMode(originalUri, originalName)
 
-        // Assert
-        assertNotNull("Сжатый URI не должен быть null", compressedUri)
-        val compressedFileName = getFileNameFromUri(compressedUri!!)
+            // Assert
+            assertNotNull("Сжатый URI не должен быть null", compressedUri)
+            val compressedFileName = getFileNameFromUri(compressedUri!!)
 
-        assertTrue("В режиме отдельной папки имя должно содержать '_compressed'", compressedFileName.contains("_compressed"))
-        assertFalse("Имя файла не должно содержать '~'", compressedFileName.contains("~"))
+            assertTrue("В режиме отдельной папки имя должно содержать '_compressed'", compressedFileName.contains("_compressed"))
+            assertFalse("Имя файла не должно содержать '~'", compressedFileName.contains("~"))
+        }
     }
 
     // ==================== Вспомогательные методы ====================

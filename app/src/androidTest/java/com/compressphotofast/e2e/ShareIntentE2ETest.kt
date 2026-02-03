@@ -166,7 +166,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
      */
     @Test
     @Ignore("Автоматическое сжатие через Share Intent требует отладки. Сжатый файл не находится ни по DATE_ADDED, ни по DATE_MODIFIED.")
-    fun testAutomaticCompression() = runBlocking {
+    fun testAutomaticCompression() {
+        runBlocking {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
@@ -219,6 +220,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
         assertThat(compressedSize).isLessThan(originalSize)
 
         LogUtil.processDebug("Автоматическое сжатие: $originalSize -> $compressedSize байт")
+        }
     }
 
     /**
@@ -229,7 +231,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
      */
     @Test
     @Ignore("Автоматическое сжатие через Share Intent требует отладки. Проблема аналогична testAutomaticCompression.")
-    fun testResultSaved() = runBlocking {
+    fun testResultSaved() {
+        runBlocking {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
@@ -283,13 +286,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
         assertThat(fileExists).isTrue()
 
         LogUtil.processDebug("Результат сжатия сохранен: $finalUri")
+        }
     }
 
     /**
      * Тест 6: Проверка обработки нескольких изображений
      */
     @Test
-    fun testMultipleImagesProcessed() = runBlocking {
+    fun testMultipleImagesProcessed() {
+        runBlocking {
         if (testUris.size < 3) {
             return@runBlocking
         }
@@ -335,13 +340,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
         assertThat(processedCount).isAtLeast(2)
 
         LogUtil.processDebug("Обработано $processedCount из ${uris.size} изображений")
+        }
     }
 
     /**
      * Тест 7: Проверка обработки PNG изображений
      */
     @Test
-    fun testPngImageProcessed() = runBlocking {
+    fun testPngImageProcessed() {
+        runBlocking {
         // Создаем PNG изображение
         val pngUri = createPngImage()
         if (pngUri == null) {
@@ -369,6 +376,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Проверяем результат
         val hasMarker = ExifUtil.getCompressionMarker(context, pngUri).first
         LogUtil.processDebug("PNG изображение обработано: $hasMarker")
+        }
     }
 
     /**
@@ -407,7 +415,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
      * Тест 9: Проверка обработки изображений с разным качеством
      */
     @Test
-    fun testCompressionWithDifferentQualities() = runBlocking {
+    fun testCompressionWithDifferentQualities() {
+        runBlocking {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
@@ -460,6 +469,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
         assertThat(compressedSize).isLessThan(originalSize)
 
         LogUtil.processDebug("Сжатие с разным качеством: $originalSize -> $compressedSize байт")
+        }
     }
 
     /**
@@ -473,7 +483,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
      */
     @Test
     @Ignore("Автоматическое сжатие через Share Intent требует отладки. Проблема аналогична testAutomaticCompression.")
-    fun testCompressionInReplaceMode() = runBlocking {
+    fun testCompressionInReplaceMode() {
+        runBlocking {
         if (testUris.isEmpty()) {
             return@runBlocking
         }
@@ -527,6 +538,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Отключаем режим замены после теста
         settingsManager.setSaveMode(false)
+        }
     }
 
     // ========== Вспомогательные методы ==========

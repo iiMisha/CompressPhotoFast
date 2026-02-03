@@ -126,602 +126,630 @@ class BatchCompressionE2ETest : BaseE2ETest() {
      * Тест 2: Пакетное сжатие с низким качеством
      */
     @Test
-    fun testBatchCompressionWithLowQuality() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-        
-        // Выбираем низкое качество
-        Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Проверяем, что прогресс-бар отображается
-        Espresso.onView(ViewMatchers.withId(R.id.progressBar))
-            .check(ViewAssertions.matches(ViewMatchers.withEffectiveVisibility(ViewMatchers.Visibility.GONE)))
-        
-        // Выполняем пакетное сжатие
-        val results = mutableListOf<Pair<Uri, Long>>()
-        for (uri in testUris.take(3)) {
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
-            val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_LOW
-            )
-            
-            if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
-                results.add(Pair(uri, originalSize - compressedSize))
+    fun testBatchCompressionWithLowQuality() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Выбираем низкое качество
+            Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Проверяем, что прогресс-бар отображается
+            Espresso.onView(ViewMatchers.withId(R.id.progressBar))
+                .check(ViewAssertions.matches(ViewMatchers.withEffectiveVisibility(ViewMatchers.Visibility.GONE)))
+
+            // Выполняем пакетное сжатие
+            val results = mutableListOf<Pair<Uri, Long>>()
+            for (uri in testUris.take(3)) {
+                val originalSize = UriUtil.getFileSizeSync(context, uri)
+                val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_LOW
+                )
+
+                if (compressedUri.second != null) {
+                    val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
+                    results.add(Pair(uri, originalSize - compressedSize))
+                }
+            }
+
+            // Проверяем, что все изображения сжаты
+            assertThat(results.size).isAtLeast(2)
+
+            // Проверяем, что экономия значительная для низкого качества
+            val totalSavings = results.sumOf { it.second }
+            assertThat(totalSavings).isGreaterThan(0)
+
+            LogUtil.processDebug("Пакетное сжатие с низким качеством: ${results.size} изображений, экономия: $totalSavings байт")
         }
-        
-        // Проверяем, что все изображения сжаты
-        assertThat(results.size).isAtLeast(2)
-        
-        // Проверяем, что экономия значительная для низкого качества
-        val totalSavings = results.sumOf { it.second }
-        assertThat(totalSavings).isGreaterThan(0)
-        
-        LogUtil.processDebug("Пакетное сжатие с низким качеством: ${results.size} изображений, экономия: $totalSavings байт")
     }
 
     /**
      * Тест 3: Пакетное сжатие со средним качеством
      */
     @Test
-    fun testBatchCompressionWithMediumQuality() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-        
-        // Выбираем среднее качество
-        Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Выполняем пакетное сжатие
-        val results = mutableListOf<Pair<Uri, Long>>()
-        for (uri in testUris.take(3)) {
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
-            val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-            
-            if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
-                results.add(Pair(uri, originalSize - compressedSize))
+    fun testBatchCompressionWithMediumQuality() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Выбираем среднее качество
+            Espresso.onView(ViewMatchers.withId(R.id.rbQualityMedium))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Выполняем пакетное сжатие
+            val results = mutableListOf<Pair<Uri, Long>>()
+            for (uri in testUris.take(3)) {
+                val originalSize = UriUtil.getFileSizeSync(context, uri)
+                val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                if (compressedUri.second != null) {
+                    val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
+                    results.add(Pair(uri, originalSize - compressedSize))
+                }
+            }
+
+            // Проверяем, что все изображения сжаты
+            assertThat(results.size).isAtLeast(2)
+
+            LogUtil.processDebug("Пакетное сжатие со средним качеством: ${results.size} изображений")
         }
-        
-        // Проверяем, что все изображения сжаты
-        assertThat(results.size).isAtLeast(2)
-        
-        LogUtil.processDebug("Пакетное сжатие со средним качеством: ${results.size} изображений")
     }
 
     /**
      * Тест 4: Пакетное сжатие с высоким качеством
      */
     @Test
-    fun testBatchCompressionWithHighQuality() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-        
-        // Выбираем высокое качество
-        Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Выполняем пакетное сжатие
-        val results = mutableListOf<Pair<Uri, Long>>()
-        for (uri in testUris.take(3)) {
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
-            val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_HIGH
-            )
-            
-            if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
-                results.add(Pair(uri, originalSize - compressedSize))
+    fun testBatchCompressionWithHighQuality() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Выбираем высокое качество
+            Espresso.onView(ViewMatchers.withId(R.id.rbQualityHigh))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Выполняем пакетное сжатие
+            val results = mutableListOf<Pair<Uri, Long>>()
+            for (uri in testUris.take(3)) {
+                val originalSize = UriUtil.getFileSizeSync(context, uri)
+                val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_HIGH
+                )
+
+                if (compressedUri.second != null) {
+                    val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
+                    results.add(Pair(uri, originalSize - compressedSize))
+                }
+            }
+
+            // Проверяем, что все изображения сжаты
+            assertThat(results.size).isAtLeast(2)
+
+            LogUtil.processDebug("Пакетное сжатие с высоким качеством: ${results.size} изображений")
         }
-        
-        // Проверяем, что все изображения сжаты
-        assertThat(results.size).isAtLeast(2)
-        
-        LogUtil.processDebug("Пакетное сжатие с высоким качеством: ${results.size} изображений")
     }
 
     /**
      * Тест 5: Проверка отображения прогресс-бара
      */
     @Test
-    fun testProgressBarDisplayedDuringBatchCompression() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-
-        // Начинаем пакетное сжатие
-        val urisToCompress = testUris.take(3)
-
-        // Выполняем сжатие напрямую (без UI interaction)
-        var successCount = 0
-        for (uri in urisToCompress) {
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-
-            if (result.first && result.second != null) {
-                successCount++
+    fun testProgressBarDisplayedDuringBatchCompression() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Начинаем пакетное сжатие
+            val urisToCompress = testUris.take(3)
+
+            // Выполняем сжатие напрямую (без UI interaction)
+            var successCount = 0
+            for (uri in urisToCompress) {
+                val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                if (result.first && result.second != null) {
+                    successCount++
+                }
+            }
+
+            // Проверяем, что хотя бы 2 изображения успешно сжаты
+            assertThat(successCount).isAtLeast(2)
+
+            LogUtil.processDebug("Пакетное сжатие завершено: $successCount из ${urisToCompress.size} изображений")
         }
-
-        // Проверяем, что хотя бы 2 изображения успешно сжаты
-        assertThat(successCount).isAtLeast(2)
-
-        LogUtil.processDebug("Пакетное сжатие завершено: $successCount из ${urisToCompress.size} изображений")
     }
 
     /**
      * Тест 6: Проверка итоговой сводки (успешные/пропущенные/уже оптимизированные)
      */
     @Test
-    fun testBatchCompressionSummary() = runBlocking {
-        if (testUris.size < 5) {
-            return@runBlocking
-        }
+    fun testBatchCompressionSummary() {
+        runBlocking {
+            if (testUris.size < 5) {
+                return@runBlocking
+            }
 
-        // Создаем смесь изображений: обычные, уже сжатые, маленькие
-        val urisToCompress = mutableListOf<Uri>()
+            // Создаем смесь изображений: обычные, уже сжатые, маленькие
+            val urisToCompress = mutableListOf<Uri>()
 
-        // Добавляем обычные изображения
-        urisToCompress.addAll(testUris.take(3))
+            // Добавляем обычные изображения
+            urisToCompress.addAll(testUris.take(3))
 
-        // Добавляем уже сжатое изображение
-        val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-            context,
-            testUris[0],
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
-        if (compressedUri.second != null) {
-            urisToCompress.add(compressedUri.second!!)
-        }
-
-        // Добавляем маленькое изображение
-        val smallUri = createSmallTestImage()
-        if (smallUri != null) {
-            urisToCompress.add(smallUri)
-        }
-
-        // Выполняем пакетное сжатие
-        var successful = 0
-        var skipped = 0
-        var alreadyOptimized = 0
-
-        for (uri in urisToCompress) {
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+            // Добавляем уже сжатое изображение
+            val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
                 context,
-                uri,
+                testUris[0],
                 Constants.COMPRESSION_QUALITY_MEDIUM
             )
+            if (compressedUri.second != null) {
+                urisToCompress.add(compressedUri.second!!)
+            }
 
-            // result.first = true, если сжатие выполнено успешно
-            // result.first = false, если файл пропущен (уже сжат, слишком маленький, etc)
-            if (result.first && result.second != null) {
-                successful++
-            } else {
-                // Анализируем причину пропуска через result.third (сообщение)
-                val message = result.third.lowercase()
-                when {
-                    message.contains("уже сжат") || message.contains("already optimized") -> {
-                        alreadyOptimized++
-                    }
-                    message.contains("太小") || message.contains("small") -> {
-                        skipped++
-                    }
-                    ExifUtil.getCompressionMarker(context, uri).first -> {
-                        // Дополнительная проверка: если есть маркер сжатия
-                        alreadyOptimized++
-                    }
-                    else -> {
-                        // Проверяем размер файла
-                        val fileSize = UriUtil.getFileSizeSync(context, uri)
-                        if (fileSize < 100 * 1024) {
+            // Добавляем маленькое изображение
+            val smallUri = createSmallTestImage()
+            if (smallUri != null) {
+                urisToCompress.add(smallUri)
+            }
+
+            // Выполняем пакетное сжатие
+            var successful = 0
+            var skipped = 0
+            var alreadyOptimized = 0
+
+            for (uri in urisToCompress) {
+                val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                // result.first = true, если сжатие выполнено успешно
+                // result.first = false, если файл пропущен (уже сжат, слишком маленький, etc)
+                if (result.first && result.second != null) {
+                    successful++
+                } else {
+                    // Анализируем причину пропуска через result.third (сообщение)
+                    val message = result.third.lowercase()
+                    when {
+                        message.contains("уже сжат") || message.contains("already optimized") -> {
+                            alreadyOptimized++
+                        }
+                        message.contains("太小") || message.contains("small") -> {
                             skipped++
-                        } else {
-                            skipped++
+                        }
+                        ExifUtil.getCompressionMarker(context, uri).first -> {
+                            // Дополнительная проверка: если есть маркер сжатия
+                            alreadyOptimized++
+                        }
+                        else -> {
+                            // Проверяем размер файла
+                            val fileSize = UriUtil.getFileSizeSync(context, uri)
+                            if (fileSize < 100 * 1024) {
+                                skipped++
+                            } else {
+                                skipped++
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // Проверяем статистику
-        assertThat(successful).isAtLeast(2)
-        assertThat(skipped + alreadyOptimized).isAtLeast(1)
-        
-        LogUtil.processDebug("Сводка пакетного сжатия: успешные=$successful, пропущенные=$skipped, уже оптимизированные=$alreadyOptimized")
+            // Проверяем статистику
+            assertThat(successful).isAtLeast(2)
+            assertThat(skipped + alreadyOptimized).isAtLeast(1)
+
+            LogUtil.processDebug("Сводка пакетного сжатия: успешные=$successful, пропущенные=$skipped, уже оптимизированные=$alreadyOptimized")
+        }
     }
 
     /**
      * Тест 7: Проверка обработки скриншотов (включено игнорирование)
      */
     @Test
-    fun testScreenshotsIgnoredWhenEnabled() = runBlocking {
-        if (screenshotUris.isEmpty()) {
-            return@runBlocking
-        }
-        
-        // Включаем игнорирование скриншотов
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
+    fun testScreenshotsIgnoredWhenEnabled() {
+        runBlocking {
+            if (screenshotUris.isEmpty()) {
+                return@runBlocking
+            }
 
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Пытаемся сжать скриншот
-        val uri = screenshotUris[0]
-        val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-            context,
-            uri,
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
-        
-        // Проверяем, что скриншот пропущен (если логика игнорирования работает)
-        // Примечание: Это зависит от реализации логики игнорирования
-        LogUtil.processDebug("Обработка скриншота: результат=${result.second != null}")
+            // Включаем игнорирование скриншотов
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Пытаемся сжать скриншот
+            val uri = screenshotUris[0]
+            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                context,
+                uri,
+                Constants.COMPRESSION_QUALITY_MEDIUM
+            )
+
+            // Проверяем, что скриншот пропущен (если логика игнорирования работает)
+            // Примечание: Это зависит от реализации логики игнорирования
+            LogUtil.processDebug("Обработка скриншота: результат=${result.second != null}")
+        }
     }
 
     /**
      * Тест 8: Проверка обработки скриншотов (выключено игнорирование)
      */
     @Test
-    fun testScreenshotsProcessedWhenDisabled() = runBlocking {
-        if (screenshotUris.isEmpty()) {
-            return@runBlocking
+    fun testScreenshotsProcessedWhenDisabled() {
+        runBlocking {
+            if (screenshotUris.isEmpty()) {
+                return@runBlocking
+            }
+
+            // Выключаем игнорирование скриншотов
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Пытаемся сжать скриншот
+            val uri = screenshotUris[0]
+            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                context,
+                uri,
+                Constants.COMPRESSION_QUALITY_MEDIUM
+            )
+
+            // Проверяем, что скриншот обработан
+            assertThat(result).isNotNull()
+
+            LogUtil.processDebug("Скриншот обработан: $result")
         }
-        
-        // Выключаем игнорирование скриншотов
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Пытаемся сжать скриншот
-        val uri = screenshotUris[0]
-        val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-            context,
-            uri,
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
-        
-        // Проверяем, что скриншот обработан
-        assertThat(result).isNotNull()
-        
-        LogUtil.processDebug("Скриншот обработан: $result")
     }
 
     /**
      * Тест 9: Проверка обработки фото из мессенджеров (включено игнорирование)
      */
     @Test
-    fun testMessengerPhotosIgnoredWhenEnabled() = runBlocking {
-        if (messengerUris.isEmpty()) {
-            return@runBlocking
-        }
-        
-        // Включаем игнорирование фото из мессенджеров
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
+    fun testMessengerPhotosIgnoredWhenEnabled() {
+        runBlocking {
+            if (messengerUris.isEmpty()) {
+                return@runBlocking
+            }
 
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Пытаемся сжать фото из мессенджера
-        val uri = messengerUris[0]
-        val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-            context,
-            uri,
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
-        
-        // Проверяем результат (зависит от реализации логики игнорирования)
-        LogUtil.processDebug("Обработка фото из мессенджера: результат=${result.second != null}")
+            // Включаем игнорирование фото из мессенджеров
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Пытаемся сжать фото из мессенджера
+            val uri = messengerUris[0]
+            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                context,
+                uri,
+                Constants.COMPRESSION_QUALITY_MEDIUM
+            )
+
+            // Проверяем результат (зависит от реализации логики игнорирования)
+            LogUtil.processDebug("Обработка фото из мессенджера: результат=${result.second != null}")
+        }
     }
 
     /**
      * Тест 10: Проверка обработки фото из мессенджеров (выключено игнорирование)
      */
     @Test
-    fun testMessengerPhotosProcessedWhenDisabled() = runBlocking {
-        if (messengerUris.isEmpty()) {
-            return@runBlocking
+    fun testMessengerPhotosProcessedWhenDisabled() {
+        runBlocking {
+            if (messengerUris.isEmpty()) {
+                return@runBlocking
+            }
+
+            // Выключаем игнорирование фото из мессенджеров
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Пытаемся сжать фото из мессенджера
+            val uri = messengerUris[0]
+            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                context,
+                uri,
+                Constants.COMPRESSION_QUALITY_MEDIUM
+            )
+
+            // Проверяем, что фото обработано
+            assertThat(result.second).isNotNull()
+
+            LogUtil.processDebug("Фото из мессенджера обработано: $result")
         }
-        
-        // Выключаем игнорирование фото из мессенджеров
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Пытаемся сжать фото из мессенджера
-        val uri = messengerUris[0]
-        val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-            context,
-            uri,
-            Constants.COMPRESSION_QUALITY_MEDIUM
-        )
-        
-        // Проверяем, что фото обработано
-        assertThat(result.second).isNotNull()
-        
-        LogUtil.processDebug("Фото из мессенджера обработано: $result")
     }
 
     /**
      * Тест 11: Проверка прерывания процесса пакетного сжатия
      */
     @Test
-    fun testBatchCompressionInterruption() = runBlocking {
-        if (testUris.size < 5) {
-            return@runBlocking
-        }
-        
-        // Начинаем пакетное сжатие
-        val urisToCompress = testUris.take(5)
-        var processedCount = 0
-        
-        // Симулируем прерывание после обработки 2 изображений
-        for ((index, uri) in urisToCompress.withIndex()) {
-            if (index >= 2) {
-                // Прерываем процесс
-                LogUtil.processDebug("Прерывание пакетного сжатия после $processedCount изображений")
-                break
+    fun testBatchCompressionInterruption() {
+        runBlocking {
+            if (testUris.size < 5) {
+                return@runBlocking
             }
-            
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-            
-            if (result.second != null) {
-                processedCount++
+
+            // Начинаем пакетное сжатие
+            val urisToCompress = testUris.take(5)
+            var processedCount = 0
+
+            // Симулируем прерывание после обработки 2 изображений
+            for ((index, uri) in urisToCompress.withIndex()) {
+                if (index >= 2) {
+                    // Прерываем процесс
+                    LogUtil.processDebug("Прерывание пакетного сжатия после $processedCount изображений")
+                    break
+                }
+
+                val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                if (result.second != null) {
+                    processedCount++
+                }
             }
+
+            // Проверяем, что не все изображения были обработаны
+            assertThat(processedCount).isLessThan(urisToCompress.size)
+
+            LogUtil.processDebug("Пакетное сжатие прервано после $processedCount из ${urisToCompress.size} изображений")
         }
-        
-        // Проверяем, что не все изображения были обработаны
-        assertThat(processedCount).isLessThan(urisToCompress.size)
-        
-        LogUtil.processDebug("Пакетное сжатие прервано после $processedCount из ${urisToCompress.size} изображений")
     }
 
     /**
      * Тест 12: Проверка обработки ошибок при пакетном сжатии
      */
     @Test
-    fun testBatchCompressionErrorHandling() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-
-        // Создаем список URI с одним недействительным
-        val urisToCompress = mutableListOf<Uri>()
-        urisToCompress.addAll(testUris.take(2))
-
-        // Добавляем недействительный URI
-        val invalidUri = Uri.parse("content://media/external/images/media/999999")
-        urisToCompress.add(invalidUri)
-
-        var successful = 0
-        var failed = 0
-
-        for (uri in urisToCompress) {
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-
-            // result.first = true, если операция прошла успешно
-            // result.first = false, если была ошибка или файл пропущен
-            if (result.first && result.second != null) {
-                successful++
-            } else {
-                failed++
+    fun testBatchCompressionErrorHandling() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Создаем список URI с одним недействительным
+            val urisToCompress = mutableListOf<Uri>()
+            urisToCompress.addAll(testUris.take(2))
+
+            // Добавляем недействительный URI
+            val invalidUri = Uri.parse("content://media/external/images/media/999999")
+            urisToCompress.add(invalidUri)
+
+            var successful = 0
+            var failed = 0
+
+            for (uri in urisToCompress) {
+                val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                // result.first = true, если операция прошла успешно
+                // result.first = false, если была ошибка или файл пропущен
+                if (result.first && result.second != null) {
+                    successful++
+                } else {
+                    failed++
+                }
+            }
+
+            // Проверяем, что успешные сжатия выполнены, а ошибки обработаны
+            assertThat(successful).isAtLeast(1)
+            assertThat(failed).isAtLeast(1)
+
+            LogUtil.processDebug("Обработка ошибок: успешные=$successful, ошибки=$failed")
         }
-
-        // Проверяем, что успешные сжатия выполнены, а ошибки обработаны
-        assertThat(successful).isAtLeast(1)
-        assertThat(failed).isAtLeast(1)
-
-        LogUtil.processDebug("Обработка ошибок: успешные=$successful, ошибки=$failed")
     }
 
     /**
      * Тест 13: Проверка пакетного сжатия в режиме замены
      */
     @Test
-    fun testBatchCompressionInReplaceMode() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-
-        // Восстанавливаем activity если нужно
-        try {
-            activityScenario?.onActivity { }
-        } catch (e: Exception) {
-            activityScenario = ActivityScenario.launch(MainActivity::class.java)
-            waitForUI(500)
-        }
-
-        // Принудительно переключаем в Replace mode (isChecked = true)
-        // Сначала проверяем текущее состояние
-        var isInReplaceMode = false
-        activityScenario?.onActivity { activity ->
-            val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
-            isInReplaceMode = switch.isChecked
-        }
-
-        // Если не в Replace mode, переключаем
-        if (!isInReplaceMode) {
-            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-                .perform(ViewActions.click())
-            waitForUI(1000)
-            LogUtil.processDebug("Переключено в Replace mode")
-        } else {
-            waitForUI(500)
-            LogUtil.processDebug("Уже в Replace mode")
-        }
-
-        // Ждем обновления UI
-        waitForUI(300)
-
-        // Выполняем пакетное сжатие
-        val results = mutableListOf<Uri>()
-        for (uri in testUris.take(3)) {
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-
-            if (result.second != null) {
-                results.add(result.second!!)
+    fun testBatchCompressionInReplaceMode() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Восстанавливаем activity если нужно
+            try {
+                activityScenario?.onActivity { }
+            } catch (e: Exception) {
+                activityScenario = ActivityScenario.launch(MainActivity::class.java)
+                waitForUI(500)
+            }
+
+            // Принудительно переключаем в Replace mode (isChecked = true)
+            // Сначала проверяем текущее состояние
+            var isInReplaceMode = false
+            activityScenario?.onActivity { activity ->
+                val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
+                isInReplaceMode = switch.isChecked
+            }
+
+            // Если не в Replace mode, переключаем
+            if (!isInReplaceMode) {
+                Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                    .perform(ViewActions.click())
+                waitForUI(1000)
+                LogUtil.processDebug("Переключено в Replace mode")
+            } else {
+                waitForUI(500)
+                LogUtil.processDebug("Уже в Replace mode")
+            }
+
+            // Ждем обновления UI
+            waitForUI(300)
+
+            // Выполняем пакетное сжатие
+            val results = mutableListOf<Uri>()
+            for (uri in testUris.take(3)) {
+                val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                if (result.second != null) {
+                    results.add(result.second!!)
+                }
+            }
+
+            // Проверяем, что все изображения сжаты
+            assertThat(results.size).isAtLeast(2)
+
+            LogUtil.processDebug("Пакетное сжатие в режиме замены: ${results.size} изображений")
         }
-
-        // Проверяем, что все изображения сжаты
-        assertThat(results.size).isAtLeast(2)
-
-        LogUtil.processDebug("Пакетное сжатие в режиме замены: ${results.size} изображений")
     }
 
     /**
      * Тест 14: Проверка пакетного сжатия в режиме отдельной папки
      */
     @Test
-    fun testBatchCompressionInSeparateFolderMode() = runBlocking {
-        if (testUris.size < 3) {
-            return@runBlocking
-        }
-
-        // Восстанавливаем activity если нужно
-        try {
-            activityScenario?.onActivity { }
-        } catch (e: Exception) {
-            activityScenario = ActivityScenario.launch(MainActivity::class.java)
-            waitForUI(500)
-        }
-
-        // Принудительно переключаем в Separate Folder mode (isChecked = false)
-        // Сначала проверяем текущее состояние
-        var isInReplaceMode = false
-        activityScenario?.onActivity { activity ->
-            val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
-            isInReplaceMode = switch.isChecked
-        }
-
-        // Если в Replace mode, переключаем в Separate Folder mode
-        if (isInReplaceMode) {
-            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-                .perform(ViewActions.click())
-            waitForUI(1000)
-            LogUtil.processDebug("Переключено в Separate Folder mode")
-        } else {
-            waitForUI(500)
-            LogUtil.processDebug("Уже в Separate Folder mode")
-        }
-
-        // Выполняем пакетное сжатие
-        val results = mutableListOf<Uri>()
-        for (uri in testUris.take(3)) {
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-
-            if (result.second != null) {
-                results.add(result.second!!)
+    fun testBatchCompressionInSeparateFolderMode() {
+        runBlocking {
+            if (testUris.size < 3) {
+                return@runBlocking
             }
+
+            // Восстанавливаем activity если нужно
+            try {
+                activityScenario?.onActivity { }
+            } catch (e: Exception) {
+                activityScenario = ActivityScenario.launch(MainActivity::class.java)
+                waitForUI(500)
+            }
+
+            // Принудительно переключаем в Separate Folder mode (isChecked = false)
+            // Сначала проверяем текущее состояние
+            var isInReplaceMode = false
+            activityScenario?.onActivity { activity ->
+                val switch = activity.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSaveMode)
+                isInReplaceMode = switch.isChecked
+            }
+
+            // Если в Replace mode, переключаем в Separate Folder mode
+            if (isInReplaceMode) {
+                Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                    .perform(ViewActions.click())
+                waitForUI(1000)
+                LogUtil.processDebug("Переключено в Separate Folder mode")
+            } else {
+                waitForUI(500)
+                LogUtil.processDebug("Уже в Separate Folder mode")
+            }
+
+            // Выполняем пакетное сжатие
+            val results = mutableListOf<Uri>()
+            for (uri in testUris.take(3)) {
+                val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                if (result.second != null) {
+                    results.add(result.second!!)
+                }
+            }
+
+            // Проверяем, что все изображения сжаты
+            assertThat(results.size).isAtLeast(2)
+
+            // Проверяем, что файлы сохранены (URI не null)
+            for (uri in results) {
+                assertThat(uri).isNotNull()
+            }
+
+            LogUtil.processDebug("Пакетное сжатие в режиме отдельной папки: ${results.size} изображений")
         }
-
-        // Проверяем, что все изображения сжаты
-        assertThat(results.size).isAtLeast(2)
-
-        // Проверяем, что файлы сохранены (URI не null)
-        for (uri in results) {
-            assertThat(uri).isNotNull()
-        }
-
-        LogUtil.processDebug("Пакетное сжатие в режиме отдельной папки: ${results.size} изображений")
     }
 
     /**
      * Тест 15: Проверка общей экономии при пакетном сжатии
      */
     @Test
-    fun testTotalSavingsInBatchCompression() = runBlocking {
-        if (testUris.size < 5) {
-            return@runBlocking
-        }
-        
-        var totalOriginalSize = 0L
-        var totalCompressedSize = 0L
-        
-        // Выполняем пакетное сжатие
-        for (uri in testUris.take(5)) {
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
-            val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-            
-            if (compressedUri.second != null) {
-                val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
-                totalOriginalSize += originalSize
-                totalCompressedSize += compressedSize
+    fun testTotalSavingsInBatchCompression() {
+        runBlocking {
+            if (testUris.size < 5) {
+                return@runBlocking
             }
+
+            var totalOriginalSize = 0L
+            var totalCompressedSize = 0L
+
+            // Выполняем пакетное сжатие
+            for (uri in testUris.take(5)) {
+                val originalSize = UriUtil.getFileSizeSync(context, uri)
+                val compressedUri = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
+                    context,
+                    uri,
+                    Constants.COMPRESSION_QUALITY_MEDIUM
+                )
+
+                if (compressedUri.second != null) {
+                    val compressedSize = UriUtil.getFileSizeSync(context, compressedUri.second!!)
+                    totalOriginalSize += originalSize
+                    totalCompressedSize += compressedSize
+                }
+            }
+
+            // Проверяем, что общая экономия положительная
+            val totalSavings = totalOriginalSize - totalCompressedSize
+            assertThat(totalSavings).isGreaterThan(0)
+
+            // Проверяем, что экономия составляет минимум 30%
+            val savingsPercent = (totalSavings.toFloat() / totalOriginalSize * 100).toInt()
+            assertThat(savingsPercent).isAtLeast(30)
+
+            LogUtil.processDebug("Общая экономия: $totalSavings байт ($savingsPercent%)")
         }
-        
-        // Проверяем, что общая экономия положительная
-        val totalSavings = totalOriginalSize - totalCompressedSize
-        assertThat(totalSavings).isGreaterThan(0)
-        
-        // Проверяем, что экономия составляет минимум 30%
-        val savingsPercent = (totalSavings.toFloat() / totalOriginalSize * 100).toInt()
-        assertThat(savingsPercent).isAtLeast(30)
-        
-        LogUtil.processDebug("Общая экономия: $totalSavings байт ($savingsPercent%)")
     }
 
     // ========== Вспомогательные методы ==========

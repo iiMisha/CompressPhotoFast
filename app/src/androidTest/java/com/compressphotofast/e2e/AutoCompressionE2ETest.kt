@@ -162,64 +162,68 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      * Тест 3: Проверка обработки новых изображений
      */
     @Test
-    fun testNewImagesProcessed() = runBlocking {
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+    fun testNewImagesProcessed() {
+        runBlocking {
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем новое изображение
-        val newUri = createTestImage(1920, 1080)
-        if (newUri == null) {
-            return@runBlocking
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем новое изображение
+            val newUri = createTestImage(1920, 1080)
+            if (newUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что изображение обработано
+            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            // Примечание: Это зависит от реализации логики авто-сжатия
+            LogUtil.processDebug("Новое изображение обработано: $hasMarker")
         }
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что изображение обработано
-        val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
-        // Примечание: Это зависит от реализации логики авто-сжатия
-        LogUtil.processDebug("Новое изображение обработано: $hasMarker")
     }
 
     /**
      * Тест 4: Проверка обработки ранее пропущенных изображений
      */
     @Test
-    fun testPreviouslySkippedImagesProcessed() = runBlocking {
-        // Создаем изображение, которое будет пропущено (например, маленькое)
-        val smallUri = createSmallTestImage()
-        if (smallUri == null) {
-            return@runBlocking
-        }
-        
-        // Проверяем, что изображение не сжато
-        val hasMarkerBefore = ExifUtil.getCompressionMarker(context, smallUri).first
-        assertThat(hasMarkerBefore).isFalse()
-        
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+    fun testPreviouslySkippedImagesProcessed() {
+        runBlocking {
+            // Создаем изображение, которое будет пропущено (например, маленькое)
+            val smallUri = createSmallTestImage()
+            if (smallUri == null) {
+                return@runBlocking
+            }
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что изображение обработано (или пропущено по размеру)
-        val hasMarkerAfter = ExifUtil.getCompressionMarker(context, smallUri).first
-        // Примечание: Это зависит от реализации логики авто-сжатия
-        LogUtil.processDebug("Ранее пропущенное изображение обработано: $hasMarkerAfter")
+            // Проверяем, что изображение не сжато
+            val hasMarkerBefore = ExifUtil.getCompressionMarker(context, smallUri).first
+            assertThat(hasMarkerBefore).isFalse()
+
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что изображение обработано (или пропущено по размеру)
+            val hasMarkerAfter = ExifUtil.getCompressionMarker(context, smallUri).first
+            // Примечание: Это зависит от реализации логики авто-сжатия
+            LogUtil.processDebug("Ранее пропущенное изображение обработано: $hasMarkerAfter")
+        }
     }
 
     /**
@@ -250,26 +254,28 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      * Тест 6: Проверка уведомлений о фоновом сжатии
      */
     @Test
-    fun testBackgroundCompressionNotification() = runBlocking {
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+    fun testBackgroundCompressionNotification() {
+        runBlocking {
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Создаем новое изображение
-        val newUri = createTestImage(1920, 1080)
-        if (newUri == null) {
-            return@runBlocking
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Создаем новое изображение
+            val newUri = createTestImage(1920, 1080)
+            if (newUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки и уведомления
+            delay(5000)
+
+            // В реальном тесте здесь нужно проверить уведомление через UIAutomator
+            // Для E2E теста мы проверяем, что сжатие завершено
+            LogUtil.processDebug("Уведомление о фоновом сжатии должно быть отображено")
         }
-        
-        // Ждем обработки и уведомления
-        delay(5000)
-        
-        // В реальном тесте здесь нужно проверить уведомление через UIAutomator
-        // Для E2E теста мы проверяем, что сжатие завершено
-        LogUtil.processDebug("Уведомление о фоновом сжатии должно быть отображено")
     }
 
     /**
@@ -363,285 +369,299 @@ class AutoCompressionE2ETest : BaseE2ETest() {
      * Тест 9: Проверка обработки изображений с разным качеством
      */
     @Test
-    fun testAutoCompressionWithDifferentQualities() = runBlocking {
-        // Устанавливаем низкое качество
-        Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
-            .perform(ViewActions.click())
+    fun testAutoCompressionWithDifferentQualities() {
+        runBlocking {
+            // Устанавливаем низкое качество
+            Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
 
-        // Ждем обновления UI
-        waitForUI(200)
+            // Ждем обновления UI
+            waitForUI(200)
 
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем новое изображение
-        val newUri = createTestImage(1920, 1080)
-        if (newUri == null) {
-            return@runBlocking
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем новое изображение
+            val newUri = createTestImage(1920, 1080)
+            if (newUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что изображение обработано
+            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            LogUtil.processDebug("Изображение обработано с низким качеством: $hasMarker")
         }
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что изображение обработано
-        val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
-        LogUtil.processDebug("Изображение обработано с низким качеством: $hasMarker")
     }
 
     /**
      * Тест 10: Проверка обработки изображений в режиме замены
      */
     @Test
-    fun testAutoCompressionInReplaceMode() = runBlocking {
-        // Включаем режим замены
-        Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-            .perform(ViewActions.click())
+    fun testAutoCompressionInReplaceMode() {
+        runBlocking {
+            // Включаем режим замены
+            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем новое изображение
-        val newUri = createTestImage(1920, 1080)
-        if (newUri == null) {
-            return@runBlocking
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем новое изображение
+            val newUri = createTestImage(1920, 1080)
+            if (newUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что изображение обработано
+            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            LogUtil.processDebug("Изображение обработано в режиме замены: $hasMarker")
         }
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что изображение обработано
-        val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
-        LogUtil.processDebug("Изображение обработано в режиме замены: $hasMarker")
     }
 
     /**
      * Тест 11: Проверка обработки изображений в режиме отдельной папки
      */
     @Test
-    fun testAutoCompressionInSeparateFolderMode() = runBlocking {
-        // Выключаем режим замены (отдельная папка)
-        Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-            .perform(ViewActions.click())
+    fun testAutoCompressionInSeparateFolderMode() {
+        runBlocking {
+            // Выключаем режим замены (отдельная папка)
+            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
 
-        waitForUI(200)
+            waitForUI(200)
 
-        Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
-            .perform(ViewActions.click())
+            Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
 
-        waitForUI(200)
-        
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+            waitForUI(200)
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем новое изображение
-        val newUri = createTestImage(1920, 1080)
-        if (newUri == null) {
-            return@runBlocking
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
+
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем новое изображение
+            val newUri = createTestImage(1920, 1080)
+            if (newUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что изображение обработано
+            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            LogUtil.processDebug("Изображение обработано в режиме отдельной папки: $hasMarker")
         }
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что изображение обработано
-        val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
-        LogUtil.processDebug("Изображение обработано в режиме отдельной папки: $hasMarker")
     }
 
     /**
      * Тест 12: Проверка игнорирования скриншотов при авто-сжатии
      */
     @Test
-    fun testAutoCompressionIgnoresScreenshots() = runBlocking {
-        // Включаем игнорирование скриншотов
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
+    fun testAutoCompressionIgnoresScreenshots() {
+        runBlocking {
+            // Включаем игнорирование скриншотов
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
 
-        // Ждем обновления UI
-        waitForUI(200)
+            // Ждем обновления UI
+            waitForUI(200)
 
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем скриншот
-        val screenshotUri = createTestImage(1080, 1920)
-        if (screenshotUri == null) {
-            return@runBlocking
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем скриншот
+            val screenshotUri = createTestImage(1080, 1920)
+            if (screenshotUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что скриншот пропущен (если логика игнорирования работает)
+            val hasMarker = ExifUtil.getCompressionMarker(context, screenshotUri).first
+            LogUtil.processDebug("Скриншот обработан при авто-сжатии: $hasMarker")
         }
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что скриншот пропущен (если логика игнорирования работает)
-        val hasMarker = ExifUtil.getCompressionMarker(context, screenshotUri).first
-        LogUtil.processDebug("Скриншот обработан при авто-сжатии: $hasMarker")
     }
 
     /**
      * Тест 13: Проверка игнорирования фото из мессенджеров при авто-сжатии
      */
     @Test
-    fun testAutoCompressionIgnoresMessengerPhotos() = runBlocking {
-        // Включаем игнорирование фото из мессенджеров
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
+    fun testAutoCompressionIgnoresMessengerPhotos() {
+        runBlocking {
+            // Включаем игнорирование фото из мессенджеров
+            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
 
-        // Ждем обновления UI
-        waitForUI(200)
+            // Ждем обновления UI
+            waitForUI(200)
 
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем фото из мессенджера
-        val messengerUri = createTestImage(800, 600)
-        if (messengerUri == null) {
-            return@runBlocking
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем фото из мессенджера
+            val messengerUri = createTestImage(800, 600)
+            if (messengerUri == null) {
+                return@runBlocking
+            }
+
+            // Ждем обработки
+            delay(5000)
+
+            // Проверяем, что фото из мессенджера пропущено (если логика игнорирования работает)
+            val hasMarker = ExifUtil.getCompressionMarker(context, messengerUri).first
+            LogUtil.processDebug("Фото из мессенджера обработано при авто-сжатии: $hasMarker")
         }
-        
-        // Ждем обработки
-        delay(5000)
-        
-        // Проверяем, что фото из мессенджера пропущено (если логика игнорирования работает)
-        val hasMarker = ExifUtil.getCompressionMarker(context, messengerUri).first
-        LogUtil.processDebug("Фото из мессенджера обработано при авто-сжатии: $hasMarker")
     }
 
     /**
      * Тест 14: Проверка обработки нескольких новых изображений
      */
     @Test
-    fun testMultipleNewImagesProcessed() = runBlocking {
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+    fun testMultipleNewImagesProcessed() {
+        runBlocking {
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем несколько новых изображений
-        val newUris = mutableListOf<Uri>()
-        for (i in 1..3) {
-            val uri = createTestImage(1920, 1080)
-            if (uri != null) {
-                newUris.add(uri)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем несколько новых изображений
+            val newUris = mutableListOf<Uri>()
+            for (i in 1..3) {
+                val uri = createTestImage(1920, 1080)
+                if (uri != null) {
+                    newUris.add(uri)
+                }
             }
-        }
-        
-        // Ждем обработки
-        delay(10000)
-        
-        // Проверяем, что изображения обработаны
-        var processedCount = 0
-        for (uri in newUris) {
-            val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
-            if (hasMarker) {
-                processedCount++
+
+            // Ждем обработки
+            delay(10000)
+
+            // Проверяем, что изображения обработаны
+            var processedCount = 0
+            for (uri in newUris) {
+                val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+                if (hasMarker) {
+                    processedCount++
+                }
             }
+
+            LogUtil.processDebug("Обработано $processedCount из ${newUris.size} новых изображений")
         }
-        
-        LogUtil.processDebug("Обработано $processedCount из ${newUris.size} новых изображений")
     }
 
     /**
      * Тест 15: Проверка статистики авто-сжатия
      */
     @Test
-    fun testAutoCompressionStatistics() = runBlocking {
-        // Включаем авто-сжатие
-        Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-            .perform(ViewActions.click())
+    fun testAutoCompressionStatistics() {
+        runBlocking {
+            // Включаем авто-сжатие
+            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
+                .perform(ViewActions.click())
 
-        // Ждем обновления UI (checkbox toggle требует больше времени)
-        waitForUI(1000)
-        
-        // Ждем запуска службы
-        delay(2000)
-        
-        // Создаем несколько новых изображений
-        val newUris = mutableListOf<Uri>()
-        for (i in 1..5) {
-            val uri = createTestImage(1920, 1080)
-            if (uri != null) {
-                newUris.add(uri)
+            // Ждем обновления UI (checkbox toggle требует больше времени)
+            waitForUI(1000)
+
+            // Ждем запуска службы
+            delay(2000)
+
+            // Создаем несколько новых изображений
+            val newUris = mutableListOf<Uri>()
+            for (i in 1..5) {
+                val uri = createTestImage(1920, 1080)
+                if (uri != null) {
+                    newUris.add(uri)
+                }
             }
-        }
-        
-        // Ждем обработки
-        delay(10000)
-        
-        // Проверяем статистику
-        var totalOriginalSize = 0L
-        var totalCompressedSize = 0L
-        var processedCount = 0
-        
-        for (uri in newUris) {
-            val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
-            if (hasMarker) {
-                val originalSize = UriUtil.getFileSizeSync(context, uri)
-                val compressedSize = UriUtil.getFileSizeSync(context, uri) // В режиме замены размер тот же
-                totalOriginalSize += originalSize
-                totalCompressedSize += compressedSize
-                processedCount++
+
+            // Ждем обработки
+            delay(10000)
+
+            // Проверяем статистику
+            var totalOriginalSize = 0L
+            var totalCompressedSize = 0L
+            var processedCount = 0
+
+            for (uri in newUris) {
+                val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+                if (hasMarker) {
+                    val originalSize = UriUtil.getFileSizeSync(context, uri)
+                    val compressedSize = UriUtil.getFileSizeSync(context, uri) // В режиме замены размер тот же
+                    totalOriginalSize += originalSize
+                    totalCompressedSize += compressedSize
+                    processedCount++
+                }
             }
+
+            val totalSavings = totalOriginalSize - totalCompressedSize
+            LogUtil.processDebug("Статистика авто-сжатия: обработано=$processedCount, экономия=$totalSavings байт")
         }
-        
-        val totalSavings = totalOriginalSize - totalCompressedSize
-        LogUtil.processDebug("Статистика авто-сжатия: обработано=$processedCount, экономия=$totalSavings байт")
     }
 
     // ========== Вспомогательные методы ==========
