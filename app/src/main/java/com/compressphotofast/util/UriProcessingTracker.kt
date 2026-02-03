@@ -6,11 +6,14 @@ import java.lang.ref.WeakReference
 import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Утилитарный класс для отслеживания обрабатываемых URI
  * Предотвращает дублирование обработки и отслеживает состояние URI
+ *
+ * ОПТИМИЗИРОВАНО: Использует Mutex вместо busy wait для эффективной синхронизации
  */
 object UriProcessingTracker {
 
@@ -22,33 +25,33 @@ object UriProcessingTracker {
 
     // Множество URI, которые недоступны (не существуют)
     private val unavailableUris = ConcurrentHashMap<String, Long>()
-    
+
     // Время истечения для недоступных URI (2 минуты - уменьшено для более быстрого восстановления)
     private const val UNAVAILABLE_URI_EXPIRATION = 2 * 60 * 1000L
-    
+
     fun initialize(context: Context) {
         // Используем Application Context для предотвращения утечек памяти
         this.contextRef = WeakReference(context.applicationContext)
     }
-    
+
     // Карта URI с временными метками, которые недавно были обработаны
     private val recentlyProcessedUris = ConcurrentHashMap<String, Long>()
-    
+
     // Карта для отслеживания времени игнорирования URI
     private val ignoreUrisUntil = ConcurrentHashMap<String, Long>()
-    
+
     // Время последней очистки recentlyProcessedUris
     private var lastCleanupTime = System.currentTimeMillis()
-    
+
     // Интервал очистки (1 час)
     private const val CLEANUP_INTERVAL = 3600000L
-    
+
     // Максимальное количество URI в recentlyProcessedUris
     private const val MAX_RECENT_URIS = 1000
-    
+
     // Время истечения для недавно обработанных URI (10 минут)
     private const val RECENTLY_PROCESSED_EXPIRATION = 10 * 60 * 1000L
-    
+
     // Время игнорирования URI после обработки (5 секунд)
     private const val IGNORE_PERIOD = 5000L
 
@@ -60,6 +63,12 @@ object UriProcessingTracker {
 
     // Время после которого URI считается stale (5 минут)
     private const val STALE_URI_THRESHOLD = 5 * 60 * 1000L
+
+    // Карта для Mutex'ов на каждый URI - заменяет busy wait на эффективную блокировку
+    private val uriLocks = ConcurrentHashMap<String, Mutex>()
+
+    // Максимальное количество Mutex'ов в карте (для оптимизации памяти)
+    private const val MAX_MUTEX_COUNT = 100
 
     /**
      * Добавляет URI в список обрабатываемых
@@ -83,14 +92,14 @@ object UriProcessingTracker {
             cleanupStaleUris()
         }
     }
-    
+
     /**
      * Проверяет, находится ли URI в списке обрабатываемых
      */
     fun isProcessing(uri: Uri): Boolean {
         return processingUris.contains(uri.toString())
     }
-    
+
     /**
      * Удаляет URI из списка обрабатываемых
      */
@@ -128,7 +137,32 @@ object UriProcessingTracker {
     }
 
     /**
+     * Очищает неиспользуемые Mutex'ы для оптимизации памяти
+     * Удаляет Mutex'ы для URI, которые сейчас не обрабатываются
+     */
+    private fun cleanupUnusedMutexes() {
+        val toRemove = mutableListOf<String>()
+
+        uriLocks.keys.forEach { uriString ->
+            // Удаляем Mutex если URI не обрабатывается в данный момент
+            if (!processingUris.contains(uriString)) {
+                toRemove.add(uriString)
+            }
+        }
+
+        toRemove.forEach { uriString ->
+            uriLocks.remove(uriString)
+        }
+
+        if (toRemove.isNotEmpty()) {
+            LogUtil.processDebug("Очистка ${toRemove.size} неиспользуемых Mutex'ов (осталось: ${uriLocks.size})")
+        }
+    }
+
+    /**
      * Выполняет операцию с блокировкой на уровне URI для предотвращения race conditions
+     * ИСПОЛЬЗУЕТ MUTEX: Заменяет неэффективный busy wait на эффективную блокировку
+     *
      * @param uri URI для блокировки
      * @param operation Операция, которую нужно выполнить с блокировкой
      * @return Результат операции
@@ -136,34 +170,27 @@ object UriProcessingTracker {
     suspend fun <T> withUriLock(uri: Uri, operation: suspend () -> T): T {
         val uriString = uri.toString()
 
-        // Ждем завершения текущих операций (максимум 5 секунд)
-        val startTime = System.currentTimeMillis()
-        val maxWaitTime = 5000L // 5 секунд
-        val checkInterval = 100L // Проверять каждые 100мс
+        // Получаем или создаем Mutex для конкретного URI
+        val mutex = uriLocks.getOrPut(uriString) { Mutex() }
 
-        while (processingUris.contains(uriString) &&
-               System.currentTimeMillis() - startTime < maxWaitTime) {
-            LogUtil.processDebug("Ожидание освобождения URI: $uriString")
-            delay(checkInterval)
+        // Очищаем неиспользуемые Mutex'ы если их слишком много
+        if (uriLocks.size > MAX_MUTEX_COUNT) {
+            cleanupUnusedMutexes()
         }
 
-        // Если URI все еще обрабатывается после таймаута, выполняем операцию anyway
-        // чтобы избежать вечного ожидания, но логируем это
-        if (processingUris.contains(uriString)) {
-            LogUtil.processDebug("URI все еще обрабатывается после таймаута: $uriString, выполняем операцию")
-        }
+        return mutex.withLock {
+            // Добавляем в обработку внутри блокировки
+            addProcessingUri(uri)
 
-        // Добавляем в обработку
-        addProcessingUri(uri)
-
-        return try {
-            operation()
-        } finally {
-            // Гарантированно удаляем из обработки
-            removeProcessingUri(uri)
+            try {
+                operation()
+            } finally {
+                // Гарантированно удаляем из обработки
+                removeProcessingUri(uri)
+            }
         }
     }
-    
+
     /**
      * Добавляет URI в список недавно обработанных
      */
@@ -173,14 +200,14 @@ object UriProcessingTracker {
         recentlyProcessedUris[uriString] = timestamp
         LogUtil.processDebug("URI добавлен в список недавно обработанных: $uriString")
     }
-    
+
     /**
      * Проверяет, был ли URI недавно обработан
      */
     fun wasRecentlyProcessed(uri: Uri): Boolean {
         return isUriRecentlyProcessed(uri.toString())
     }
-    
+
     /**
      * Проверяет, был ли URI недавно обработан по строковому представлению
      */
@@ -189,7 +216,7 @@ object UriProcessingTracker {
         val now = System.currentTimeMillis()
         return (now - timestamp) < RECENTLY_PROCESSED_EXPIRATION
     }
-    
+
     /**
      * Устанавливает период игнорирования для URI до указанного времени
      */
@@ -198,7 +225,7 @@ object UriProcessingTracker {
         ignoreUrisUntil[uriString] = ignoreUntil
         LogUtil.processDebug("Установлен период игнорирования для URI: $uriString до ${java.util.Date(ignoreUntil)}")
     }
-    
+
     /**
      * Устанавливает стандартный период игнорирования для URI
      */
@@ -206,14 +233,14 @@ object UriProcessingTracker {
         val ignoreUntil = System.currentTimeMillis() + IGNORE_PERIOD
         setIgnoreUntil(uri, ignoreUntil)
     }
-    
+
     /**
      * Проверяет, должен ли URI игнорироваться в данный момент
      */
     fun shouldIgnore(uri: Uri): Boolean {
         return shouldIgnoreUri(uri.toString())
     }
-    
+
     /**
      * Возвращает количество URI, которые в настоящее время обрабатываются
      * @return Количество обрабатываемых URI
@@ -221,7 +248,7 @@ object UriProcessingTracker {
     fun getProcessingCount(): Int {
         return processingUris.size
     }
-    
+
     /**
      * Проверяет, не следует ли игнорировать заданный URI (был недавно обработан или в периоде игнорирования)
      * @param uriString URI для проверки
@@ -234,33 +261,33 @@ object UriProcessingTracker {
             LogUtil.processDebug("URI в периоде игнорирования: $uriString")
             return true
         }
-        
+
         // Очистка устаревших записей
         checkAndCleanRecentList()
-        
+
         // Проверяем, есть ли URI в списке недавно обработанных
         return isUriRecentlyProcessed(uriString)
     }
-    
+
     /**
      * Проверяет, нужно ли очистить список недавно обработанных URI
      */
     private fun checkAndCleanRecentList() {
         val currentTime = System.currentTimeMillis()
-        
+
         // Если прошло достаточно времени с последней очистки или список слишком большой
         if (currentTime - lastCleanupTime > CLEANUP_INTERVAL || recentlyProcessedUris.size > MAX_RECENT_URIS) {
             cleanupStaleEntries()
             lastCleanupTime = currentTime
         }
     }
-    
+
     /**
      * Очищает устаревшие URI из списка недавно обработанных и истекшие периоды игнорирования
      */
     fun cleanupStaleEntries() {
         val now = System.currentTimeMillis()
-        
+
         // Очищаем устаревшие URI из списка недавно обработанных
         val expiredUris = mutableListOf<String>()
         for ((uri, timestamp) in recentlyProcessedUris) {
@@ -268,11 +295,11 @@ object UriProcessingTracker {
                 expiredUris.add(uri)
             }
         }
-        
+
         for (uri in expiredUris) {
             recentlyProcessedUris.remove(uri)
         }
-        
+
         // Очищаем истекшие периоды игнорирования
         val expiredIgnorePeriods = mutableListOf<String>()
         for ((uri, ignoreUntil) in ignoreUrisUntil) {
@@ -280,11 +307,11 @@ object UriProcessingTracker {
                 expiredIgnorePeriods.add(uri)
             }
         }
-        
+
         for (uri in expiredIgnorePeriods) {
             ignoreUrisUntil.remove(uri)
         }
-        
+
         // Очищаем устаревшие недоступные URI
         val expiredUnavailableUris = mutableListOf<String>()
         for ((uri, timestamp) in unavailableUris) {
@@ -292,17 +319,17 @@ object UriProcessingTracker {
                 expiredUnavailableUris.add(uri)
             }
         }
-        
+
         for (uri in expiredUnavailableUris) {
             unavailableUris.remove(uri)
             LogUtil.processDebug("Устаревший URI удален из списка недоступных: $uri")
         }
-        
+
         LogUtil.processDebug("Очищены устаревшие URI из списка недавно обработанных (удалено: ${expiredUris.size}, осталось: ${recentlyProcessedUris.size})")
         LogUtil.processDebug("Очищены истекшие периоды игнорирования (удалено: ${expiredIgnorePeriods.size}, осталось: ${ignoreUrisUntil.size})")
         LogUtil.processDebug("Очищены устаревшие недоступные URI (удалено: ${expiredUnavailableUris.size}, осталось: ${unavailableUris.size})")
     }
-    
+
     /**
      * Сбрасывает все списки отслеживания URI
      */
@@ -311,9 +338,10 @@ object UriProcessingTracker {
         recentlyProcessedUris.clear()
         ignoreUrisUntil.clear()
         unavailableUris.clear()
+        uriLocks.clear()
         LogUtil.processDebug("Все списки отслеживания URI очищены")
     }
-    
+
     /**
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
      * Расширенная проверка с учетом всех состояний
@@ -343,7 +371,7 @@ object UriProcessingTracker {
 
         return isProcessing || isIgnored || isRecentlyProcessed
     }
-    
+
     /**
      * Добавляет URI в список обрабатываемых с дополнительной информацией
      */
@@ -352,7 +380,7 @@ object UriProcessingTracker {
         processingUris.add(uriString)
         LogUtil.processDebug("URI добавлен в список обрабатываемых из $source: $uriString (всего: ${processingUris.size})")
     }
-    
+
     /**
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
      * Расширенная проверка с учетом времени модификации файла
@@ -392,14 +420,14 @@ object UriProcessingTracker {
 
         return isProcessing || isIgnored || isRecentlyProcessed
     }
-    
+
     /**
      * Получает статистику кэшей для мониторинга производительности
      */
     fun getCacheStats(): String {
-        return "UriTracker: обрабатывается ${processingUris.size}, недавно обработано ${recentlyProcessedUris.size}, игнорируется ${ignoreUrisUntil.size}, недоступно ${unavailableUris.size}"
+        return "UriTracker: обрабатывается ${processingUris.size}, недавно обработано ${recentlyProcessedUris.size}, игнорируется ${ignoreUrisUntil.size}, недоступно ${unavailableUris.size}, mutex'ов ${uriLocks.size}"
     }
-    
+
     /**
      * Помечает URI как недоступный
      */
@@ -417,7 +445,7 @@ object UriProcessingTracker {
         unavailableUris.remove(uriString)
         LogUtil.processDebug("URI удален из списка недоступных: $uriString")
     }
-    
+
     /**
      * Помечает URI как временно недоступный (pending)
      * Используется когда файл существует, но еще не готов (is_pending=1)
@@ -428,19 +456,19 @@ object UriProcessingTracker {
         unavailableUris[uriString] = System.currentTimeMillis()
         LogUtil.processDebug("URI помечен как ожидающий (pending): $uriString")
     }
-    
+
     /**
      * Проверяет, является ли URI недоступным
      */
     fun isUriUnavailable(uri: Uri): Boolean {
         val uriString = uri.toString()
-        
+
         // Очищаем устаревшие записи перед проверкой
         cleanupStaleUnavailableEntries()
-        
+
         return unavailableUris.containsKey(uriString)
     }
-    
+
     /**
      * Очищает устаревшие записи недоступных URI
      */
