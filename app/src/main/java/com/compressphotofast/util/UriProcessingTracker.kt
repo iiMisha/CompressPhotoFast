@@ -2,6 +2,7 @@ package com.compressphotofast.util
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.WeakReference
 import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
@@ -15,10 +16,10 @@ object UriProcessingTracker {
 
     // Множество URI, которые в данный момент обрабатываются
     private val processingUris = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
-    
-    // Контекст для доступа к UriUtil (инжектится через инициализацию)
-    private var context: Context? = null
-    
+
+    // Слабая ссылка на контекст для доступа к UriUtil (предотвращает утечку памяти)
+    private var contextRef: WeakReference<Context>? = null
+
     // Множество URI, которые недоступны (не существуют)
     private val unavailableUris = ConcurrentHashMap<String, Long>()
     
@@ -26,7 +27,8 @@ object UriProcessingTracker {
     private const val UNAVAILABLE_URI_EXPIRATION = 2 * 60 * 1000L
     
     fun initialize(context: Context) {
-        this.context = context
+        // Используем Application Context для предотвращения утечек памяти
+        this.contextRef = WeakReference(context.applicationContext)
     }
     
     // Карта URI с временными метками, которые недавно были обработаны
@@ -328,7 +330,7 @@ object UriProcessingTracker {
             // Проверяем время модификации файла - если он был изменен совсем недавно,
             // возможно он все еще находится в процессе обработки другим процессом
             try {
-                val appContext = context ?: return isProcessing || isIgnored || isRecentlyProcessed
+                val appContext = contextRef?.get() ?: return isProcessing || isIgnored || isRecentlyProcessed
                 val lastModified = UriUtil.getFileLastModified(appContext, uri)
                 val currentTime = System.currentTimeMillis()
                 if (lastModified > 0 && (currentTime - lastModified < 5000)) { // 5 секунд
@@ -376,7 +378,7 @@ object UriProcessingTracker {
                 // Проверяем время модификации файла - если он был изменен совсем недавно,
                 // возможно он все еще находится в процессе обработки другим процессом
                 try {
-                    val appContext = context ?: return isProcessing || isIgnored || isRecentlyProcessed
+                    val appContext = contextRef?.get() ?: return isProcessing || isIgnored || isRecentlyProcessed
                     val lastModified = UriUtil.getFileLastModified(appContext, uri)
                     val currentTime = System.currentTimeMillis()
                     if (lastModified > 0 && (currentTime - lastModified < 5000L)) { // 5 секунд
