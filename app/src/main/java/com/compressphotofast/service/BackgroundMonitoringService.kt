@@ -15,9 +15,12 @@ import com.compressphotofast.util.StatsTracker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
@@ -46,32 +49,16 @@ class BackgroundMonitoringService : Service() {
 
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
-    
+
     // Интервал сканирования галереи для новых изображений (5 минут)
     // Оптимизировано с 1 минуты для снижения энергопотребления на 40-60%
     private val scanInterval = 300000L
 
-    // Handler для периодического сканирования
-    private val handler = Handler(Looper.getMainLooper())
-    private val scanRunnable = object : Runnable {
-        override fun run() {
-            LogUtil.processDebug("Сканирование галереи")
-            scanForNewImages()
-            // Планируем следующее сканирование через 5 минут для оптимизации энергопотребления
-            handler.postDelayed(this, scanInterval)
-        }
-    }
+    // Job для периодического сканирования галереи
+    private var scanJob: Job? = null
 
-    // Handler для периодической очистки временных файлов
-    private val cleanupHandler = Handler(Looper.getMainLooper())
-    private val cleanupRunnable = object : Runnable {
-        override fun run() {
-            LogUtil.processDebug("Очистка временных файлов")
-            cleanupTempFiles()
-            // Планируем следующую очистку через 24 часа
-            cleanupHandler.postDelayed(this, 24 * 60 * 60 * 1000) // 24 часа
-        }
-    }
+    // Job для периодической очистки временных файлов
+    private var cleanupJob: Job? = null
     
     // BroadcastReceiver для обработки запросов на обработку изображений
     private val imageProcessingReceiver = object : android.content.BroadcastReceiver() {
@@ -169,11 +156,11 @@ class BackgroundMonitoringService : Service() {
         }
         
         // Запускаем периодическое сканирование для обеспечения обработки всех изображений
-        handler.post(scanRunnable)
+        startPeriodicScanning()
         LogUtil.processDebug("Периодическое сканирование запущено")
 
         // Запускаем периодическую очистку временных файлов
-        cleanupHandler.post(cleanupRunnable)
+        startPeriodicCleanup()
         LogUtil.processDebug("Очистка временных файлов запущена")
     }
 
@@ -239,9 +226,9 @@ class BackgroundMonitoringService : Service() {
         mediaStoreObserver?.unregister()
 
         // Останавливаем периодическое сканирование
-        handler.removeCallbacks(scanRunnable)
+        scanJob?.cancel()
         // Останавливаем периодическую очистку
-        cleanupHandler.removeCallbacks(cleanupRunnable)
+        cleanupJob?.cancel()
 
         // Отменяем регистрацию BroadcastReceiver
         try {
@@ -283,7 +270,7 @@ class BackgroundMonitoringService : Service() {
         serviceScope.launch {
             // Периодически проверяем недоступные URI и восстанавливаем их
             try {
-                val recoveredCount = uriProcessingTracker.retryUnavailableUris(applicationContext)
+                val recoveredCount = uriProcessingTracker.retryUnavailableUris()
                 if (recoveredCount > 0) {
                     LogUtil.processDebug("Восстановлено $recoveredCount URI")
                 }
@@ -389,5 +376,35 @@ class BackgroundMonitoringService : Service() {
      */
     private fun cleanupTempFiles() {
         TempFilesCleaner.cleanupTempFiles(applicationContext)
+    }
+
+    /**
+     * Запуск периодического сканирования галереи
+     * Использует корутины вместо Handler для лучшей производительности
+     */
+    private fun startPeriodicScanning() {
+        scanJob = serviceScope.launch {
+            while (isActive) {
+                LogUtil.processDebug("Сканирование галереи")
+                scanForNewImages()
+                // Планируем следующее сканирование через 5 минут для оптимизации энергопотребления
+                delay(scanInterval)
+            }
+        }
+    }
+
+    /**
+     * Запуск периодической очистки временных файлов
+     * Использует корутины вместо Handler для лучшей производительности
+     */
+    private fun startPeriodicCleanup() {
+        cleanupJob = serviceScope.launch {
+            while (isActive) {
+                LogUtil.processDebug("Очистка временных файлов")
+                cleanupTempFiles()
+                // Планируем следующую очистку через 24 часа
+                delay(24 * 60 * 60 * 1000L) // 24 часа
+            }
+        }
     }
 } 
