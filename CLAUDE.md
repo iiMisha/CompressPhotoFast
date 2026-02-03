@@ -74,7 +74,7 @@
 При работе с проектом CompressPhotoFast необходимо обращаться к следующим файлам:
 
 ### 1. Правила разработки
-**Файл:** [`.kilocode/rules/rules.md`](.kilocode/rules/rules.md)
+**Файл:** [`.claude/rules/rules.md`](.claude/rules/rules.md)
 
 Содержит основные правила разработки:
 - Настройки (язык общения, ОС)
@@ -82,15 +82,16 @@
 - Планирование разработки с указанием необходимости сборки
 
 ### 2. Memory Bank
-**Папка:** [`.kilocode/rules/memory-bank/`](.kilocode/rules/memory-bank/)
+**Папка:** [`.claude/memory-bank/`](.claude/memory-bank/)
 
 Содержит документацию проекта:
-- [`brief.md`](.kilocode/rules/memory-bank/brief.md) - краткое описание проекта
-- [`product.md`](.kilocode/rules/memory-bank/product.md) - описание продукта и функций
-- [`context.md`](.kilocode/rules/memory-bank/context.md) - текущий контекст и последние изменения
-- [`architecture.md`](.kilocode/rules/memory-bank/architecture.md) - архитектура приложения
-- [`tech.md`](.kilocode/rules/memory-bank/tech.md) - технологический стек
-- [`memory-bank-instructions.md`](.kilocode/rules/memory-bank/memory-bank-instructions.md) - инструкции по работе с Memory Bank
+- [`brief.md`](.claude/memory-bank/brief.md) - краткое описание проекта
+- [`product.md`](.claude/memory-bank/product.md) - описание продукта и функций
+- [`context.md`](.claude/memory-bank/context.md) - текущий контекст и последние изменения
+- [`architecture.md`](.claude/memory-bank/architecture.md) - архитектура приложения
+- [`tech.md`](.claude/memory-bank/tech.md) - технологический стек
+- [`memory-bank-instructions.md`](.claude/memory-bank/memory-bank-instructions.md) - инструкции по работе с Memory Bank
+- [`tasks.md`](.claude/memory-bank/tasks.md) - список текущих задач
 
 **ВАЖНО:** В начале КАЖДОЙ задачи необходимо читать ВСЕ файлы из Memory Bank.
 
