@@ -76,10 +76,10 @@ Task(Explore, "medium", "Найти существующие Kotlin реализ
 
 ПЕРЕД任何 Kotlin работой прочитай:
 
-- `.kilocode/rules/memory-bank/brief.md`
-- `.kilocode/rules/memory-bank/architecture.md`
-- `.kilocode/rules/memory-bank/tech.md`
-- `.kilocode/rules/memory-bank/context.md`
+- `.claude/memory-bank/brief.md`
+- `.claude/memory-bank/architecture.md`
+- `.claude/memory-bank/tech.md`
+- `.claude/memory-bank/context.md`
 - `.kilocode/rules/rules.md`
 
 ### Шаг 3: Реализация через субагента

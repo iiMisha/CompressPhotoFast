@@ -43,9 +43,9 @@ Task(Explore, "medium", "Найти существующие реализаци�
 
 **ПЕРЕД реализацией прочитай:**
 
-1. `.kilocode/rules/memory-bank/brief.md` - краткое описание проекта
-2. `.kilocode/rules/memory-bank/architecture.md` - архитектура приложения
-3. `.kilocode/rules/memory-bank/context.md` - текущий контекст
+1. `.claude/memory-bank/brief.md` - краткое описание проекта
+2. `.claude/memory-bank/architecture.md` - архитектура приложения
+3. `.claude/memory-bank/context.md` - текущий контекст
 4. `.kilocode/rules/rules.md` - правила разработки
 
 ### Шаг 3: Планирование (для сложных задач)
@@ -267,7 +267,7 @@ Task(voltagent-lang:kotlin-specialist, "Реализовать CompressionViewMo
 
 **ПРАВИЛЬНО:**
 ```
-Read .kilocode/rules/memory-bank/*.md
+Read .claude/memory-bank/*.md
 Затем использовать эту информацию в реализации
 ```
 
@@ -304,7 +304,7 @@ Task(voltagent-lang:kotlin-specialist, "Реализовать изменени�
 Task(Explore, "medium", "Найти существующие реализации Compressor")
 
 // 2. Чтение Memory Bank
-Read .kilocode/rules/memory-bank/architecture.md
+Read .claude/memory-bank/architecture.md
 Read .kilocode/rules/rules.md
 
 // 3. Реализация
@@ -330,7 +330,7 @@ Task(voltagent-lang:kotlin-specialist, "Написать тесты для WebPC
 Task(Explore, "medium", "Найти место где возникает ошибка сжатия")
 
 // 2. Чтение контекста
-Read .kilocode/rules/memory-bank/context.md
+Read .claude/memory-bank/context.md
 
 // 3. Исправление
 Task(voltagent-lang:kotlin-specialist, "Исправить баг в сжатии изображений")

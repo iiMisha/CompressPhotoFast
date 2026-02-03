@@ -129,9 +129,9 @@ Task(Explore, "medium", "Найти существующие реализаци�
 ### Шаг 2: Чтение Memory Bank
 
 ПЕРЕД любой разработкой прочитать:
-- `.kilocode/rules/memory-bank/brief.md`
-- `.kilocode/rules/memory-bank/architecture.md`
-- `.kilocode/rules/memory-bank/context.md`
+- `.claude/memory-bank/brief.md`
+- `.claude/memory-bank/architecture.md`
+- `.claude/memory-bank/context.md`
 - `.kilocode/rules/rules.md`
 
 ### Шаг 3: Реализация
