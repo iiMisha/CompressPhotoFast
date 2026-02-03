@@ -14,6 +14,7 @@ import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.SettingsManager
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -597,10 +598,14 @@ class SettingsE2ETest : BaseE2ETest() {
      */
     private fun resetSettings() {
         try {
-            settingsManager.setCompressionQuality(Constants.COMPRESSION_QUALITY_MEDIUM)
-            settingsManager.setSaveMode(false) // false = SAVE_MODE_SEPARATE
-            settingsManager.setAutoCompression(false)
-            settingsManager.setIgnoreMessengerPhotos(false)
+            runBlocking {
+                settingsManager.batchUpdate {
+                    setCompressionQuality(Constants.COMPRESSION_QUALITY_MEDIUM)
+                    setSaveMode(false) // false = SAVE_MODE_SEPARATE
+                    setAutoCompression(false)
+                    setIgnoreMessengerPhotos(false)
+                }
+            }
             LogUtil.processDebug("Настройки сброшены к значениям по умолчанию")
         } catch (e: Exception) {
             LogUtil.errorWithException("Ошибка при сбросе настроек", e)
