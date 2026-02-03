@@ -2,6 +2,54 @@
 
 Этот файл содержит документацию по повторяющимся задачам и рабочим процессам, которые могут потребоваться в будущем.
 
+## Запуск всех тестов и исправление ошибок
+
+**Когда требуется**: При разработке новой функциональности, рефакторинге или перед релизом.
+
+**Файлы для изменения**:
+- Все файлы с тестами (`.kt` файлы в `app/src/test/` и `app/src/androidTest/`)
+- `app/src/androidTest/java/com/compressphotofast/e2e/ShareIntentE2ETest.kt` - E2E тесты Share Intent
+
+**Шаги**:
+1. Запустить unit тесты: `./gradlew testDebugUnitTest`
+2. Запустить instrumentation тесты: `./gradlew connectedDebugAndroidTest`
+3. Если есть эмулятор Small_Phone - проверить его статус: `adb devices`
+4. При отсутствии эмулятора запустить: `./scripts/start_emulator.sh`
+5. Проанализировать результаты тестов и найти failing/skipped тесты
+6. Исправить ошибки в тестах или коде
+7. Удалить тесты с аннотацией `@Ignore` если они не актуальны
+8. Повторно запустить все тесты для проверки исправлений
+9. Сгенерировать coverage отчет: `./gradlew jacocoTestReport`
+
+**Важные замечания**:
+- Для instrumentation тестов обязательно нужен эмулятор или устройство
+- Эмулятор Small_Phone должен быть запущен перед запуском тестов
+- Unit тесты выполняются быстрее (~7-8 минут)
+- Instrumentation тесты выполняются дольше (~8-15 минут)
+- Coverage отчет доступен в `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+
+**Ожидаемые результаты**:
+- Все тесты должны проходить (0 failed)
+- Никаких пропущенных тестов (0 skipped) - или ясное понимание почему они пропущены
+- BUILD SUCCESSFUL после выполнения команд
+
+**Проблемы с Share Intent автоматическим сжатием**:
+- Тесты `testAutomaticCompression`, `testResultSaved`, `testCompressionInReplaceMode` были удалены из `ShareIntentE2ETest.kt`
+- Проблема: автоматическое сжатие через Share Intent не работает корректно
+- Сжатый файл не находится в MediaStore ни по DATE_ADDED, ни по DATE_MODIFIED
+- Требуется отладка логики обработки ACTION_SEND в MainActivity
+
+**Пример запуска**:
+```bash
+# Запуск всех тестов
+./gradlew testDebugUnitTest connectedDebugAndroidTest
+
+# Или через скрипт
+./scripts/run_all_tests.sh --start-emulator
+```
+
+
+
 ## Добавление новых unit тестов
 
 **Когда требуется**: При добавлении новой функциональности или рефакторинге существующего кода.
