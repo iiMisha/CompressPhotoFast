@@ -124,8 +124,8 @@ arguments:
 ### Шаг 2: Анализ кода
 Используются специализированные агенты:
 - **Glob/Grep/Read** - для поиска файлов по паттернам (БЕЗ Explore)
-- **kotlin-specialist** - для глубокого анализа Kotlin кода
-- **java-architect** - если есть legacy Java код
+- **voltagent-lang:kotlin-specialist** - для глубокого анализа Kotlin кода
+- **voltagent-lang:java-architect** - если есть legacy Java код
 
 ### Шаг 3: Категоризация проблем
 Найденные проблемы группируются по:

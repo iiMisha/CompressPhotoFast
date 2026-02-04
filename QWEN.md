@@ -16,26 +16,26 @@
 #### 2. Языковые субагенты (voltagent-lang:*)
 Используйте для работы с конкретным языком:
 
-- **`kotlin-specialist`** - Kotlin (корутины, KMP, Android) - ОСНОВНОЙ для проекта
-- **`java-architect`** - Java (для legacy кода или Android библиотек)
-- **`javascript-pro`** / **`typescript-pro`** - JS/TS (для build scripts, frontend частей)
-- **`python-pro`** - Python 3.11+ (для скриптов, автоматизации, тестов)
-- **`cpp-pro`** - C++ (для JNI/native кода)
-- **`rust-engineer`** - Rust (для native модулей)
+- **`voltagent-lang:kotlin-specialist`** - Kotlin (корутины, KMP, Android) - ОСНОВНОЙ для проекта
+- **`voltagent-lang:java-architect`** - Java (для legacy кода или Android библиотек)
+- **`voltagent-lang:javascript-pro`** / **`voltagent-lang:typescript-pro`** - JS/TS (для build scripts, frontend частей)
+- **`voltagent-lang:python-pro`** - Python 3.11+ (для скриптов, автоматизации, тестов)
+- **`voltagent-lang:cpp-pro`** - C++ (для JNI/native кода)
+- **`voltagent-lang:rust-engineer`** - Rust (для native модулей)
 
 #### 2.1. Субагенты для тестирования
 Используйте для написания и улучшения тестов:
 
-- **`kotlin-specialist`** - для unit и instrumentation тестов (JUnit, MockK, Espresso)
+- **`voltagent-lang:kotlin-specialist`** - для unit и instrumentation тестов (JUnit, MockK, Espresso)
 - **`general-purpose`** - для настройки тестовой инфраструктуры, CI/CD для тестов
 
 #### 3. Инфраструктурные субагенты (voltagent-infra:*)
 Используйте для DevOps/CI/CD/инфраструктуры:
 
-- **`devops-engineer`** - CI/CD, automation, bridging dev/ops
-- **`deployment-engineer`** - Release automation, deployments
-- **`platform-engineer`** - Internal developer platforms
-- **`security-engineer`** - DevSecOps, vulnerability management
+- **`voltagent-infra:devops-engineer`** - CI/CD, automation, bridging dev/ops
+- **`voltagent-infra:deployment-engineer`** - Release automation, deployments
+- **`voltagent-infra:platform-engineer`** - Internal developer platforms
+- **`voltagent-infra:security-engineer`** - DevSecOps, vulnerability management
 
 #### 4. Универсальные субагенты
 
@@ -66,7 +66,7 @@
 
 ✅ **Запускайте агентов параллельно** - одно сообщение с несколькими Task вызовами
 ✅ **Выбирайте специализированного агента** под технологию
-✅ **Для CompressPhotoFast** (Kotlin/Android) → `kotlin-specialist`
+✅ **Для CompressPhotoFast** (Kotlin/Android) → `voltagent-lang:kotlin-specialist`
 ✅ **Сначала Explore** для исследования кода, затем специализированный агент
 
 ## Обязательные файлы для чтения

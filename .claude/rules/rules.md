@@ -63,7 +63,7 @@ HTML отчет покрытия: `app/build/reports/jacoco/jacocoTestReport/htm
 ОБЯЗАТЕЛЬНО используйте специализированные субагенты для выполнения задач:
 
 ### 1. Kotlin/Android разработка
-- **`kotlin-specialist`** - для основной работы над проектом:
+- **`voltagent-lang:kotlin-specialist`** - для основной работы над проектом:
   - Написание и рефакторинг Kotlin кода
   - Работа с корутинами, Jetpack Compose, Android SDK
   - Написание unit и instrumentation тестов
@@ -75,7 +75,7 @@ HTML отчет покрытия: `app/build/reports/jacoco/jacocoTestReport/htm
   - Ответы на вопросы о структуре кодовой базы
 
 ### 3. Тестирование
-- **`kotlin-specialist`** - для написания тестов
+- **`voltagent-lang:kotlin-specialist`** - для написания тестов
 - **`android-test-suite`** - для комплексного тестирования (skill)
 
 ### 4. Планирование
