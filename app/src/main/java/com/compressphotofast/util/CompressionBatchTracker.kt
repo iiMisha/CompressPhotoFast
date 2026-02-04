@@ -25,10 +25,18 @@ class CompressionBatchTracker @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) {
 
+    init {
+        // Инициализируем статический экземпляр при создании DI-синглтона
+        // Это гарантирует, что staticInstance будет доступен после ребута устройства
+        staticInstance = this
+    }
+
     companion object {
         /**
          * Статический экземпляр для обратной совместимости
          * Используется в ImageProcessingUtil (object) который не может инжектировать зависимости
+         *
+         * IMPORTANT: staticInstance инициализируется при создании DI-экземпляра через init-блок
          *
          * TODO: Удалить после рефакторинга ImageProcessingUtil в injectable class
          */
@@ -238,10 +246,9 @@ class CompressionBatchTracker @Inject constructor(
         // Проверяем, завершен ли батч
         if (batch.isComplete()) {
             processBatch(batchId)
-        } else if (!batch.isIntentBatch) {
-            // Для автобатчей продлеваем таймаут
-            extendAutoBatchTimeout(batchId)
         }
+        // Для автобатчей НЕ продлеваем таймаут при добавлении результатов
+        // Автобатчи завершаются только по исходному таймауту (60 секунд)
     }
 
     /**

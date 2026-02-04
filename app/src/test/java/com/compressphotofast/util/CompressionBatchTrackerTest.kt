@@ -324,4 +324,67 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         // Батч должен быть активен (таймаут 30 секунд)
         assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Батч должен быть активен до таймаута" }
     }
+
+    @Test
+    fun `Статический экземпляр инициализируется при создании`() {
+        // Arrange & Act
+        // Создаем экземпляр напрямую (как это делает DI)
+        val tracker = CompressionBatchTracker(mockContext)
+
+        // Assert
+        // После создания статический экземпляр должен быть доступен через addResultCompat
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 1)
+
+        CompressionBatchTracker.addResultCompat(
+            batchId = batchId,
+            fileName = "test.jpg",
+            originalSize = 1024000L,
+            compressedSize = 512000L,
+            sizeReduction = 50.0f,
+            skipped = false
+        )
+
+        // Небольшая задержка для обработки корутины
+        Thread.sleep(100)
+
+        // Батч должен быть завершен, так как результат был добавлен через статический метод
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 0) { "Батч должен быть завершен через статический экземпляр" }
+    }
+
+    @Test
+    fun `Несколько результатов через статический экземпляр`() {
+        // Arrange
+        val tracker = CompressionBatchTracker(mockContext)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 3)
+
+        // Act
+        CompressionBatchTracker.addResultCompat(
+            batchId = batchId,
+            fileName = "test1.jpg",
+            originalSize = 1024000L,
+            compressedSize = 512000L,
+            sizeReduction = 50.0f,
+            skipped = false
+        )
+        CompressionBatchTracker.addResultCompat(
+            batchId = batchId,
+            fileName = "test2.jpg",
+            originalSize = 2048000L,
+            compressedSize = 1024000L,
+            sizeReduction = 50.0f,
+            skipped = false
+        )
+        CompressionBatchTracker.addResultCompat(
+            batchId = batchId,
+            fileName = "test3.jpg",
+            originalSize = 512000L,
+            compressedSize = 256000L,
+            sizeReduction = 50.0f,
+            skipped = false
+        )
+
+        // Assert
+        Thread.sleep(100)
+        assert(CompressionBatchTracker.getActiveBatchCountCompat() == 0) { "Батч должен быть завершен после добавления всех результатов" }
+    }
 }

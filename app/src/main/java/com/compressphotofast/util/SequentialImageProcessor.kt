@@ -148,18 +148,17 @@ class SequentialImageProcessor(
     
     /**
      * Обновляет прогресс обработки в StateFlow
+     * OPTIMIZED: StateFlow thread-safe, не нужно withContext(Dispatchers.Main)
      */
-    private suspend fun updateProgressState(success: Boolean = false, skipped: Boolean = false) {
-        withContext(Dispatchers.Main) {
-            val currentProgress = _progress.value
-            val newProgress = currentProgress.copy(
-                processed = currentProgress.processed + 1,
-                successful = if (success) currentProgress.successful + 1 else currentProgress.successful,
-                failed = if (!success && !skipped) currentProgress.failed + 1 else currentProgress.failed,
-                skipped = if (skipped) currentProgress.skipped + 1 else currentProgress.skipped
-            )
-            _progress.value = newProgress
-        }
+    private fun updateProgressState(success: Boolean = false, skipped: Boolean = false) {
+        val currentProgress = _progress.value
+        val newProgress = currentProgress.copy(
+            processed = currentProgress.processed + 1,
+            successful = if (success) currentProgress.successful + 1 else currentProgress.successful,
+            failed = if (!success && !skipped) currentProgress.failed + 1 else currentProgress.failed,
+            skipped = if (skipped) currentProgress.skipped + 1 else currentProgress.skipped
+        )
+        _progress.value = newProgress
     }
     
     /**
@@ -209,11 +208,10 @@ class SequentialImageProcessor(
 
     /**
      * Освобождает ресурсы при уничтожении объекта
+     * OPTIMIZED: suspend функция без runBlocking для избежания блокировки вызывающего потока
      */
-    fun destroy() {
-        runBlocking {
-            cancelProcessing()
-        }
+    suspend fun destroy() {
+        cancelProcessing()
         processingScope.cancel()
     }
 

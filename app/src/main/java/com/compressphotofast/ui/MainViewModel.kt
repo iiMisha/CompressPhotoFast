@@ -454,7 +454,10 @@ class MainViewModel @Inject constructor(
         }
         workObservers.clear()
 
-        sequentialImageProcessor.destroy()
+        // OPTIMIZED: запускаем cleanup в отдельной корутине без блокировки
+        viewModelScope.launch(Dispatchers.IO) {
+            sequentialImageProcessor.destroy()
+        }
     }
 }
 

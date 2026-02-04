@@ -392,9 +392,7 @@ object ImageCompressionUtil {
             val outputMimeType = "image/jpeg"
             LogUtil.debug("ImageCompression", "MIME тип для сохранения: $outputMimeType")
 
-            // Получаем байты из outputStream
-            val compressedBytes = outputStream.toByteArray()
-
+            // OPTIMIZED: используем toInputStream() вместо toByteArray() для избежания лишней копии
             // Сохранение сжатого файла с безопасным закрытием потока
             val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
                 UriUtil.getDirectoryFromUri(context, uri)
@@ -403,7 +401,7 @@ object ImageCompressionUtil {
             }
 
             val savedFileResult = try {
-                ByteArrayInputStream(compressedBytes).use { compressedInputStream ->
+                outputStream.toInputStream().use { compressedInputStream ->
                     MediaStoreUtil.saveCompressedImageFromStream(
                         context,
                         compressedInputStream,
@@ -471,9 +469,10 @@ object ImageCompressionUtil {
             // Получаем размер сжатого изображения
             val compressedSize = outputStream.size().toLong()
 
+            // OPTIMIZED: используем toInputStream() вместо toByteArray() для избежания лишней копии
             // Безопасная запись с использованием use{} (автоматическое закрытие)
             try {
-                ByteArrayInputStream(outputStream.toByteArray()).use { compressedInputStream ->
+                outputStream.toInputStream().use { compressedInputStream ->
                     FileOutputStream(tempFile).use { fileOutputStream ->
                         compressedInputStream.copyTo(fileOutputStream)
                         fileOutputStream.flush()

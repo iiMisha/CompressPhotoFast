@@ -71,17 +71,20 @@ class UriProcessingTracker @Inject constructor(
     /**
      * Добавляет URI в список обрабатываемых
      * Проверяет на дубликаты и добавляет трекинг времени
+     * OPTIMIZED: атомарная операция без race condition
      */
     fun addProcessingUri(uri: Uri) {
         val uriString = uri.toString()
 
-        // Проверяем перед добавлением - предотвращаем дубликаты
-        if (processingUris.contains(uriString)) {
+        // OPTIMIZED: проверяем и добавляем атомарно через возвращаемое значение add()
+        // ConcurrentHashMap.newSetFromMap().add() возвращает false если элемент уже был
+        val wasAdded = processingUris.add(uriString)
+
+        if (!wasAdded) {
             LogUtil.processDebug("URI уже в списке обрабатываемых: $uriString")
             return
         }
 
-        processingUris.add(uriString)
         uriProcessingTime[uriString] = System.currentTimeMillis()
         LogUtil.processDebug("URI добавлен в список обрабатываемых: $uriString (всего: ${processingUris.size})")
 
