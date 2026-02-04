@@ -1,6 +1,7 @@
 # Контекст
 
 ## Последние изменения
+*   **Консолидация правил (04.02.2026)**: Добавлен раздел "Специализированные субагенты (ОБЯЗАТЕЛЬНО)" в rules.md. Удалены дублирующие workflow файлы. Единые правила для использования kotlin-specialist, Explore, Plan агентов.
 *   **Депрекация Task(Explore) (04.02.2026)**: Замена агента Explore на прямые инструменты (Glob/Grep/Read) из-за переполнения памяти (JavaScript heap out of memory). Обновлены все скиллы и правила.
 *   **Рефакторинг на корутины (04.02.2026)**: Handler → CoroutineScope в BackgroundMonitoringService, NotificationUtil. Context Leaks исправлены (CompressionBatchTracker → WeakReference). Mutex в UriProcessingTracker.
 *   **Batch операции (04.02.2026)**: Оптимизация обновления настроек
