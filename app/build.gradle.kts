@@ -171,6 +171,10 @@ dependencies {
     androidTestImplementation("androidx.work:work-testing:2.10.3")
     androidTestImplementation("com.google.truth:truth:1.4.4")
 
+    // Android Test Orchestrator
+    androidTestUtil("androidx.test:orchestrator:1.5.0")
+    androidTestUtil("androidx.test.services:test-services:1.5.0")
+
     // Hilt Testing
     testImplementation("com.google.dagger:hilt-android-testing:2.57.1")
     kspTest("com.google.dagger:hilt-compiler:2.57.1")
