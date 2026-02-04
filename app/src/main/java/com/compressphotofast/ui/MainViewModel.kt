@@ -352,7 +352,9 @@ class MainViewModel @Inject constructor(
      * Останавливает текущую обработку изображений
      */
     fun stopBatchProcessing() {
-        sequentialImageProcessor.cancelProcessing()
+        viewModelScope.launch {
+            sequentialImageProcessor.cancelProcessing()
+        }
     }
 
     /**

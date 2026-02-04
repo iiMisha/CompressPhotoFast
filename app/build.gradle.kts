@@ -32,6 +32,10 @@ android {
             isReturnDefaultValues = true
         }
         animationsDisabled = true
+
+        // Таймаут для instrumentation тестов (15 минут)
+        // Предотвращает прерывание тестов агентом при длительном выполнении
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     buildTypes {
@@ -313,16 +317,16 @@ tasks.register<JacocoReport>("jacocoCombinedTestReport") {
 tasks.withType<Test> {
     maxHeapSize = "2048m"
     jvmArgs("-XX:MaxMetaspaceSize=512m")
-    
+
     // Определение режима через переменную окружения GRADLE_MODE
     // Возможные значения: "eco" (по умолчанию) или "fast"
     val gradleMode = System.getenv("GRADLE_MODE") ?: "eco"
-    
+
     maxParallelForks = when (gradleMode) {
         "fast" -> (Runtime.getRuntime().availableProcessors() / 2).coerceAtMost(4)  // Параллельное выполнение для быстрой сборки
         else -> 1  // Последовательное выполнение для экономии CPU (по умолчанию)
     }
-    
+
     systemProperty("junit.jupiter.execution.parallel.enabled", gradleMode == "fast")
 }
 

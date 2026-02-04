@@ -34,16 +34,16 @@ object ImageProcessingUtil {
      */
     suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false, batchId: String? = null): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
         try {
-            // Добавляем URI в список обрабатываемых
-            UriProcessingTracker.getInstance(context).addProcessingUri(uri)
+            // Добавляем URI в список обрабатываемых (с синхронизацией)
+            UriProcessingTracker.getInstance(context).addProcessingUriSafe(uri, "ImageProcessingUtil")
 
             try {
                 // Сначала проверяем, требуется ли обработка - используем централизованную логику
                 val shouldProcess = ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
 
                 if (!shouldProcess) {
-                    // Удаляем URI из списка обрабатываемых
-                    UriProcessingTracker.getInstance(context).removeProcessingUri(uri)
+                    // Удаляем URI из списка обрабатываемых (с синхронизацией)
+                    UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
                     return@withContext Triple(true, false, "Изображение уже оптимизировано")
                 }
 
@@ -54,8 +54,8 @@ object ImageProcessingUtil {
                 // Если автосжатие отключено и нет флага принудительной обработки,
                 // возвращаем сообщение о том, что нужна ручная обработка
                 if (!isAutoEnabled && !forceProcess) {
-                    // Удаляем URI из списка обрабатываемых
-                    UriProcessingTracker.getInstance(context).removeProcessingUri(uri)
+                    // Удаляем URI из списка обрабатываемых (с синхронизацией)
+                    UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
                     return@withContext Triple(true, false, "Требуется ручное сжатие")
                 }
 
@@ -105,8 +105,8 @@ object ImageProcessingUtil {
                 LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri с тегом $workTag${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
-                // Удаляем URI из списка обрабатываемых в случае ошибки
-                UriProcessingTracker.getInstance(context).removeProcessingUri(uri)
+                // Удаляем URI из списка обрабатываемых в случае ошибки (с синхронизацией)
+                UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
                 throw e
             }
         } catch (e: Exception) {

@@ -341,6 +341,47 @@ class UriProcessingTracker @Inject constructor(
     }
 
     /**
+     * Безопасно проверяет, находится ли URI в списке обрабатываемых с блокировкой
+     */
+    suspend fun isProcessingSafe(uri: Uri): Boolean {
+        val uriString = uri.toString()
+        val mutex = uriLocks.getOrPut(uriString) { Mutex() }
+        return mutex.withLock {
+            processingUris.contains(uriString)
+        }
+    }
+
+    /**
+     * Безопасно добавляет URI в список обрабатываемых с блокировкой
+     */
+    suspend fun addProcessingUriSafe(uri: Uri, source: String = "unknown") {
+        val uriString = uri.toString()
+        val mutex = uriLocks.getOrPut(uriString) { Mutex() }
+        return mutex.withLock {
+            if (processingUris.contains(uriString)) {
+                LogUtil.processDebug("URI уже обрабатывается: $uriString")
+                return@withLock
+            }
+            processingUris.add(uriString)
+            uriProcessingTime[uriString] = System.currentTimeMillis()
+            LogUtil.processDebug("URI добавлен (safe): $uriString из $source")
+        }
+    }
+
+    /**
+     * Безопасно удаляет URI из списка обрабатываемых с блокировкой
+     */
+    suspend fun removeProcessingUriSafe(uri: Uri) {
+        val uriString = uri.toString()
+        val mutex = uriLocks.getOrPut(uriString) { Mutex() }
+        mutex.withLock {
+            processingUris.remove(uriString)
+            uriProcessingTime.remove(uriString)
+            LogUtil.processDebug("URI удалён (safe): $uriString")
+        }
+    }
+
+    /**
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
      * Расширенная проверка с учетом всех состояний
      */

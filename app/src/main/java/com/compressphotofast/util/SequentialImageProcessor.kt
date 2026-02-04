@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import com.compressphotofast.util.LogUtil
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -30,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
+import kotlinx.coroutines.runBlocking
 
 /**
  * Интерфейс для отслеживания прогресса сжатия
@@ -160,14 +163,27 @@ class SequentialImageProcessor(
     }
     
     /**
-     * Отменяет текущую обработку изображений
+     * Отменяет текущую обработку изображений с ожиданием завершения
      */
-    fun cancelProcessing() {
+    suspend fun cancelProcessing() {
         // Проверяем, была ли запущена обработка изображений
         val wasProcessing = !processingCancelled.get() && _isLoading.value
 
         processingCancelled.set(true)
         processingScope.cancel()
+
+        // Ждём завершения обработки (макс 5 сек)
+        if (wasProcessing) {
+            try {
+                withTimeout(5000) {
+                    while (_isLoading.value) {
+                        delay(100)
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                LogUtil.processWarning("Таймаут ожидания завершения обработки")
+            }
+        }
 
         // Показываем уведомление об остановке только если действительно была запущена обработка
         if (wasProcessing) {
@@ -182,10 +198,22 @@ class SequentialImageProcessor(
     }
     
     /**
+     * Сбрасывает состояние процессора для новой обработки
+     */
+    fun resetProcessing() {
+        processingCancelled.set(false)
+        _isLoading.value = false
+        _progress.value = MultipleImagesProgress()
+        _result.value = null
+    }
+
+    /**
      * Освобождает ресурсы при уничтожении объекта
      */
     fun destroy() {
-        cancelProcessing()
+        runBlocking {
+            cancelProcessing()
+        }
         processingScope.cancel()
     }
 
@@ -205,12 +233,20 @@ class SequentialImageProcessor(
         total: Int,
         listener: CompressionProgressListener?
     ): Uri? = withContext(Dispatchers.IO) {
-        if (!isActive) {
+        // Проверка 1: в начале
+        if (!isActive || processingCancelled.get()) {
+            LogUtil.processDebug("processImage отменён (проверка 1): $uri")
             return@withContext null
         }
 
-        uriProcessingTracker.addProcessingUriWithDetails(uri, "SequentialImageProcessor")
+        uriProcessingTracker.addProcessingUriSafe(uri, "SequentialImageProcessor")
         try {
+            // Проверка 2: после добавления
+            if (!isActive || processingCancelled.get()) {
+                LogUtil.processDebug("processImage отменён (проверка 2): $uri")
+                return@withContext null
+            }
+
             // Проверка существования файла перед обработкой
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
                 LogUtil.error(uri, "Пакетная обработка", "Файл не существует (первая проверка)")
@@ -220,6 +256,12 @@ class SequentialImageProcessor(
 
             // Небольшая задержка для предотвращения race condition
             delay(30)
+
+            // Проверка 3: после задержки
+            if (!isActive || processingCancelled.get()) {
+                LogUtil.processDebug("processImage отменён (проверка 3): $uri")
+                return@withContext null
+            }
 
             // Повторная проверка существования файла
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
@@ -237,6 +279,12 @@ class SequentialImageProcessor(
 
             updateProgress(position, total, fileName)
 
+            // Проверка 4: перед сжатием
+            if (!isActive || processingCancelled.get()) {
+                LogUtil.processDebug("processImage отменён (проверка 4): $uri")
+                return@withContext null
+            }
+
             // Финальная проверка непосредственно перед сжатием
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
                 LogUtil.error(uri, "Пакетная обработка", "Файл не существует перед сжатием")
@@ -244,7 +292,15 @@ class SequentialImageProcessor(
                 return@withContext null
             }
 
-            val result = ImageCompressionUtil.processAndSaveImage(context, uri, compressionQuality)
+            val result = try {
+                ImageCompressionUtil.processAndSaveImage(context, uri, compressionQuality)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                LogUtil.processDebug("Сжатие отменено через CancellationException: $uri")
+                throw e
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Обработка", "Ошибка при сжатии", e)
+                Triple(false, null, e.message ?: "Неизвестная ошибка")
+            }
 
             if (!result.first) {
                 LogUtil.error(uri, "Обработка", result.third)
@@ -294,12 +350,15 @@ class SequentialImageProcessor(
                 "Изображение успешно сжато: $fileName, ${originalSize / 1024}KB → ${compressedSize / 1024}KB"
             )
             return@withContext savedUri
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            LogUtil.processDebug("processImage отменён через CancellationException: $uri")
+            throw e
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка", "Ошибка при обработке изображения", e)
             listener?.onCompressionFailed(uri, e.message ?: "Неизвестная ошибка")
             return@withContext null
         } finally {
-            uriProcessingTracker.removeProcessingUri(uri)
+            uriProcessingTracker.removeProcessingUriSafe(uri)
         }
     }
     

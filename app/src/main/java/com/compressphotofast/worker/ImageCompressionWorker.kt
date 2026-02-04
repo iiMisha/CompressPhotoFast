@@ -40,6 +40,7 @@ import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.OptimizedCacheUtil
+import com.compressphotofast.util.toInputStream
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import id.zelory.compressor.Compressor
@@ -167,8 +168,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 LogUtil.uriInfo(imageUri, "Изменено после сжатия, пересжатие")
             }
 
-            // Добавляем URI в отслеживание обработки
-            uriProcessingTracker.addProcessingUriWithDetails(imageUri, "ImageCompressionWorker")
+            // Добавляем URI в отслеживание обработки (с синхронизацией)
+            uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
             
             // Проверка на временный файл
             if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
@@ -278,7 +279,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Сохраняем сжатое изображение
                 val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
                     context = appContext,
-                    inputStream = ByteArrayInputStream(compressedImageStream.toByteArray()),
+                    inputStream = compressedImageStream.toInputStream(),
                     fileName = finalFileName,
                     directory = directory,
                     originalUri = imageUri,
@@ -303,8 +304,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Добавляем URI в кэш недавно оптимизированных
                 uriProcessingTracker.setIgnorePeriod(savedUri)
 
-                // ПЕРЕД удалением удаляем URI из обработки (исправление race condition)
-                uriProcessingTracker.removeProcessingUri(imageUri)
+                // ПЕРЕД удалением удаляем URI из обработки (исправление race condition с синхронизацией)
+                uriProcessingTracker.removeProcessingUriSafe(imageUri)
 
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
                 if (FileOperationsUtil.isSaveModeReplace(appContext)) {
@@ -399,8 +400,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 val uri = Uri.parse(uriString)
                 StatsTracker.updateStatus(uri, StatsTracker.COMPRESSION_STATUS_FAILED)
                 
-                // Удаляем URI из обрабатываемых в случае ошибки
-                uriProcessingTracker.removeProcessingUri(uri)
+                // Удаляем URI из обрабатываемых в случае ошибки (с синхронизацией)
+                uriProcessingTracker.removeProcessingUriSafe(uri)
             }
             
             return@withContext Result.failure()

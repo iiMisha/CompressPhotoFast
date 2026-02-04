@@ -350,16 +350,16 @@ class ImageDetectionJobService : JobService() {
             
             // Проверяем необходимость обработки с оптимизированным кэшированием
             if (shouldProcessImageOptimized(uri, currentMetadata)) {
-                // Регистрируем URI как обрабатываемый
-                uriProcessingTracker.addProcessingUri(uri)
-                
+                // Регистрируем URI как обрабатываемый (с синхронизацией)
+                uriProcessingTracker.addProcessingUriSafe(uri, "ImageDetectionJobService")
+
                 // Обрабатываем изображение
                 if (ImageProcessingUtil.processImage(applicationContext, uri)) {
                     LogUtil.processDebug("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
                     return@withContext ProcessingResult(processed = true)
                 } else {
                     LogUtil.processDebug("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                    uriProcessingTracker.removeProcessingUri(uri)
+                    uriProcessingTracker.removeProcessingUriSafe(uri)
                     return@withContext ProcessingResult(skipped = true)
                 }
             } else {

@@ -105,8 +105,10 @@ class BackgroundMonitoringService : Service() {
                     // Создаем Uri из строки
                     val uri = Uri.parse(uriString)
                     
-                    // Удаляем URI из списка обрабатываемых
-                    uriProcessingTracker.removeProcessingUri(uri)
+                    // Удаляем URI из списка обрабатываемых (с синхронизацией)
+                    serviceScope.launch {
+                        uriProcessingTracker.removeProcessingUriSafe(uri)
+                    }
                     LogUtil.processDebug("Удален из обработки: $uriString (осталось ${uriProcessingTracker.getProcessingCount()})")
                     LogUtil.processDebug("Сжатие завершено: $fileName, -${String.format("%.1f", reductionPercent)}%")
                     
@@ -330,13 +332,13 @@ class BackgroundMonitoringService : Service() {
             LogUtil.processDebug("Результат обработки: ${result.third}")
 
             if (!result.first) {
-                uriProcessingTracker.removeProcessingUri(uri)
+                uriProcessingTracker.removeProcessingUriSafe(uri)
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             LogUtil.debug("Обработка нового изображения", "Корутина была отменена: ${e.message}")
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
-            uriProcessingTracker.removeProcessingUri(uri)
+            uriProcessingTracker.removeProcessingUriSafe(uri)
         }
     }
     
