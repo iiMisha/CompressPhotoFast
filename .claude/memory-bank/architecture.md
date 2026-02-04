@@ -15,7 +15,9 @@
 - `BootCompletedReceiver.kt`: автозапуск
 
 ### DI
-- Hilt во все компоненты
+- Hilt 2.57.1 во все компоненты
+- DI модули: `AppModule.kt` (основной), `HiltTestModule.kt` (тесты), `TestAppModule.kt`, `WorkManagerTestModule.kt`
+- Singleton компоненты: UriProcessingTracker, PerformanceMonitor, CompressionBatchTracker
 
 ### Оптимизации
 - `inSampleSize`, `RGB_565`
