@@ -1,52 +1,36 @@
 # Архитектура CompressPhotoFast
 
-## Обзор
-MVVM архитектура с современными Android компонентами.
+## Android
 
-## Ключевые компоненты Android
+### Слои
+- **UI**: `MainActivity.kt`, `MainViewModel.kt`
+- **Domain**: `ImageCompressionUtil.kt`, `ImageCompressionWorker.kt`, `SettingsManager.kt`
+- **Data**: DataStore, MediaStore
+- **Utils**: 30+ файлов (MediaStore, EXIF, файлы, статистика)
 
-### UI Layer (`ui/`)
-- `MainActivity.kt`: Единственная Activity
-- `MainViewModel.kt`: Управление состоянием UI
+### Фоновая обработка
+- WorkManager (`ImageCompressionWorker.kt`)
+- `BackgroundMonitoringService.kt`: отслеживание новых изображений
+- `ImageDetectionJobService.kt`: периодическая проверка
+- `BootCompletedReceiver.kt`: автозапуск
 
-### Domain Layer
-- Логика сжатия: `ImageCompressionUtil.kt`, `ImageCompressionWorker.kt`
-- `SettingsManager.kt`: Настройки
-- Утилиты `util/` (30+ файлов): MediaStore, обработка изображений, файлы, EXIF, статистика
+### DI
+- Hilt во все компоненты
 
-### Data Layer
-- `DataStore`: Хранение настроек
-- `MediaStore`: Доступ к изображениям
+### Оптимизации
+- `inSampleSize`, `RGB_565`
+- CoroutineScope вместо GlobalScope
+- Пакетные MediaStore операции
+- Методы `destroy()`
 
-## Фоновая обработка
-- `WorkManager`: `ImageCompressionWorker.kt`
-- `BackgroundMonitoringService.kt`: Отслеживание новых изображений
-- `ImageDetectionJobService.kt`: Периодическая проверка
-- `BootCompletedReceiver.kt`: Запуск после перезагрузки
-
-## Внедрение зависимостей
-- **Hilt**: Во все компоненты (Activity, ViewModel, Worker)
-
-## Оптимизации
-- `inSampleSize`, `RGB_565` для декодирования
-- Background scanning: 5 минут, CoroutineScope
-- Пакетная проверка конфликтов в MediaStore
-- Методы `destroy()` для ресурсов
-
-## Тестирование
-- Unit: `app/src/test/` (JUnit, MockK)
-- Instrumentation: `app/src/androidTest/` (Espresso)
-- Базовые: `BaseUnitTest`, `BaseInstrumentedTest`
-- 232 теста, coverage ~8-10%
-
-## CLI-версия (Python 3.10+)
+## CLI (Python)
 
 ### Компоненты
-- `cli.py` (Click), `compression.py` (Pillow + pillow-heif)
-- `multiprocessing_utils.py`: ProcessPoolExecutor
+- `cli.py` (Click)
+- `compression.py` (Pillow, pillow-heif)
+- `multiprocessing_utils.py` (ProcessPoolExecutor)
 - `exif_handler.py` (piexif)
 
 ### Интеграция с Android
-- Идентичные константы: качество (60,70,85), мин размер (100KB), экономия (30%)
-- Те же EXIF-маркеры: `CompressPhotoFast_Compressed:quality:timestamp`
-- Поддержка HEIC/HEIF → JPEG
+- Общие константы: качество (60,70,85), мин размер (100KB), экономия (30%)
+- EXIF-маркер: `CompressPhotoFast_Compressed:quality:timestamp`

@@ -95,6 +95,15 @@
 
 **ВАЖНО:** В начале КАЖДОЙ задачи необходимо читать ВСЕ файлы из Memory Bank.
 
+### 3. Workflow правила
+**Папка:** [`.claude/rules/`](.claude/rules/)
+
+Содержит workflow правила для разработки:
+- [`workflow-memory-bank.md`](.claude/rules/workflow-memory-bank.md) - работа с Memory Bank
+- [`workflow-implementation.md`](.claude/rules/workflow-implementation.md) - реализация кода
+- [`workflow-research.md`](.claude/rules/workflow-research.md) - исследование кодовой базы
+- [`mandatory-subagent-usage.md`](.claude/rules/mandatory-subagent-usage.md) - обязательное использование субагентов
+
 ## Использование Context7 MCP
 
 Context7 MCP сервер установлен глобально и предоставляет актуальную документацию по библиотекам и API.

@@ -132,7 +132,7 @@ Task(Explore, "medium", "Найти существующие реализаци�
 - `.claude/memory-bank/brief.md`
 - `.claude/memory-bank/architecture.md`
 - `.claude/memory-bank/context.md`
-- `.kilocode/rules/rules.md`
+- `.claude/rules/rules.md`
 
 ### Шаг 3: Реализация
 
