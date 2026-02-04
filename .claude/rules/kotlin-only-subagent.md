@@ -36,8 +36,8 @@ paths:
    - Никаких "небольших изменений"
 
 4. **Glob/Grep/Read для исследования Kotlin кода**
-   - НЕ используй для исследования Kotlin кода
-   - Для исследований → `Task(Explore)`
+   - Используй для исследования Kotlin кода
+   - ❌ НЕ используй `Task(Explore)` - вызывает переполнение памяти!
 
 ---
 
@@ -60,16 +60,14 @@ paths:
 Перед любой работой с Kotlin кодом:
 
 ```
-Task(Explore, "medium", "Найти существующие Kotlin реализации [компонент]
+// Используй ПРЯМЫЕ ИНСТРУМЕНТЫ (НЕ Task(Explore) - вызывает переполнение памяти!)
 
-Нужно изучить:
-1. Паттерны Kotlin кода в проекте
-2. Используемые библиотеки (androidx, Coil, Coroutines, etc.)
-3. Стиль кода и конвенции
-4. Архитектурные принципы
-5. Best practices
+Glob("**/*[Компонент].kt")
+Grep("[класс/функция]", "**/*.kt")
+Read("путь/к/файлу1.kt")
+Read("путь/к/файлу2.kt")
 
-Цель: Реализовать/изменить [задача] следуя этим паттернам.")
+// Цель: Изучить паттерны, библиотеки, стиль, архитектуру
 ```
 
 ### Шаг 2: Чтение Memory Bank
@@ -89,7 +87,7 @@ Task(voltagent-lang:kotlin-specialist, "
 [Задача]
 
 КОНТЕКСТ ИЗ ИССЛЕДОВАНИЯ:
-[Результаты из Explore - паттерны, стиль, библиотеки]
+[Результаты из Glob/Grep/Read - паттерны, стиль, библиотеки]
 
 АРХИТЕКТУРА ИЗ MEMORY BANK:
 [Архитектурные принципы из architecture.md]
@@ -166,7 +164,7 @@ Assistant: [Edit tool] → compressionViewModel.kt
 // ✅ ПРАВИЛЬНО
 User: "Создай CompressionViewModel"
 Assistant:
-1. Task(Explore, "medium", "Найти существующие ViewModels в проекте")
+1. Glob("**/*ViewModel.kt") + Grep("class.*ViewModel", "**/*.kt") + Read нескольких ViewModels
 2. Read Memory Bank файлы
 3. Task(voltagent-lang:kotlin-specialist, "
    Создать CompressionViewModel следуя паттернам:
@@ -188,7 +186,7 @@ Assistant: [Read] → [Edit] compressionManager.kt
 // ✅ ПРАВИЛЬНО
 User: "Исправь ошибку в функции compress"
 Assistant:
-1. Task(Explore, "medium", "Найти место с ошибкой и изучить контекст")
+1. Grep("compress", "**/*.kt") + Read найденных файлов
 2. Read context.md для understanding текущего состояния
 3. Task(voltagent-lang:kotlin-specialist, "
    Исправить ошибку в функции compress
@@ -202,7 +200,7 @@ Assistant:
 
 ```
 // ✅ ПРАВИЛЬНЫЙ WORKFLOW
-1. Task(Explore, "very thorough", "Проанализировать весь модуль компрессии")
+1. Glob("**/compression/**/*.kt") + Grep(..., "compression/**/*.kt") для анализа модуля
 2. Task(Plan, "medium", "План рефакторинга compression модуля")
 3. Read architecture.md для понимания архитектурных ограничений
 4. Task(voltagent-lang:kotlin-specialist, "
@@ -250,7 +248,8 @@ Assistant:
 
 ❌ **НЕЛЬЗЯ** использовать Read вместо исследования:
 - Не читай множество файлов последовательно
-- Для исследований → `Task(Explore)`
+- ❌ Для исследований НЕ используй `Task(Explore)` - вызывает переполнение памяти!
+- ✅ Используй Glob/Grep для поиска, затем Read для чтения 2-5 файлов
 
 ### Небольшие изменения
 
@@ -293,8 +292,8 @@ Task(voltagent-lang:kotlin-specialist, "Срочно исправить: [...]",
 - Добавляет Kotlin-specific требования
 
 ### Связь с workflow-research.md
-- Для исследований Kotlin кода → `Task(Explore)`
-- Не Glob/Grep/Read напрямую
+- Для исследований Kotlin кода → Glob/Grep/Read (НЕ Task(Explore)!)
+- ❌ Task(Explore) вызывает переполнение памяти
 
 ---
 
@@ -318,7 +317,7 @@ Task(voltagent-lang:kotlin-specialist, "Срочно исправить: [...]",
 
 **ДОЛЖЕН:**
 - ✅ Использовать `Task(voltagent-lang:kotlin-specialist)` для Edit/Write
-- ✅ Использовать `Task(Explore)` для исследований
+- ✅ Использовать Glob/Grep/Read для исследований (НЕ Task(Explore)!)
 - ✅ Читать Memory Bank перед работой
 - ✅ Собирать проект после изменений
 
