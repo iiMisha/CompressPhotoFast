@@ -1,12 +1,13 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
+*   **Memory Bank оптимизация**: Добавлены ограничения размера файлов (brief: 5, context: 50, tasks: 100, architecture: 80, tech: 30 строк)
 *   **Консолидация правил**: Единые правила для субагентов в rules.md, удалены дубликаты workflow
 *   **Депрекация Task(Explore)**: Замена на Glob/Grep/Read из-за переполнения памяти
 *   **Hilt DI**: UriProcessingTracker → @Inject singleton, улучшена тестируемость
 *   **Корутины рефакторинг**: Handler → CoroutineScope (BackgroundMonitoringService, NotificationUtil)
 *   **Исправления**: Context Leaks (WeakReference), Mutex в UriProcessingTracker
-*   **Тесты**: 31 unit + 24 instrumentation, PerformanceMonitorTest, CompressionBatchTrackerTest
+*   **Батч операции**: SettingsManager.batchUpdateSettings()
 
 ## Текущие проблемы
 *   🔴 Дубликаты при массовой обработке (50+ файлов)
@@ -14,7 +15,7 @@
 
 ## Метрики
 *   **Исходный код**: 36 Kotlin файлов
-*   **Тесты**: 31 unit + 24 instrumentation
+*   **Тесты**: 24 unit + 25 instrumentation
 *   **Покрытие**: TBD (требуется jacocoTestReport)
 
 ## Дальнейшие шаги
