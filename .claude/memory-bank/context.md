@@ -1,6 +1,7 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
+*   **Instrumentation тесты**: Исправлен FileNotFoundException в CompressionLoadTest (#79a18dd)
 *   **Memory Bank оптимизация**: Добавлены ограничения размера файлов (brief: 5, context: 50, tasks: 100, architecture: 80, tech: 30 строк)
 *   **Консолидация правил**: Единые правила для субагентов в rules.md, удалены дубликаты workflow
 *   **Депрекация Task(Explore)**: Замена на Glob/Grep/Read из-за переполнения памяти
@@ -15,7 +16,7 @@
 
 ## Метрики
 *   **Исходный код**: 36 Kotlin файлов
-*   **Тесты**: 24 unit + 25 instrumentation
+*   **Тесты**: 24 unit + 232 instrumentation (100% pass rate)
 *   **Покрытие**: TBD (требуется jacocoTestReport)
 
 ## Дальнейшие шаги

@@ -58,3 +58,12 @@
 **Когда**: Нужны тестовые изображения
 **Команда**: `./scripts/generate_test_images.sh`
 **Требования**: ImageMagick
+
+## Исправление FileNotFoundException в тестах
+**Когда**: ExifInterface.saveAttributes() удаляет временные файлы
+**Файлы**: `CompressionLoadTest.kt`
+**Шаги**:
+1. Сохранить байты в ByteArrayOutputStream до создания файла
+2. Проверить существование файла перед ExifInterface
+3. Проверить существование после saveAttributes()
+4. Использовать сохраненные байты как fallback
