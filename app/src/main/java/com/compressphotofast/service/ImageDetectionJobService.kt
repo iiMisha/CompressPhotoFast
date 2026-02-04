@@ -9,6 +9,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,6 +31,9 @@ import java.util.concurrent.atomic.AtomicReference
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
+
+    @Inject
+    lateinit var uriProcessingTracker: UriProcessingTracker
 
     // Scope для корутин JobService с SupervisorJob для изоляции ошибок
     private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -333,13 +337,13 @@ class ImageDetectionJobService : JobService() {
             }
             
             // Проверяем, не обрабатывается ли URI уже
-            if (UriProcessingTracker.isImageBeingProcessed(uri)) {
+            if (uriProcessingTracker.isImageBeingProcessed(uri)) {
                 LogUtil.processDebug("ImageDetectionJobService: URI $uri уже в процессе обработки, пропускаем")
                 return@withContext ProcessingResult(skipped = true)
             }
             
             // Проверяем, не должен ли URI игнорироваться
-            if (UriProcessingTracker.shouldIgnore(uri)) {
+            if (uriProcessingTracker.shouldIgnore(uri)) {
                 LogUtil.processDebug("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
                 return@withContext ProcessingResult(skipped = true)
             }
@@ -347,7 +351,7 @@ class ImageDetectionJobService : JobService() {
             // Проверяем необходимость обработки с оптимизированным кэшированием
             if (shouldProcessImageOptimized(uri, currentMetadata)) {
                 // Регистрируем URI как обрабатываемый
-                UriProcessingTracker.addProcessingUri(uri)
+                uriProcessingTracker.addProcessingUri(uri)
                 
                 // Обрабатываем изображение
                 if (ImageProcessingUtil.processImage(applicationContext, uri)) {
@@ -355,7 +359,7 @@ class ImageDetectionJobService : JobService() {
                     return@withContext ProcessingResult(processed = true)
                 } else {
                     LogUtil.processDebug("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                    UriProcessingTracker.removeProcessingUri(uri)
+                    uriProcessingTracker.removeProcessingUri(uri)
                     return@withContext ProcessingResult(skipped = true)
                 }
             } else {

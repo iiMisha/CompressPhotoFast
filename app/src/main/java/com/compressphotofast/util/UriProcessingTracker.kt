@@ -2,37 +2,35 @@ package com.compressphotofast.util
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.lang.ref.WeakReference
 import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
+import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 /**
  * Утилитарный класс для отслеживания обрабатываемых URI
  * Предотвращает дублирование обработки и отслеживает состояние URI
  *
  * ОПТИМИЗИРОВАНО: Использует Mutex вместо busy wait для эффективной синхронизации
+ * HILT-MANAGED: Управляется через Hilt для корректного внедрения зависимостей
  */
-object UriProcessingTracker {
+@Singleton
+class UriProcessingTracker @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     // Множество URI, которые в данный момент обрабатываются
     private val processingUris = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
-
-    // Слабая ссылка на контекст для доступа к UriUtil (предотвращает утечку памяти)
-    private var contextRef: WeakReference<Context>? = null
 
     // Множество URI, которые недоступны (не существуют)
     private val unavailableUris = ConcurrentHashMap<String, Long>()
 
     // Время истечения для недоступных URI (2 минуты - уменьшено для более быстрого восстановления)
-    private const val UNAVAILABLE_URI_EXPIRATION = 2 * 60 * 1000L
-
-    fun initialize(context: Context) {
-        // Используем Application Context для предотвращения утечек памяти
-        this.contextRef = WeakReference(context.applicationContext)
-    }
+    private val UNAVAILABLE_URI_EXPIRATION = 2 * 60 * 1000L
 
     // Карта URI с временными метками, которые недавно были обработаны
     private val recentlyProcessedUris = ConcurrentHashMap<String, Long>()
@@ -44,31 +42,31 @@ object UriProcessingTracker {
     private var lastCleanupTime = System.currentTimeMillis()
 
     // Интервал очистки (1 час)
-    private const val CLEANUP_INTERVAL = 3600000L
+    private val CLEANUP_INTERVAL = 3600000L
 
     // Максимальное количество URI в recentlyProcessedUris
-    private const val MAX_RECENT_URIS = 1000
+    private val MAX_RECENT_URIS = 1000
 
     // Время истечения для недавно обработанных URI (10 минут)
-    private const val RECENTLY_PROCESSED_EXPIRATION = 10 * 60 * 1000L
+    private val RECENTLY_PROCESSED_EXPIRATION = 10 * 60 * 1000L
 
     // Время игнорирования URI после обработки (5 секунд)
-    private const val IGNORE_PERIOD = 5000L
+    private val IGNORE_PERIOD = 5000L
 
     // Карта для отслеживания времени добавления URI
     private val uriProcessingTime = ConcurrentHashMap<String, Long>()
 
     // Максимальное количество URI в обработке
-    private const val MAX_PROCESSING_URIS = 50
+    private val MAX_PROCESSING_URIS = 50
 
     // Время после которого URI считается stale (5 минут)
-    private const val STALE_URI_THRESHOLD = 5 * 60 * 1000L
+    private val STALE_URI_THRESHOLD = 5 * 60 * 1000L
 
     // Карта для Mutex'ов на каждый URI - заменяет busy wait на эффективную блокировку
     private val uriLocks = ConcurrentHashMap<String, Mutex>()
 
     // Максимальное количество Mutex'ов в карте (для оптимизации памяти)
-    private const val MAX_MUTEX_COUNT = 100
+    private val MAX_MUTEX_COUNT = 100
 
     /**
      * Добавляет URI в список обрабатываемых
@@ -358,8 +356,7 @@ object UriProcessingTracker {
             // Проверяем время модификации файла - если он был изменен совсем недавно,
             // возможно он все еще находится в процессе обработки другим процессом
             try {
-                val appContext = contextRef?.get() ?: return isProcessing || isIgnored || isRecentlyProcessed
-                val lastModified = UriUtil.getFileLastModified(appContext, uri)
+                val lastModified = UriUtil.getFileLastModified(context, uri)
                 val currentTime = System.currentTimeMillis()
                 if (lastModified > 0 && (currentTime - lastModified < 5000)) { // 5 секунд
                     return true
@@ -406,8 +403,7 @@ object UriProcessingTracker {
                 // Проверяем время модификации файла - если он был изменен совсем недавно,
                 // возможно он все еще находится в процессе обработки другим процессом
                 try {
-                    val appContext = contextRef?.get() ?: return isProcessing || isIgnored || isRecentlyProcessed
-                    val lastModified = UriUtil.getFileLastModified(appContext, uri)
+                    val lastModified = UriUtil.getFileLastModified(context, uri)
                     val currentTime = System.currentTimeMillis()
                     if (lastModified > 0 && (currentTime - lastModified < 5000L)) { // 5 секунд
                         return true
@@ -493,7 +489,7 @@ object UriProcessingTracker {
      * Проверяет URI, которые были помечены как недоступные более 30 секунд назад
      * @return Количество URI, которые снова стали доступны
      */
-    suspend fun retryUnavailableUris(context: Context): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun retryUnavailableUris(): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val now = System.currentTimeMillis()
         val urisToCheck = mutableListOf<String>()
         val recoveredUris = mutableListOf<String>()
@@ -550,6 +546,24 @@ object UriProcessingTracker {
             action()
         } finally {
             addRecentlyProcessedUri(uri)
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var fallbackInstance: UriProcessingTracker? = null
+
+        /**
+         * Получает экземпляр для использования в object классах без Hilt
+         * @deprecated Предпочтительнее использовать инъекцию зависимостей
+         */
+        @Deprecated("Prefer dependency injection", ReplaceWith("inject UriProcessingTracker"))
+        fun getInstance(context: Context): UriProcessingTracker {
+            return fallbackInstance ?: synchronized(this) {
+                fallbackInstance ?: UriProcessingTracker(context.applicationContext).also {
+                    fallbackInstance = it
+                }
+            }
         }
     }
 }

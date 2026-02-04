@@ -1,8 +1,8 @@
 package com.compressphotofast.util
 
 import com.compressphotofast.BaseUnitTest
+import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -18,7 +18,9 @@ class PerformanceMonitorTest : BaseUnitTest() {
     @Before
     override fun setUp() {
         super.setUp()
-        mockContext = mockk()
+        // Используем relaxed mock для автоматического мокания всех вызовов Context
+        mockContext = mockk(relaxed = true)
+        every { mockContext.applicationContext } returns mockContext
 
         // Сбрасываем статистику перед каждым тестом
         PerformanceMonitor.resetStats()
@@ -115,7 +117,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
 
         // Assert
         assert(result == expectedResult) { "Результат должен быть возвращен" }
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("Директории:")) { "Статистика должна содержать время проверки директорий" }
     }
 
@@ -131,7 +133,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
 
         // Assert
         assert(result == expectedResult) { "Результат должен быть возвращен" }
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("EXIF:")) { "Статистика должна содержать время проверки EXIF" }
     }
 
@@ -147,7 +149,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
 
         // Assert
         assert(result == expectedResult) { "Результат должен быть возвращен" }
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("MIME-типы:")) { "Статистика должна содержать время проверки MIME-типов" }
     }
 
@@ -157,7 +159,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordProcessingTime(500000L, 100L) // 500KB
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("small файлы")) { "Статистика должна содержать small файлы" }
     }
 
@@ -167,7 +169,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordProcessingTime(2 * 1024 * 1024L, 200L) // 2MB
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("medium файлы")) { "Статистика должна содержать medium файлы" }
     }
 
@@ -177,7 +179,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordProcessingTime(10 * 1024 * 1024L, 500L) // 10MB
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("large файлы")) { "Статистика должна содержать large файлы" }
     }
 
@@ -187,7 +189,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordProcessingTime(25 * 1024 * 1024L, 1000L) // 25MB
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("xlarge файлы")) { "Статистика должна содержать xlarge файлы" }
     }
 
@@ -197,7 +199,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordOptimizedBatchProcessing()
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("Оптимизированная: 1")) { "Счетчик оптимизированной обработки должен быть равен 1" }
     }
 
@@ -207,7 +209,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordLegacyProcessing()
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("Устаревшая: 1")) { "Счетчик устаревшей обработки должен быть равен 1" }
     }
 
@@ -217,7 +219,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordDebouncedBatch(5)
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("Дебаунснутых батчей: 1")) { "Счетчик дебаунс-батчей должен быть равен 1" }
     }
 
@@ -227,7 +229,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordImmediateProcessing()
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("Немедленных обработок: 1")) { "Счетчик немедленных обработок должен быть равен 1" }
     }
 
@@ -239,7 +241,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordOptimizedBatchProcessing()
 
         // Act
-        val stats = PerformanceMonitor.getDetailedStats()
+        val stats = PerformanceMonitor.getDetailedStats(mockContext)
 
         // Assert
         assert(stats.contains("СТАТИСТИКА ПРОИЗВОДИТЕЛЬНОСТИ")) { "Статистика должна содержать заголовок" }
@@ -363,7 +365,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.measureBatchMetadata { "test2" }
 
         // Act
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
 
         // Assert
         assert(detailedStats.contains("Пакетные запросы: 2")) { "Должно быть 2 пакетных запроса" }
@@ -377,7 +379,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.measureIndividualMetadata { "test2" }
 
         // Act
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
 
         // Assert
         assert(detailedStats.contains("Индивидуальные запросы: 2")) { "Должно быть 2 индивидуальных запроса" }
@@ -392,7 +394,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordProcessingTime(2 * 1024 * 1024L, 200L) // medium
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("small файлы (2 шт.)")) { "Должно быть 2 small файла" }
         assert(detailedStats.contains("medium файлы (1 шт.)")) { "Должен быть 1 medium файл" }
     }
@@ -405,7 +407,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordProcessingTime(500000L, 150L)
 
         // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
         assert(detailedStats.contains("мин 100ms")) { "Должно быть указано минимальное время" }
         assert(detailedStats.contains("макс 200ms")) { "Должно быть указано максимальное время" }
     }
@@ -417,7 +419,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.measureIndividualMetadata { "test" }
 
         // Act
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
 
         // Assert
         assert(detailedStats.contains("Эффективность пакетной обработки:")) { "Должна быть указана эффективность" }
@@ -430,7 +432,7 @@ class PerformanceMonitorTest : BaseUnitTest() {
         PerformanceMonitor.recordImmediateProcessing()
 
         // Act
-        val detailedStats = PerformanceMonitor.getDetailedStats()
+        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
 
         // Assert
         assert(detailedStats.contains("Эффективность дебаунсинга:")) { "Должна быть указана эффективность" }

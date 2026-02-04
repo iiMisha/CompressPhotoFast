@@ -71,10 +71,10 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Получение существующего автобатча вместо создания нового`() {
         // Arrange
-        val firstBatchId = CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
+        val firstBatchId = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
         // Act
-        val secondBatchId = CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
+        val secondBatchId = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
         // Assert
         assert(firstBatchId == secondBatchId) { "Должен быть возвращен тот же самый батч" }
@@ -84,7 +84,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Добавление результата в батч`() {
         // Arrange
-        val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 3)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 3)
 
         // Act
         CompressionBatchTracker.addResultCompat(
@@ -104,7 +104,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Добавление пропущенного файла в батч`() {
         // Arrange
-        val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 3)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 3)
 
         // Act
         CompressionBatchTracker.addResultCompat(
@@ -124,7 +124,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Завершение батча при достижении ожидаемого количества`() {
         // Arrange
-        val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 2)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 2)
 
         // Act
         CompressionBatchTracker.addResultCompat(
@@ -154,7 +154,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Принудительное завершение батча`() {
         // Arrange
-        val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 5)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 5)
         CompressionBatchTracker.addResultCompat(
             batchId = batchId,
             fileName = "test.jpg",
@@ -197,9 +197,9 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Сброс всех батчей`() {
         // Arrange
-        CompressionBatchTracker.createIntentBatch(mockContext, 3)
-        CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
-        CompressionBatchTracker.createIntentBatch(mockContext, 2)
+        CompressionBatchTracker.createIntentBatchCompat(mockContext, 3)
+        CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
+        CompressionBatchTracker.createIntentBatchCompat(mockContext, 2)
 
         // Act
         CompressionBatchTracker.clearAllBatchesCompat()
@@ -211,9 +211,9 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Несколько батчей могут быть активными одновременно`() {
         // Arrange
-        val batchId1 = CompressionBatchTracker.createIntentBatch(mockContext, 2)
-        val batchId2 = CompressionBatchTracker.createIntentBatch(mockContext, 3)
-        val batchId3 = CompressionBatchTracker.getOrCreateAutoBatch(mockContext)
+        val batchId1 = CompressionBatchTracker.createIntentBatchCompat(mockContext, 2)
+        val batchId2 = CompressionBatchTracker.createIntentBatchCompat(mockContext, 3)
+        val batchId3 = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
         // Act
         CompressionBatchTracker.addResultCompat(
@@ -232,8 +232,8 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Завершение одного батча не влияет на другие`() {
         // Arrange
-        val batchId1 = CompressionBatchTracker.createIntentBatch(mockContext, 1)
-        val batchId2 = CompressionBatchTracker.createIntentBatch(mockContext, 2)
+        val batchId1 = CompressionBatchTracker.createIntentBatchCompat(mockContext, 1)
+        val batchId2 = CompressionBatchTracker.createIntentBatchCompat(mockContext, 2)
 
         // Act
         CompressionBatchTracker.addResultCompat(
@@ -282,8 +282,8 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `BatchId содержит уникальный идентификатор`() {
         // Arrange & Act
-        val batchId1 = CompressionBatchTracker.createIntentBatch(mockContext, 1)
-        val batchId2 = CompressionBatchTracker.createIntentBatch(mockContext, 1)
+        val batchId1 = CompressionBatchTracker.createIntentBatchCompat(mockContext, 1)
+        val batchId2 = CompressionBatchTracker.createIntentBatchCompat(mockContext, 1)
 
         // Assert
         assert(batchId1 != batchId2) { "BatchId должны быть уникальными" }
@@ -295,8 +295,8 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         val initialCount = CompressionBatchTracker.getActiveBatchCountCompat()
 
         // Act
-        CompressionBatchTracker.createIntentBatch(mockContext, 1)
-        CompressionBatchTracker.createIntentBatch(mockContext, 2)
+        CompressionBatchTracker.createIntentBatchCompat(mockContext, 1)
+        CompressionBatchTracker.createIntentBatchCompat(mockContext, 2)
         val newCount = CompressionBatchTracker.getActiveBatchCountCompat()
 
         // Assert
@@ -307,7 +307,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @Test
     fun `Intent батч завершается по таймауту`() {
         // Arrange
-        val batchId = CompressionBatchTracker.createIntentBatch(mockContext, 10)
+        val batchId = CompressionBatchTracker.createIntentBatchCompat(mockContext, 10)
         // Добавляем только один результат из 10 ожидаемых
 
         // Act

@@ -108,7 +108,7 @@ object GalleryScanUtil {
                         ?: Uri.parse("${MediaStore.Images.Media.EXTERNAL_CONTENT_URI}/$id")
                     
                     // Проверяем, не находится ли URI уже в процессе обработки
-                    if (checkProcessable && UriProcessingTracker.isImageBeingProcessed(contentUri)) {
+                    if (checkProcessable && UriProcessingTracker.getInstance(context).isImageBeingProcessed(contentUri)) {
                         LogUtil.processDebug("Уже в обработке: $contentUri")
                         skippedCount++
                         continue
