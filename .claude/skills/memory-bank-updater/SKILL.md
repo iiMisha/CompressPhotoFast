@@ -170,6 +170,3 @@ Memory Bank находится в `.claude/memory-bank/`.
 ## Связанные файлы
 
 - `.claude/memory-bank/memory-bank-instructions.md` - Полная документация
-- `.claude/rules/mandatory-subagent-usage.md` - Правила использования субагентов
-- `.claude/rules/workflow-research.md` - Workflow исследования
-- `.claude/rules/workflow-implementation.md` - Workflow реализации

@@ -6,7 +6,7 @@
 - **UI**: `MainActivity.kt`, `MainViewModel.kt`
 - **Domain**: `ImageCompressionUtil.kt`, `ImageCompressionWorker.kt`, `SettingsManager.kt`
 - **Data**: DataStore, MediaStore
-- **Utils**: 30+ файлов (MediaStore, EXIF, файлы, статистика)
+- **Utils**: 36 файлов (MediaStore, EXIF, файлы, статистика, оптимизация)
 
 ### Фоновая обработка
 - WorkManager (`ImageCompressionWorker.kt`)
