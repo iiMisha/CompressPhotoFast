@@ -25,7 +25,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 
 /**
@@ -109,24 +108,44 @@ class CompressionLoadTest {
         )
         canvas.drawPaint(paint)
 
-        // Сохраняем во временный файл для добавления EXIF
-        val tempFile = File(context.cacheDir, "temp_img_${System.currentTimeMillis()}.jpg")
-        FileOutputStream(tempFile).use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out)
-        }
+        // Сначала получаем байты изображения
+        val outputStream = java.io.ByteArrayOutputStream()
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, outputStream)
+        val originalBytes = outputStream.toByteArray()
+
+        // Создаем временный файл для добавления EXIF
+        val tempFile = File(context.cacheDir, "compress_test_${System.currentTimeMillis()}_${index}.jpg")
+
+        // Сначала записываем исходные байты
+        tempFile.writeBytes(originalBytes)
 
         // Добавляем EXIF метаданные
+        var fileBytes = originalBytes // По умолчанию используем исходные байты
+
         try {
-            val exif = ExifInterface(tempFile)
-            exif.setAttribute(ExifInterface.TAG_ARTIST, "CompressPhotoFast Test")
-            exif.setAttribute(ExifInterface.TAG_MAKE, "TestCamera")
-            exif.setAttribute(ExifInterface.TAG_MODEL, "TestModel")
-            exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "Load test image #$index")
-            exif.setAttribute(ExifInterface.TAG_DATETIME, java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss").format(java.util.Date()))
-            exif.saveAttributes()
-            Log.d("LoadTest", "EXIF метаданные добавлены для файла #$index")
+            // Проверяем, что файл существует перед созданием ExifInterface
+            if (tempFile.exists()) {
+                val exif = ExifInterface(tempFile.absolutePath)
+                exif.setAttribute(ExifInterface.TAG_ARTIST, "CompressPhotoFast Test")
+                exif.setAttribute(ExifInterface.TAG_MAKE, "TestCamera")
+                exif.setAttribute(ExifInterface.TAG_MODEL, "TestModel")
+                exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "Load test image #$index")
+                exif.setAttribute(ExifInterface.TAG_DATETIME, java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss").format(java.util.Date()))
+                exif.saveAttributes()
+
+                // Перезагружаем байты после сохранения EXIF, если файл все еще существует
+                if (tempFile.exists()) {
+                    fileBytes = tempFile.readBytes()
+                    Log.d("LoadTest", "EXIF метаданные добавлены для файла #$index")
+                } else {
+                    Log.w("LoadTest", "Файл был удален после saveAttributes, используем исходные байты")
+                }
+            } else {
+                Log.w("LoadTest", "Временный файл не существует, пропускаем EXIF для #$index")
+            }
         } catch (e: Exception) {
             Log.w("LoadTest", "Ошибка записи EXIF для #$index: ${e.message}")
+            // Если не удалось сохранить EXIF, используем исходные байты (уже установлены)
         }
 
         bitmap.recycle()
@@ -159,9 +178,8 @@ class CompressionLoadTest {
 
         uri?.let {
             resolver.openOutputStream(it)?.use { out ->
-                FileInputStream(tempFile).use { inp ->
-                    inp.copyTo(out)
-                }
+                out.write(fileBytes)
+                out.flush()
             } ?: throw Exception("Cannot open output stream for $uri")
 
             // Помечаем как готовый
