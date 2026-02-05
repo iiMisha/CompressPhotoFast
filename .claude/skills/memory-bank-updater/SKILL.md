@@ -37,7 +37,7 @@ arguments:
 
 ## 📚 Полная документация
 
-**Все инструкции по работе с Memory Bank находятся в:** [`.claude/memory-bank/memory-bank-instructions.md`](.claude/memory-bank/memory-bank-instructions.md)
+**Все инструкции по работе с Memory Bank находятся в:** [`memory-bank-instructions.md`](memory-bank-instructions.md)
 
 Там описаны:
 - Структура Memory Bank и файлов
@@ -192,4 +192,4 @@ Memory Bank находится в `.claude/memory-bank/`.
 
 ## Связанные файлы
 
-- `.claude/memory-bank/memory-bank-instructions.md` - Полная документация
+- `memory-bank-instructions.md` - Полная документация Memory Bank
