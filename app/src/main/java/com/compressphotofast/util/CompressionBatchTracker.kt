@@ -32,6 +32,9 @@ class CompressionBatchTracker @Inject constructor(
     }
 
     companion object {
+        // Shared Handler для всех экземпляров
+        private val sharedMainHandler = Handler(Looper.getMainLooper())
+
         /**
          * Статический экземпляр для обратной совместимости
          * Используется в ImageProcessingUtil (object) который не может инжектировать зависимости
@@ -121,7 +124,7 @@ class CompressionBatchTracker @Inject constructor(
     }
 
     private val batches = ConcurrentHashMap<String, CompressionBatch>()
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler = sharedMainHandler
     private val batchIdCounter = AtomicInteger(1)
 
     // Singleton coroutine scope для UI обновлений (требует Main thread)

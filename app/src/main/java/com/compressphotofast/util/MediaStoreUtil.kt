@@ -127,40 +127,45 @@ object MediaStoreUtil {
                         LogUtil.processInfo("[MediaStore] Найден существующий файл с именем '$fileName', режим замены выключен - добавляем индекс")
                         val fileNameWithoutExt = fileName.substringBeforeLast(".")
                         val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
-                        
-                        // Проверяем существующие файлы и находим доступный индекс
-                        var index = 1
-                        var isFileExists = true
-                        
-                        while (isFileExists && index < 100) { // Ограничиваем до 100 попыток
-                            val newFileName = "${fileNameWithoutExt}_${index}${extension}"
 
-                            // Проверяем существует ли файл с таким именем
-                            val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-                            val existsArgs = arrayOf(newFileName)
+                        // OPTIMIZED: Генерируем ВСЕ возможные имена для проверки (до 100)
+                        val fileNamesToCheck = mutableListOf(fileName)
+                        for (i in 1 until 100) {
+                            fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
+                        }
 
-                            isFileExists = context.contentResolver.query(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                arrayOf(MediaStore.Images.Media._ID),
-                                existsSelection,
-                                existsArgs,
-                                null
-                            )?.use { cursor ->
-                                (cursor.count ?: 0) > 0
-                            } ?: false
+                        // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
+                        val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
+                        val batchSelection = "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
+                        val batchArgs = fileNamesToCheck.toTypedArray()
 
-                            if (!isFileExists) {
-                                // Обновляем имя файла в contentValues
-                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
-                                LogUtil.debug("MediaStore", "Режим замены выключен, используем новое имя с индексом: $newFileName")
+                        val existingNames = mutableSetOf<String>()
+                        context.contentResolver.query(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                            batchSelection,
+                            batchArgs,
+                            null
+                        )?.use { cursor ->
+                            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                            while (cursor.moveToNext()) {
+                                existingNames.add(cursor.getString(nameColumn))
+                            }
+                        }
+
+                        // Находим первый свободный индекс
+                        var foundFreeName = false
+                        for ((index, name) in fileNamesToCheck.withIndex()) {
+                            if (!existingNames.contains(name)) {
+                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                                LogUtil.debug("MediaStore", "Режим замены выключен, используем имя: $name")
+                                foundFreeName = true
                                 break
                             }
-
-                            index++
                         }
-                        
-                        // Если мы перебрали все индексы и не нашли свободный, используем временную метку
-                        if (isFileExists) {
+
+                        // Если все 100 индексов заняты, используем временную метку
+                        if (!foundFreeName) {
                             val timestamp = System.currentTimeMillis()
                             val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
                             contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
@@ -349,36 +354,44 @@ object MediaStoreUtil {
                         val fileNameWithoutExt = fileName.substringBeforeLast(".")
                         val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
 
-                        var index = 1
-                        var isFileExists = true
-
-                        while (isFileExists && index < 100) {
-                            val newFileName = "${fileNameWithoutExt}_${index}${extension}"
-
-                            // ИСПРАВЛЕНИЕ: Проверяем существование файла с новым именем в той же директории
-                            val existsSelection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-                            val existsArgs = arrayOf(newFileName, pathWithSlash, pathWithoutSlash)
-
-                            isFileExists = context.contentResolver.query(
-                                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                                arrayOf(MediaStore.Images.Media._ID),
-                                existsSelection,
-                                existsArgs,
-                                null
-                            )?.use { cursor ->
-                                (cursor.count ?: 0) > 0
-                            } ?: false
-
-                            if (!isFileExists) {
-                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
-                                LogUtil.debug("MediaStore", "Режим отдельной папки, используем имя с индексом: $newFileName")
-                                break
-                            }
-
-                            index++
+                        // OPTIMIZED: Генерируем ВСЕ возможные имена для проверки (до 100)
+                        val fileNamesToCheck = mutableListOf(fileName)
+                        for (i in 1 until 100) {
+                            fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
                         }
 
-                        if (isFileExists) {
+                        // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
+                        val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
+                        val batchSelection = "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+                        val batchArgs = fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
+
+                        val existingNames = mutableSetOf<String>()
+                        context.contentResolver.query(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                            batchSelection,
+                            batchArgs,
+                            null
+                        )?.use { cursor ->
+                            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                            while (cursor.moveToNext()) {
+                                existingNames.add(cursor.getString(nameColumn))
+                            }
+                        }
+
+                        // Находим первый свободный индекс
+                        var foundFreeName = false
+                        for (name in fileNamesToCheck) {
+                            if (!existingNames.contains(name)) {
+                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                                LogUtil.debug("MediaStore", "Режим отдельной папки, используем имя: $name")
+                                foundFreeName = true
+                                break
+                            }
+                        }
+
+                        // Если все 100 индексов заняты, используем временную метку
+                        if (!foundFreeName) {
                             val timestamp = System.currentTimeMillis()
                             val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
                             contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)

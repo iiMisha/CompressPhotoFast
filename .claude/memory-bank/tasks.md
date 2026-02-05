@@ -8,21 +8,30 @@
 3. Проверить отчет: `app/build/reports/lint-results-debug.html`
 4. Исправить критичные проблемы
 
-## Умный запуск тестов через test-runner
+## Запуск тестов через Task tool (ОБЯЗАТЕЛЬНО!)
 **Когда**: Разработка, рефакторинг, перед коммитом
 **Шаги**:
-1. Использовать скилл: `/test-runner`
-2. Smart mode (по умолчанию) - только изменённые модули
-3. Опции: `mode=all` для полного прогона
-4. Coverage отчет: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+1. Использовать Task tool с субагентом `general-purpose`
+2. Передать команду тестирования в prompt
+3. Субагент выполнит тесты в отдельном контексте
+4. Получить summary результатов
 
-## Запуск тестов
-**Когда**: Разработка, рефакторинг
-**Шаги**:
-1. `./gradlew testDebugUnitTest` (~7m)
-2. `./scripts/run_all_tests.sh` (~15m, нужен эмулятор Small_Phone)
-3. `./gradlew jacocoTestReport`
-4. Coverage: `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+**Команды для запуска:**
+```yaml
+# Unit тесты
+Task(subagent_type: "general-purpose",
+  prompt: "Запусти unit тесты: ./gradlew testDebugUnitTest")
+
+# Все тесты
+Task(subagent_type: "general-purpose",
+  prompt: "Запусти все тесты: ./scripts/run_all_tests.sh")
+
+# Instrumentation тесты
+Task(subagent_type: "general-purpose",
+  prompt: "Запусти instrumentation тесты: ./scripts/run_instrumentation_tests.sh")
+```
+
+**ВАЖНО:** Никогда не запускай тесты в основном контексте! Всегда используй Task tool.
 
 ## Добавление unit тестов
 **Когда**: Новая функциональность

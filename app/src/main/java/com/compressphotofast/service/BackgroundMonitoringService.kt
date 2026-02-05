@@ -248,7 +248,7 @@ class BackgroundMonitoringService : Service() {
      */
     private fun setupContentObserver() {
         // Создаем MediaStoreObserver
-        val observer = MediaStoreObserver(applicationContext, OptimizedCacheUtil, uriProcessingTracker, Handler(Looper.getMainLooper())) { uri ->
+        val observer = MediaStoreObserver(applicationContext, OptimizedCacheUtil, uriProcessingTracker) { uri ->
             // Этот код будет выполнен при обнаружении изменений после задержки
             serviceScope.launch {
                 processNewImage(uri)

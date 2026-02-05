@@ -245,26 +245,16 @@ class SequentialImageProcessor(
                 return@withContext null
             }
 
-            // Проверка существования файла перед обработкой
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Пакетная обработка", "Файл не существует (первая проверка)")
+            // Единая проверка существования файла
+            val exists = UriUtil.isUriExistsSuspend(context, uri)
+            if (!exists) {
+                LogUtil.error(uri, "Пакетная обработка", "Файл недоступен")
                 uriProcessingTracker.markUriUnavailable(uri)
                 return@withContext null
             }
 
-            // Небольшая задержка для предотвращения race condition
-            delay(30)
-
-            // Проверка 3: после задержки
-            if (!isActive || processingCancelled.get()) {
-                LogUtil.processDebug("processImage отменён (проверка 3): $uri")
-                return@withContext null
-            }
-
-            // Повторная проверка существования файла
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Пакетная обработка", "Файл не существует (вторая проверка)")
-                uriProcessingTracker.markUriUnavailable(uri)
+            // Продолжаем обработку без задержек
+            if (processingCancelled.get()) {
                 return@withContext null
             }
 
@@ -277,16 +267,9 @@ class SequentialImageProcessor(
 
             updateProgress(position, total, fileName)
 
-            // Проверка 4: перед сжатием
+            // Проверка перед сжатием
             if (!isActive || processingCancelled.get()) {
-                LogUtil.processDebug("processImage отменён (проверка 4): $uri")
-                return@withContext null
-            }
-
-            // Финальная проверка непосредственно перед сжатием
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Пакетная обработка", "Файл не существует перед сжатием")
-                uriProcessingTracker.markUriUnavailable(uri)
+                LogUtil.processDebug("processImage отменён (проверка перед сжатием): $uri")
                 return@withContext null
             }
 

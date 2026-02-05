@@ -28,7 +28,7 @@ class CompressPhotoApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        
+
         // Настройка логирования
         if (BuildConfig.DEBUG) {
             // В режиме отладки показываем все логи
@@ -37,7 +37,7 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             // В релизной версии полностью отключаем логирование
             Timber.plant(ReleaseTree())
         }
-        
+
         // Создание канала уведомлений (для Android 8.0+)
         // Используем централизованный метод из NotificationUtil
         NotificationUtil.createDefaultNotificationChannel(this)

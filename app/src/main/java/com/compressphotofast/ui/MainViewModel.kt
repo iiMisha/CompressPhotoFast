@@ -12,6 +12,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -82,6 +83,9 @@ class MainViewModel @Inject constructor(
 
     // Map для хранения WorkInfo observers
     private val workObservers = mutableMapOf<UUID, Observer<WorkInfo?>>()
+
+    // Job tracking для coroutine collectors
+    private var collectionJobs = listOf<Job>()
 
     // StateFlows для счетчиков пропущенных и уже оптимизированных изображений
     private val _skippedCount = MutableStateFlow(0)
@@ -160,29 +164,29 @@ class MainViewModel @Inject constructor(
      */
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        
-        // Начинаем отслеживать прогресс обработки изображений
-        viewModelScope.launch {
-            // Отслеживаем состояние загрузки
-            sequentialImageProcessor.isLoading.collect { isLoading ->
-                _isLoading.value = isLoading
+
+        // Cancel предыдущие collection jobs
+        collectionJobs.forEach { it.cancel() }
+
+        // Запускаем новые collectors и сохраняем Job
+        collectionJobs = listOf(
+            viewModelScope.launch {
+                sequentialImageProcessor.isLoading.collect { isLoading ->
+                    _isLoading.value = isLoading
+                }
+            },
+            viewModelScope.launch {
+                sequentialImageProcessor.progress.collect { progress ->
+                    _multipleImagesProgress.value = progress
+                }
+            },
+            viewModelScope.launch {
+                sequentialImageProcessor.result.collect { result ->
+                    _compressionResult.value = result
+                }
             }
-        }
-        
-        viewModelScope.launch {
-            // Отслеживаем прогресс обработки
-            sequentialImageProcessor.progress.collect { progress ->
-                _multipleImagesProgress.value = progress
-            }
-        }
-        
-        viewModelScope.launch {
-            // Отслеживаем результат обработки
-            sequentialImageProcessor.result.collect { result ->
-                _compressionResult.value = result
-            }
-        }
-        
+        )
+
         // Запускаем обработку изображений последовательно
         viewModelScope.launch {
             sequentialImageProcessor.processImages(
@@ -191,7 +195,7 @@ class MainViewModel @Inject constructor(
                 listener = null  // Null так как не используем данные колбэки
             )
         }
-        
+
         // Логируем начало обработки
         LogUtil.processInfo("Запущена последовательная обработка ${uris.size} изображений")
     }
@@ -443,6 +447,10 @@ class MainViewModel @Inject constructor(
     // Очистка ресурсов при уничтожении ViewModel
     override fun onCleared() {
         super.onCleared()
+
+        // Отменяем все collection jobs
+        collectionJobs.forEach { it.cancel() }
+        collectionJobs = emptyList()
 
         // Удаляем всех WorkInfo observers
         workObservers.forEach { (workId, observer) ->

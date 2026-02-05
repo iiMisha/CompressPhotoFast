@@ -1,7 +1,8 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
-*   **Локальные агенты**: 6 агентов в `.claude/agents/` (kotlin-specialist, java-architect, deployment-engineer, devops-engineer, platform-engineer, database-administrator)
+*   **Локальные агенты**: 9 агентов в `.claude/agents/` (kotlin-specialist, java-architect, deployment-engineer, devops-engineer, platform-engineer, database-administrator, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+*   **Review агенты**: Добавлены 3 локальных агента для code review и тестирования (android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
 *   **Новые скиллы**: lint-check (Android Lint + Detekt), test-runner (умный запуск тестов)
 *   **Android Test Orchestrator**: добавлен для стабильности instrumentation тестов (#30fc343)
 *   **Инструкции по памяти**: обновлены в rules.md с лимитами размера файлов
@@ -16,18 +17,20 @@
 *   🔴 Двойные расширения (HEIC.jpg)
 
 ## Недавние исправления
-*   ✅ **Уведомления о сжатии**: Полностью исправлена система уведомлений (февраль 2026, e45d9e7)
-    *   Проблема 1: `staticInstance` был null после перезагрузки → init блок для инициализации
-    *   Проблема 2: Автобатчи имели бесконечный таймаут → убрано продление таймаута
-    *   Оптимизации: toInputStream() вместо toByteArray(), destroy() → suspend, атомарные add()
-    *   Файлы: `CompressionBatchTracker.kt`, `ImageCompressionUtil.kt`, `SequentialImageProcessor.kt`, `UriProcessingTracker.kt`
-    *   Тесты: 320/320 passed (2 новых теста для staticInstance)
+*   ✅ **Phase 1+2 Performance Optimizations**: Исправлено 8 проблем (февраль 2026)
+    *   **Phase 1**: SequentialImageProcessor (+30-40%), shared Handlers (3 leaks), Job tracking
+    *   **Phase 2**: HEIC single-pass decode (2x), DataStore миграция (0 ANR), MediaStore batch queries (-99%), LeakCanary
+    *   Тесты: 320/320 passed, обе фазы успешны
+    *   Общий эффект: 60-80% ускорение, -7 leaks, -99% queries
+*   ✅ **Review агенты**: 3 агента из pr-review-toolkit (февраль 2026)
+    *   android-test-analyzer, android-silent-failure-hunter, android-code-reviewer
+*   ✅ **Уведомления о сжатие**: Исправлена система уведомлений (e45d9e7)
 
 ## Метрики
 *   **Исходный код**: 36 Kotlin файлов
 *   **Тесты**: 320 unit + 232 instrumentation (100% pass rate)
 *   **Скиллы**: 5 (android-test-suite, android-optimization-analyzer, memory-bank-updater, lint-check, test-runner)
-*   **Локальные агенты**: 6 в `.claude/agents/` (kotlin-specialist, java-architect, deployment-engineer, devops-engineer, platform-engineer, database-administrator)
+*   **Локальные агенты**: 9 в `.claude/agents/` (kotlin-specialist, java-architect, deployment-engineer, devops-engineer, platform-engineer, database-administrator, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
 
 ## Дальнейшие шаги
 *   Исправить дубликаты/расширения

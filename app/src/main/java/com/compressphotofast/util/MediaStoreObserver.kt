@@ -25,9 +25,14 @@ class MediaStoreObserver @Inject constructor(
     private val context: Context,
     private val optimizedCacheUtil: OptimizedCacheUtil,
     private val uriProcessingTracker: UriProcessingTracker,
-    private val handler: Handler = Handler(Looper.getMainLooper()),
     private var imageChangeListener: ((Uri) -> Unit)? = null
 ) {
+    // Shared handler для всех экземпляров
+    companion object {
+        private val mainHandler = Handler(Looper.getMainLooper())
+    }
+
+    private val handler: Handler = mainHandler
     // CoroutineScope для асинхронных операций
     private val observerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Система для предотвращения дублирования событий от ContentObserver

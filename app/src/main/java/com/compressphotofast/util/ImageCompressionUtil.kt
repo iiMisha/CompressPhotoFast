@@ -51,11 +51,12 @@ object ImageCompressionUtil {
                 var width = 0
                 var height = 0
 
+                // Декодируем только для получения границ, bitmap сразу освобождаем
                 ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
                     width = info.size.width
                     height = info.size.height
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                })
+                }).also { it?.recycle() }
 
                 if (width > 0 && height > 0) {
                     return@withContext Pair(width, height)
@@ -91,6 +92,7 @@ object ImageCompressionUtil {
         try {
             if (isHeicFormat(mimeType)) {
                 // Используем ImageDecoder для HEIC/HEIF (API 28+)
+                // OPTIMIZED: single-pass decode - получаем bounds и bitmap за один раз
                 val source = ImageDecoder.createSource(context.contentResolver, uri)
 
                 return@withContext ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
