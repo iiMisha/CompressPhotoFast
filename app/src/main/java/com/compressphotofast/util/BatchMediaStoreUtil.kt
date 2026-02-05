@@ -108,7 +108,10 @@ object BatchMediaStoreUtil {
             return@withContext result
         } catch (e: Exception) {
             LogUtil.error(null, "BATCH_METADATA", "Ошибка при пакетном получении метаданных", e)
-            return@withContext emptyMap()
+            return@withContext uris.associateWith {
+                LogUtil.error(it, "BATCH_METADATA", "Метаданные недоступны из-за предыдущей ошибки")
+                null
+            }
         }
     }
 

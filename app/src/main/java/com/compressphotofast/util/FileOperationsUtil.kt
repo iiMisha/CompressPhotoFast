@@ -255,8 +255,8 @@ object FileOperationsUtil {
             hasSpace
         } catch (e: Exception) {
             LogUtil.errorWithException("Проверка дискового пространства", e)
-            // При ошибке считаем что места достаточно (fail-safe)
-            true
+            // При ошибке считаем что места недостаточно (fail-safe)
+            false
         }
     }
 
@@ -290,7 +290,7 @@ object FileOperationsUtil {
             hasMemory
         } catch (e: Exception) {
             LogUtil.errorWithException("Проверка памяти", e)
-            true // fail-safe
+            false // fail-safe - считаем что памяти недостаточно при ошибке
         }
     }
 

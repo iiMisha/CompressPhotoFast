@@ -178,10 +178,16 @@ object UriUtil {
                     }
                 }
             }
-            
+
             return fileName
+        } catch (e: SecurityException) {
+            LogUtil.error(uri, "Получение имени", "Нет прав доступа к URI (SecurityException)", e)
+            return null
+        } catch (e: IllegalArgumentException) {
+            LogUtil.error(uri, "Получение имени", "Неверный URI (IllegalArgumentException)", e)
+            return null
         } catch (e: Exception) {
-            LogUtil.error(uri, "Получение имени", "Ошибка при получении имени файла из URI", e)
+            LogUtil.error(uri, "Получение имени", "Ошибка при получении имени файла из URI: ${e.javaClass.simpleName} - ${e.message}", e)
             return null
         }
     }
@@ -406,9 +412,7 @@ object UriUtil {
         ReplaceWith("getFileSize(context, uri)")
     )
     fun getFileSizeSync(context: Context, uri: Uri): Long {
-        return kotlinx.coroutines.runBlocking {
-            getFileSize(context, uri)
-        }
+        throw UnsupportedOperationException("Use getFileSize() suspend function instead. This method is deprecated and causes blocking.")
     }
 
     /**

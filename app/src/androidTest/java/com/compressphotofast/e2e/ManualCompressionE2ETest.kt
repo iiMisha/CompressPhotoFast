@@ -247,7 +247,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             }
 
             val uri = testUris[0]
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
+            val originalSize = runBlocking { UriUtil.getFileSize(context, uri) }
 
             // Проверяем, что размер файла больше 100 КБ
             assertThat(originalSize).isGreaterThan(100 * 1024)
@@ -263,7 +263,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             assertThat(result.second).isNotNull()
 
             // Проверяем, что размер файла уменьшился
-            val compressedSize = UriUtil.getFileSizeSync(context, result.second!!)
+            val compressedSize = runBlocking { UriUtil.getFileSize(context, result.second!!) }
             assertThat(compressedSize).isLessThan(originalSize)
 
             // Проверяем, что эконома составляет минимум 30%
@@ -356,7 +356,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
 
             // Выполняем сжатие нескольких изображений
             for (uri in testUris.take(3)) {
-                val originalSize = UriUtil.getFileSizeSync(context, uri)
+                val originalSize = runBlocking { UriUtil.getFileSize(context, uri) }
                 val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
                     context,
                     uri,
@@ -364,7 +364,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
                 )
 
                 if (result.second != null) {
-                    val compressedSize = UriUtil.getFileSizeSync(context, result.second!!)
+                    val compressedSize = runBlocking { UriUtil.getFileSize(context, result.second!!) }
                     totalOriginalSize += originalSize
                     totalCompressedSize += compressedSize
                 }
@@ -432,7 +432,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
                 return@runBlocking
             }
 
-            val fileSize = UriUtil.getFileSizeSync(context, smallUri)
+            val fileSize = runBlocking { UriUtil.getFileSize(context, smallUri) }
 
             // Проверяем, что размер файла меньше 100 КБ
             assertThat(fileSize).isLessThan(100 * 1024)
@@ -461,7 +461,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             }
 
             val uri = testUris[0]
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
+            val originalSize = runBlocking { UriUtil.getFileSize(context, uri) }
 
             // Выполняем сжатие с низким качеством
             val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
@@ -474,7 +474,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             assertThat(result.second).isNotNull()
 
             // Проверяем, что размер файла значительно уменьшился
-            val compressedSize = UriUtil.getFileSizeSync(context, result.second!!)
+            val compressedSize = runBlocking { UriUtil.getFileSize(context, result.second!!) }
             val savingsPercent = ((originalSize - compressedSize).toFloat() / originalSize * 100).toInt()
             assertThat(savingsPercent).isAtLeast(40)
 
@@ -504,7 +504,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             // Ждем сохранения файла
             delay(2000)
 
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
+            val originalSize = runBlocking { UriUtil.getFileSize(context, uri) }
             LogUtil.processDebug("Исходный размер: $originalSize байт")
 
             // Проверяем, что файл достаточно большой для теста (> 500 КБ)
@@ -526,7 +526,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             assertThat(result.second).isNotNull()
 
             // Проверяем, что размер файла уменьшился
-            val compressedSize = UriUtil.getFileSizeSync(context, result.second!!)
+            val compressedSize = runBlocking { UriUtil.getFileSize(context, result.second!!) }
             val savingsPercent = ((originalSize - compressedSize).toFloat() / originalSize * 100).toInt()
 
             LogUtil.processDebug("Сжатие с высоким качеством: исходный=$originalSize, сжатый=$compressedSize, экономия=$savingsPercent%")
@@ -554,7 +554,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             }
 
             val uri = testUris[0]
-            val originalSize = UriUtil.getFileSizeSync(context, uri)
+            val originalSize = runBlocking { UriUtil.getFileSize(context, uri) }
 
             // Выполняем сжатие в режиме замены
             val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
@@ -567,7 +567,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             assertThat(result.second).isNotNull()
 
             // Проверяем, что размер файла уменьшился
-            val compressedSize = UriUtil.getFileSizeSync(context, result.second!!)
+            val compressedSize = runBlocking { UriUtil.getFileSize(context, result.second!!) }
             assertThat(compressedSize).isLessThan(originalSize)
 
             LogUtil.processDebug("Сжатие в режиме замены: $originalSize -> $compressedSize байт")
@@ -579,7 +579,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     /**
      * Создает тестовые изображения для тестирования
      */
-    private fun createTestImages() {
+    fun createTestImages() {
         testUris.clear()
         testUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 5))
         LogUtil.processDebug("Создано ${testUris.size} тестовых изображений")
@@ -588,7 +588,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     /**
      * Создает тестовое изображение заданного размера
      */
-    private fun createTestImage(width: Int, height: Int): Uri? {
+    fun createTestImage(width: Int, height: Int): Uri? {
         return try {
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
             
@@ -630,7 +630,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     /**
      * Создает маленькое тестовое изображение (< 100 КБ)
      */
-    private fun createSmallTestImage(): Uri? {
+    fun createSmallTestImage(): Uri? {
         return try {
             val width = 200
             val height = 200
@@ -674,7 +674,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
     /**
      * Удаляет тестовые изображения
      */
-    private fun cleanupTestImages() {
+    fun cleanupTestImages() {
         for (uri in testUris) {
             try {
                 context.contentResolver.delete(uri, null, null)

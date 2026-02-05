@@ -59,32 +59,40 @@ class BackgroundMonitoringService : Service() {
 
     // Job для периодической очистки временных файлов
     private var cleanupJob: Job? = null
-    
+
     // BroadcastReceiver для обработки запросов на обработку изображений
-    private val imageProcessingReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Constants.ACTION_PROCESS_IMAGE) {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(Constants.EXTRA_URI)
-                }
-                
-                uri?.let {
-                    LogUtil.processDebug("Запрос на обработку: $uri")
+    private var imageProcessingReceiver: android.content.BroadcastReceiver? = null
 
-                    // Запускаем корутину для проверки статуса изображения
-                    serviceScope.launch {
-                        // Проверяем, не было ли изображение уже обработано
-                        if (!StatsTracker.shouldProcessImage(context, uri)) {
-                            LogUtil.processDebug("Обработка не требуется: $uri")
-                            return@launch
+    /**
+     * Создаёт BroadcastReceiver для обработки запросов на обработку изображений.
+     * Используется factory-метод для предотвращения memory leak через анонимный класс.
+     */
+    private fun createImageProcessingReceiver(): android.content.BroadcastReceiver {
+        return object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Constants.ACTION_PROCESS_IMAGE) {
+                    val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(Constants.EXTRA_URI)
+                    }
+
+                    uri?.let {
+                        LogUtil.processDebug("Запрос на обработку: $uri")
+
+                        // Запускаем корутину для проверки статуса изображения
+                        serviceScope.launch {
+                            // Проверяем, не было ли изображение уже обработано
+                            if (!StatsTracker.shouldProcessImage(context, uri)) {
+                                LogUtil.processDebug("Обработка не требуется: $uri")
+                                return@launch
+                            }
+
+                            // Добавляем URI в список обрабатываемых и запускаем обработку
+                            // processNewImage уже содержит все необходимые проверки
+                            processNewImage(uri)
                         }
-
-                        // Добавляем URI в список обрабатываемых и запускаем обработку
-                        // processNewImage уже содержит все необходимые проверки
-                        processNewImage(uri)
                     }
                 }
             }
@@ -136,10 +144,16 @@ class BackgroundMonitoringService : Service() {
         
         // Настраиваем ContentObserver для отслеживания изменений в MediaStore
         setupContentObserver()
-        
-        // Регистрируем BroadcastReceiver для обработки запросов на сжатие
-        registerProcessImageReceiver()
-        
+
+        // Создаём и регистрируем BroadcastReceiver для обработки запросов на сжатие
+        imageProcessingReceiver = createImageProcessingReceiver()
+        registerReceiver(
+            imageProcessingReceiver!!,
+            IntentFilter(Constants.ACTION_PROCESS_IMAGE),
+            Context.RECEIVER_NOT_EXPORTED
+        )
+        LogUtil.processDebug("Receiver ACTION_PROCESS_IMAGE зарегистрирован")
+
         // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
         registerReceiver(
             compressionCompletedReceiver, 
@@ -232,12 +246,19 @@ class BackgroundMonitoringService : Service() {
         // Останавливаем периодическую очистку
         cleanupJob?.cancel()
 
-        // Отменяем регистрацию BroadcastReceiver
+        // Безопасная отмена регистрации BroadcastReceiver с очисткой ссылок
         try {
-            unregisterReceiver(imageProcessingReceiver)
+            imageProcessingReceiver?.let { unregisterReceiver(it) }
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Ошибка при отмене регистрации imageProcessingReceiver", e)
+        } finally {
+            imageProcessingReceiver = null // Критично для предотвращения leak
+        }
+
+        try {
             unregisterReceiver(compressionCompletedReceiver)
         } catch (e: Exception) {
-            LogUtil.errorWithException("Ошибка при отмене регистрации BroadcastReceiver", e)
+            LogUtil.errorWithException("Ошибка при отмене регистрации compressionCompletedReceiver", e)
         }
 
         LogUtil.processDebug("Фоновый сервис остановлен")
@@ -358,19 +379,6 @@ class BackgroundMonitoringService : Service() {
         
         // Выводим автоматический отчет о производительности
         PerformanceMonitor.autoReportIfNeeded(applicationContext)
-    }
-
-    /**
-     * Регистрация BroadcastReceiver для обработки запросов на сжатие изображений
-     */
-    private fun registerProcessImageReceiver() {
-        // Регистрируем BroadcastReceiver для обработки запросов на обработку изображений
-        registerReceiver(
-            imageProcessingReceiver,
-            IntentFilter(Constants.ACTION_PROCESS_IMAGE),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        LogUtil.processDebug("Receiver ACTION_PROCESS_IMAGE зарегистрирован")
     }
 
     /**

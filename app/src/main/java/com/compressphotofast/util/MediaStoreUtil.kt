@@ -286,6 +286,7 @@ object MediaStoreUtil {
 
                 } catch (e: Exception) {
                     LogUtil.errorWithException("Проверка существующего файла", e)
+                    throw IOException("Не удалось проверить существование файла в MediaStore", e)
                 }
             }
 

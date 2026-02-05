@@ -199,9 +199,18 @@ object ImageCompressionUtil {
             }
 
             return@withContext outputStream
+        } catch (e: OutOfMemoryError) {
+            LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для сжатия", e)
+            throw CompressionException(CompressionErrorType.OUT_OF_MEMORY, "Недостаточно памяти", uri, e)
+        } catch (e: IOException) {
+            LogUtil.error(uri, "Сжатие в поток", "Ошибка ввода/вывода при сжатии", e)
+            throw CompressionException(CompressionErrorType.IO_ERROR, "Ошибка доступа к файлу", uri, e)
+        } catch (e: IllegalArgumentException) {
+            LogUtil.error(uri, "Сжатие в поток", "Неверный формат изображения", e)
+            throw CompressionException(CompressionErrorType.INVALID_FORMAT, "Неверный формат", uri, e)
         } catch (e: Exception) {
-            LogUtil.error(uri, "Сжатие в поток", e)
-            return@withContext null
+            LogUtil.error(uri, "Сжатие в поток", "Неожиданная ошибка при сжатии", e)
+            throw CompressionException(CompressionErrorType.UNKNOWN, "Неизвестная ошибка: ${e.message}", uri, e)
         } finally {
             // Гарантированно освобождаем память Bitmap
             inputBitmap?.recycle()

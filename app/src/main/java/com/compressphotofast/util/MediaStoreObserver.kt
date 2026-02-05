@@ -29,7 +29,15 @@ class MediaStoreObserver @Inject constructor(
 ) {
     // Shared handler для всех экземпляров
     companion object {
-        private val mainHandler = Handler(Looper.getMainLooper())
+        private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+
+        fun cleanupHandler() {
+            try {
+                mainHandler.removeCallbacksAndMessages(null)
+            } catch (e: Exception) {
+                LogUtil.errorWithException("Ошибка при очистке Handler", e)
+            }
+        }
     }
 
     private val handler: Handler = mainHandler
@@ -215,6 +223,9 @@ class MediaStoreObserver @Inject constructor(
 
         // Отменяем все корутины
         observerScope.coroutineContext[ kotlinx.coroutines.Job]?.cancel()
+
+        // Очищаем shared handler
+        cleanupHandler()
 
         LogUtil.processDebug("MediaStoreObserver: ContentObserver отменен")
     }
