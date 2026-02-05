@@ -1,6 +1,1 @@
-{
-"statusLine": {
-    "type": "command",
-    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); ccusage=$(ccusage blocks --json | jq -r '.blocks[] | select(.isActive == true) | \"\\(if .totalTokens >= 1000000 then (.totalTokens / 1000000 * 100 | round) / 100 | tostring + \"M\" elif .totalTokens >= 1000 then (.totalTokens / 1000 * 100 | round) / 100 | tostring + \"K\" else .totalTokens | tostring end) tokens | 📈 \\(.totalTokens / 17700000 * 100 | floor)% ($\\((.costUSD * 100 | round) / 100)) | ⏱️ \\(.projection.remainingMinutes / 60 | floor)h \\(.projection.remainingMinutes % 60)m left | 🔥 $\\((.burnRate.costPerHour * 100 | round) / 100)/hour\"'); printf \"%s | %s\" \"$model\" \"$ccusage\""
-  }
-}
+{}
