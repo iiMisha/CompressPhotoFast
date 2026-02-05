@@ -87,3 +87,17 @@
 - `database-administrator` — Room DB, SQLite
 
 Вызов через глобальные префиксы: `voltagent-lang:`, `voltagent-infra:`
+
+---
+
+## 5. Skills (Скиллы)
+
+Вызов через `/skill-name`:
+
+| Скилл | Назначение |
+|-------|------------|
+| `/memory-bank-updater` | Обновление Memory Bank — инициализация, документирование задач |
+| `/test-runner` | Умный запуск тестов с определением изменённых модулей |
+| `/android-test-suite` | Комплексное тестирование (unit, instrumentation, E2E, performance) |
+| `/android-optimization-analyzer` | Анализ производительности и памяти с рекомендациями |
+| `/lint-check` | Android Lint и статический анализ кода |
