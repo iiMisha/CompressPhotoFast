@@ -11,6 +11,12 @@
 *   **Депрекация Task(Explore)**: замена на Glob/Grep/Read
 *   **Hilt DI**: UriProcessingTracker → @Inject singleton
 *   **Корутины**: Handler → CoroutineScope (BackgroundMonitoringService, NotificationUtil)
+*   **Интеграция агентов в скиллы**: Добавлена секция "Автоматизация через агентов" во все скиллы
+    *   test-runner → general-purpose (запуск тестов)
+    *   android-test-suite → general-purpose + android-test-analyzer (анализ покрытия)
+    *   lint-check → general-purpose + kotlin-specialist + android-code-reviewer (lint + исправление)
+    *   android-optimization-analyzer → kotlin-specialist + android-silent-failure-hunter (анализ кода)
+    *   memory-bank-updater → прямые инструменты Glob/Grep/Read (без агентов)
 
 ## Текущие проблемы
 *   🔴 Дубликаты при массовой обработке (50+ файлов)

@@ -186,6 +186,7 @@ android-code-reviewer         → Review кода на соответствие 
 | `/memory-bank-updater` | Начало НОВОЙ задачи, конец задачи, изменение архитектуры |
 | `/android-optimization-analyzer` | Перед оптимизацией производительности или анализом проблем |
 | `/lint-check` | Перед коммитом в main, review кода, поиск ошибок |
+| `/test-runner` | **ЗАПУСК ТЕСТОВ** (всегда через этот скилл!) |
 
 ### ЗАПРЕЩЕНО:
 ```
@@ -219,6 +220,20 @@ Task(tool: Task, subagent_type: "general-purpose",
   - android-test-analyzer (проверка тестов)
   - android-silent-failure-hunter (если были изменения error handling)
 ```
+
+### АВТОМАТИЗАЦИЯ ЧЕРЕЗ АГЕНТОВ
+
+**Все скиллы используют субагентов для выполнения задач:**
+
+| Скилл | Вызываемые агенты | Назначение |
+|-------|------------------|------------|
+| `/test-runner` | `general-purpose` | Запуск тестов в изолированном контексте |
+| `/android-test-suite` | `general-purpose`, `android-test-analyzer` | Запуск тестов + анализ покрытия |
+| `/lint-check` | `general-purpose`, `kotlin-specialist`, `android-code-reviewer` | Lint + исправление + review |
+| `/android-optimization-analyzer` | `kotlin-specialist`, `android-silent-failure-hunter` | Анализ производительности + error handling |
+| `/memory-bank-updater` | (нет агентов) | Прямые инструменты Glob/Grep/Read |
+
+**Вызов скилла автоматически вызывает необходимые агенты через Task tool.**
 
 ---
 

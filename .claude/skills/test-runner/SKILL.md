@@ -171,6 +171,61 @@ while true; do
 done
 ```
 
+## Автоматизация через агентов
+
+### КРИТИЧЕСКОЕ ПРАВИЛО
+**НИКОГДА не запускай тесты через Bash в основном контексте!** Все тесты ДОЛЖНЫ запускаться через Task tool с субагентом `general-purpose`.
+
+### Шаблон вызова тестов
+
+**Базовый шаблон:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "[Команда тестирования]
+           Верни summary результатов с passed/failed/skipped.")
+```
+
+### Соответствие режимов и команд
+
+| Режим | Команда для general-purpose | Описание |
+|-------|---------------------------|----------|
+| `mode=unit_only` | `./gradlew testDebugUnitTest` | Только unit тесты |
+| `mode=instrumentation_only` | `./scripts/run_instrumentation_tests.sh` | Инструменты |
+| `mode=all` | `./scripts/run_all_tests.sh` | Все тесты |
+| `mode=smart`, изменён файл | `./gradlew test --tests "*ClassName*"` | Только изменённые модули |
+| `scope=specific_module` | `./gradlew test --tests "com.compressphotofast.**"` | Конкретный пакет |
+
+### Workflow выполнения
+
+1. Определи режим на основе аргументов `mode` и `scope`
+2. Сформируй команду Gradle/скрипт
+3. **Вызови Task tool** с `subagent_type: "general-purpose"`
+4. Передай команду в prompt субагента
+5. Дождись завершения и проанализируй результаты
+6. Сгенерируй отчет в формате markdown
+
+### Примеры вызова
+
+**Smart mode:**
+```yaml
+# Шаг 1: Определение изменений (в основном контексте)
+Bash("git diff --name-only HEAD~1")
+
+# Шаг 2: Запуск тестов через субагент
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Изменены: ImageCompressionUtil.kt
+           Запусти: ./gradlew test --tests '*ImageCompressionUtil*'
+           Верни summary результатов.")
+```
+
+**Полный прогон:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти все тесты: ./scripts/run_all_tests.sh
+           Таймаут: 20 минут.
+           Верни детальный summary по каждому типу тестов.")
+```
+
 ## Формат отчета
 
 ```markdown

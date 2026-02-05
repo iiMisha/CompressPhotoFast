@@ -233,6 +233,67 @@ arguments:
 - HTML отчеты
 - Рекомендации по исправлению
 
+## Автоматизация через агентов
+
+### КРИТИЧЕСКОЕ ПРАВИЛО
+**НИКОГДА не запускай тесты через Bash в основном контексте!** Используй субагент `general-purpose` для запуска тестов.
+
+### Запуск тестов через general-purpose
+
+**Unit тесты:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти unit тесты: ./gradlew testDebugUnitTest
+           Таймаут: 10 минут.
+           Верни summary с количеством passed/failed/skipped.")
+```
+
+**Instrumentation тесты:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти instrumentation тесты: ./scripts/run_instrumentation_tests.sh
+           Проверь наличие эмулятора Small_Phone перед запуском.
+           Верни полный summary результатов.")
+```
+
+**E2E тесты:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти E2E тесты: ./scripts/run_e2e_tests.sh
+           Убедись что эмулятор запущен.
+           Верни детальный отчет по каждому тесту.")
+```
+
+**Performance тесты:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти performance тесты: ./scripts/run_performance_tests.sh
+           Итераций: 10
+           Верни метрики производительности.")
+```
+
+### Анализ покрытия через android-test-analyzer
+
+**Если `coverage=true`, после запуска тестов:**
+
+```yaml
+Task(tool: Task, subagent_type: "android-test-analyzer",
+  prompt: "Проанализируй покрытие тестами для CompressPhotoFast.
+           Фокус на изменённых файлах: [список].
+           Верни:
+           1. Critical gaps (8-10 приоритет)
+           2. Important improvements (5-7)
+           3. Рекомендации по улучшению")
+```
+
+### Workflow выполнения
+
+1. Определи тип тестов из аргумента `test_type`
+2. Запусти тесты через `general-purpose`
+3. Если `coverage=true` - запусти `android-test-analyzer`
+4. Собери результаты от обоих агентов
+5. Сгенерируй сводный отчет
+
 ## Coverage отчеты
 
 ### Unit тесты

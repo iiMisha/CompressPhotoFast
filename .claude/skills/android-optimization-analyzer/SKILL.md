@@ -121,11 +121,59 @@ arguments:
 - ✅ Используй Read для чтения конкретных файлов
 - ✅ Разбивай анализ на небольшие этапы
 
-### Шаг 2: Анализ кода
-Используются специализированные агенты:
-- **Glob/Grep/Read** - для поиска файлов по паттернам (БЕЗ Explore)
-- **voltagent-lang:kotlin-specialist** - для глубокого анализа Kotlin кода
-- **voltagent-lang:java-architect** - если есть legacy Java код
+### Шаг 2: Глубокий анализ через агентов
+
+**КРИТИЧЕСКИ:**
+- ❌ НЕ используй `Task(Explore, "medium")` или `Task(Explore, "very thorough")` - вызывает переполнение памяти
+- ✅ Используй Glob/Grep/Read для поиска файлов
+- ✅ Используй специализированных агентов для анализа
+
+**Для Kotlin кода:**
+```yaml
+Task(tool: Task, subagent_type: "voltagent-lang:kotlin-specialist",
+  prompt: "Выполни глубокий анализ производительности для CompressPhotoFast.
+           Фокус: {focus_area} (memory/performance/ui/all)
+           Проанализируй файлы: [список файлов через Glob/Grep]
+
+           Проверь на:
+           1. Memory leaks (View, Context, CoroutineScope)
+           2. Неэффективную работу с изображениями
+           3. Блокировку Main thread
+           4. Проблемы с корутинами (GlobalScope, improper dispatchers)
+           5. Избыточные аллокации
+
+           Верни:
+           - Critical issues (90-100 confidence)
+           - High priority issues (80-89)
+           - Конкретные рекомендации с кодом (before/after)")
+```
+
+**Для Java кода (если есть):**
+```yaml
+Task(tool: Task, subagent_type: "voltagent-lang:java-architect",
+  prompt: "Проанализируй Java код на предмет производительности.
+           Проверь memory leaks, thread safety, database operations.")
+```
+
+**Проверка error handling:**
+```yaml
+Task(tool: Task, subagent_type: "android-silent-failure-hunter",
+  prompt: "Проверь обработку ошибок в анализируемых файлах.
+           Фокус на silent failures:
+           - File operations
+           - Image compression
+           - MediaStore queries
+           Верни список проблем с severity (CRITICAL/HIGH/MEDIUM).")
+```
+
+### Workflow выполнения
+
+1. Собери файлы через Glob/Grep (в основном контексте)
+2. Отфильтруй по области (`scope` и `focus_area`)
+3. Вызови `kotlin-specialist` для глубокого анализа
+4. Вызови `android-silent-failure-hunter` для проверки error handling
+5. Собери результаты от обоих агентов
+6. Сгенерируй сводный отчет с приоритизацией
 
 ### Шаг 3: Категоризация проблем
 Найденные проблемы группируются по:

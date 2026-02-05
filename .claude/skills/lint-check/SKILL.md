@@ -181,6 +181,65 @@ ktlint {
 ./gradlew detektAutoCorrect      # Автоисправление Detekt
 ```
 
+## Автоматизация через агентов
+
+### Запуск статического анализа
+
+**Android Lint:**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти Android Lint: ./gradlew lintDebug
+           Таймаут: 5 минут.
+           Прочитай отчет: app/build/reports/lint-results-debug.html
+           Верни summary проблем с группировкой по severity.")
+```
+
+**Detekt (если настроен):**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти Detekt: ./gradlew detekt
+           Прочитай отчет: app/build/reports/detekt/detekt.html
+           Верни список проблем с указанием файлов и строк.")
+```
+
+**ktlint (если настроен):**
+```yaml
+Task(tool: Task, subagent_type: "general-purpose",
+  prompt: "Запусти ktlint: ./gradlew ktlintCheck
+           Верни summary нарушений style guide.")
+```
+
+### Автоисправление через kotlin-specialist
+
+**Если `auto_fix=true`:**
+
+```yaml
+Task(tool: Task, subagent_type: "voltagent-lang:kotlin-specialist",
+  prompt: "Выполни автоисправление кода для CompressPhotoFast:
+           1. Запусти форматирование: ./gradlew ktlintFormat
+           2. Запусти detekt auto-correct: ./gradlew detektAutoCorrect
+           3. Исправь критичные проблемы из Lint отчета
+           Фокус на файлах: [список файлов из scope]
+           Верни список исправленных проблем.")
+```
+
+### Анализ проблем через android-code-reviewer
+
+```yaml
+Task(tool: Task, subagent_type: "android-code-reviewer",
+  prompt: "Review код на соответствие правилам из .claude/rules/rules.md
+           Фокус на проблемах найденных Lint.
+           Верни список критичных нарушений с confidence score.")
+```
+
+### Workflow выполнения
+
+1. Определи инструменты из аргумента `tools`
+2. Запусти анализ через `general-purpose`
+3. Парсь отчеты из HTML/XML файлов
+4. Если `auto_fix=true` - вызови `kotlin-specialist` для исправления
+5. Сгенерируй сводный отчет
+
 ## Формат отчета
 
 ```markdown

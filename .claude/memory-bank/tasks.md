@@ -92,3 +92,17 @@ Task(subagent_type: "general-purpose",
 2. Проверить существование файла перед ExifInterface
 3. Проверить существование после saveAttributes()
 4. Использовать сохраненные байты как fallback
+
+## Интеграция субагентов в скиллы
+**Когда**: Использование скиллов для автоматизации задач
+**Файлы**: `.claude/skills/*/SKILL.md`, `.claude/rules/rules.md`
+
+**Шаги**:
+1. При вызове скилла он САМ вызывает необходимые агенты через Task tool
+2. test-runner → general-purpose (запуск тестов)
+3. android-test-suite → general-purpose + android-test-analyzer
+4. lint-check → general-purpose + kotlin-specialist + android-code-reviewer
+5. android-optimization-analyzer → kotlin-specialist + android-silent-failure-hunter
+6. memory-bank-updater → прямые инструменты (Glob/Grep/Read), БЕЗ агентов
+
+**Важно**: Тесты ВСЕГДА запускаются через general-purpose в отдельном контексте
