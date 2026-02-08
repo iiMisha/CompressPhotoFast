@@ -105,12 +105,17 @@ Task(tool: Task, subagent_type: "general-purpose",
 | Тип задачи | Агент | Обязателен? |
 |-----------|-------|-------------|
 | Написание Kotlin/Android кода | `voltagent-lang:kotlin-specialist` | ✅ ДА |
+| Написание Python CLI кода | `python-pro` | ✅ ДА |
 | Рефакторинг кода | `voltagent-lang:kotlin-specialist` | ✅ ДА |
 | Написание тестов | `voltagent-lang:kotlin-specialist` | ✅ ДА |
 | Исследование кодовой базы | `Explore` | ✅ ДА |
 | Планирование архитектуры | `Plan` | ✅ ДА |
 | CI/CD, Gradle, GitHub Actions | `voltagent-infra:devops-engineer` | ✅ ДА |
-| База данных (Room/SQLite) | `voltagent-infra:database-administrator` | ✅ ДА |
+| База данных (Room/SQLite/MediaStore) | `voltagent-infra:database-administrator` или `sql-pro` | ✅ ДА |
+| SQL запросы, MediaStore оптимизация | `sql-pro` | ✅ ДА |
+| Безопасность (URI, права доступа) | `security-engineer` | ✅ ДА |
+| SLOs, производительность, мониторинг | `sre-engineer` | ✅ РЕКОМЕНДУЕТСЯ |
+| Инциденты, кризис-менеджмент | `incident-responder` | ✅ ПРИ ИНЦИДЕНТАХ |
 
 ### ОБЯЗАТЕЛЬНО ИСПОЛЬЗУЙ АГЕНТА ДЛЯ:
 - ✅ Изменений 2+ файлов
@@ -144,6 +149,7 @@ Task(tool: Task, subagent_type: "general-purpose",
 ```
 kotlin-specialist     → Kotlin/Android (Compose, Coroutines, KMP, Room)
 java-architect        → Java + Android SDK архитектура
+python-pro            → Python 3.10+ (CLI часть: Pillow, Click, asyncio)
 ```
 
 **Инфраструктурные агенты:**
@@ -152,6 +158,18 @@ deployment-engineer       → CI/CD, Gradle, GitHub Actions
 devops-engineer           → Автоматизация
 platform-engineer         → Инструменты разработки
 database-administrator    → Room DB, SQLite
+sre-engineer              → SLOs, мониторинг, надежность, chaos engineering
+```
+
+**Безопасность и инциденты:**
+```
+security-engineer         → DevSecOps, URI безопасность, EXIF/GPS данные
+incident-responder        → Crisis-менеджмент, root cause analysis, postmortems
+```
+
+**Базы данных и SQL:**
+```
+sql-pro                   → MediaStore запросы, SQLite оптимизация, индексы
 ```
 
 **Review агенты (локальные, адаптированные для Android):**
@@ -162,7 +180,7 @@ android-code-reviewer         → Review кода на соответствие 
 ```
 
 **Вызов:** Используй глобальные префиксы `voltagent-lang:`, `voltagent-infra:`
-**Локальные агенты:** Используй напрямую без префикса (например, `android-test-analyzer`)
+**Локальные агенты:** Используй напрямую без префикса (например, `android-test-analyzer`, `python-pro`, `sql-pro`, `security-engineer`)
 
 ### Когда использовать Review агентов:
 
@@ -171,6 +189,11 @@ android-code-reviewer         → Review кода на соответствие 
 | `android-test-analyzer` | После создания PR, добавления тестов, проверки покрытия |
 | `android-silent-failure-hunter` | После изменений с error handling, catch блоками |
 | `android-code-reviewer` | Перед коммитом, перед созданием PR, после написания кода |
+| `python-pro` | Изменения в CLI части (cli.py, compression.py, exif_handler.py) |
+| `sql-pro` | Оптимизация MediaStore запросов, работа с SQLite/Room |
+| `security-engineer` | Анализ безопасности (URI, права доступа, EXIF/GPS), review кода на уязвимости |
+| `sre-engineer` | Анализ производительности, мониторинг, SLOs, postmortems |
+| `incident-responder` | При инцидентах (краши, data loss, ANR), root cause analysis |
 
 ---
 

@@ -1,0 +1,123 @@
+18:19:43.613 Wind...ger trimMemory level: 5
+18:19:43.644 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/248397, обработка через 10 сек
+18:19:53.653 LogUtil    [ПРОЦЕСС] MediaStoreObserver: начинаем обработку URI content://media/external/images/media/248397 после задержки
+18:19:54.084 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:54.367 LogUtil    [ПРОЦЕСС] Начало обработки: content://media/external/images/media/248397
+18:19:54.368 LogUtil    [URI:8397] URI scheme: content, authority: media, path: /external/images/media/248397
+18:19:54.379 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:54.531 LogUtil    [ПРОЦЕСС] URI добавлен (safe): content://media/external/images/media/248397 из ImageProcessingUtil
+18:19:54.804 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:55.753 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:56.068 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache miss - EXIF
+18:19:56.071 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:56.092 LogUtil    [ПРОЦЕСС] EXIF-данные закэшированы для content://media/external/images/media/248397
+18:19:56.179 LogUtil    [ПРОЦЕСС] Создан автобатч: auto_batch_2_1770563996179
+18:19:56.189 LogUtil    [СЖАТИЕ:8397] Запущена работа по сжатию для content://media/external/images/media/248397 с тегом compress_1770563996167_IMG_20260208_181942.jpg в батче auto_batch_2_1770563996179
+18:19:56.190 LogUtil    [ПРОЦЕСС] Результат обработки: Сжатие запущено
+18:19:56.209 WM-S...ler Scheduling work ID 33f1e306-116a-4a64-aa17-e26002f3f260Job ID 4634
+18:19:56.220 WM-G...ler Starting work for 33f1e306-116a-4a64-aa17-e26002f3f260
+18:19:56.222 WM-P...sor Processor: processing WorkGenerationalId(workSpecId=33f1e306-116a-4a64-aa17-e26002f3f260, generation=0)
+18:19:56.229 WM-S...ice onStartJob for WorkGenerationalId(workSpecId=33f1e306-116a-4a64-aa17-e26002f3f260, generation=0)
+18:19:56.234 WM-W...per Starting work for com.compressphotofast.worker.ImageCompressionWorker
+18:19:56.246 WM-P...sor Work WorkGenerationalId(workSpecId=33f1e306-116a-4a64-aa17-e26002f3f260, generation=0) is already enqueued for processing
+18:19:56.249 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver enabled
+18:19:56.285 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:56.415 WM-P...sor Moving WorkSpec (33f1e306-116a-4a64-aa17-e26002f3f260) to the foreground
+18:19:56.427 LogUtil    [ПРОЦЕСС] Качество: 60
+18:19:56.428 LogUtil    [ПРОЦЕСС] Чтение EXIF данных из content://media/external/images/media/248397 в память (кэш не найден)
+18:19:56.428 WM-S...her Started foreground service Intent { act=ACTION_START_FOREGROUND cmp=com.compressphotofast/androidx.work.impl.foreground.SystemForegroundService (has extras) }
+18:19:56.429 WM-S...her Notifying with (id:1, workSpecId: 33f1e306-116a-4a64-aa17-e26002f3f260, notificationType :1)
+18:19:56.434 WM-S...her Notifying with (id:1, workSpecId: 33f1e306-116a-4a64-aa17-e26002f3f260, notificationType :1)
+18:19:56.520 LogUtil    [РАЗРЕШЕНИЯ] 📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для content://media/external/images/media/248397:
+18:19:56.520 LogUtil    [РАЗРЕШЕНИЯ]   - Android версия: 31 (12)
+18:19:56.520 LogUtil    [РАЗРЕШЕНИЯ]   - ACCESS_MEDIA_LOCATION: ✅ ПРЕДОСТАВЛЕНО
+18:19:56.521 LogUtil    [РАЗРЕШЕНИЯ]   - URI тип: MediaStore
+18:19:56.521 LogUtil    [ПРОЦЕСС] 🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()
+18:19:56.522 LogUtil    [ПРОЦЕСС] 🔍 GPS результат: lat=55.75112915027778, lng=37.8796920775
+18:19:56.523 LogUtil    [ПРОЦЕСС] ✅ GPS данные получены через ExifInterface: lat=55.75112915027778, lng=37.8796920775
+18:19:56.523 LogUtil    [ПРОЦЕСС] 🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости
+18:19:56.523 LogUtil    [ПРОЦЕСС] Найдена дата в теге DateTimeOriginal: 2026:02:08 18:19:42
+18:19:56.524 LogUtil    [ПРОЦЕСС] Даты уже присутствуют в EXIF, пропускаем добавление даты оцифровки
+18:19:56.525 LogUtil    [ПРОЦЕСС] Прочитано 39 EXIF-тегов, сохраняем в кэш
+18:19:56.525 LogUtil    [URI:8397] Загружено EXIF: 39
+18:19:56.580 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:57.976 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:58.794 LogUtil    [ПРОЦЕСС] EXIF-данные получены из кэша для content://media/external/images/media/248397
+18:19:58.795 LogUtil    [ПРОЦЕСС] PerformanceMonitor: Cache hit - EXIF
+18:19:58.795 LogUtil    [ПРОЦЕСС] URI добавлен (safe): content://media/external/images/media/248397 из ImageCompressionWorker
+18:19:59.043 LogUtil    [ПРОЦЕСС] Начато отслеживание URI: content://media/external/images/media/248397
+18:19:59.321 LogUtil    [ПРОЦЕСС] Тестовое сжатие в RAM
+18:19:59.322 LogUtil    [URI:8397] Сжатие изображения в поток
+18:19:59.323 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:19:59.338 LogUtil    [Сжатие] Размер изображения: 3000x4000, оценочный размер (ARGB_8888): 45MB
+18:19:59.338 LogUtil    [Bitmap decoding] inSampleSize = 1 (original: 3000x4000)
+18:19:59.339 LogUtil    [Сжатие] Оптимизированное декодирование: 3000x4000, inSampleSize=1
+18:19:59.347 LogUtil    [Сжатие] Оценочный размер: 22MB, экономия памяти: 50,0%
+18:20:00.485 LogUtil    [СЖАТИЕ:8397] 5163KB → 777KB (-84%)
+18:20:00.485 LogUtil    [СЖАТИЕ:8397] 5163KB → 777KB (-84.95205%)
+18:20:00.485 LogUtil    [ПРОЦЕСС] Сжатие эффективно, запуск
+18:20:00.523 LogUtil    [URI:8397] Имя файла: IMG_20260208_181942.jpg
+18:20:00.523 LogUtil    [ПРОЦЕСС] [FileOperationsUtil] Режим замены включён, используем оригинальное имя: IMG_20260208_181942.jpg
+18:20:00.524 LogUtil    [ПРОЦЕСС] Сохранение: IMG_20260208_181942 (замена: true)
+18:20:00.531 LogUtil    [URI:8397] Директория для сохранения: DCIM/Camera
+18:20:00.637 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:20:00.748 LogUtil    [FileUtil] Директория для сохранения: DCIM/Camera
+18:20:00.748 LogUtil    [ПРОЦЕСС] [MediaStoreUtil] Создание записи MediaStore для файла: IMG_20260208_181942 (режим замены: true)
+18:20:00.748 LogUtil    [FileUtil] MIME тип для сохранения: image/jpeg
+18:20:00.895 LogUtil    [ПРОЦЕСС] Режим замены, использую оригинальную директорию: DCIM/Camera
+18:20:00.895 LogUtil    [MediaStore] Поиск файла: fileName='IMG_20260208_181942', pathWithSlash='DCIM/Camera/', pathWithoutSlash='DCIM/Camera'
+18:20:01.091 LogUtil    [ПРОЦЕСС] Использую относительный путь для сохранения: DCIM/Camera/
+18:20:01.178 LogUtil    [MediaStore] Создан новый URI: content://media/external/images/media/248400
+18:20:01.178 LogUtil    [ПРОЦЕСС] [MediaStore] Режим отдельной папки: создаем новый файл
+18:20:01.178 LogUtil    [ПРОЦЕСС] [MediaStore] Используем режим создания для URI: content://media/external/images/media/248400
+18:20:01.292 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/248400, обработка через 10 сек
+18:20:01.294 LogUtil    [FileUtil] Данные изображения записаны в URI: content://media/external/images/media/248400
+18:20:01.586 LogUtil    [MediaStore] IS_PENDING статус сброшен для URI: content://media/external/images/media/248400
+18:20:01.587 LogUtil    [FileUtil] Ожидание доступности URI: content://media/external/images/media/248400, максимальное время: 2000 мс
+18:20:01.673 LogUtil    [FileUtil] URI стал доступен через 84 мс, размер: 795670 байт
+18:20:01.700 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248400
+18:20:01.750 LogUtil    [ПРОЦЕСС] Сохранена исходная дата модификации: 1770564001000
+18:20:01.767 LogUtil    [ПРОЦЕСС] Применены GPS-данные через setLatLong API + reference теги: lat=55.75112915027778, lng=37.8796920775
+18:20:01.768 LogUtil    [ПРОЦЕСС] Добавлен маркер сжатия: CompressPhotoFast_Compressed:60:1770564001767
+18:20:01.804 LogUtil    [ПРОЦЕСС] Применено 35 EXIF-тегов к content://media/external/images/media/248400
+18:20:01.810 LogUtil    [ПРОЦЕСС] MediaStore.update() вернул 0 строк, пробуем fallback
+18:20:01.830 LogUtil    [ПРОЦЕСС] DATE_MODIFIED восстановлен через File.setLastModified(): 1770564001000
+18:20:01.830 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248400
+18:20:01.841 LogUtil    [ПРОЦЕСС] Найден EXIF маркер с timestamp: 1770564001767 для URI: content://media/external/images/media/248400
+18:20:01.841 LogUtil    [ПРОЦЕСС] ✅ EXIF маркер успешно сохранен и верифицирован
+18:20:01.843 LogUtil    [ПРОЦЕСС] Применение EXIF данных из памяти: успешно
+18:20:01.990 LogUtil    [ПРОЦЕСС] Финальная верификация успешна: маркер сжатия присутствует в URI
+18:20:01.991 LogUtil    [FileUtil] Обработка EXIF данных: успешно
+18:20:01.991 LogUtil    [ФАЙЛ:8397] Сохранение: Сжатый файл успешно сохранен: content://media/external/images/media/248400
+18:20:01.992 LogUtil    [ПРОЦЕСС] Установлен период игнорирования для URI: content://media/external/images/media/248400 до Sun Feb 08 18:20:06 GMT+03:00 2026
+18:20:01.992 LogUtil    [ПРОЦЕСС] URI удалён (safe): content://media/external/images/media/248397
+18:20:01.993 LogUtil    [ПРОЦЕСС] Начинаем удаление файла: content://media/external/images/media/248397
+18:20:01.999 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:20:02.129 Cont...ver provider != null. Start to getTypeAsync:content://media/external/images/media/248397
+18:20:02.198 LogUtil    [ПРОЦЕСС] Удаляем файл через MediaStore (Android 10+)
+18:20:02.214 LogUtil    [ПРОЦЕСС] Результат удаления через MediaStore: true
+18:20:02.215 LogUtil    [ФАЙЛ:8397] Удаление: Оригинальный файл успешно удален
+18:20:02.224 LogUtil    [ПРОЦЕСС] MediaStoreObserver: обнаружено изменение в MediaStore: content://media/external/images/media/248397, обработка через 10 сек
+18:20:02.224 LogUtil    [ПРОЦЕСС] Добавлен результат в батч auto_batch_2_1770563996179: IMG_20260208_181942 (1)
+18:20:02.225 LogUtil    [ПРОЦЕСС] Завершено: IMG_20260208_181942
+18:20:02.234 WM-P...sor Moving WorkSpec (33f1e306-116a-4a64-aa17-e26002f3f260) to the foreground
+18:20:02.241 LogUtil    [ПРОЦЕСС] URI удален из отслеживаемых: content://media/external/images/media/248397
+18:20:02.242 LogUtil    [ПРОЦЕСС] URI добавлен в список недавно обработанных: content://media/external/images/media/248397
+18:20:02.243 WM-S...her Notifying with (id:1, workSpecId: 33f1e306-116a-4a64-aa17-e26002f3f260, notificationType :1)
+18:20:02.259 WM-W...per Worker result SUCCESS for Work [ id=33f1e306-116a-4a64-aa17-e26002f3f260, tags={ com.compressphotofast.worker.ImageCompressionWorker,compress_1770563996167_IMG_20260208_181942.jpg } ]
+18:20:02.266 WM-P...sor Processor 33f1e306-116a-4a64-aa17-e26002f3f260 executed; reschedule = false
+18:20:02.266 WM-S...ice 33f1e306-116a-4a64-aa17-e26002f3f260 executed on JobScheduler
+18:20:02.267 WM-S...her Removing Notification (id: 1, workSpecId: WorkGenerationalId(workSpecId=33f1e306-116a-4a64-aa17-e26002f3f260, generation=0), notificationType: 1
+18:20:02.267 Noti...ger com.compressphotofast: cancel(1)
+18:20:02.268 WM-S...her Stopping foreground service
+18:20:02.268 WM-S...ice Shutting down.
+18:20:02.275 WM-G...ler Cancelling work ID 33f1e306-116a-4a64-aa17-e26002f3f260
+18:20:02.277 WM-S...ice onStopJob for WorkGenerationalId(workSpecId=33f1e306-116a-4a64-aa17-e26002f3f260, generation=0)
+18:20:02.281 LeakCanary Watching instance of androidx.work.impl.foreground.SystemForegroundService (androidx.work.impl.foreground.SystemForegroundService received Service#onDestroy() callback) with key c8cde077-9e5f-4ad2-b328-73c81d2476c7
+18:20:02.284 LeakCanary Watching instance of androidx.work.impl.background.systemjob.SystemJobService (androidx.work.impl.background.systemjob.SystemJobService received Service#onDestroy() callback) with key 3a8314bd-1d1d-4111-8240-7ab8991421d5
+18:20:02.286 WM-P...per androidx.work.impl.background.systemalarm.RescheduleReceiver disabled
+18:20:07.312 mpre...fas Restrict Explicit GC
+18:20:07.453 LeakCanary Found 2 objects retained, dumping heap now (app is invisible)
+18:20:07.453 Noti...ger com.compressphotofast: cancel(2131230987)
+18:20:07.471 LeakCanary Removing 1 heap dumps
+18:20:07.547 mpre...fas hprof: stripped heap dump "/storage/emulated/0/Download/leakcanary-com.compressphotofast/2026-02-08_18-20-07_507.hprof" starting...
