@@ -1,7 +1,13 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
-*   **Локальные агенты**: 9 агентов в `.claude/agents/` (kotlin-specialist, java-architect, deployment-engineer, devops-engineer, platform-engineer, database-administrator, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+*   **Локальные агенты**: 14 агентов в `.claude/agents/`
+    *   **Языковые**: kotlin-specialist, java-architect, python-pro
+    *   **Инфраструктура**: deployment-engineer, devops-engineer, platform-engineer, database-administrator, sre-engineer
+    *   **Безопасность/Инциденты**: security-engineer, incident-responder
+    *   **Базы данных**: sql-pro
+    *   **Review**: android-test-analyzer, android-silent-failure-hunter, android-code-reviewer
+*   **Новые агенты**: Добавлены 5 агентов для CLI (python-pro), SQL (sql-pro), безопасности (security-engineer), SRE (sre-engineer), инцидентов (incident-responder)
 *   **Review агенты**: Добавлены 3 локальных агента для code review и тестирования (android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
 *   **Новые скиллы**: lint-check (Android Lint + Detekt), test-runner (умный запуск тестов)
 *   **Android Test Orchestrator**: добавлен для стабильности instrumentation тестов (#30fc343)
@@ -33,10 +39,10 @@
 *   ✅ **Уведомления о сжатие**: Исправлена система уведомлений (e45d9e7)
 
 ## Метрики
-*   **Исходный код**: 36 Kotlin файлов
+*   **Исходный код**: 36 Kotlin файлов + Python CLI (4 файла)
 *   **Тесты**: 320 unit + 232 instrumentation (100% pass rate)
 *   **Скиллы**: 5 (android-test-suite, android-optimization-analyzer, memory-bank-updater, lint-check, test-runner)
-*   **Локальные агенты**: 9 в `.claude/agents/` (kotlin-specialist, java-architect, deployment-engineer, devops-engineer, platform-engineer, database-administrator, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+*   **Локальные агенты**: 14 в `.claude/agents/` (kotlin-specialist, java-architect, python-pro, deployment-engineer, devops-engineer, platform-engineer, database-administrator, sre-engineer, security-engineer, incident-responder, sql-pro, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
 
 ## Дальнейшие шаги
 *   Исправить дубликаты/расширения
