@@ -5,31 +5,30 @@
 ### Слои
 - **UI**: `MainActivity.kt`, `MainViewModel.kt`
 - **Domain**: `ImageCompressionUtil.kt`, `ImageCompressionWorker.kt`, `SettingsManager.kt`
-- **Data**: DataStore, MediaStore
-- **Utils**: 36 файлов (MediaStore, EXIF, файлы, статистика, оптимизация)
+- **Data**: DataStore (SettingsDataStore), MediaStore
+- **Utils**: 31 файл (MediaStore, EXIF, файлы, статистика, оптимизация)
 
 ### Фоновая обработка
-- WorkManager (`ImageCompressionWorker.kt`)
-- `BackgroundMonitoringService.kt`: отслеживание новых изображений
-- `ImageDetectionJobService.kt`: периодическая проверка
-- `BootCompletedReceiver.kt`: автозапуск
+- WorkManager (`ImageCompressionWorker.kt`) - основная обработка
+- `BackgroundMonitoringService.kt` - отслеживание новых изображений
+- `ImageDetectionJobService.kt` - периодическая проверка
+- `BootCompletedReceiver.kt` - автозапуск
 
 ### DI
 - Hilt 2.57.1 во все компоненты
-- DI модули: `AppModule.kt` (основной), `HiltTestModule.kt` (тесты), `TestAppModule.kt`, `WorkManagerTestModule.kt`
-- Singleton компоненты: UriProcessingTracker, PerformanceMonitor, CompressionBatchTracker
+- Модули: `AppModule.kt` (основной), тестовые модули
+- Singleton: UriProcessingTracker, PerformanceMonitor, CompressionBatchTracker
 
 ### Оптимизации
-- `inSampleSize`, `RGB_565`
-- CoroutineScope вместо GlobalScope
+- `inSampleSize`, `RGB_565` для декодирования
+- CoroutineScope вместо GlobalScope/Handler
 - Пакетные MediaStore операции
-- Методы `destroy()`
+- Методы `destroy()` для cleanup
 
 ## CLI (Python)
 
 ### Компоненты
-- `cli.py` (Click)
-- `compression.py` (Pillow, pillow-heif)
+- `cli.py` (Click), `compression.py` (Pillow, pillow-heif)
 - `multiprocessing_utils.py` (ProcessPoolExecutor)
 - `exif_handler.py` (piexif)
 
