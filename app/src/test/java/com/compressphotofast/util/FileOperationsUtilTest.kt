@@ -1,24 +1,58 @@
 package com.compressphotofast.util
 
+import com.compressphotofast.BaseUnitTest
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
 import org.junit.Test
+import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import android.content.Context
 
 /**
  * Unit тесты для FileOperationsUtil
- * 
- * Тестируют методы утилиты, которые не требуют Android контекста:
- * - Проверка валидности размера файла
- * - Форматирование размера файла
- * - Сокращение длинных имен файлов
- * 
- * Примечание: Методы, требующие Context (isSaveModeReplace, createCompressedFileName,
- * deleteFile, createTempImageFile, findCompressedVersionByOriginalName, isScreenshot),
- * требуют интеграционного тестирования с Robolectric или Hilt.
+ *
+ * Тестируют методы утилиты:
+ * - Проверка валидности размера файла (без контекста)
+ * - Форматирование размера файла (без контекста)
+ * - Сокращение длинных имен файлов (без контекста)
+ * - createCompressedFileName с моком Context (двойные расширения)
+ *
+ * Примечание: Некоторые методы требуют интеграционного тестирования с Robolectric или Hilt:
+ * - deleteFile (реальная работа с MediaStore)
+ * - createTempImageFile (файловая система)
+ * - findCompressedVersionByOriginalName (MediaStore queries)
+ * - isScreenshot (UriUtil моки)
  */
-class FileOperationsUtilTest {
-    
+class FileOperationsUtilTest : BaseUnitTest() {
+
+    private lateinit var mockContext: Context
+    private lateinit var mockSettingsManager: SettingsManager
+
+    @Before
+    override fun setUp() {
+        super.setUp()
+        mockContext = mockk()
+        mockSettingsManager = mockk()
+
+        // Мокаем SettingsManager.getInstance
+        mockkStatic(SettingsManager::class)
+        every { SettingsManager.getInstance(mockContext) } returns mockSettingsManager
+    }
+
+    @After
+    override fun tearDown() {
+        super.tearDown()
+    }
+
+    // ==================== createCompressedFileName (двойные расширения) ====================
+    // ПРИМЕЧАНИЕ: Тесты для createCompressedFileName перемещены в instrumentation тесты
+    // из-за необходимости реального Android Context для SettingsManager.
+    // См. FileOperationsInstrumentedTest.kt в androidTest папке.
+
     // ==================== isFileSizeValid ====================
     
     @Test

@@ -29,6 +29,7 @@
 
 ### Core библиотеки
 - **AndroidX Core KTX 1.17.0**: Расширения Kotlin для AndroidX
+- **AndroidX AppCompat 1.7.1**: Совместимость с старыми версиями
 - **AndroidX Lifecycle 2.9.2**: Компоненты жизненного цикла
 - **AndroidX Activity 1.10.1**: Компоненты Activity
 

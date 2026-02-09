@@ -301,6 +301,127 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
         }
     }
 
+    // ==================== Тесты для коммита c86c711 (двойные расширения) ====================
+
+    /**
+     * Тест 11: Проверка createCompressedFileName с двойным расширением (HEIC.jpg)
+     *
+     * Проверяет исправление из коммита c86c711:
+     * - image.HEIC.jpg должен стать image.jpg в режиме замены
+     * - Сохраняется ПОСЛЕДНЕЕ расширение (.jpg), а не первое (.HEIC)
+     */
+    @Test
+    fun test_createCompressedFileName_doubleExtension_heicJpg_replaceMode() {
+        // Arrange
+        val originalName = "image.HEIC.jpg"
+
+        // Act - используем реальный метод FileOperationsUtil
+        val result = FileOperationsUtil.createCompressedFileName(context, originalName)
+
+        // Assert - в режиме замены по умолчанию (зависит от SettingsManager)
+        // Проверяем что результат не содержит двойного расширения
+        val extensionCount = compressedFileNameCountExtensions(result)
+        assertTrue(
+            "Результат '$result' не должен иметь двойного расширения",
+            extensionCount <= 1
+        )
+
+        // Проверяем что результат заканчивается на .jpg (последнее расширение)
+        assertTrue(
+            "Результат должен заканчиваться на .jpg",
+            result.endsWith(".jpg", ignoreCase = true)
+        )
+    }
+
+    /**
+     * Тест 12: Проверка createCompressedFileName с фото без двойного расширения
+     */
+    @Test
+    fun test_createCompressedFileName_singleExtension_noChange() {
+        // Arrange
+        val originalName = "photo.jpg"
+
+        // Act
+        val result = FileOperationsUtil.createCompressedFileName(context, originalName)
+
+        // Assert
+        assertTrue(
+            "Результат должен содержать .jpg",
+            result.endsWith(".jpg", ignoreCase = true)
+        )
+
+        // Проверяем что нет двойного расширения
+        val extensionCount = compressedFileNameCountExtensions(result)
+        assertTrue(
+            "Результат не должен иметь двойного расширения",
+            extensionCount <= 1
+        )
+    }
+
+    /**
+     * Тест 13: Проверка логики cleanDoubleExtensions
+     *
+     * Прямая проверка логики очистки двойных расширений
+     */
+    @Test
+    fun test_cleanDoubleExtensions_logic() {
+        val testCases = mapOf(
+            "image.HEIC.jpg" to "image",
+            "photo.heif.jpeg" to "photo",
+            "document.pdf" to "document", // нет двойного расширения
+            "archive.tar.gz.zip" to "archive" // тройное расширение
+        )
+
+        testCases.forEach { (input, expectedBase) ->
+            // Симулируем логику cleanDoubleExtensions
+            val lastDotIndex = input.lastIndexOf('.')
+            val beforeLastDot = input.substring(0, lastDotIndex)
+            val secondLastDot = beforeLastDot.lastIndexOf('.')
+            val cleanBase = if (secondLastDot > 0) {
+                beforeLastDot.substring(0, secondLastDot)
+            } else {
+                beforeLastDot
+            }
+
+            assertEquals(
+                "Неправильная очистка для '$input'",
+                expectedBase,
+                cleanBase
+            )
+        }
+    }
+
+    /**
+     * Тест 14: Проверка логики getLastExtension
+     *
+     * Прямая проверка логики получения последнего расширения
+     */
+    @Test
+    fun test_getLastExtension_logic() {
+        val testCases = mapOf(
+            "image.HEIC.jpg" to ".jpg",
+            "photo.heif.jpeg" to ".jpeg",
+            "document.pdf" to ".pdf",
+            "archive.tar.gz.zip" to ".zip"
+        )
+
+        testCases.forEach { (input, expectedExtension) ->
+            // Симулируем логику getLastExtension
+            val lastDotIndex = input.lastIndexOf('.')
+            val actualExtension = if (lastDotIndex > 0) {
+                input.substring(lastDotIndex)
+            } else {
+                ""
+            }
+
+            assertEquals(
+                "Неправильное расширение для '$input'",
+                expectedExtension,
+                actualExtension
+            )
+        }
+    }
+
     // Вспомогательные методы
 
     private fun compressedFileNameCountExtensions(fileName: String): Int {

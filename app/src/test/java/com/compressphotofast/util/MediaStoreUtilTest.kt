@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import com.compressphotofast.BaseUnitTest
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +23,8 @@ import android.net.Uri
  *
  * Примечание: Большинство методов MediaStoreUtil требуют Android контекста
  * и реального MediaStore, поэтому тестируются через instrumentation тесты.
+ *
+ * Тесты для режима "wt" (commit c86c711) находятся в MediaStoreReplaceModeTest.kt (androidTest)
  */
 class MediaStoreUtilTest : BaseUnitTest() {
 
