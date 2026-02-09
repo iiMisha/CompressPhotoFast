@@ -1,49 +1,35 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
-*   **Локальные агенты**: 14 агентов в `.claude/agents/`
-    *   **Языковые**: kotlin-specialist, java-architect, python-pro
-    *   **Инфраструктура**: deployment-engineer, devops-engineer, platform-engineer, database-administrator, sre-engineer
-    *   **Безопасность/Инциденты**: security-engineer, incident-responder
-    *   **Базы данных**: sql-pro
-    *   **Review**: android-test-analyzer, android-silent-failure-hunter, android-code-reviewer
-*   **Новые агенты**: Добавлены 5 агентов для CLI (python-pro), SQL (sql-pro), безопасности (security-engineer), SRE (sre-engineer), инцидентов (incident-responder)
-*   **Review агенты**: Добавлены 3 локальных агента для code review и тестирования (android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
-*   **Новые скиллы**: lint-check (Android Lint + Detekt), test-runner (умный запуск тестов)
+*   **WIP: Исправление двойных расширений**: В процессе доработки
+    *   `FileOperationsUtil.kt`: добавлено сохранение последнего расширения в режиме замены
+    *   `MediaStoreUtil.kt`: добавлен режим "wt" (write+truncate) для корректной перезаписи файлов
+    *   `ImageCompressionWorker.kt`: добавлена проверка `savedUri != imageUri` перед удалением оригинала
+*   **Локальные агенты**: 14 агентов в `.claude/agents/` (kotlin-specialist, java-architect, python-pro, deployment-engineer, devops-engineer, platform-engineer, database-administrator, sre-engineer, security-engineer, incident-responder, sql-pro, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+*   **Review агенты**: 3 локальных агента (android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+*   **Новые скиллы**: lint-check, test-runner, android-test-suite, android-optimization-analyzer, memory-bank-updater
 *   **Android Test Orchestrator**: добавлен для стабильности instrumentation тестов (#30fc343)
-*   **Инструкции по памяти**: обновлены в rules.md с лимитами размера файлов
-*   **Memory Bank оптимизация**: ограничения (brief: 5, context: 50, tasks: 100, architecture: 80, tech: 30)
-*   **Консолидация правил**: единые правила в rules.md, удалены дубликаты workflow
-*   **Депрекация Task(Explore)**: замена на Glob/Grep/Read
 *   **Hilt DI**: UriProcessingTracker → @Inject singleton
 *   **Корутины**: Handler → CoroutineScope (BackgroundMonitoringService, NotificationUtil)
-*   **Интеграция агентов в скиллы**: Добавлена секция "Автоматизация через агентов" во все скиллы
-    *   test-runner → general-purpose (запуск тестов)
-    *   android-test-suite → general-purpose + android-test-analyzer (анализ покрытия)
-    *   lint-check → general-purpose + kotlin-specialist + android-code-reviewer (lint + исправление)
-    *   android-optimization-analyzer → kotlin-specialist + android-silent-failure-hunter (анализ кода)
-    *   memory-bank-updater → прямые инструменты Glob/Grep/Read (без агентов)
 
 ## Текущие проблемы
+*   🔴 Двойные расширения (HEIC.jpg) - в процессе исправления
 *   🔴 Дубликаты при массовой обработке (50+ файлов)
-*   🔴 Двойные расширения (HEIC.jpg)
 
 ## Недавние исправления
 *   ✅ **Phase 1+2 Performance Optimizations**: Исправлено 8 проблем (февраль 2026)
     *   **Phase 1**: SequentialImageProcessor (+30-40%), shared Handlers (3 leaks), Job tracking
     *   **Phase 2**: HEIC single-pass decode (2x), DataStore миграция (0 ANR), MediaStore batch queries (-99%), LeakCanary
-    *   Тесты: 320/320 passed, обе фазы успешны
     *   Общий эффект: 60-80% ускорение, -7 leaks, -99% queries
-*   ✅ **Review агенты**: 3 агента из pr-review-toolkit (февраль 2026)
-    *   android-test-analyzer, android-silent-failure-hunter, android-code-reviewer
 *   ✅ **Уведомления о сжатие**: Исправлена система уведомлений (e45d9e7)
 
 ## Метрики
 *   **Исходный код**: 36 Kotlin файлов + Python CLI (4 файла)
 *   **Тесты**: 320 unit + 232 instrumentation (100% pass rate)
 *   **Скиллы**: 5 (android-test-suite, android-optimization-analyzer, memory-bank-updater, lint-check, test-runner)
-*   **Локальные агенты**: 14 в `.claude/agents/` (kotlin-specialist, java-architect, python-pro, deployment-engineer, devops-engineer, platform-engineer, database-administrator, sre-engineer, security-engineer, incident-responder, sql-pro, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+*   **Локальные агенты**: 14
 
 ## Дальнейшие шаги
-*   Исправить дубликаты/расширения
-*   Настроить Detekt/ktlint в проекте
+*   Завершить исправление двойных расширений
+*   Исправить дубликаты при массовой обработке
+*   Настроить Detekt/ktlint

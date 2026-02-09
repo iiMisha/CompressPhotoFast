@@ -44,8 +44,10 @@ object FileOperationsUtil {
         // В режиме замены используем оригинальное имя файла
         if (isSaveModeReplace(context)) {
             LogUtil.processInfo("[FileOperationsUtil] Режим замены включён, используем оригинальное имя: $originalName")
-            // Очищаем двойные расширения даже в режиме замены
-            return cleanDoubleExtensions(originalName)
+            // Очищаем двойные расширения даже в режиме замены, но сохраняем последнее расширение
+            val cleanName = cleanDoubleExtensions(originalName)
+            val extension = getLastExtension(originalName)
+            return if (extension.isNotEmpty()) "$cleanName$extension" else cleanName
         }
 
         // В режиме отдельного сохранения добавляем суффикс

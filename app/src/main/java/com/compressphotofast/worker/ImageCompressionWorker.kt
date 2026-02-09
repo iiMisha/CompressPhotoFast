@@ -308,7 +308,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 uriProcessingTracker.removeProcessingUriSafe(imageUri)
 
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
-                if (FileOperationsUtil.isSaveModeReplace(appContext)) {
+                // НО: если savedUri == imageUri, значит файл был перезаписан на месте и удалять не нужно
+                if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
                     try {
                         val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
                         if (deleteResult is Boolean && deleteResult) {

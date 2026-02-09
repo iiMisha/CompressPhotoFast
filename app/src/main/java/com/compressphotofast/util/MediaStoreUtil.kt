@@ -765,7 +765,9 @@ object MediaStoreUtil {
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             LogUtil.processInfo("[MediaStore] Режим замены: обновляем существующий URI=$existingUri")
-            context.contentResolver.openOutputStream(existingUri)?.use { outputStream ->
+            // ВАЖНО: используем "wt" (write + truncate) чтобы файл был усечен до записи
+            // Без этого, если новый файл меньше старого, остатки старого файла останутся в конце
+            context.contentResolver.openOutputStream(existingUri, "wt")?.use { outputStream ->
                 val bytesWritten = inputData.copyTo(outputStream)
                 outputStream.flush()
                 LogUtil.debug("MediaStore", "Обновление файла завершено: $existingUri, размер=${bytesWritten}KB")
