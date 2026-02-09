@@ -29,14 +29,6 @@ Instr: Task(prompt: "Запусти instrumentation тесты: ./scripts/run_in
 
 ## Специфические задачи
 
-### Исправление двойных расширений
-**Файлы**: FileOperationsUtil.kt, ImageCompressionUtil.kt, MediaStoreUtil.kt
-1. Изучить `createCompressedFileName()`
-2. Очистить двойные расширения, определить MIME тип
-3. Режим замены: "wt" (write+truncate)
-4. Проверить `savedUri != imageUri` перед удалением
-5. `testDebugUnitTest`
-
 ### Отладка дубликатов файлов
 **Файлы**: MediaStoreUtil.kt, FileOperationsUtil.kt, ImageCompressionWorker.kt
 1. Проверить логику копирования и работу с URI

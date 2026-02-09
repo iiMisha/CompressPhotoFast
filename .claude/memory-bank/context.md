@@ -1,10 +1,10 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
-*   **WIP: Исправление двойных расширений**: В процессе доработки
-    *   `FileOperationsUtil.kt`: добавлено сохранение последнего расширения в режиме замены
-    *   `MediaStoreUtil.kt`: добавлен режим "wt" (write+truncate) для корректной перезаписи файлов
-    *   `ImageCompressionWorker.kt`: добавлена проверка `savedUri != imageUri` перед удалением оригинала
+*   **✅ Двойные расширения ИСПРАВЛЕНЫ** (99636da, c86c711)
+    *   `FileOperationsUtil.kt`: сохранение последнего расширения в режиме замены
+    *   `MediaStoreUtil.kt`: режим "wt" (write+truncate) для корректной перезаписи
+    *   `ImageCompressionWorker.kt`: проверка `savedUri != imageUri` перед удалением оригинала
 *   **Локальные агенты**: 14 агентов в `.claude/agents/` (kotlin-specialist, java-architect, python-pro, deployment-engineer, devops-engineer, platform-engineer, database-administrator, sre-engineer, security-engineer, incident-responder, sql-pro, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
 *   **Review агенты**: 3 локальных агента (android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
 *   **Новые скиллы**: lint-check, test-runner, android-test-suite, android-optimization-analyzer, memory-bank-updater
@@ -13,7 +13,6 @@
 *   **Корутины**: Handler → CoroutineScope (BackgroundMonitoringService, NotificationUtil)
 
 ## Текущие проблемы
-*   🔴 Двойные расширения (HEIC.jpg) - в процессе исправления
 *   🔴 Дубликаты при массовой обработке (50+ файлов)
 
 ## Недавние исправления
@@ -30,6 +29,5 @@
 *   **Локальные агенты**: 14
 
 ## Дальнейшие шаги
-*   Завершить исправление двойных расширений
 *   Исправить дубликаты при массовой обработке
 *   Настроить Detekt/ktlint
