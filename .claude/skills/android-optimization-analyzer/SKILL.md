@@ -1,324 +1,145 @@
 ---
 name: android-optimization-analyzer
-description: Анализирует Android код на предмет проблем с производительностью и памятью, предлагая конкретные рекомендации по оптимизации
-user-invocable: true
-arguments:
-  - name: scope
-    description: Область анализа (whole_project, specific_module, specific_files)
-    required: false
-    default: whole_project
-  - name: focus_area
-    description: Фокус анализа (memory, performance, ui, all)
-    required: false
-    default: all
-  - name: thoroughness
-    description: Уровень детализации анализа (quick, medium, very_thorough)
-    required: false
-    default: medium
+description: |
+  Комплексный анализ Android кода на проблемы производительности и памяти с конкретными рекомендациями.
+
+  **Обязательное использование:**
+  - Перед началом оптимизации производительности
+  - При появлении проблем с памятью (OOM, crashes)
+  - Перед рефакторингом существующего кода
+  - При появлении лагов/ANR в приложении
+  - После добавления нового функционала для проверки
+  - Регулярный профилактический анализ
+
+  **Проектная специфика (CompressPhotoFast):**
+  - Анализ операций с изображениями (Bitmap, decode, compress)
+  - Проверка memory usage при сжатии фото
+  - Анализ background processing для долгих операций
+  - Проверка корректной отмены операций
+
+  **Запускает агентов:** voltagent-lang:kotlin-specialist, android-silent-failure-hunter
 ---
 
 # Android Optimization Analyzer
 
-Этот скилл выполняет комплексный анализ Android кода на предмет проблем с производительностью и памятью.
+Анализирует Android код на предмет проблем с производительностью и памятью, используя специализированных агентов.
 
-## Что анализирует скилл
+## Quick Start
 
-### 1. Проблемы с памятью (Memory Issues)
-- **Memory Leaks**:
-  - Утечки в View и Fragment (неправильное использование context)
-  - Утечки в ViewModel (live data observers)
-  - Утечки в корутинах (незакрытые CoroutineScope)
-  - Утечки через static references
-  - Утечки в listeners и callbacks
+```bash
+# Анализ всего проекта
+/android-optimization-analyzer
 
-- **Избыточные аллокации**:
-  - Создание объектов в циклах
-  - Избыточные string concatenations
-  - Неэффективное использование коллекций
-  - Boxing/unboxing примитивов
+# Анализ конкретного модуля
+/android-optimization-analyzer scope=specific_module focus_area=memory
+# Укажи модуль: app/src/main/java/com/compressphotofast/compression
 
-- **Проблемы с изображениями** (актуально для CompressPhotoFast):
-  - Загрузка больших изображений в память
-  - Неэффективное декодирование Bitmap
-  - Отсутствие сжатия/оптимизации
-  - Утечки в image caches
+# Быстрая проверка UI
+/android-optimization-analyzer focus_area=ui thoroughness=quick
+```
 
-### 2. Проблемы с производительностью (Performance Issues)
-- **Блокировка главного потока**:
-  - Долгие операции на Main Thread
-  - Синхронные операции I/O на UI thread
-  - Тяжёлые вычисления на главном потоке
-  - Database operations на main thread
+## Workflow
 
-- **Неэффективные алгоритмы**:
-  - O(n²) вместо O(n) там, где возможно
-  - Избыточные итерации по коллекциям
-  - Неоптимальные реализации поиска/фильтрации
-  - N+1 проблемы при работе с БД
+### 1. Сбор информации (в основном контексте)
 
-- **Проблемы с корутинами**:
-  - Blocking calls внутри корутин
-  - Неправильный выбор dispatcher
-  - Отсутствие structured concurrency
-  - Memory leaks через незакрытые Job
-
-### 3. UI Проблемы
-- **Overdraw**:
-  - Избыточная отрисовка View
-  - Ненужные background draws
-  - Неэффективные layouts
-
-- **Layout Performance**:
-  - Избыточная вложенность layouts
-  - Использование тяжелых View где можно легче
-  - Отсутствие View Holder pattern в RecyclerView
-  - Отсутствие diff util в RecyclerView
-
-- **View Rendering**:
-  - Частые invalidate() вызовы
-  - Отсутствие кэширования Views
-  - Избыточные measure/layout проходы
-
-### 4. Database & Storage
-- **SQLite Room**:
-  - N+1 queries
-  - Отсутствие индексов
-  - Избыточные запросы
-  - Отсутствие @Transaction где нужно
-
-- **SharedPreferences**:
-  - Блокирующие вызовы на main thread
-  - Избыточные чтения/записи
-
-- **File I/O**:
-  - Синхронные операции на main thread
-  - Отсутствие буферизации
-  - Избыточные file operations
-
-## Как работает анализ
-
-### Шаг 1: Сбор информации
-- Чтение Memory Bank файлов для понимания контекста
-- Использование ПРЯМЫХ ИНСТРУМЕНТОВ для поиска файлов:
-  ```bash
-  # Найти все Kotlin файлы
-  Glob("**/*.kt")
-
-  # Найти ViewModels
-  Grep("class.*ViewModel", "**/*.kt")
-
-  # Найти корутины и async операции
-  Grep("launch|async|flow", "**/*.kt")
-
-  # Найти работу с изображениями
-  Grep("Bitmap|decode|compress", "**/*.kt")
-  ```
-- Определение архитектуры проекта (MVVM, MVI, etc.)
-
-**КРИТИЧЕСКИ:**
-- ❌ НЕ используй `Task(Explore, "medium")` или `Task(Explore, "very thorough")` - вызывает переполнение памяти
-- ✅ Используй Glob/Grep для поиска файлов и кода
-- ✅ Используй Read для чтения конкретных файлов
-- ✅ Разбивай анализ на небольшие этапы
-
-### Шаг 2: Глубокий анализ через агентов
-
-**КРИТИЧЕСКИ:**
-- ❌ НЕ используй `Task(Explore, "medium")` или `Task(Explore, "very thorough")` - вызывает переполнение памяти
+**КРИТИЧЕСКИЕ ПРАВИЛА:**
+- ❌ НЕ используй `Task(Explore, ...)` - вызывает переполнение памяти
 - ✅ Используй Glob/Grep/Read для поиска файлов
-- ✅ Используй специализированных агентов для анализа
+- ✅ Читай Memory Bank для контекста
 
-**Для Kotlin кода:**
+```bash
+# Читай Memory Bank
+Read: .claude/memory-bank/brief.md
+Read: .claude/memory-bank/architecture.md
+Read: .claude/memory-bank/context.md
+Read: .claude/memory-bank/tech.md
+
+# Собирай файлы через Glob/Grep
+Glob("**/*.kt")           # Все Kotlin файлы
+Grep("class.*ViewModel")  # ViewModels
+Grep("Bitmap|decode")     # Работа с изображениями
+Grep("launch|async|Flow") # Корутины
+```
+
+### 2. Глубокий анализ (через агентов)
+
+**Запускай агентов последовательно:**
+
 ```yaml
+# 1. Анализ Kotlin кода
 Task(tool: Task, subagent_type: "voltagent-lang:kotlin-specialist",
-  prompt: "Выполни глубокий анализ производительности для CompressPhotoFast.
-           Фокус: {focus_area} (memory/performance/ui/all)
-           Проанализируй файлы: [список файлов через Glob/Grep]
+  prompt: "Выполни анализ производительности для CompressPhotoFast.
+           Focus: {focus_area}
+           Files: [список файлов из этапа 1]
 
-           Проверь на:
-           1. Memory leaks (View, Context, CoroutineScope)
-           2. Неэффективную работу с изображениями
-           3. Блокировку Main thread
-           4. Проблемы с корутинами (GlobalScope, improper dispatchers)
-           5. Избыточные аллокации
+           Проверь:
+           - Memory leaks (Context, CoroutineScope, listeners)
+           - Блокировку Main Thread
+           - Неэффективную работу с изображениями
+           - Проблемы с корутинами
 
-           Верни:
-           - Critical issues (90-100 confidence)
-           - High priority issues (80-89)
-           - Конкретные рекомендации с кодом (before/after)")
-```
+           Верни: Critical/High/Medium issues с кодом (before/after)")
 
-**Для Java кода (если есть):**
-```yaml
-Task(tool: Task, subagent_type: "voltagent-lang:java-architect",
-  prompt: "Проанализируй Java код на предмет производительности.
-           Проверь memory leaks, thread safety, database operations.")
-```
-
-**Проверка error handling:**
-```yaml
+# 2. Проверка error handling
 Task(tool: Task, subagent_type: "android-silent-failure-hunter",
-  prompt: "Проверь обработку ошибок в анализируемых файлах.
-           Фокус на silent failures:
-           - File operations
-           - Image compression
-           - MediaStore queries
-           Верни список проблем с severity (CRITICAL/HIGH/MEDIUM).")
+  prompt: "Проверь обработку ошибок в найденных файлах.
+           Фокус: file operations, image compression, MediaStore
+           Верни: список silent failures с severity")
 ```
 
-### Workflow выполнения
+### 3. Генерация отчёта
 
-1. Собери файлы через Glob/Grep (в основном контексте)
-2. Отфильтруй по области (`scope` и `focus_area`)
-3. Вызови `kotlin-specialist` для глубокого анализа
-4. Вызови `android-silent-failure-hunter` для проверки error handling
-5. Собери результаты от обоих агентов
-6. Сгенерируй сводный отчет с приоритизацией
+Собери результаты от обоих агентов и сгенерируй структурированный отчёт (см. формат ниже).
 
-### Шаг 3: Категоризация проблем
-Найденные проблемы группируются по:
-- Критичности (Critical, High, Medium, Low)
-- Типу (Memory, Performance, UI, Database)
-- Местоположению (файл и строка)
+## Categories
 
-### Шаг 4: Генерация рекомендаций
-Для каждой проблемы предоставляется:
-- Описание проблемы
-- Почему это проблема (impact)
-- Как исправить (concrete solution)
-- Пример кода (before/after)
-- Ссылки на документацию (через Context7)
+| Focus Area | Что проверяется |
+|------------|-----------------|
+| **memory** | Leaks, аллокации, Bitmap, collections |
+| **performance** | Main thread blocking, алгоритмы, корутины |
+| **ui** | Overdraw, layouts, RecyclerView |
+| **database** | N+1 queries, индексы, transactions |
+| **all** | Все категории |
 
-## Формат отчёта
+## Report Format
 
 ```markdown
 # Android Optimization Analysis Report
 
 ## Summary
-- Total Issues Found: X
+- Total Issues: X
 - Critical: X | High: X | Medium: X | Low: X
-- Focus Areas: Memory, Performance, UI, Database
+- Files Analyzed: X
 
 ## Critical Issues
 
-### 1. [Memory Leak] Uncleared CoroutineScope in ViewModel
-**Location:** `ui/main/MainViewModel.kt:45`
+### 1. [Type] Title
+**Location:** `path/to/file.kt:line`
 
-**Problem:**
-ViewModel использует viewModelScope.launch но не отменяетjobs при очистке.
+**Problem:** Краткое описание
 
-**Impact:**
-Утечка памяти после закрытия экрана, потенциальное продолжение работы после уничтожения ViewModel.
+**Impact:** Почему это критично
 
-**Solution:**
-```kotlin
-// Before
-class MainViewModel : ViewModel() {
-    fun loadData() {
-        viewModelScope.launch {
-            // work
-        }
-    }
-}
-
-// After
-class MainViewModel : ViewModel() {
-    fun loadData() {
-        viewModelScope.launch {
-            // work
-        }
-        // viewModelScope автоматически отменяется при cleared()
-    }
-}
-```
-
-**Documentation:**
-- [Android ViewModelScope](https://developer.android.com/kotlin/coroutines/coroutinebestpractices)
+**Solution:** Конкретное исправление с кодом
 
 ---
 
-## High Priority Issues
-...
-
-## Medium Priority Issues
-...
-
-## Low Priority Issues
-...
-
 ## Recommendations
-1. Общие рекомендации по проекту
-2. Приоритеты исправлений
-3. Инструменты для мониторинга (Android Profiler, LeakCanary, etc.)
+1. Приоритет действий
+2. Инструменты мониторинга
 ```
 
-## Использование скилла
+## CompressPhotoFast Специфика
 
-### Базовое использование
-```
-Запусти android-optimization-analyzer
-```
-Это проанализирует весь проект на все типы проблем.
+**Особое внимание:**
+- Операции с Bitmap (decode, compress, recycle)
+- Memory usage при сжатии (избегать OOM)
+- Background processing для долгих операций
+- Корректная отмена jobs при cancelled operations
+- MediaStore операции (async, без блокировки)
 
-### Анализ конкретного модуля
-```
-Запусти android-optimization-analyzer с scope=specific_module и focus_area=memory
-Проанализируй модуль app/src/main/java/com/compressphotofast/compression
-```
+## References
 
-### Быстрая проверка UI
-```
-Запусти android-optimization-analyzer с focus_area=ui и thoroughness=quick
-```
-
-### Глубокий анализ производительности
-```
-Запусти android-optimization-analyzer с focus_area=performance и thoroughness=very_thorough
-```
-
-## Интеграция с проектом CompressPhotoFast
-
-Для CompressPhotoFast скилл особое внимание уделяет:
-- **Оптимизация работы с изображениями** (так как это компрессор фото)
-- **Memory usage при сжатии** (важно избегать OOM)
-- **Performance алгоритмов сжатия**
-- **Background processing** для долгих операций сжатия
-- **Cancelation** операций сжатия при отмене пользователем
-
-## Примеры работы
-
-### Пример 1: Поиск memory leaks
-```
-Запусти android-optimization-analyzer с focus_area=memory
-Найди все места где может быть memory leak в ViewModels и Fragments
-```
-
-### Пример 2: Оптимизация UI
-```
-Запусти android-optimization-analyzer с focus_area=ui
-Проверь все RecyclerView на наличие ViewHolder pattern и DiffUtil
-```
-
-### Пример 3: Анализ корутин
-```
-Запусти android-optimization-analyzer
-Проанализируй использование корутин в проекте
-Особое внимание на:
-- Правильный выбор dispatcher
-- Отсутствие blocking calls
-- Корректную отмену jobs
-```
-
-## Требования к окружению
-
-- Android проект на Kotlin/Java
-- Gradle build system
-- Доступ к исходному коду проекта
-
-## Related Tools
-
-- **Android Profiler** - для runtime анализа
-- **LeakCanary** - для детекта memory leaks
-- **StrictMode** - для детекта main thread violations
-- **Lint** - для статического анализа
-- **R8/ProGuard** - для оптимизации кода при сборке
+- **[PATTERNS.md](references/PATTERNS.md)** - Шаблоны для поиска проблем
+- **[EXAMPLES.md](references/EXAMPLES.md)** - Примеры до/после
+- **[TOOLS.md](references/TOOLS.md)** - Инструменты для мониторинга
