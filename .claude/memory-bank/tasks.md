@@ -1,14 +1,14 @@
 # Повторяющиеся задачи
 
-## Агенты (kotlin-specialist, python-pro, sql-pro, security-engineer, sre-engineer, incident-responder)
+## Код через агентов
 **Когда**: Код/Kotlin/Android / CLI / MediaStore / Безопасность / SLOs / Инциденты
-1. Использовать соответствующий агента
+1. Использовать соответствующего агента (kotlin-specialist, python-pro, sql-pro, security-engineer, sre-engineer, incident-responder)
 2. Следовать best practices
 3. Анализировать и документировать
 
-## Качество кода (lint-check, android-test-analyzer, android-silent-failure-hunter, android-code-reviewer)
+## Качество кода
 **Когда**: Перед коммитом / После PR / После изменений error handling
-1. `/lint-check` или соответствующий агент
+1. `/lint-check` или соответствующий агент (android-code-reviewer, android-test-analyzer, android-silent-failure-hunter)
 2. Проверить отчеты и coverage
 3. Исправить проблемы
 

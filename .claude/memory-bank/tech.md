@@ -16,5 +16,5 @@
 
 ## Скрипты
 - run_all_tests.sh, run_instrumentation_tests.sh, run_unit_tests.sh
-- performance_tests.sh, e2e_tests.sh, quick_test.sh
+- run_performance_tests.sh, run_e2e_tests.sh, quick_test.sh
 - generate_test_images.sh, start_emulator.sh, check_device.sh
