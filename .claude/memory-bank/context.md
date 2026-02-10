@@ -5,9 +5,9 @@
     *   `FileOperationsUtil.kt`: сохранение последнего расширения в режиме замены
     *   `MediaStoreUtil.kt`: режим "wt" (write+truncate) для корректной перезаписи
     *   `ImageCompressionWorker.kt`: проверка `savedUri != imageUri` перед удалением оригинала
+*   **✅ LeakCanary УДАЛЁН** - не использовался, утечки найдены через code review
 *   **Агенты/Скиллы**: 14 локальных агентов + 5 скиллов (lint-check, test-runner, android-test-suite, android-optimization-analyzer, memory-bank-updater)
 *   **Android Test Orchestrator**: добавлен для стабильности instrumentation тестов
-*   **LeakCanary**: добавлен для детектирования memory leaks (debug builds)
 *   **DataStore**: миграция настроек в `SettingsDataStore` для предотвращения ANR
 
 ## Текущие проблемы
@@ -17,7 +17,7 @@
 *   ✅ **Phase 1+2 Performance**: 60-80% ускорение, -7 leaks, -99% MediaStore queries
     *   SequentialImageProcessor (+30-40%), HEIC single-pass decode (2x)
     *   Пакетные MediaStore операции, CoroutineScope вместо Handler
-    *   Job tracking, LeakCanary
+    *   Job tracking, code review (без LeakCanary)
 *   ✅ **Уведомления**: исправлена система (e45d9e7)
 
 ## Метрики

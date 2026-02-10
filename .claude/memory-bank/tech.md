@@ -6,7 +6,7 @@
 - Compressor 3.0.1, Coil 3.3.0, DataStore 1.1.7, ExifInterface 1.4.1, Timber 5.0.1
 - Coroutines 1.10.2, WorkManager 2.10.3
 - JUnit, MockK, Espresso, JaCoCo (мин 30% coverage)
-- LeakCanary 2.12 (debug), Android Test Orchestrator 1.5.0
+- Android Test Orchestrator 1.5.0
 - minSdk 29, targetSdk 36
 
 ## CLI (Python 3.10+)

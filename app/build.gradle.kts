@@ -144,9 +144,6 @@ dependencies {
     // Timber для логирования
     implementation("com.jakewharton.timber:timber:5.0.1")
 
-    // LeakCanary для детектирования memory leaks (только debug builds)
-    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.12")
-
     // Тестирование
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
