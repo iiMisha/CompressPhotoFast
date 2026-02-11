@@ -321,13 +321,13 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
         // Assert - в режиме замены по умолчанию (зависит от SettingsManager)
         // Проверяем что результат не содержит двойного расширения
         val extensionCount = compressedFileNameCountExtensions(result)
-        assertTrue(
+        Assert.assertTrue(
             "Результат '$result' не должен иметь двойного расширения",
             extensionCount <= 1
         )
 
         // Проверяем что результат заканчивается на .jpg (последнее расширение)
-        assertTrue(
+        Assert.assertTrue(
             "Результат должен заканчиваться на .jpg",
             result.endsWith(".jpg", ignoreCase = true)
         )
@@ -345,14 +345,14 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
         val result = FileOperationsUtil.createCompressedFileName(context, originalName)
 
         // Assert
-        assertTrue(
+        Assert.assertTrue(
             "Результат должен содержать .jpg",
             result.endsWith(".jpg", ignoreCase = true)
         )
 
         // Проверяем что нет двойного расширения
         val extensionCount = compressedFileNameCountExtensions(result)
-        assertTrue(
+        Assert.assertTrue(
             "Результат не должен иметь двойного расширения",
             extensionCount <= 1
         )
@@ -369,7 +369,8 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
             "image.HEIC.jpg" to "image",
             "photo.heif.jpeg" to "photo",
             "document.pdf" to "document", // нет двойного расширения
-            "archive.tar.gz.zip" to "archive" // тройное расширение
+            "archive.tar.gz" to "archive", // двойное расширение
+            "archive.tar.gz.zip" to "archive.tar" // тройное расширение - удаляет только одно двойное
         )
 
         testCases.forEach { (input, expectedBase) ->
@@ -383,7 +384,7 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
                 beforeLastDot
             }
 
-            assertEquals(
+            Assert.assertEquals(
                 "Неправильная очистка для '$input'",
                 expectedBase,
                 cleanBase
@@ -414,7 +415,7 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
                 ""
             }
 
-            assertEquals(
+            Assert.assertEquals(
                 "Неправильное расширение для '$input'",
                 expectedExtension,
                 actualExtension

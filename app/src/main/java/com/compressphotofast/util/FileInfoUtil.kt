@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import java.util.Collections
 import java.util.HashMap
+import java.util.concurrent.ConcurrentHashMap
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 
@@ -14,7 +15,7 @@ import com.compressphotofast.util.UriUtil
 object FileInfoUtil {
 
     // Кэш информации о файлах, чтобы не запрашивать повторно
-    private val fileInfoCache = Collections.synchronizedMap(HashMap<String, FileInfo>())
+    private val fileInfoCache = ConcurrentHashMap<String, FileInfo>()
     private const val fileInfoCacheExpiration = 5 * 60 * 1000L // 5 минут
     
     // Хранит базовую информацию о файле

@@ -23,11 +23,17 @@ object LogUtil {
     private var lastMessage: String? = null
     private var lastLogTime: Long = 0L
     private const val DEDUPLICATION_INTERVAL_MS = 1000L // 1 секунда для одинаковых сообщений
+    
+    // Флаг для управления уровнем детализации (снижаем для оптимизации)
+    private const val SHOULD_LOG_DEBUG = false
 
     /**
-     * Проверяет, нужно ли выводить лог (дедупликация)
+     * Проверяет, нужно ли выводить лог (дедупликация и уровень детализации)
      */
-    private fun shouldLog(fullMessage: String): Boolean {
+    private fun shouldLog(fullMessage: String, isDebug: Boolean = false): Boolean {
+        if (isDebug && !SHOULD_LOG_DEBUG) {
+            return false
+        }
         val currentTime = System.currentTimeMillis()
         if (fullMessage == lastMessage && currentTime - lastLogTime < DEDUPLICATION_INTERVAL_MS) {
             return false
@@ -41,7 +47,7 @@ object LogUtil {
      * Общее логирование (DEBUG)
      */
     fun log(tag: String, message: String) {
-        if (shouldLog("[$tag] $message")) {
+        if (shouldLog("[$tag] $message", isDebug = true)) {
             Timber.tag(tag).d(message)
         }
     }
@@ -107,7 +113,7 @@ object LogUtil {
         val fileId = getFileId(uri)
         val status = if (success) "ОК" else "ОШИБКА"
         val msg = "[$CATEGORY_EXIF:$fileId] $operation: $status${if (details.isNotEmpty()) " ($details)" else ""}"
-        if (shouldLog(msg)) {
+        if (shouldLog(msg, isDebug = true)) {
             Timber.d(msg)
         }
     }
@@ -164,14 +170,14 @@ object LogUtil {
 
     fun debug(category: String, message: String) {
         val msg = "[$category] $message"
-        if (shouldLog(msg)) {
+        if (shouldLog(msg, isDebug = true)) {
             Timber.d(msg)
         }
     }
     
     fun processDebug(message: String) {
         val msg = "[$CATEGORY_PROCESS] $message"
-        if (shouldLog(msg)) {
+        if (shouldLog(msg, isDebug = true)) {
             Timber.d(msg)
         }
     }

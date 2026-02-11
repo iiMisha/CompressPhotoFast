@@ -10,6 +10,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -380,6 +381,7 @@ object UriUtil {
 
             return@withContext false
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             LogUtil.error(uri, "Проверка существования", "Критическая ошибка при проверке", e)
             return@withContext false
         }
@@ -480,6 +482,7 @@ object UriUtil {
             // Если все попытки не удались, возвращаем 0 (индикатор ошибки)
             return@withContext 0L
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             LogUtil.error(uri, "Получение размера", "Критическая ошибка при получении размера файла", e)
             return@withContext 0L
         }
@@ -649,6 +652,7 @@ object UriUtil {
             
             return@withContext 0L
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             LogUtil.error(null, "Получение даты изменения файла", e)
             return@withContext 0L
         }

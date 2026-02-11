@@ -388,30 +388,6 @@ class UriProcessingTracker @Inject constructor(
      * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
      * Расширенная проверка с учетом всех состояний
      */
-    suspend fun isImageBeingProcessed(uri: Uri): Boolean {
-        val uriString = uri.toString()
-        val isProcessing = processingUris.contains(uriString)
-        val isIgnored = shouldIgnoreUri(uriString)
-        val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
-
-        // Дополнительная проверка: если файл был обработан совсем недавно, но уже вышел из кэша,
-        // все равно временно игнорируем его
-        if (!isRecentlyProcessed && !isIgnored && !isProcessing) {
-            // Проверяем время модификации файла - если он был изменен совсем недавно,
-            // возможно он все еще находится в процессе обработки другим процессом
-            try {
-                val lastModified = UriUtil.getFileLastModified(context, uri)
-                val currentTime = System.currentTimeMillis()
-                if (lastModified > 0 && (currentTime - lastModified < 5000)) { // 5 секунд
-                    return true
-                }
-            } catch (e: Exception) {
-                // Если не удается получить время модификации, продолжаем стандартную проверку
-            }
-        }
-
-        return isProcessing || isIgnored || isRecentlyProcessed
-    }
 
     /**
      * Добавляет URI в список обрабатываемых с дополнительной информацией

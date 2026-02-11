@@ -80,7 +80,7 @@ class SequentialImageProcessor(
     
     // Корутинный скоуп для запуска и отмены обработки
     // Используем Default dispatcher для CPU-интенсивных операций сжатия изображений
-    private val processingScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var processingScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     
     // Флаг для отмены обработки
     private val processingCancelled = AtomicBoolean(false)
@@ -201,6 +201,9 @@ class SequentialImageProcessor(
      */
     fun resetProcessing() {
         processingCancelled.set(false)
+        // Пересоздаем scope, так как старый мог быть отменен через cancelProcessing()
+        // Отмененный scope нельзя использовать повторно
+        processingScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
         _isLoading.value = false
         _progress.value = MultipleImagesProgress()
         _result.value = null

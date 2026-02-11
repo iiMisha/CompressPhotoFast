@@ -36,7 +36,7 @@ class MediaStoreObserver @Inject constructor(
     // CoroutineScope для асинхронных операций
     private val observerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Система для предотвращения дублирования событий от ContentObserver
-    private val recentlyObservedUris = Collections.synchronizedMap(HashMap<String, Long>())
+    private val recentlyObservedUris = ConcurrentHashMap<String, Long>()
     private val contentObserverDebounceTime = 5000L // 5000мс (5 секунд) для дедупликации событий - увеличиваем для надежности
     
     // Очередь отложенных задач для ContentObserver
@@ -214,7 +214,7 @@ class MediaStoreObserver @Inject constructor(
         pendingTasks.clear()
 
         // Отменяем все корутины
-        observerScope.coroutineContext[ kotlinx.coroutines.Job]?.cancel()
+        observerScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
 
         LogUtil.processDebug("MediaStoreObserver: ContentObserver отменен")
     }

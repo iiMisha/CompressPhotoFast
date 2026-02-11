@@ -280,6 +280,8 @@ object OptimizedCacheUtil {
             mimeType.startsWith("image/jpeg") -> true
             mimeType.startsWith("image/jpg") -> true  
             mimeType.startsWith("image/png") -> true
+            mimeType.equals("image/heic", ignoreCase = true) -> true
+            mimeType.equals("image/heif", ignoreCase = true) -> true
             mimeType.startsWith("image/") -> mimeType.contains("jpeg") || mimeType.contains("jpg") || mimeType.contains("png")
             else -> false
         }

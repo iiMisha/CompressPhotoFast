@@ -183,6 +183,7 @@ object FileOperationsUtil {
                 }
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.error(null, "Удаление", "Ошибка при удалении файла", e)
         }
         return false
@@ -339,6 +340,7 @@ object FileOperationsUtil {
                 e
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.errorWithException("Создание временного файла", e)
             return@withContext FileOperationResult.Error(
                 FileErrorType.UNKNOWN,
@@ -419,6 +421,7 @@ object FileOperationsUtil {
             LogUtil.debug("FileUtil", "Сжатая версия для файла '$originalFileName' не найдена")
             return@withContext null
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.errorWithException("Поиск сжатой версии файла", e)
             return@withContext null
         }

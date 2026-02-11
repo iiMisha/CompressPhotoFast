@@ -45,23 +45,36 @@ object ImageCompressionUtil {
         mimeType: String?
     ): Pair<Int, Int>? = withContext(Dispatchers.IO) {
         try {
-            if (isHeicFormat(mimeType)) {
-                // Используем ImageDecoder для HEIC/HEIF (API 28+)
-                val source = ImageDecoder.createSource(context.contentResolver, uri)
-                var width = 0
-                var height = 0
+                if (isHeicFormat(mimeType)) {
+                    // Используем ImageDecoder для HEIC/HEIF (API 28+)
+                    val source = ImageDecoder.createSource(context.contentResolver, uri)
+                    var width = 0
+                    var height = 0
 
-                // Декодируем только для получения границ, bitmap сразу освобождаем
-                ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
-                    width = info.size.width
-                    height = info.size.height
-                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                }).also { it?.recycle() }
+                    try {
+                        // Используем ImageDecoder для получения размеров без полной аллокации
+                        // Декодирование прерывается выбросом исключения после получения заголовка
+                        ImageDecoder.decodeDrawable(source) { decoder, info, _ ->
+                            width = info.size.width
+                            height = info.size.height
+                            throw StopDecodingException()
+                        }
+                    } catch (e: StopDecodingException) {
+                        // Это ожидаемое прерывание
+                    } catch (e: Exception) {
+                        // Если ImageDecoder не справился, пробуем BitmapFactory как fallback
+                        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            BitmapFactory.decodeStream(inputStream, null, options)
+                            width = options.outWidth
+                            height = options.outHeight
+                        }
+                    }
 
-                if (width > 0 && height > 0) {
-                    return@withContext Pair(width, height)
-                }
-            } else {
+                    if (width > 0 && height > 0) {
+                        return@withContext Pair(width, height)
+                    }
+                } else {
                 // Используем BitmapFactory для остальных форматов
                 val options = BitmapFactory.Options().apply {
                     inJustDecodeBounds = true
@@ -288,7 +301,14 @@ object ImageCompressionUtil {
 
         try {
             // Загружаем изображение в Bitmap
-            inputBitmap = BitmapFactory.decodeStream(inputStream)
+            // Оптимизация: используем RGB_565 для экономии памяти
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.RGB_565
+                // Добавляем автоматический inSampleSize если изображение критически большое
+                // (хотя для compressStream это обычно не требуется, так как он используется для превью или мелких файлов)
+            }
+            
+            inputBitmap = BitmapFactory.decodeStream(inputStream, null, options)
                 ?: throw IOException("Не удалось декодировать изображение")
 
             // Сжимаем Bitmap в выходной поток
@@ -656,3 +676,5 @@ object ImageCompressionUtil {
         return inSampleSize
     }
 }
+
+private class StopDecodingException : RuntimeException()

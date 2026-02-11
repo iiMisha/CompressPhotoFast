@@ -27,19 +27,20 @@ import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.MediaStoreUtil
 import android.content.ContentValues
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений
  */
 object ExifUtil {
-    
+
     // Константы для EXIF маркировки
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
 
     // Кэш для хранения считанных EXIF-данных. Ключ - String URI, значение - карта с данными.
     private val exifDataCache = LruCache<String, Map<String, Any>>(20)
-    
+
     /**
      * Список важных EXIF тегов для копирования
      * Обязательно включает теги для метаданных камеры, даты/времени, GPS, экспозиции, и др.
@@ -49,18 +50,18 @@ object ExifUtil {
         ExifInterface.TAG_DATETIME,
         ExifInterface.TAG_DATETIME_ORIGINAL,
         ExifInterface.TAG_DATETIME_DIGITIZED,
-        
+
         // Теги камеры и устройства
         ExifInterface.TAG_MAKE,
         ExifInterface.TAG_MODEL,
         ExifInterface.TAG_SOFTWARE,
         ExifInterface.TAG_ORIENTATION,
-        
+
         // Теги вспышки и режимов съемки
         ExifInterface.TAG_FLASH,
         ExifInterface.TAG_SCENE_TYPE,
         ExifInterface.TAG_SCENE_CAPTURE_TYPE,
-        
+
         // GPS теги
         ExifInterface.TAG_GPS_LATITUDE,
         ExifInterface.TAG_GPS_LATITUDE_REF,
@@ -71,26 +72,26 @@ object ExifUtil {
         ExifInterface.TAG_GPS_PROCESSING_METHOD,
         ExifInterface.TAG_GPS_DATESTAMP,
         ExifInterface.TAG_GPS_TIMESTAMP,
-        
+
         // Теги экспозиции и параметров съемки
         ExifInterface.TAG_EXPOSURE_TIME,
         ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
         ExifInterface.TAG_EXPOSURE_PROGRAM,
         ExifInterface.TAG_EXPOSURE_MODE,
         ExifInterface.TAG_EXPOSURE_INDEX,
-        
+
         // Теги диафрагмы и фокусировки
         ExifInterface.TAG_APERTURE_VALUE,
         ExifInterface.TAG_F_NUMBER,        // Добавлен тег F
         ExifInterface.TAG_FOCAL_LENGTH,
         ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
         ExifInterface.TAG_DIGITAL_ZOOM_RATIO,
-        
+
         // Теги ISO и баланса белого
         ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
         ExifInterface.TAG_WHITE_BALANCE,
         ExifInterface.TAG_LIGHT_SOURCE,
-        
+
         // Прочие теги
         ExifInterface.TAG_SUBJECT_DISTANCE,
         ExifInterface.TAG_METERING_MODE,
@@ -99,13 +100,13 @@ object ExifUtil {
         ExifInterface.TAG_SHARPNESS,
         ExifInterface.TAG_SUBJECT_DISTANCE_RANGE
     )
-    
+
     // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
-    private val exifCheckCache = Collections.synchronizedMap(HashMap<String, Boolean>())
+    private val exifCheckCache = ConcurrentHashMap<String, Boolean>()
     // Время жизни кэша EXIF (5 минут)
     private const val EXIF_CACHE_EXPIRATION = 5 * 60 * 1000L
     // Время последнего обновления кэша
-    private val exifCacheTimestamps = Collections.synchronizedMap(HashMap<String, Long>())
+    private val exifCacheTimestamps = ConcurrentHashMap<String, Long>()
 
     // Суффикс для HEIC файлов, которым не удалось добавить EXIF-маркер
     private const val HEIC_COMPRESSED_SUFFIX = "_compressed"

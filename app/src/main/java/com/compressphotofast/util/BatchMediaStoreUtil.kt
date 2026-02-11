@@ -107,6 +107,7 @@ object BatchMediaStoreUtil {
             LogUtil.processDebug("Пакетное получение метаданных завершено: ${uris.size} URI, ${uncachedUris.size} запросов к MediaStore")
             return@withContext result
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.error(null, "BATCH_METADATA", "Ошибка при пакетном получении метаданных", e)
             return@withContext emptyMap()
         }
@@ -249,6 +250,7 @@ object BatchMediaStoreUtil {
             }
             
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.error(null, "BATCH_MEDIASTORE", "Ошибка при пакетном запросе к MediaStore", e)
             // В случае ошибки возвращаем fallback результат
             return@withContext processFallbackMetadata(context, uris)
@@ -360,6 +362,7 @@ object BatchMediaStoreUtil {
             
             return@withContext null
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.error(uri, "INDIVIDUAL_METADATA", "Ошибка при получении метаданных", e)
             return@withContext null
         }
