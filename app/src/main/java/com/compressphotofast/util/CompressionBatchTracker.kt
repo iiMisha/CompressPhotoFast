@@ -131,7 +131,7 @@ class CompressionBatchTracker @Inject constructor(
     private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Константы для автобатчей
-    private val AUTO_BATCH_TIMEOUT_MS = 60000L // 60 секунд для завершения автобатча
+    private val AUTO_BATCH_TIMEOUT_MS = 30000L // 30 секунд для завершения автобатча
     private val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
 
     /**
@@ -251,7 +251,7 @@ class CompressionBatchTracker @Inject constructor(
             processBatch(batchId)
         }
         // Для автобатчей НЕ продлеваем таймаут при добавлении результатов
-        // Автобатчи завершаются только по исходному таймауту (60 секунд)
+        // Автобатчи завершаются только по исходному таймауту (30 секунд)
     }
 
     /**
