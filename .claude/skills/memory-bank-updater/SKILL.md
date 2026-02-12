@@ -37,7 +37,8 @@ arguments:
 
 ## 📚 Полная документация
 
-**Все инструкции по работе с Memory Bank находятся в:** [`memory-bank-instructions.md`](memory-bank-instructions.md)
+**Все инструкции по работе с Memory Bank находятся в:** [`.claude/rules/memory-bank-instructions.md`](memory-bank-instructions.md)
+
 
 Там описаны:
 - Структура Memory Bank и файлов
