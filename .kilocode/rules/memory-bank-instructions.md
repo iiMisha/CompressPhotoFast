@@ -1,1 +1,0 @@
-../../.claude/rules/memory-bank-instructions.md

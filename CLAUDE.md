@@ -10,12 +10,16 @@
 
 ## Документация проекта
 
-### Memory Bank
-Папка с документацией проекта: [`.claude/memory-bank/`](.claude/memory-bank/)
+### AGENTS.md
+Файл с документацией проекта в корне: [`AGENTS.md`](AGENTS.md)
 
-- [`brief.md`](.claude/memory-bank/brief.md) - краткое описание проекта
-- [`product.md`](.claude/memory-bank/product.md) - описание продукта и функций
-- [`context.md`](.claude/memory-bank/context.md) - текущий контекст и последние изменения
-- [`architecture.md`](.claude/memory-bank/architecture.md) - архитектура приложения
-- [`tech.md`](.claude/memory-bank/tech.md) - технологический стек
-- [`tasks.md`](.claude/memory-bank/tasks.md) - актуальные задачи
+**Содержит:**
+- Project Overview - описание продукта
+- Tech Stack - Android + CLI
+- Architecture - слои и компоненты
+- Key Features - основные функции
+- Code Style - правила и конвенции
+- Testing - стратегии тестирования
+- Development Workflows - повторяющиеся задачи
+- Current Focus - известные проблемы и последние изменения
+- Known Issues - актуальные проблемы

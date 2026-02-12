@@ -1,1 +1,182 @@
-CLAUDE.md
+# CompressPhotoFast
+
+Кроссплатформенное приложение для сжатия фотографий. Android (API 29+) + CLI (Python 3.10+). Идентичная логика сжатия с сохранением EXIF-маркеров.
+
+## Project Overview
+
+**Проблема**: Пользователям нужно уменьшать размер фотографий для экономии места и отправки в мессенджеры. Стандартные инструменты неудобны.
+
+**Решение**: Android-приложение + CLI с быстрой обработкой, автоматическим режимом и настройками качества.
+
+## Tech Stack
+
+### Android
+- Kotlin 2.2.10, Java 17, AGP 9.0.0, KSP 2.3.2
+- MVVM + Hilt 2.57.1 (DI)
+- Compressor 3.0.1, Coil 3.3.0, DataStore 1.1.7, ExifInterface 1.4.1
+- Coroutines 1.10.2, WorkManager 2.10.3
+- JUnit, MockK, Espresso, JaCoCo (мин 30% coverage)
+- Android Test Orchestrator 1.5.0
+- minSdk 29, targetSdk 36
+
+### CLI (Python 3.10+)
+- Pillow, pillow-heif, piexif
+- Click, Rich, tqdm
+- ProcessPoolExecutor
+
+## Architecture
+
+### Android Layers
+- **UI**: MainActivity.kt, MainViewModel.kt
+- **Domain**: ImageCompressionUtil.kt, ImageCompressionWorker.kt, SettingsManager.kt
+- **Data**: DataStore (SettingsDataStore), MediaStore
+- **Utils**: 34 файла (MediaStore, EXIF, файлы, статистика)
+
+### Background Processing
+- WorkManager (ImageCompressionWorker.kt) - основная обработка
+- BackgroundMonitoringService.kt - отслеживание новых изображений
+- ImageDetectionJobService.kt - периодическая проверка
+- BootCompletedReceiver.kt - автозапуск
+
+### DI (Hilt 2.57.1)
+- Модули: AppModule.kt (основной), тестовые модули
+- Singleton: UriProcessingTracker, PerformanceMonitor, CompressionBatchTracker
+
+## Key Features
+
+- Ручное сжатие: выбор одного или нескольких изображений
+- Автоматическое сжатие: фоновое обнаружение новых фото (30 секунд)
+- Настройки качества: 60/70/85
+- Режимы сохранения: замена оригинала или отдельная папка
+- Обработка через "Поделиться" (Share Intent)
+- Сохранение EXIF (GPS требует отдельного разрешения)
+- Игнорирование фото из мессенджеров и скриншотов
+- Пакетная обработка с сводкой результатов
+
+## Compression Rules
+
+- Минимальный размер: 100 КБ
+- Минимальная экономия: 30% + 10 КБ
+- Маркер: `CompressPhotoFast_Compressed:quality:timestamp`
+
+## Code Style
+
+### Kotlin/Android
+- MVVM + Hilt DI
+- Coroutines вместо GlobalScope/Handler
+- Методы destroy() для cleanup
+- inSampleSize, RGB_565 для декодирования
+- Пакетные MediaStore операции
+
+### Python CLI
+- Многопроцессорная обработка (ProcessPoolExecutor)
+- Сохранение идентичной логики с Android частью
+
+## Testing
+
+### Unit Tests
+```bash
+./gradlew testDebugUnitTest
+```
+
+### Instrumentation Tests
+```bash
+./scripts/run_instrumentation_tests.sh
+```
+
+### All Tests
+```bash
+./scripts/run_all_tests.sh
+```
+
+**Coverage**: Минимум 30% (JaCoCo)
+
+## Development Workflows
+
+### Code Changes
+**Когда**: Написание/изменение кода
+
+**Агенты:**
+- Kotlin/Android: `voltagent-lang:kotlin-specialist`
+- Python CLI: `python-pro`
+- SQL/MediaStore: `sql-pro`
+- Security: `security-engineer`
+
+**Шаги:**
+1. Использовать соответствующего агента
+2. Сборка: `./gradlew assembleDebug` (ОБЯЗАТЕЛЬНО после каждого изменения)
+3. Review: `android-code-reviewer`
+4. Тесты: Task tool + `general-purpose`
+
+### Quality Checks
+**Когда**: Перед коммитом, после PR, при изменениях error handling
+
+**Агенты:**
+- `/lint-check` - Lint + исправление
+- `/android-optimization-analyzer` - анализ производительности
+- `android-test-analyzer` - проверка покрытия тестами
+- `android-silent-failure-hunter` - поиск silent failures
+
+**Важно**: Использовать агентов через Task tool
+
+### Build
+```bash
+./gradlew assembleDebug  # После каждого изменения кода
+```
+
+### Testing (ОБЯЗАТЕЛЬНО через Task!)
+**Когда**: Разработка, рефакторинг, перед коммитом
+
+**Команды:**
+```bash
+# Unit тесты
+Task(general-purpose): "./gradlew testDebugUnitTest"
+
+# Instrumentation тесты
+Task(general-purpose): "./scripts/run_instrumentation_tests.sh"
+
+# Все тесты
+Task(general-purpose): "./scripts/run_all_tests.sh"
+```
+
+**Важно**: Эмулятор Small_Phone должен быть запущен для instrumentation тестов
+
+### Version Update
+**Когда**: Релиз новой версии
+
+**Файлы**: gradle.properties, app/build.gradle.kts
+
+**Шаги:**
+1. Обновить `VERSION_NAME_BASE`
+2. Увеличить `versionCode`
+3. `./gradlew assembleDebug`, `./gradlew assembleRelease`
+
+## Current Focus (Февраль 2026)
+
+**Известные проблемы:**
+- 🔴 Дубликаты при массовой обработке (50+ файлов) - проблема с URI
+
+**Последние изменения:**
+- ✅ Автобатч ускорен (60→30 секунд)
+- ✅ Двойные расширения ИСПРАВЛЕНЫ
+- ✅ LeakCanary удалён
+- ✅ Android Test Orchestrator добавлен
+- ✅ DataStore миграция настроек
+
+**Метрики:**
+- Исходный код: 38 Kotlin файлов
+- Тесты: Unit + Instrumentation (JaCoCo coverage, мин 30%)
+- Скрипты: 9
+- Версия: 2.2.10
+
+## Known Issues
+
+### 🔴 Дубликаты при массовой обработке
+При обработке 50+ файлов с автоматическим сжатием создаются дубликаты в отдельной папке. Подозрение: проблема с URI.
+
+**Файлы**: MediaStoreUtil.kt, FileOperationsUtil.kt, ImageCompressionWorker.kt
+
+**Шаги:**
+1. Проверить логику копирования и работу с URI
+2. Добавить логирование путей
+3. Протестировать

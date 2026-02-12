@@ -17,21 +17,16 @@
 
 ---
 
-## 1. Memory Bank - ОБЯЗАТЕЛЬНО
+## 1. AGENTS.md - ОБЯЗАТЕЛЬНО
 
 ### ВЫПОЛНИ:
 ```
 В НАЧАЛЕ КАЖДОЙ задачи:
-1. ПРОЧИТАЙ .claude/memory-bank/brief.md
-2. ПРОЧИТАЙ .claude/memory-bank/product.md
-3. ПРОЧИТАЙ .claude/memory-bank/context.md     ← КРИТИЧНО!
-4. ПРОЧИТАЙ .claude/memory-bank/architecture.md
-5. ПРОЧИТАЙ .claude/memory-bank/tech.md
-6. ПРОЧИТАЙ .claude/memory-bank/tasks.md
+1. ПРОЧИТАЙ AGENTS.md (файл в корне проекта)
 ```
 
 ### ПОСЛЕ ЧТЕНИЯ:
-ОБЯЗАТЕЛЬНО укажи в ответе: `[Memory Bank: Active]`
+ОБЯЗАТЕЛЬНО укажи в ответе: `[AGENTS.md: Active]`
 
 ### ИСКЛЮЧЕНИЙ НЕТ:
 Даже если ты "помнишь" проект - контекст мог измениться.
@@ -41,7 +36,7 @@
 ## 2. Рабочий процесс - СТРОГАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ
 
 ```
-Memory Bank → Агент/Скилл → Сборка → ... → Тесты (ТОЛЬКО В КОНЦЕ)
+AGENTS.md → Агент/Скилл → Сборка → ... → Тесты (ТОЛЬКО В КОНЦЕ)
 ```
 
 ### 2.1 Сборка - ОБЯЗАТЕЛЬНО ПОСЛЕ КАЖДОГО ИЗМЕНЕНИЯ КОДА
@@ -206,7 +201,7 @@ android-code-reviewer         → Review кода на соответствие 
 
 | Скилл | Когда использовать (ОБЯЗАТЕЛЬНО) |
 |-------|--------------------------------|
-| `/memory-bank-updater` | Начало НОВОЙ задачи, конец задачи, изменение архитектуры |
+| `/agents-updater` | Начало НОВОЙ задачи, конец задачи, изменение архитектуры |
 | `/android-optimization-analyzer` | Перед оптимизацией производительности или анализом проблем |
 | `/lint-check` | Перед коммитом в main, review кода, поиск ошибок |
 | `/test-runner` | **ЗАПУСК ТЕСТОВ** (всегда через этот скилл!) |
@@ -217,17 +212,17 @@ android-code-reviewer         → Review кода на соответствие 
 ❌ Запуск тестов в основном контексте → Используй субагента через Task
 ❌ Написание ручных скриптов для тестов → Используй скиллы
 ❌ Пропуск lint проверки перед значительными изменениями
-❌ Забывание обновить Memory Bank после завершения задачи
+❌ Забывание обновить AGENTS.md после завершения задачи
 ```
 
 ### ОБЯЗАТЕЛЬНЫЙ РАБОЧИЙ ПРОЦЕСС:
 ```
-1. Начало задачи  → /memory-bank-updater (обновить context/tasks)
+1. Начало задачи  → /agents-updater (обновить AGENTS.md)
 2. Написание кода → voltagent-lang:kotlin-specialist
 3. После кода     → android-code-reviewer (review изменений)
 4. Перед коммитом → /lint-check + android-test-analyzer (проверить тесты)
 5. Запуск тестов  → Task tool + general-purpose (в отдельном контексте!)
-6. Конец задачи    → /memory-bank-updater (документировать результаты)
+6. Конец задачи    → /agents-updater (документировать результаты)
 ```
 
 **ВАЖНО: Тесты ВСЕГДА запускаются через Task tool:**
@@ -254,7 +249,7 @@ Task(tool: Task, subagent_type: "general-purpose",
 | `/android-test-suite` | `general-purpose`, `android-test-analyzer` | Запуск тестов + анализ покрытия |
 | `/lint-check` | `general-purpose`, `kotlin-specialist`, `android-code-reviewer` | Lint + исправление + review |
 | `/android-optimization-analyzer` | `kotlin-specialist`, `android-silent-failure-hunter` | Анализ производительности + error handling |
-| `/memory-bank-updater` | (нет агентов) | Прямые инструменты Glob/Grep/Read |
+| `/agents-updater` | (нет агентов) | Прямые инструменты Glob/Grep/Read |
 
 **Вызов скилла автоматически вызывает необходимые агенты через Task tool.**
 
@@ -277,9 +272,9 @@ Task(tool: Task, subagent_type: "general-purpose",
 ## 7. Быстрая шпаргалка
 
 ```bash
-# Memory Bank
-ПРОЧИТАЙ: .claude/memory-bank/*.md
-Статус: [Memory Bank: Active]
+# AGENTS.md
+ПРОЧИТАЙ: AGENTS.md
+Статус: [AGENTS.md: Active]
 
 # Сборка
 ./gradlew assembleDebug
@@ -293,7 +288,7 @@ Task(general-purpose): "./scripts/run_all_tests.sh"
 Скилл: /lint-check
 
 # Документация
-Скилл: /memory-bank-updater
+Скилл: /agents-updater
 ```
 
 ---
