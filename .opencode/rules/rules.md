@@ -1,1 +1,1 @@
-../../rules/rules.md
+../../.agents/rules/rules.md
