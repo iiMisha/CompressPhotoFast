@@ -44,6 +44,7 @@ android {
         debug {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
+            buildConfigField("boolean", "DEBUG_LOGGING", "true")
         }
         release {
             isMinifyEnabled = true
@@ -51,6 +52,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("boolean", "DEBUG_LOGGING", "false")
         }
     }
     compileOptions {

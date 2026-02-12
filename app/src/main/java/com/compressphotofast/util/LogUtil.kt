@@ -1,6 +1,7 @@
 package com.compressphotofast.util
 
 import android.net.Uri
+import com.compressphotofast.BuildConfig
 import timber.log.Timber
 
 /**
@@ -19,28 +20,33 @@ object LogUtil {
     private const val CATEGORY_URI = "URI"
     private const val CATEGORY_PERMISSIONS = "РАЗРЕШЕНИЯ"
     
-    // Параметры дедупликации
+    // Параметры дедупликации (thread-safe)
+    @Volatile
     private var lastMessage: String? = null
+    @Volatile
     private var lastLogTime: Long = 0L
-    private const val DEDUPLICATION_INTERVAL_MS = 1000L // 1 секунда для одинаковых сообщений
+    private const val DEDUPLICATION_INTERVAL_MS = 500L // 500ms для снижения шума
     
-    // Флаг для управления уровнем детализации (снижаем для оптимизации)
-    private const val SHOULD_LOG_DEBUG = false
+    // Флаг для управления уровнем детализации (настраивается через BuildConfig)
+    private val SHOULD_LOG_DEBUG = BuildConfig.DEBUG_LOGGING
 
     /**
      * Проверяет, нужно ли выводить лог (дедупликация и уровень детализации)
+     * Thread-safe для многопоточной обработки изображений
      */
     private fun shouldLog(fullMessage: String, isDebug: Boolean = false): Boolean {
         if (isDebug && !SHOULD_LOG_DEBUG) {
             return false
         }
-        val currentTime = System.currentTimeMillis()
-        if (fullMessage == lastMessage && currentTime - lastLogTime < DEDUPLICATION_INTERVAL_MS) {
-            return false
+        return synchronized(this) {
+            val currentTime = System.currentTimeMillis()
+            if (fullMessage == lastMessage && currentTime - lastLogTime < DEDUPLICATION_INTERVAL_MS) {
+                return@synchronized false
+            }
+            lastMessage = fullMessage
+            lastLogTime = currentTime
+            true
         }
-        lastMessage = fullMessage
-        lastLogTime = currentTime
-        return true
     }
 
     /**
@@ -219,8 +225,70 @@ object LogUtil {
             Timber.e(msg)
         }
     }
-    
+
+    /**
+     * Подробное логирование только в DEBUG режиме (используйте для избыточной информации)
+     */
+    fun verbose(category: String, message: String) {
+        if (BuildConfig.DEBUG) {
+            Timber.v("[$category] $message")
+        }
+    }
+
     private fun getFileId(uri: Uri): String {
         return uri.lastPathSegment?.takeLast(4) ?: uri.toString().takeLast(4)
+    }
+
+    // ========== Batch логирование для массовых операций ==========
+
+    private val batchCounters = mutableMapOf<String, Int>()
+    private val batchLock = Any()
+
+    /**
+     * Начало batch операции
+     */
+    fun batchStart(operationId: String, totalCount: Int) {
+        synchronized(batchLock) {
+            batchCounters[operationId] = 0
+        }
+        val msg = "[BATCH:$operationId] Начало обработки $totalCount файлов"
+        Timber.i(msg)
+    }
+
+    /**
+     * Логирование прогресса batch операции (каждый 50-й файл для уменьшения шума)
+     */
+    fun batchProgress(operationId: String, fileName: String? = null) {
+        val count = synchronized(batchLock) {
+            val current = batchCounters.getOrDefault(operationId, 0) + 1
+            batchCounters[operationId] = current
+            current
+        }
+        // Логируем каждый 50-й файл и первый
+        if (count == 1 || count % 50 == 0) {
+            val fileInfo = fileName?.let { " - $it" } ?: ""
+            val msg = "[BATCH:$operationId] Обработано $count файлов$fileInfo"
+            Timber.i(msg)
+        }
+    }
+
+    /**
+     * Завершение batch операции с финальной статистикой
+     */
+    fun batchComplete(operationId: String, success: Int, failed: Int, skipped: Int = 0) {
+        synchronized(batchLock) {
+            batchCounters.remove(operationId)
+        }
+        val total = success + failed + skipped
+        val msg = "[BATCH:$operationId] Завершено: $total файлов (✓$success ✗$failed →$skipped)"
+        Timber.i(msg)
+    }
+
+    /**
+     * Логирование batch ошибки (всегда логируется)
+     */
+    fun batchError(operationId: String, fileName: String, error: String) {
+        val msg = "[BATCH:$operationId] Ошибка обработки '$fileName': $error"
+        Timber.e(msg)
     }
 } 

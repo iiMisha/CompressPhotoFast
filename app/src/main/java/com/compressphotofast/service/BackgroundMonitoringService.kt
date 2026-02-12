@@ -72,13 +72,10 @@ class BackgroundMonitoringService : Service() {
                 }
                 
                 uri?.let {
-                    LogUtil.processDebug("Запрос на обработку: $uri")
-
                     // Запускаем корутину для проверки статуса изображения
                     serviceScope.launch {
                         // Проверяем, не было ли изображение уже обработано
                         if (!StatsTracker.shouldProcessImage(context, uri)) {
-                            LogUtil.processDebug("Обработка не требуется: $uri")
                             return@launch
                         }
 
@@ -109,16 +106,12 @@ class BackgroundMonitoringService : Service() {
                     serviceScope.launch {
                         uriProcessingTracker.removeProcessingUriSafe(uri)
                     }
-                    LogUtil.processDebug("Удален из обработки: $uriString (осталось ${uriProcessingTracker.getProcessingCount()})")
-                    LogUtil.processDebug("Сжатие завершено: $fileName, -${String.format("%.1f", reductionPercent)}%")
                     
                     // Показываем уведомление о результате сжатия
                     NotificationUtil.showCompressionResultNotification(applicationContext, fileName, originalSize, compressedSize, reductionPercent, skipped = false)
                     
                     // Устанавливаем таймер игнорирования изменений
                     uriProcessingTracker.setIgnorePeriod(uri)
-                    
-                    LogUtil.processDebug("Обработка URI $uriString завершена и будет игнорироваться")
                 }
             }
         }
@@ -126,7 +119,6 @@ class BackgroundMonitoringService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        LogUtil.processDebug("Сервис создан")
         
         // Создаем канал уведомлений
         NotificationUtil.createDefaultNotificationChannel(applicationContext)
@@ -149,30 +141,22 @@ class BackgroundMonitoringService : Service() {
         
         // Проверяем состояние автоматического сжатия при создании сервиса
         val isEnabled = SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
-        LogUtil.processDebug("Автосжатие: ${if (isEnabled) "вкл" else "выкл"}")
         
         if (!isEnabled) {
-            LogUtil.processDebug("Автосжатие выключено, сервис остановлен")
             stopSelf()
             return
         }
         
         // Запускаем периодическое сканирование для обеспечения обработки всех изображений
         startPeriodicScanning()
-        LogUtil.processDebug("Периодическое сканирование запущено")
 
         // Запускаем периодическую очистку временных файлов
         startPeriodicCleanup()
-        LogUtil.processDebug("Очистка временных файлов запущена")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        LogUtil.processDebug("onStartCommand: $startId")
-        
         // Проверяем, не является ли это запросом на остановку сервиса
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
-            LogUtil.processDebug("Запрос на остановку сервиса")
-            
             // Отключаем автоматическое сжатие в настройках
             SettingsManager.getInstance(applicationContext).setAutoCompression(false)
             
@@ -182,7 +166,6 @@ class BackgroundMonitoringService : Service() {
         }
         
         // Выполняем первоначальное сканирование при запуске сервиса
-        LogUtil.processDebug("Запуск сканирования")
         scanForNewImages()
         
         return START_STICKY
@@ -237,10 +220,8 @@ class BackgroundMonitoringService : Service() {
             unregisterReceiver(imageProcessingReceiver)
             unregisterReceiver(compressionCompletedReceiver)
         } catch (e: Exception) {
-            LogUtil.errorWithException("Ошибка при отмене регистрации BroadcastReceiver", e)
+            // Игнорируем ошибку отмены регистрации
         }
-
-        LogUtil.processDebug("Фоновый сервис остановлен")
     }
     
     /**
@@ -272,12 +253,9 @@ class BackgroundMonitoringService : Service() {
         serviceScope.launch {
             // Периодически проверяем недоступные URI и восстанавливаем их
             try {
-                val recoveredCount = uriProcessingTracker.retryUnavailableUris()
-                if (recoveredCount > 0) {
-                    LogUtil.processDebug("Восстановлено $recoveredCount URI")
-                }
-            } catch (e: Exception) {
-                LogUtil.error(null, "Ошибка при восстановлении недоступных URI", e)
+                uriProcessingTracker.retryUnavailableUris()
+            } catch (_: Exception) {
+                // Игнорируем ошибки восстановления URI
             }
 
             // Используем централизованную логику сканирования
@@ -287,12 +265,9 @@ class BackgroundMonitoringService : Service() {
             scanResult.foundUris.forEach { uri ->
                 // Проверяем состояние автоматического сжатия еще раз перед началом обработки
                 if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
-                    LogUtil.processDebug("Обработка: $uri")
                     processNewImage(uri)
                 }
             }
-
-            LogUtil.processDebug("Сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
 
             // Выводим автоматический отчет о производительности
             PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
@@ -304,38 +279,30 @@ class BackgroundMonitoringService : Service() {
      */
     private suspend fun processNewImage(uri: Uri) {
         if (uriProcessingTracker.isProcessing(uri)) {
-            LogUtil.processDebug("Уже в обработке: $uri")
             return
         }
 
-        LogUtil.processDebug("Начало обработки: $uri")
-        LogUtil.uriInfo(uri, "URI scheme: ${uri.scheme}, authority: ${uri.authority}, path: ${uri.path}")
-
         try {
             if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
-                LogUtil.processDebug("URI не существует: $uri")
                 return
             }
 
             val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
-                LogUtil.processDebug("Автосжатие выключено, пропуск")
                 return
             }
 
             if (uriProcessingTracker.shouldIgnore(uri)) {
-                LogUtil.processDebug("Игнорируем недавний URI: $uri")
                 return
             }
 
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
-            LogUtil.processDebug("Результат обработки: ${result.third}")
 
             if (!result.first) {
                 uriProcessingTracker.removeProcessingUriSafe(uri)
             }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            LogUtil.debug("Обработка нового изображения", "Корутина была отменена: ${e.message}")
+        } catch (_: kotlinx.coroutines.CancellationException) {
+            // Корутина была отменена - игнорируем
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
             uriProcessingTracker.removeProcessingUriSafe(uri)
@@ -354,8 +321,6 @@ class BackgroundMonitoringService : Service() {
             processNewImage(uri)
         }
         
-        LogUtil.processDebug("Начальное сканирование завершено. Обработано: ${scanResult.processedCount}, Пропущено: ${scanResult.skippedCount}")
-        
         // Выводим автоматический отчет о производительности
         PerformanceMonitor.autoReportIfNeeded(applicationContext)
     }
@@ -370,7 +335,6 @@ class BackgroundMonitoringService : Service() {
             IntentFilter(Constants.ACTION_PROCESS_IMAGE),
             Context.RECEIVER_NOT_EXPORTED
         )
-        LogUtil.processDebug("Receiver ACTION_PROCESS_IMAGE зарегистрирован")
     }
 
     /**
@@ -387,7 +351,6 @@ class BackgroundMonitoringService : Service() {
     private fun startPeriodicScanning() {
         scanJob = serviceScope.launch {
             while (isActive) {
-                LogUtil.processDebug("Сканирование галереи")
                 scanForNewImages()
                 // Планируем следующее сканирование через 5 минут для оптимизации энергопотребления
                 delay(scanInterval)
@@ -402,7 +365,6 @@ class BackgroundMonitoringService : Service() {
     private fun startPeriodicCleanup() {
         cleanupJob = serviceScope.launch {
             while (isActive) {
-                LogUtil.processDebug("Очистка временных файлов")
                 cleanupTempFiles()
                 // Планируем следующую очистку через 24 часа
                 delay(24 * 60 * 60 * 1000L) // 24 часа

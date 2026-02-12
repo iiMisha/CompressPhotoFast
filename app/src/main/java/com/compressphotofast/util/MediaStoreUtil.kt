@@ -59,7 +59,6 @@ object MediaStoreUtil {
                         "${Environment.DIRECTORY_PICTURES}/$directory"
                     }
 
-                    LogUtil.processInfo("Использую относительный путь для сохранения: $relativePath")
                     put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 } else {
@@ -107,24 +106,20 @@ object MediaStoreUtil {
                             if (idColumn != -1 && !cursor.isNull(idColumn)) {
                                 val id = cursor.getLong(idColumn)
                                 existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                                LogUtil.debug("MediaStore", "Найден существующий файл с таким же именем: $existingUri")
                             }
                         }
                     }
                     
                     // Если файл существует и включен режим замены, удаляем его
                     if (existingUri != null && FileOperationsUtil.isSaveModeReplace(context)) {
-                        LogUtil.processInfo("[MediaStore] Найден существующий файл с именем '$fileName', включен режим замены - удаляем")
                         try {
                             context.contentResolver.delete(existingUri!!, null, null)
-                            LogUtil.debug("MediaStore", "Существующий файл удален (режим замены)")
                         } catch (e: Exception) {
                             LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла", e)
                             LogUtil.processWarning("[MediaStore] ВНИМАНИЕ: Не удалось удалить существующий файл в режиме замены!")
                         }
                     } else if (existingUri != null) {
                         // Если файл существует, но режим замены выключен, добавляем числовой индекс
-                        LogUtil.processInfo("[MediaStore] Найден существующий файл с именем '$fileName', режим замены выключен - добавляем индекс")
                         val fileNameWithoutExt = fileName.substringBeforeLast(".")
                         val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
 
@@ -158,7 +153,6 @@ object MediaStoreUtil {
                         for ((index, name) in fileNamesToCheck.withIndex()) {
                             if (!existingNames.contains(name)) {
                                 contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                                LogUtil.debug("MediaStore", "Режим замены выключен, используем имя: $name")
                                 foundFreeName = true
                                 break
                             }
@@ -169,7 +163,6 @@ object MediaStoreUtil {
                             val timestamp = System.currentTimeMillis()
                             val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
                             contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
-                            LogUtil.debug("MediaStore", "Не найден свободный индекс, используем временную метку: $timeBasedName")
                         }
                     }
                 } catch (e: Exception) {
@@ -180,9 +173,7 @@ object MediaStoreUtil {
             // Создаем новую запись
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             
-            if (uri != null) {
-                LogUtil.debug("MediaStore", "Создан URI для изображения: $uri")
-            } else {
+            if (uri == null) {
                 throw IOException("Не удалось создать запись MediaStore")
             }
             
@@ -217,7 +208,6 @@ object MediaStoreUtil {
             val targetRelativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 var path = if (isReplaceMode && originalUri != null) {
                     val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                    LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
                     originalDirectory
                 } else if (directory.isEmpty()) {
                     Environment.DIRECTORY_PICTURES
@@ -248,7 +238,7 @@ object MediaStoreUtil {
                     val pathWithoutSlash = targetRelativePath.trimEnd('/')
                     val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
 
-                    LogUtil.debug("MediaStore", "Поиск файла: fileName='$fileName', pathWithSlash='$pathWithSlash', pathWithoutSlash='$pathWithoutSlash'")
+
 
                     val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
                     val selectionArgs = arrayOf(fileName, pathWithSlash, pathWithoutSlash)
@@ -266,7 +256,6 @@ object MediaStoreUtil {
                             if (idColumn != -1 && !cursor.isNull(idColumn)) {
                                 val id = cursor.getLong(idColumn)
                                 existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                                LogUtil.debug("MediaStore", "Найден существующий файл в директории $targetRelativePath: $existingUri")
                             }
                         }
                     }
@@ -274,13 +263,11 @@ object MediaStoreUtil {
                     // Если файл существует И режим замены: возвращаем existingUri с флагом true
                     // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
                     if (shouldUseUpdatePath(existingUri, isReplaceMode)) {
-                        LogUtil.processInfo("[MediaStore] Режим замены: используем существующий URI=$existingUri без удаления")
                         return@withContext Pair(existingUri, true) // true = режим обновления
                     }
 
                     // Если файл существует, но режим НЕ замены: добавляем числовой индекс
                     if (existingUri != null && !isReplaceMode) {
-                        LogUtil.processInfo("[MediaStore] Режим отдельной папки: файл существует, добавляем индекс")
                         // Логика добавления индекса будет ниже при создании contentValues
                     }
 
@@ -296,7 +283,6 @@ object MediaStoreUtil {
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     // ИСПРАВЛЕНИЕ: Используем targetRelativePath, вычисленный выше
-                    LogUtil.processInfo("Использую относительный путь для сохранения: $targetRelativePath")
                     put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 } else {
@@ -384,7 +370,6 @@ object MediaStoreUtil {
                         for (name in fileNamesToCheck) {
                             if (!existingNames.contains(name)) {
                                 contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                                LogUtil.debug("MediaStore", "Режим отдельной папки, используем имя: $name")
                                 foundFreeName = true
                                 break
                             }
@@ -395,7 +380,6 @@ object MediaStoreUtil {
                             val timestamp = System.currentTimeMillis()
                             val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
                             contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
-                            LogUtil.debug("MediaStore", "Не найден свободный индекс, используем временную метку: $timeBasedName")
                         }
                     }
                 } catch (e: Exception) {
@@ -406,10 +390,7 @@ object MediaStoreUtil {
             // Создаем новую запись
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
 
-            if (uri != null) {
-                LogUtil.debug("MediaStore", "Создан новый URI: $uri")
-                LogUtil.processInfo("[MediaStore] Режим отдельной папки: создаем новый файл")
-            } else {
+            if (uri == null) {
                 throw IOException("Не удалось создать запись MediaStore")
             }
 
@@ -429,7 +410,6 @@ object MediaStoreUtil {
             val contentValues = ContentValues()
             contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
             context.contentResolver.update(uri, contentValues, null, null)
-            LogUtil.debug("MediaStore", "IS_PENDING статус сброшен для URI: $uri")
         }
     }
     
@@ -500,7 +480,6 @@ object MediaStoreUtil {
                 context.contentResolver.update(uri, contentValues, null, null)
             }
             
-            LogUtil.fileOperation(uri, "MediaStore", "Успешно сохранено в медиатеку: $fileName")
             return@withContext uri
         } catch (e: Exception) {
             LogUtil.error(null, "MediaStore", "Ошибка при вставке в медиатеку", e)
@@ -517,10 +496,6 @@ object MediaStoreUtil {
         fileName: String,
         originalUri: Uri
     ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
-        LogUtil.debug("FileUtil", "Начало сохранения файла: $fileName")
-        LogUtil.debug("FileUtil", "Размер сжатого файла: ${compressedFile.length()} байт")
-        LogUtil.debug("FileUtil", "Режим замены оригинальных файлов: ${FileOperationsUtil.isSaveModeReplace(context)}")
-
         try {
             // Получаем путь к директории для сохранения
             val directory = if (FileOperationsUtil.isSaveModeReplace(context)) {
@@ -531,20 +506,15 @@ object MediaStoreUtil {
                 Constants.APP_DIRECTORY
             }
 
-            LogUtil.debug("FileUtil", "Директория для сохранения: $directory")
-
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, "image/jpeg", originalUri)
 
             if (uri == null) {
-                LogUtil.errorSimple("FileUtil", "Не удалось создать запись в MediaStore")
                 return@withContext Pair(null, null)
             }
 
             if (isUpdateMode) {
                 // Режим замены: перезаписываем существующий файл напрямую
-                LogUtil.processInfo("[MediaStore] saveCompressedImageToGallery: режим обновления для URI: $uri")
-
                 // Сбрасываем IS_PENDING флаг перед обновлением
                 clearIsPendingFlag(context, uri)
 
@@ -553,24 +523,17 @@ object MediaStoreUtil {
                     val updateSuccess = safeUpdateExistingFile(context, uri, inputStream)
 
                     if (!updateSuccess) {
-                        LogUtil.error(uri, "Сохранение", "Не удалось обновить существующий файл в saveCompressedImageToGallery")
                         return@withContext Pair(null, null)
                     }
-
-                    LogUtil.debug("FileUtil", "Файл успешно перезаписан в saveCompressedImageToGallery: $uri")
                 }
             } else {
                 // Режим создания: копируем в новый файл
-                LogUtil.processInfo("[MediaStore] saveCompressedImageToGallery: режим создания для URI: $uri")
-
                 // Копируем содержимое сжатого файла
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     compressedFile.inputStream().use { inputStream ->
                         inputStream.copyTo(outputStream)
                     }
                 }
-
-                LogUtil.debug("FileUtil", "Файл успешно создан в saveCompressedImageToGallery: $uri")
             }
 
             // Завершаем IS_PENDING состояние
@@ -607,10 +570,6 @@ object MediaStoreUtil {
         mimeType: String = "image/jpeg"
     ): Uri? = withContext(Dispatchers.IO) {
         try {
-            LogUtil.debug("FileUtil", "Директория для сохранения: $directory")
-            LogUtil.processInfo("[MediaStoreUtil] Создание записи MediaStore для файла: $fileName (режим замены: ${FileOperationsUtil.isSaveModeReplace(context)})")
-            LogUtil.debug("FileUtil", "MIME тип для сохранения: $mimeType")
-
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
 
@@ -622,8 +581,6 @@ object MediaStoreUtil {
             try {
                 if (isUpdateMode) {
                     // Режим замены: перезаписываем существующий файл напрямую
-                    LogUtil.processInfo("[MediaStore] Используем режим обновления (overwrite) для URI: $uri")
-
                     // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
                     clearIsPendingFlag(context, uri)
 
@@ -631,9 +588,7 @@ object MediaStoreUtil {
                     val updateSuccess = safeUpdateExistingFile(context, uri, inputStream)
 
                     if (!updateSuccess) {
-                        LogUtil.error(uri, "Сохранение", "Не удалось обновить существующий файл")
                         // Fallback: пытаемся создать новый файл
-                        LogUtil.processWarning("[MediaStore] Fallback: пробуем создать новый файл")
                         val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
                         if (fallbackResult != null) {
                             context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
@@ -648,19 +603,13 @@ object MediaStoreUtil {
                         return@withContext null
                     }
 
-                    LogUtil.debug("FileUtil", "Файл успешно перезаписан: $uri")
-
                 } else {
                     // Режим создания: записываем в новый файл
-                    LogUtil.processInfo("[MediaStore] Используем режим создания для URI: $uri")
-
                     // Записываем сжатое изображение
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                         inputStream.copyTo(outputStream)
                         outputStream.flush()
                     } ?: throw IOException("Не удалось открыть OutputStream")
-
-                    LogUtil.debug("FileUtil", "Данные изображения записаны в URI: $uri")
                 }
 
                 // Сразу завершаем IS_PENDING состояние до обработки EXIF, чтобы файл стал доступен
@@ -668,11 +617,7 @@ object MediaStoreUtil {
 
                 // Ждем, чтобы файл стал доступен в системе
                 val maxWaitTime = 2000L
-                val fileAvailable = waitForUriAvailability(context, uri, maxWaitTime)
-
-                if (!fileAvailable) {
-                    LogUtil.processWarning("URI не стал доступен после ожидания: $uri")
-                }
+                waitForUriAvailability(context, uri, maxWaitTime)
 
                 // Специальная обработка для Android 11
                 if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
@@ -681,7 +626,7 @@ object MediaStoreUtil {
                 }
 
                 // Делегируем всю работу с EXIF в ExifUtil
-                val exifSuccess = ExifUtil.handleExifForSavedImage(
+                ExifUtil.handleExifForSavedImage(
                     context,
                     originalUri,
                     uri,
@@ -689,12 +634,9 @@ object MediaStoreUtil {
                     exifDataMemory
                 )
 
-                LogUtil.debug("FileUtil", "Обработка EXIF данных: ${if (exifSuccess) "успешно" else "неудачно"}")
-
                 return@withContext uri
             } catch (e: Exception) {
                 LogUtil.errorWithException("Запись данных изображения", e)
-                // Если произошла ошибка, изображение может быть сохранено частично, но без EXIF
             }
             
             return@withContext uri
@@ -713,8 +655,6 @@ object MediaStoreUtil {
         uri: Uri,
         maxWaitTimeMs: Long = 1000
     ): Boolean = withContext(Dispatchers.IO) {
-        LogUtil.debug("FileUtil", "Ожидание доступности URI: $uri, максимальное время: $maxWaitTimeMs мс")
-
         val startTime = System.currentTimeMillis()
         var isAvailable = false
 
@@ -725,27 +665,16 @@ object MediaStoreUtil {
                     val available = inputStream.available()
                     inputStream.close()
 
-                    // Если доступны данные, считаем URI доступным
                     if (available > 0) {
-                        LogUtil.debug("FileUtil", "URI стал доступен через ${System.currentTimeMillis() - startTime} мс, размер: $available байт")
                         isAvailable = true
                         break
-                    } else {
-                        LogUtil.debug("FileUtil", "URI открыт, но данные недоступны, повторная попытка...")
                     }
-                } else {
-                    LogUtil.debug("FileUtil", "Не удалось открыть поток для URI, повторная попытку...")
                 }
-            } catch (e: Exception) {
-                LogUtil.debug("FileUtil", "Ошибка при проверке доступности URI: ${e.message}")
+            } catch (_: Exception) {
+                // Игнорируем ошибки проверки
             }
 
-            // Делаем паузу перед следующей попыткой
             delay(100)
-        }
-
-        if (!isAvailable) {
-            LogUtil.processWarning("Время ожидания истекло, URI не стал доступен за $maxWaitTimeMs мс")
         }
 
         return@withContext isAvailable
@@ -766,20 +695,16 @@ object MediaStoreUtil {
         inputData: InputStream
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            LogUtil.processInfo("[MediaStore] Режим замены: обновляем существующий URI=$existingUri")
-            // ВАЖНО: используем "wt" (write + truncate) чтобы файл был усечен до записи
-            // Без этого, если новый файл меньше старого, остатки старого файла останутся в конце
+            // Используем "wt" (write + truncate) чтобы файл был усечен до записи
             context.contentResolver.openOutputStream(existingUri, "wt")?.use { outputStream ->
-                val bytesWritten = inputData.copyTo(outputStream)
+                inputData.copyTo(outputStream)
                 outputStream.flush()
-                LogUtil.debug("MediaStore", "Обновление файла завершено: $existingUri, размер=${bytesWritten}KB")
             } ?: throw IOException("Не удалось открыть OutputStream для URI: $existingUri")
             true
-        } catch (e: FileNotFoundException) {
-            LogUtil.processWarning("[MediaStore] Файл был удален извне: $existingUri")
+        } catch (_: FileNotFoundException) {
             false
         } catch (e: IOException) {
-            LogUtil.error(existingUri, "MediaStore", "Ошибка обновления файла (IOException)", e)
+            LogUtil.error(existingUri, "MediaStore", "Ошибка обновления файла", e)
             false
         } catch (e: Exception) {
             LogUtil.error(existingUri, "MediaStore", "Ошибка обновления файла", e)
@@ -892,7 +817,6 @@ object MediaStoreUtil {
                         id
                     )
                     conflicts[name] = uri
-                    LogUtil.debug("MediaStore", "Обнаружен конфликт имени файла: $name -> $uri")
                 }
             }
 
@@ -901,13 +825,10 @@ object MediaStoreUtil {
                 if (!conflicts.containsKey(fileName)) {
                     conflicts[fileName] = null
                 }
-            }
-
-            LogUtil.debug("MediaStore", "Пакетная проверка завершена: проверено ${fileNames.size} файлов, найдено конфликтов: ${conflicts.values.count { it != null }}")
+                }
 
             conflicts
-        } catch (e: Exception) {
-            LogUtil.errorWithException("Пакетная проверка конфликтов имен", e)
+        } catch (_: Exception) {
             // В случае ошибки возвращаем пустую карту (все файлы без конфликтов)
             fileNames.associateWith { null }
         }
