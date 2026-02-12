@@ -1,1 +1,1 @@
-../../.claude/rules/rules.md
+../../rules/rules.md
