@@ -55,7 +55,10 @@ check_device() {
 run_instrumentation_tests() {
     log_info "Запуск instrumentation тестов..."
 
-    ./gradlew connectedDebugAndroidTest
+    # Запускаем instrumentation тесты с включенным coverage
+    ./gradlew connectedDebugAndroidTest \
+        -Pandroid.testInstrumentationRunnerArguments.coverage=true \
+        -Pandroid.testInstrumentationRunnerArguments.jacoco.enabled=true
 
     if [ $? -eq 0 ]; then
         log_info "Instrumentation тесты выполнены успешно!"

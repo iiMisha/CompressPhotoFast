@@ -24,6 +24,8 @@ android {
         versionName = getBuildVersion(baseVersion)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["coverage"] = "true"
+        testInstrumentationRunnerArguments["useTestStorageService"] = "true"
     }
 
     testOptions {
@@ -269,7 +271,7 @@ tasks.register<JacocoReport>("jacocoCombinedTestReport") {
     group = "verification"
     description = "Generates combined coverage report from unit and instrumentation tests"
 
-    dependsOn("testDebugUnitTest", "createDebugAndroidTestCoverageReport")
+    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest")
 
     reports {
         xml.required.set(true)
@@ -282,14 +284,28 @@ tasks.register<JacocoReport>("jacocoCombinedTestReport") {
 
     // Объединение execution data из unit и instrumentation тестов
     val unitTestExec = file("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec")
-    val androidTestExecDir = file("${project.layout.buildDirectory.get()}/outputs/code_coverage/debugAndroidTest/connected")
+    val androidTestExecDir = file("${project.layout.buildDirectory.get()}/outputs/code_coverage/debugAndroidTest/connected/")
+    val androidTestExecAlt = file("${project.layout.buildDirectory.get()}/outputs/unit_test_code_coverage/debugUnitTest/")
+    val coverageBuildDir = file("${project.layout.buildDirectory.get()}/outputs/coverage/")
+    val jacocoExecPath = "${project.layout.buildDirectory.get()}/outputs/androidTest-results/connected/"
 
     val executionFiles = mutableListOf<File>()
     if (unitTestExec.exists()) {
         executionFiles.add(unitTestExec)
     }
+    // Поиск .ec файлов в возможных locations для AGP 9.0+
     if (androidTestExecDir.exists()) {
         executionFiles.addAll(fileTree(androidTestExecDir).matching { include("**/*.ec") })
+    }
+    if (androidTestExecAlt.exists()) {
+        executionFiles.addAll(fileTree(androidTestExecAlt).matching { include("**/*.ec") })
+    }
+    if (coverageBuildDir.exists()) {
+        executionFiles.addAll(fileTree(coverageBuildDir).matching { include("**/*.ec") })
+    }
+    // Также ищем в стандартной директории androidTest-results
+    fileTree(jacocoExecPath).matching { include("**/*.ec") }.files.forEach { ecFile ->
+        executionFiles.add(ecFile)
     }
 
     executionData.setFrom(files(executionFiles))
@@ -309,6 +325,52 @@ tasks.register<JacocoReport>("jacocoCombinedTestReport") {
         "**/R.class",
         "**/R$*.class",
         // BR файлы
+        "**/BR.class"
+    )
+
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug").asFileTree.matching {
+        exclude(exclusions)
+    })
+}
+
+// Задача для создания coverage отчета instrumentation тестов отдельно
+tasks.register<JacocoReport>("jacocoAndroidTestReport") {
+    group = "verification"
+    description = "Generates coverage report from instrumentation tests only"
+
+    dependsOn("connectedDebugAndroidTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
+    classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
+
+    val androidTestExecDir = file("${project.layout.buildDirectory.get()}/outputs/code_coverage/debugAndroidTest/connected/")
+    val jacocoExecPath = "${project.layout.buildDirectory.get()}/outputs/androidTest-results/connected/"
+
+    val executionFiles = mutableListOf<File>()
+    if (androidTestExecDir.exists()) {
+        executionFiles.addAll(fileTree(androidTestExecDir).matching { include("**/*.ec") })
+    }
+    fileTree(jacocoExecPath).matching { include("**/*.ec") }.files.forEach { ecFile ->
+        executionFiles.add(ecFile)
+    }
+
+    executionData.setFrom(files(executionFiles))
+
+    val exclusions = listOf(
+        "**/di/*_Factory.class",
+        "**/di/*_MembersInjector.class",
+        "**/Hilt_*.*",
+        "**/databinding/*.*",
+        "**/android/databinding/*.*",
+        "**/BuildConfig.*",
+        "**/R.class",
+        "**/R$*.class",
         "**/BR.class"
     )
 

@@ -115,7 +115,10 @@ fi
 if [ "$SKIP_INSTRUMENTATION" = false ]; then
     log_step "Запуск Instrumentation тестов на устройстве..."
     echo "   ⏱️  Это может занять 3-5 минут..."
-    ./gradlew connectedDebugAndroidTest --stacktrace
+    ./gradlew connectedDebugAndroidTest \
+        -Pandroid.testInstrumentationRunnerArguments.coverage=true \
+        -Pandroid.testInstrumentationRunnerArguments.jacoco.enabled=true \
+        --stacktrace
 
     if [ $? -ne 0 ]; then
         echo ""
