@@ -1,1 +1,0 @@
-../../.agents/rules/agents-instructions.md
