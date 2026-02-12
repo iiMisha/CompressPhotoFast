@@ -1,12 +1,11 @@
 # Контекст
 
 ## Последние изменения (февраль 2026)
-*   **✅ Двойные расширения ИСПРАВЛЕНЫ** (99636da, c86c711)
-    *   `FileOperationsUtil.kt`: сохранение последнего расширения в режиме замены
-    *   `MediaStoreUtil.kt`: режим "wt" (write+truncate) для корректной перезаписи
-    *   `ImageCompressionWorker.kt`: проверка `savedUri != imageUri` перед удалением оригинала
+*   **✅ Автобатч ускорен** (c2992ef): время уменьшено с 60 до 30 секунд (`CompressionBatchTracker.kt`)
+*   **✅ Тесты исправлены** (243daef): исправлен падающий тест, обновлены импорты в util пакетах
+*   **✅ Двойные расширения ИСПРАВЛЕНЫ** (99636da, c86c711): `FileOperationsUtil.kt`, `MediaStoreUtil.kt`, `ImageCompressionWorker.kt`
 *   **✅ LeakCanary УДАЛЁН** - не использовался, утечки найдены через code review
-*   **Агенты/Скиллы**: 14 локальных агентов + 5 скиллов (lint-check, test-runner, android-test-suite, android-optimization-analyzer, memory-bank-updater)
+*   **Агенты/Скиллы**: 14 локальных агентов + 5 скиллов
 *   **Android Test Orchestrator**: добавлен для стабильности instrumentation тестов
 *   **DataStore**: миграция настроек в `SettingsDataStore` для предотвращения ANR
 
