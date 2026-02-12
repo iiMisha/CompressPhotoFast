@@ -45,14 +45,11 @@ description: |
 **КРИТИЧЕСКИЕ ПРАВИЛА:**
 - ❌ НЕ используй `Task(Explore, ...)` - вызывает переполнение памяти
 - ✅ Используй Glob/Grep/Read для поиска файлов
-- ✅ Читай Memory Bank для контекста
+- ✅ Читай AGENTS.md для контекста
 
 ```bash
-# Читай Memory Bank
-Read: .claude/memory-bank/brief.md
-Read: .claude/memory-bank/architecture.md
-Read: .claude/memory-bank/context.md
-Read: .claude/memory-bank/tech.md
+# Читай AGENTS.md
+Read: AGENTS.md
 
 # Собирай файлы через Glob/Grep
 Glob("**/*.kt")           # Все Kotlin файлы
