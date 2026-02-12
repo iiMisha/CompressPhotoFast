@@ -215,7 +215,7 @@ class SequentialImageProcessor(
      */
     suspend fun destroy() {
         cancelProcessing()
-        processingScope.cancel()
+        // Не вызываем processingScope.cancel() здесь, так как cancelProcessing() уже отменяет scope
     }
 
     /**

@@ -637,8 +637,10 @@ object MediaStoreUtil {
                         val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
                         if (fallbackResult != null) {
                             context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                inputStream.resetOrCopy()
-                                outputStream.write(inputStream.readBytes())
+                                inputStream.resetOrCopy().use { resetStream ->
+                                    // Используем потоковое копирование вместо readBytes() для избежания OOM
+                                    resetStream.copyTo(outputStream, bufferSize = 8192)
+                                }
                             }
                             clearIsPendingFlag(context, fallbackResult)
                             return@withContext fallbackResult

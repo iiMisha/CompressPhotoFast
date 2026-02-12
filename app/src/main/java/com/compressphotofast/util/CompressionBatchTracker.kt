@@ -127,8 +127,8 @@ class CompressionBatchTracker @Inject constructor(
     private val mainHandler = sharedMainHandler
     private val batchIdCounter = AtomicInteger(1)
 
-    // Singleton coroutine scope для UI обновлений (требует Main thread)
-    private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    // Singleton coroutine scope для батч-операций (используем Default вместо Main для избежания блокировки UI)
+    private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // Константы для автобатчей
     private val AUTO_BATCH_TIMEOUT_MS = 30000L // 30 секунд для завершения автобатча

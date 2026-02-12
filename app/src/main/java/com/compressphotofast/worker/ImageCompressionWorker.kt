@@ -276,19 +276,18 @@ class ImageCompressionWorker @AssistedInject constructor(
                     return@withContext Result.failure()
                 }
                 
-                // Сохраняем сжатое изображение
-                val savedUri = MediaStoreUtil.saveCompressedImageFromStream(
-                    context = appContext,
-                    inputStream = compressedImageStream.toInputStream(),
-                    fileName = finalFileName,
-                    directory = directory,
-                    originalUri = imageUri,
-                    quality = compressionQuality,
-                    exifDataMemory = exifDataMemory
-                )
-
-                // Закрываем поток сжатого изображения
-                compressedImageStream.close()
+                // Сохраняем сжатое изображение с гарантированным закрытием потока
+                val savedUri = compressedImageStream.use { stream ->
+                    MediaStoreUtil.saveCompressedImageFromStream(
+                        context = appContext,
+                        inputStream = stream.toInputStream(),
+                        fileName = finalFileName,
+                        directory = directory,
+                        originalUri = imageUri,
+                        quality = compressionQuality,
+                        exifDataMemory = exifDataMemory
+                    )
+                }
 
                 if (savedUri == null) {
                     LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")

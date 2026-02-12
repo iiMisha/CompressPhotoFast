@@ -154,6 +154,48 @@ Task(tool: Task, subagent_type: "general-purpose",
 
 **Примечание:** Instrumentation тесты требуют эмулятор `Small_Phone`.
 
+### 2.3 Запуск эмулятора - Быстрая инструкция
+
+**Проверка доступных эмуляторов:**
+```bash
+export ANDROID_HOME=/home/misha/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager list avd
+```
+
+**Запуск эмулятора Small_Phone:**
+```bash
+export ANDROID_HOME=/home/misha/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+# Запуск (блокирует терминал до закрытия эмулятора)
+$ANDROID_HOME/emulator/emulator -avd Small_Phone -no-boot-anim -no-snapshot -gpu swiftshader_indirect
+```
+
+**Ожидание готовности эмулятора:**
+```bash
+export ANDROID_HOME=/home/misha/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+# Ждём пока статус изменится с "offline" на "device"
+for i in {1..30}; do
+  sleep 5
+  status=$(adb devices | grep emulator | awk '{print $2}')
+  echo "Attempt $i: $status"
+  if [ "$status" = "device" ]; then
+    echo "✓ Emulator ready!"
+    break
+  fi
+done
+```
+
+**Установка и запуск приложения:**
+```bash
+# Сборка и установка
+./gradlew installDebug
+
+# Запуск MainActivity
+adb shell am start -n com.compressphotofast/.ui.MainActivity
+```
+
 ---
 
 ## 3. Агенты - ОБЯЗАТЕЛЬНО ДЛЯ ЗАДАЧ С КОДОМ
