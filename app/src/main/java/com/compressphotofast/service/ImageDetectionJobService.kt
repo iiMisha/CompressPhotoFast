@@ -36,7 +36,8 @@ class ImageDetectionJobService : JobService() {
     lateinit var uriProcessingTracker: UriProcessingTracker
 
     // Scope для корутин JobService с SupervisorJob для изоляции ошибок
-    private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Используем var для возможности пересоздания после отмены
+    private var jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Максимальное количество одновременно обрабатываемых URI
     private val maxConcurrentUris = 20
     
@@ -107,7 +108,13 @@ class ImageDetectionJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         LogUtil.processDebug("ImageDetectionJobService: onStartJob вызван")
-        
+
+        // Пересоздаём scope если был отменён
+        if (jobScope.coroutineContext[Job]?.isActive != true) {
+            LogUtil.processDebug("ImageDetectionJobService: пересоздаём jobScope после отмены")
+            jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        }
+
         // Проверяем, включено ли автоматическое сжатие
         if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
             LogUtil.processDebug("ImageDetectionJobService: автоматическое сжатие отключено, завершаем Job")
@@ -117,7 +124,7 @@ class ImageDetectionJobService : JobService() {
 
         val triggerUris = params?.triggeredContentUris
         LogUtil.processDebug("ImageDetectionJobService: получено ${triggerUris?.size ?: 0} URI для обработки")
-        
+
         if (triggerUris.isNullOrEmpty()) {
             // Нет URI для обработки, завершаем задание
             scheduleJob(applicationContext)
@@ -139,7 +146,7 @@ class ImageDetectionJobService : JobService() {
                 jobFinished(params, false)
             }
         }
-        
+
         // Возвращаем true, так как обработка продолжается в фоне
         return true
     }

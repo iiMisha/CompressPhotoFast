@@ -69,7 +69,7 @@ object UriUtil {
                         }
                     }
                 } catch (e: Exception) {
-                    LogUtil.error(uri, "Получение пути", "Ошибка при получении пути", e)
+                    LogUtil.warning(uri, "UriUtil", "Ошибка при получении пути через MediaStore: ${e.message}")
                 }
                 
                 // Специальная обработка для Android 11 (API 30) - используем хелпер
@@ -182,7 +182,7 @@ object UriUtil {
             
             return fileName
         } catch (e: Exception) {
-            LogUtil.error(uri, "Получение имени", "Ошибка при получении имени файла из URI", e)
+            LogUtil.warning(uri, "UriUtil", "Ошибка при получении имени файла из URI: ${e.message}")
             return null
         }
     }
@@ -220,7 +220,7 @@ object UriUtil {
                 }
             }
         } catch (e: Exception) {
-            LogUtil.error(uri, "Получение пути", "Ошибка при получении относительного пути из URI", e)
+            LogUtil.warning(uri, "UriUtil", "Ошибка при получении относительного пути из URI: ${e.message}")
         }
         return null
     }
@@ -256,7 +256,7 @@ object UriUtil {
                 }
             }
         } catch (e: Exception) {
-            LogUtil.error(uri, "Получение директории", "Ошибка при получении директории из URI", e)
+            LogUtil.warning(uri, "UriUtil", "Ошибка при получении директории из URI: ${e.message}")
         }
         
         // Возвращаем стандартный путь, если не удалось определить директорию
@@ -394,7 +394,7 @@ object UriUtil {
         return try {
             context.contentResolver.getType(uri)
         } catch (e: Exception) {
-            LogUtil.error(null, "Ошибка при получении MIME типа для $uri", e)
+            LogUtil.warning(uri, "UriUtil", "Ошибка при получении MIME типа: ${e.message}")
             null
         }
     }
@@ -533,7 +533,9 @@ object UriUtil {
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    // Файл не читается, продолжаем стандартную проверку по возрасту
+                                    // Файл не читается, считаем его pending для безопасности
+                                    LogUtil.warning(uri, "isPending", "Ошибка при проверке is_pending, считаем файл pending: ${e.message}")
+                                    return true  // При ошибке считаем файл pending для безопасности
                                 }
                             }
 

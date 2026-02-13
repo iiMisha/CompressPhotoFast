@@ -284,6 +284,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
                 // НО: если savedUri == imageUri, значит файл был перезаписан на месте и удалять не нужно
+                var deleteFailed = false
                 if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
                     try {
                         val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
@@ -292,7 +293,13 @@ class ImageCompressionWorker @AssistedInject constructor(
                         }
                     } catch (e: Exception) {
                         LogUtil.error(imageUri, "Удаление", "Ошибка при удалении оригинального файла", e)
+                        deleteFailed = true
                     }
+                }
+                
+                // Если удаление не удалось, логируем предупреждение
+                if (deleteFailed) {
+                    LogUtil.warning(imageUri, "Удаление", "Не удалось удалить оригинальный файл - возможен дубликат")
                 }
                 
                 // Получаем размер сжатого файла для уведомления
@@ -441,7 +448,20 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Для задач с batch ID уведомления будут показаны через CompressionBatchTracker
             }
         } catch (e: Exception) {
-            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления", e)
+            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Критическая ошибка при отправке уведомления: ${e.message}", e)
+            // Fallback: попытка показать Toast через Handler (если возможно)
+            try {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        appContext,
+                        "Ошибка при отправке уведомления о сжатии",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (toastException: Exception) {
+                // Игнорируем ошибки при показе Toast
+                LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Не удалось показать fallback Toast: ${toastException.message}")
+            }
         }
     }
 

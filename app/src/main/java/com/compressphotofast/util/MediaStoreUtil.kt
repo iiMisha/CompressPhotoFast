@@ -115,8 +115,10 @@ object MediaStoreUtil {
                         try {
                             context.contentResolver.delete(existingUri!!, null, null)
                         } catch (e: Exception) {
-                            LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла", e)
-                            LogUtil.processWarning("[MediaStore] ВНИМАНИЕ: Не удалось удалить существующий файл в режиме замены!")
+                            LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла в режиме замены", e)
+                            LogUtil.processWarning("[MediaStore] ВНИМАНИЕ: Не удалось удалить существующий файл, будет создан дубликат!")
+                            // Метрика для отслеживания проблем с удалением
+                            StatsTracker.recordDeleteFailure(existingUri)
                         }
                     } else if (existingUri != null) {
                         // Если файл существует, но режим замены выключен, добавляем числовой индекс
@@ -670,8 +672,8 @@ object MediaStoreUtil {
                         break
                     }
                 }
-            } catch (_: Exception) {
-                // Игнорируем ошибки проверки
+            } catch (e: Exception) {
+                LogUtil.warning(uri, "MediaStore", "Ошибка при проверке доступности URI: ${e.message}")
             }
 
             delay(100)
@@ -701,7 +703,8 @@ object MediaStoreUtil {
                 outputStream.flush()
             } ?: throw IOException("Не удалось открыть OutputStream для URI: $existingUri")
             true
-        } catch (_: FileNotFoundException) {
+        } catch (e: FileNotFoundException) {
+            LogUtil.error(existingUri, "MediaStore", "Файл не найден при обновлении: ${e.message}", e)
             false
         } catch (e: IOException) {
             LogUtil.error(existingUri, "MediaStore", "Ошибка обновления файла", e)
@@ -839,8 +842,9 @@ object MediaStoreUtil {
                 }
 
             conflicts
-        } catch (_: Exception) {
-            // В случае ошибки возвращаем пустую карту (все файлы без конфликтов)
+        } catch (e: Exception) {
+            LogUtil.error(Uri.EMPTY, "MediaStore", "Критическая ошибка при проверке конфликтов имён: ${e.message}", e)
+            // Возвращаем пустую карту, но логируем ошибку для мониторинга
             fileNames.associateWith { null }
         }
     }

@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -102,13 +103,14 @@ object ImageCompressionUtil {
         mimeType: String?,
         inSampleSize: Int
     ): Bitmap? = withContext(Dispatchers.IO) {
+        var bitmap: Bitmap? = null
         try {
             if (isHeicFormat(mimeType)) {
                 // Используем ImageDecoder для HEIC/HEIF (API 28+)
                 // OPTIMIZED: single-pass decode - получаем bounds и bitmap за один раз
                 val source = ImageDecoder.createSource(context.contentResolver, uri)
 
-                return@withContext ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
+                bitmap = ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
                     // Применяем inSampleSize для уменьшения размеров
                     if (inSampleSize > 1) {
                         val targetWidth = info.size.width / inSampleSize
@@ -117,6 +119,7 @@ object ImageCompressionUtil {
                     }
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 })
+                return@withContext bitmap
             } else {
                 // Используем BitmapFactory для остальных форматов
                 val options = BitmapFactory.Options().apply {
@@ -124,11 +127,13 @@ object ImageCompressionUtil {
                     inPreferredConfig = Bitmap.Config.RGB_565
                 }
 
-                return@withContext context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                bitmap = context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     BitmapFactory.decodeStream(inputStream, null, options)
                 }
+                return@withContext bitmap
             }
         } catch (e: Exception) {
+            bitmap?.recycle()
             LogUtil.error(uri, "Декодирование изображения", e)
             return@withContext null
         }
@@ -147,81 +152,86 @@ object ImageCompressionUtil {
         context: Context,
         uri: Uri,
         quality: Int
-    ): ByteArrayOutputStream? = withContext(Dispatchers.IO) {
-        var inputBitmap: Bitmap? = null
+    ): ByteArrayOutputStream? = withTimeoutOrNull(60_000L) { // 60 секунд максимум
+        withContext(Dispatchers.IO) {
+            var inputBitmap: Bitmap? = null
 
-        try {
-            LogUtil.uriInfo(uri, "Сжатие изображения в поток")
+            try {
+                LogUtil.uriInfo(uri, "Сжатие изображения в поток")
 
-            // Получаем MIME тип для выбора подходящего декодера
-            val mimeType = UriUtil.getMimeType(context, uri)
+                // Получаем MIME тип для выбора подходящего декодера
+                val mimeType = UriUtil.getMimeType(context, uri)
 
-            // Этап 1: Получаем размеры изображения без загрузки в память (decodeBounds)
-            // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
-            val (width, height) = decodeImageBounds(context, uri, mimeType) ?: run {
-                LogUtil.error(uri, "Сжатие в поток", "Не удалось получить размеры изображения")
+                // Этап 1: Получаем размеры изображения без загрузки в память (decodeBounds)
+                // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
+                val (width, height) = decodeImageBounds(context, uri, mimeType) ?: run {
+                    LogUtil.error(uri, "Сжатие в поток", "Не удалось получить размеры изображения")
+                    return@withContext null
+                }
+
+                // Вычисляем исходный размер памяти с ARGB_8888
+                val originalEstimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
+                LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер (ARGB_8888): ${originalEstimatedBytes / 1024 / 1024}MB")
+
+                // Этап 2: Вычисляем inSampleSize для уменьшения разрешения
+                val inSampleSize = calculateInSampleSize(
+                    width,
+                    height,
+                    Constants.MAX_IMAGE_WIDTH,
+                    Constants.MAX_IMAGE_HEIGHT
+                )
+
+                // Этап 3: Декодируем изображение с оптимизацией памяти
+                // Вычисляем оценочный размер после оптимизации
+                val decodedWidth = width / inSampleSize
+                val decodedHeight = height / inSampleSize
+                val optimizedEstimatedBytes = decodedWidth * decodedHeight * 2L // 2 bytes per pixel (RGB_565)
+                val memoryReduction = ((originalEstimatedBytes - optimizedEstimatedBytes).toFloat() / originalEstimatedBytes * 100)
+
+                LogUtil.debug("Сжатие", "Оптимизированное декодирование: ${decodedWidth}x${decodedHeight}, inSampleSize=$inSampleSize")
+                LogUtil.debug("Сжатие", "Оценочный размер: ${optimizedEstimatedBytes / 1024 / 1024}MB, экономия памяти: ${"%.1f".format(memoryReduction)}%")
+
+                // Проверяем доступную память с оптимизированным размером
+                if (!FileOperationsUtil.hasEnoughMemory(context, optimizedEstimatedBytes)) {
+                    LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения даже с оптимизацией")
+                    return@withContext null
+                }
+
+                // Декодируем изображение с поддержкой HEIC/HEIF
+                // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
+                inputBitmap = decodeImageBitmap(context, uri, mimeType, inSampleSize)
+
+                if (inputBitmap == null) {
+                    LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение")
+                    return@withContext null
+                }
+
+                // Создаем ByteArrayOutputStream с ограничением размера для предотвращения OOM
+                // Вычисляем оценочный размер с запасом (RGB_888 worst case: 3 bytes per pixel)
+                val estimatedSize = (decodedWidth * decodedHeight * 3L).toInt()
+                // Ограничиваем максимум 50MB для предотвращения OOM
+                val outputStream = ByteArrayOutputStream(minOf(estimatedSize, 50 * 1024 * 1024))
+
+                // Сжимаем Bitmap в ByteArrayOutputStream
+                val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+
+                if (!success) {
+                    LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в поток")
+                    return@withContext null
+                }
+
+                return@withContext outputStream
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Сжатие в поток", e)
                 return@withContext null
+            } finally {
+                // Гарантированно освобождаем память Bitmap
+                inputBitmap?.recycle()
             }
-
-            // Вычисляем исходный размер памяти с ARGB_8888
-            val originalEstimatedBytes = width * height * 4L // 4 bytes per pixel (ARGB_8888)
-            LogUtil.debug("Сжатие", "Размер изображения: ${width}x${height}, оценочный размер (ARGB_8888): ${originalEstimatedBytes / 1024 / 1024}MB")
-
-            // Этап 2: Вычисляем inSampleSize для уменьшения разрешения
-            val inSampleSize = calculateInSampleSize(
-                width,
-                height,
-                Constants.MAX_IMAGE_WIDTH,
-                Constants.MAX_IMAGE_HEIGHT
-            )
-
-            // Этап 3: Декодируем изображение с оптимизацией памяти
-            // Вычисляем оценочный размер после оптимизации
-            val decodedWidth = width / inSampleSize
-            val decodedHeight = height / inSampleSize
-            val optimizedEstimatedBytes = decodedWidth * decodedHeight * 2L // 2 bytes per pixel (RGB_565)
-            val memoryReduction = ((originalEstimatedBytes - optimizedEstimatedBytes).toFloat() / originalEstimatedBytes * 100)
-
-            LogUtil.debug("Сжатие", "Оптимизированное декодирование: ${decodedWidth}x${decodedHeight}, inSampleSize=$inSampleSize")
-            LogUtil.debug("Сжатие", "Оценочный размер: ${optimizedEstimatedBytes / 1024 / 1024}MB, экономия памяти: ${"%.1f".format(memoryReduction)}%")
-
-            // Проверяем доступную память с оптимизированным размером
-            if (!FileOperationsUtil.hasEnoughMemory(context, optimizedEstimatedBytes)) {
-                LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения даже с оптимизацией")
-                return@withContext null
-            }
-
-            // Декодируем изображение с поддержкой HEIC/HEIF
-            // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
-            inputBitmap = decodeImageBitmap(context, uri, mimeType, inSampleSize)
-
-            if (inputBitmap == null) {
-                LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение")
-                return@withContext null
-            }
-
-            // Создаем ByteArrayOutputStream с ограничением размера для предотвращения OOM
-            // Вычисляем оценочный размер с запасом (RGB_888 worst case: 3 bytes per pixel)
-            val estimatedSize = (decodedWidth * decodedHeight * 3L).toInt()
-            // Ограничиваем максимум 50MB для предотвращения OOM
-            val outputStream = ByteArrayOutputStream(minOf(estimatedSize, 50 * 1024 * 1024))
-
-            // Сжимаем Bitmap в ByteArrayOutputStream
-            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-
-            if (!success) {
-                LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в поток")
-                return@withContext null
-            }
-
-            return@withContext outputStream
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Сжатие в поток", e)
-            return@withContext null
-        } finally {
-            // Гарантированно освобождаем память Bitmap
-            inputBitmap?.recycle()
         }
+    } ?: run {
+        LogUtil.error(uri, "Сжатие в поток", "Таймаут операции сжатия (60 секунд)")
+        null
     }
     
     /**
@@ -626,6 +636,7 @@ object ImageCompressionUtil {
      * Если это невозможно, читает весь поток в байтовый массив и создает новый ByteArrayInputStream.
      *
      * @return this если сброс удался, или новый ByteArrayInputStream с копией данных
+     * @throws IOException если не удалось сбросить поток для повторного чтения
      */
     private fun InputStream.resetOrCopy(): InputStream {
         return try {
@@ -640,8 +651,7 @@ object ImageCompressionUtil {
             }
         } catch (e: Exception) {
             LogUtil.errorWithException("Сброс потока", e)
-            // При ошибке возвращаем как есть (может не сработать повторное чтение)
-            this
+            throw IOException("Не удалось сбросить поток для повторного чтения", e)
         }
     }
 

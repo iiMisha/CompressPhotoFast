@@ -33,6 +33,7 @@ import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
 import kotlinx.coroutines.runBlocking
+import java.lang.ref.WeakReference
 
 /**
  * Интерфейс для отслеживания прогресса сжатия
@@ -84,9 +85,17 @@ class SequentialImageProcessor(
     
     // Флаг для отмены обработки
     private val processingCancelled = AtomicBoolean(false)
-    
-    // Слушатель прогресса
-    private var progressListener: ProgressListener? = null
+
+    // Слушатель прогресса (WeakReference для предотвращения утечек памяти)
+    private var progressListener: WeakReference<ProgressListener>? = null
+
+    /**
+     * Устанавливает слушатель прогресса
+     * @param listener Слушатель прогресса или null для удаления
+     */
+    fun setProgressListener(listener: ProgressListener?) {
+        progressListener = listener?.let { WeakReference(it) }
+    }
     
     /**
      * Обрабатывает список изображений последовательно
@@ -201,7 +210,9 @@ class SequentialImageProcessor(
      */
     fun resetProcessing() {
         processingCancelled.set(false)
-        // Пересоздаем scope, так как старый мог быть отменен через cancelProcessing()
+        // Отменяем старый scope перед созданием нового для предотвращения утечки ресурсов
+        processingScope.cancel()
+        // Пересоздаем scope, так как старый был отменен
         // Отмененный scope нельзя использовать повторно
         processingScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
         _isLoading.value = false
@@ -351,7 +362,7 @@ class SequentialImageProcessor(
      */
     private fun updateProgress(current: Int, total: Int, fileName: String) {
         val progress = MultipleImagesProgress(total, current, 0, 0, 0)
-        progressListener?.onProgress(progress)
+        progressListener?.get()?.onProgress(progress)
         
         // Отправляем информацию через broadcast для слушателей
         val intent = Intent(Constants.ACTION_COMPRESSION_PROGRESS)

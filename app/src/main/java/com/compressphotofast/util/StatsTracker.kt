@@ -60,4 +60,11 @@ object StatsTracker {
     fun isUriBeingProcessedByMainActivity(): Boolean {
         return false // Всегда возвращает false, так как механизм регистрации больше не используется
     }
+
+    /**
+     * Регистрирует ошибку удаления файла для метрик
+     */
+    fun recordDeleteFailure(uri: Uri?) {
+        LogUtil.warning(uri, "StatsTracker", "Зафиксирована ошибка удаления файла")
+    }
 } 

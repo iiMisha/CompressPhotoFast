@@ -569,13 +569,20 @@ class UriProcessingTracker @Inject constructor(
         }
     }
 
+    // Примечание: fallbackInstance используется для object-классов, которые не могут использовать Hilt DI.
+    // Используется applicationContext, который не вызывает memory leak (живёт столько же, сколько приложение).
+    // Предпочтительнее использовать Hilt DI когда возможно.
     companion object {
         @Volatile
         private var fallbackInstance: UriProcessingTracker? = null
 
         /**
-         * Получает экземпляр для использования в object классах без Hilt
-         * @deprecated Предпочтительнее использовать инъекцию зависимостей
+         * Получает экземпляр для использования в object-классах без Hilt
+         * Использует applicationContext, который не вызывает memory leak.
+         * 
+         * @deprecated Предпочтительнее использовать инъекцию зависимостей через Hilt
+         * @param context Контекст (будет преобразован в applicationContext)
+         * @return Singleton экземпляр UriProcessingTracker
          */
         @Deprecated("Prefer dependency injection", ReplaceWith("inject UriProcessingTracker"))
         fun getInstance(context: Context): UriProcessingTracker {

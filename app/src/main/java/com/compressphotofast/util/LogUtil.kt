@@ -194,6 +194,15 @@ object LogUtil {
             Timber.w(msg)
         }
     }
+
+    /**
+     * Логирование предупреждений (WARNING)
+     */
+    fun warning(uri: Uri?, operation: String, message: String) {
+        val fileId = uri?.let { getFileId(it) } ?: "null"
+        val msg = "[$CATEGORY_ERROR:$operation:$fileId] WARNING: $message"
+        Timber.w(msg)
+    }
     
     fun imageCompression(uri: Uri, message: String) {
         val fileId = getFileId(uri)

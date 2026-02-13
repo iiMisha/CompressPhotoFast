@@ -102,7 +102,8 @@ object ExifUtil {
     )
 
     // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
-    private val exifCheckCache = ConcurrentHashMap<String, Boolean>()
+    // Используем LruCache для ограничения размера и предотвращения утечек памяти
+    private val exifCheckCache = LruCache<String, Boolean>(100)
     // Время жизни кэша EXIF (5 минут)
     private const val EXIF_CACHE_EXPIRATION = 5 * 60 * 1000L
     // Время последнего обновления кэша
@@ -322,9 +323,10 @@ object ExifUtil {
     private fun copyExifTags(sourceExif: ExifInterface, destExif: ExifInterface) {
         // Копируем GPS данные через специальную функцию
         copyGpsData(sourceExif, destExif)
-        
+
         // Копируем остальные теги
         var tagsCopied = 0
+        var exifErrors = 0
         for (tag in TAG_LIST) {
             try {
                 val value = sourceExif.getAttribute(tag)
@@ -333,10 +335,15 @@ object ExifUtil {
                     tagsCopied++
                 }
             } catch (e: Exception) {
-                // Пропускаем теги, которые не удалось скопировать
+                exifErrors++
+                LogUtil.warning(null, "EXIF", "Не удалось скопировать тег $tag: ${e.message}")
             }
         }
-        
+
+        if (exifErrors > 0) {
+            LogUtil.warning(null, "EXIF", "Обнаружено $exifErrors ошибок при копировании EXIF тегов")
+        }
+
         LogUtil.processInfo("Скопировано $tagsCopied EXIF-тегов")
     }
     
@@ -348,20 +355,21 @@ object ExifUtil {
     private fun copyGpsData(sourceExif: ExifInterface, destExif: ExifInterface) {
         try {
             LogUtil.processInfo("Начинаем копирование GPS данных")
-            
+
             // Сначала проверяем наличие GPS тегов в исходном файле
             val gpsTagsAvailable = checkGpsTagsAvailability(sourceExif)
             LogUtil.processInfo("GPS теги в исходном файле: $gpsTagsAvailable")
-            
+
             if (gpsTagsAvailable.isEmpty()) {
                 LogUtil.processInfo("GPS данные в исходном файле отсутствуют")
                 return
             }
-            
+
             // Используем приоритетный метод: копирование отдельных GPS-тегов
             var gpsTagsCopied = 0
+            var gpsErrors = 0
             var detailedGpsInfo = StringBuilder("Копирование GPS тегов:\n")
-            
+
             for (tag in arrayOf(
                 ExifInterface.TAG_GPS_LATITUDE,
                 ExifInterface.TAG_GPS_LATITUDE_REF,
@@ -384,16 +392,21 @@ object ExifUtil {
                         detailedGpsInfo.append("  $tag: пусто/null\n")
                     }
                 } catch (e: Exception) {
+                    gpsErrors++
                     LogUtil.error(null, "Копирование GPS тега $tag", e)
                     detailedGpsInfo.append("  $tag: ошибка - ${e.message}\n")
                 }
             }
-            
+
             LogUtil.processInfo(detailedGpsInfo.toString().trimEnd())
-            
+
+            if (gpsErrors > 0) {
+                LogUtil.warning(null, "EXIF", "Обнаружено $gpsErrors ошибок при копировании GPS тегов")
+            }
+
             if (gpsTagsCopied > 0) {
                 LogUtil.processInfo("Успешно скопировано $gpsTagsCopied GPS-тегов через setAttribute")
-                
+
                 // Дополнительная проверка: пробуем также setLatLong как backup
                 try {
                     val latLong = sourceExif.latLong
@@ -406,19 +419,19 @@ object ExifUtil {
                 }
             } else {
                 LogUtil.processWarning("Не удалось скопировать ни одного GPS тега")
-                
+
                 // Fallback: пробуем latLong API
                 try {
                     val latLong = sourceExif.latLong
                     if (latLong != null) {
                         destExif.setLatLong(latLong[0], latLong[1])
-                        
+
                         // Копируем высоту
                         val altitude = sourceExif.getAltitude(0.0)
                         if (!altitude.isNaN()) {
                             destExif.setAltitude(altitude)
                         }
-                        
+
                         LogUtil.processInfo("GPS данные скопированы через latLong API: широта=${latLong[0]}, долгота=${latLong[1]}")
                     } else {
                         LogUtil.processWarning("Не удалось скопировать GPS данные ни одним из методов")
@@ -458,6 +471,7 @@ object ExifUtil {
                     availableTags.add(tag)
                 }
             } catch (e: Exception) {
+                LogUtil.warning(null, "EXIF", "Ошибка при проверке GPS тега $tag: ${e.message}")
                 // Игнорируем ошибки при проверке отдельных тегов
             }
         }
@@ -1024,6 +1038,21 @@ object ExifUtil {
     }
     
     /**
+     * Получает информацию о сжатии из тега UserComment (suspend вариант)
+     * Выполняет I/O операции в фоновом потоке.
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @return Triple<Boolean, Int, Long> где:
+     *   - Boolean: было ли изображение сжато ранее
+     *   - Int: качество сжатия или -1, если неизвестно
+     *   - Long: временная метка сжатия в миллисекундах или 0L, если неизвестно
+     */
+    suspend fun getCompressionMarkerSuspend(context: Context, uri: Uri): Triple<Boolean, Int, Long> = 
+        withContext(Dispatchers.IO) {
+            return@withContext getCompressionMarker(context, uri)
+        }
+    
+    /**
      * Централизованный метод для обработки EXIF данных при сохранении сжатого изображения
      * 
      * @param context Контекст приложения
@@ -1181,5 +1210,16 @@ object ExifUtil {
         } catch (e: Exception) {
             LogUtil.error(uri, "Добавление даты оцифровки из метаданных файла", e)
         }
+    }
+
+    /**
+     * Очищает все EXIF кэши для освобождения памяти
+     * Должен вызываться при завершении пакетной обработки или при нехватке памяти
+     */
+    fun clearExifCaches() {
+        exifDataCache.evictAll()
+        exifCheckCache.evictAll()
+        exifCacheTimestamps.clear()
+        LogUtil.processInfo("EXIF кэши очищены")
     }
 } 

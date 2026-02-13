@@ -254,8 +254,8 @@ class BackgroundMonitoringService : Service() {
             // Периодически проверяем недоступные URI и восстанавливаем их
             try {
                 uriProcessingTracker.retryUnavailableUris()
-            } catch (_: Exception) {
-                // Игнорируем ошибки восстановления URI
+            } catch (e: Exception) {
+                LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
             }
 
             // Используем централизованную логику сканирования
