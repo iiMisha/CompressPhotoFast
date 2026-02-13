@@ -200,8 +200,11 @@ object ImageCompressionUtil {
                 return@withContext null
             }
 
-            // Создаем ByteArrayOutputStream для сжатие в память
-            val outputStream = ByteArrayOutputStream()
+            // Создаем ByteArrayOutputStream с ограничением размера для предотвращения OOM
+            // Вычисляем оценочный размер с запасом (RGB_888 worst case: 3 bytes per pixel)
+            val estimatedSize = (decodedWidth * decodedHeight * 3L).toInt()
+            // Ограничиваем максимум 50MB для предотвращения OOM
+            val outputStream = ByteArrayOutputStream(minOf(estimatedSize, 50 * 1024 * 1024))
 
             // Сжимаем Bitmap в ByteArrayOutputStream
             val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)

@@ -592,7 +592,7 @@ object MediaStoreUtil {
                         val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
                         if (fallbackResult != null) {
                             context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                inputStream.resetOrCopy().use { resetStream ->
+                                inputStream.resetOrCopy(context).use { resetStream ->
                                     // Используем потоковое копирование вместо readBytes() для избежания OOM
                                     resetStream.copyTo(outputStream, bufferSize = 8192)
                                 }
@@ -726,24 +726,35 @@ object MediaStoreUtil {
 
     /**
      * Вспомогательный extension метод для InputStream
-     * Пытается сбросить поток в начало (если поддерживается), иначе читает все данные в память
+     * Пытается сбросить поток в начало (если поддерживается), иначе использует временный файл
      * Используется в fallback сценариях при повторной попытке записи
+     * 
+     * OPTIMIZED: Использует временный файл вместо чтения в память для избежания OOM
+     * при обработке больших изображений (50MP+)
      */
-    private fun InputStream.resetOrCopy(): InputStream {
+    private fun InputStream.resetOrCopy(context: Context): InputStream {
         return try {
             // Проверяем, поддерживает ли поток mark/reset
             if (markSupported()) {
                 reset()
                 this
             } else {
-                // Если не поддерживается, читаем все данные и создаем новый поток
-                val bytes = readBytes()
-                ByteArrayInputStream(bytes)
+                // Используем временный файл вместо памяти для избежания OOM
+                val tempFile = File.createTempFile("stream_cache", ".tmp", context.cacheDir)
+                tempFile.deleteOnExit()
+                java.io.FileOutputStream(tempFile).use { output ->
+                    this.copyTo(output, bufferSize = 8192)
+                }
+                tempFile.inputStream()
             }
         } catch (e: Exception) {
-            // Если reset не сработал, читаем все данные
-            val bytes = readBytes()
-            ByteArrayInputStream(bytes)
+            // Fallback: используем временный файл
+            val tempFile = File.createTempFile("stream_cache_fallback", ".tmp", context.cacheDir)
+            tempFile.deleteOnExit()
+            java.io.FileOutputStream(tempFile).use { output ->
+                this.copyTo(output, bufferSize = 8192)
+            }
+            tempFile.inputStream()
         }
     }
 
