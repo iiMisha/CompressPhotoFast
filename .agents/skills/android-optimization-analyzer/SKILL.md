@@ -3,19 +3,12 @@ name: android-optimization-analyzer
 description: |
   Комплексный анализ Android кода на проблемы производительности и памяти с конкретными рекомендациями.
 
-  **Обязательное использование:**
-  - Перед началом оптимизации производительности
-  - При появлении проблем с памятью (OOM, crashes)
-  - Перед рефакторингом существующего кода
+  **Когда использовать:**
+  - Перед оптимизацией производительности или рефакторингом
+  - При проблемах с памятью (OOM, crashes, memory leaks)
   - При появлении лагов/ANR в приложении
   - После добавления нового функционала для проверки
-  - Регулярный профилактический анализ
-
-  **Проектная специфика (CompressPhotoFast):**
-  - Анализ операций с изображениями (Bitmap, decode, compress)
-  - Проверка memory usage при сжатии фото
-  - Анализ background processing для долгих операций
-  - Проверка корректной отмены операций
+  - Регулярный профилактический анализ кода
 
   **Запускает агентов:** voltagent-lang:kotlin-specialist, android-silent-failure-hunter
 ---
@@ -32,11 +25,19 @@ description: |
 
 # Анализ конкретного модуля
 /android-optimization-analyzer scope=specific_module focus_area=memory
-# Укажи модуль: app/src/main/java/com/compressphotofast/compression
 
 # Быстрая проверка UI
 /android-optimization-analyzer focus_area=ui thoroughness=quick
 ```
+
+## CompressPhotoFast Специфика
+
+**Особое внимание:**
+- Операции с Bitmap (decode, compress, recycle)
+- Memory usage при сжатии (избегать OOM)
+- Background processing для долгих операций
+- Корректная отмена jobs при cancelled operations
+- MediaStore операции (async, без блокировки)
 
 ## Workflow
 
@@ -98,6 +99,14 @@ Task(tool: Task, subagent_type: "android-silent-failure-hunter",
 | **database** | N+1 queries, индексы, transactions |
 | **all** | Все категории |
 
+## Thoroughness Levels
+
+| Level | Описание | Когда использовать |
+|-------|----------|-------------------|
+| **quick** | Проверка критических проблем только | Быстрая диагностика |
+| **medium** | Стандартный анализ с рекомендациями | Рутинная проверка |
+| **very thorough** | Глубокий анализ всех аспектов | Перед рефакторингом |
+
 ## Report Format
 
 ```markdown
@@ -126,17 +135,20 @@ Task(tool: Task, subagent_type: "android-silent-failure-hunter",
 2. Инструменты мониторинга
 ```
 
-## CompressPhotoFast Специфика
-
-**Особое внимание:**
-- Операции с Bitmap (decode, compress, recycle)
-- Memory usage при сжатии (избегать OOM)
-- Background processing для долгих операций
-- Корректная отмена jobs при cancelled operations
-- MediaStore операции (async, без блокировки)
-
 ## References
 
-- **[PATTERNS.md](references/PATTERNS.md)** - Шаблоны для поиска проблем
-- **[EXAMPLES.md](references/EXAMPLES.md)** - Примеры до/после
+- **[PATTERNS.md](references/PATTERNS.md)** - Search patterns для поиска проблем
 - **[TOOLS.md](references/TOOLS.md)** - Инструменты для мониторинга
+
+**Примеры оптимизаций (по категориям):**
+- **[memory-examples.md](references/memory-examples.md)** - Memory leaks (Context, CoroutineScope, Listener, Bitmap)
+- **[performance-examples.md](references/performance-examples.md)** - Performance (File I/O, Image decoding, Collections)
+- **[coroutine-examples.md](references/coroutine-examples.md)** - Coroutines (Dispatchers, Structured concurrency)
+- **[database-examples.md](references/database-examples.md)** - Database (N+1, Transactions, Indexes)
+- **[ui-examples.md](references/ui-examples.md)** - UI (RecyclerView, Layouts, Overdraw)
+- **[collections-examples.md](references/collections-examples.md)** - Collections (Filtering, Grouping, Sequences)
+
+## Update AGENTS.md
+
+После завершения анализа обновите AGENTS.md используя `/agents-updater` скилл.
+См. `agents-instructions.md` для деталей.
