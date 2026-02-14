@@ -103,11 +103,6 @@
 - ✅ **Оптимизация потоков** в MediaStoreUtil и ImageCompressionUtil для избежания OOM ошибок
 - ✅ **Улучшена обработка ошибок** в EXIF, MediaStore, ImageCompressionWorker
 - ✅ **Сокращен объем логирования** для уменьшения шума в логах
-- ✅ Цветовые коды в конфигурациях агентов
-- ✅ Включена сборка покрытия тестов в debug сборке
-- ✅ Добавлен MCP сервер для context7
-- ✅ Миграция на Unified AI Configuration (.agents/rules/)
-- ✅ Симлинки для всех AI-IDE (.claude/.cursor/.gemini/.kilocode/.opencode/)
 
 ### Метрики проекта
 - Исходный код: 38 Kotlin файлов
