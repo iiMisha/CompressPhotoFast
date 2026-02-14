@@ -11,10 +11,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.provider.MediaStore
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.hilt.work.HiltWorker
@@ -279,35 +276,58 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Добавляем URI в кэш недавно оптимизированных
                 uriProcessingTracker.setIgnorePeriod(savedUri)
 
-                // ПЕРЕД удалением удаляем URI из обработки (исправление race condition с синхронизацией)
-                uriProcessingTracker.removeProcessingUriSafe(imageUri)
-
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
                 // НО: если savedUri == imageUri, значит файл был перезаписан на месте и удалять не нужно
                 var deleteFailed = false
+                var deleteErrorMessage: String? = null
                 if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
+                    // Добавляем URI в отслеживание обработки для предотвращения race condition
+                    uriProcessingTracker.addProcessingUriSafe(imageUri, "delete_operation")
+
                     try {
-                        val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
-                        if (deleteResult is IntentSender) {
-                            addPendingDeleteRequest(imageUri, deleteResult)
+                        if (UriUtil.isUriExistsSuspend(appContext, imageUri)) {
+                            val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
+                            if (deleteResult is IntentSender) {
+                                addPendingDeleteRequest(imageUri, deleteResult)
+                            }
+                        } else {
+                            LogUtil.warning(imageUri, "Удаление", "Файл уже не существует к моменту удаления")
                         }
                     } catch (e: Exception) {
                         LogUtil.error(imageUri, "Удаление", "Ошибка при удалении оригинального файла", e)
                         deleteFailed = true
+                        deleteErrorMessage = e.message
+                    } finally {
+                        // Всегда удаляем URI из отслеживания после попытки удаления
+                        uriProcessingTracker.removeProcessingUriSafe(imageUri)
                     }
+                } else {
+                    // Если удаление не требуется, всё равно удаляем URI из обработки
+                    uriProcessingTracker.removeProcessingUriSafe(imageUri)
                 }
-                
-                // Если удаление не удалось, логируем предупреждение
+
+                // Если удаление не удалось, возвращаем failure вместо success
                 if (deleteFailed) {
-                    LogUtil.warning(imageUri, "Удаление", "Не удалось удалить оригинальный файл - возможен дубликат")
+                    LogUtil.error(imageUri, "Удаление", "КРИТИЧЕСКАЯ ОШИБКА: Не удалось удалить оригинальный файл после успешного сжатия. Причина: ${deleteErrorMessage ?: "неизвестно"}")
+
+                    // Показываем уведомление об ошибке удаления пользователю
+                    NotificationUtil.showErrorNotification(
+                        context = appContext,
+                        title = "Ошибка удаления оригинала",
+                        message = "Сжатый файл сохранён, но не удалось удалить оригинал. Возможен дубликат."
+                    )
+
+                    setForeground(createForegroundInfo("⚠️ Ошибка удаления оригинала"))
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
                 }
-                
+
                 // Получаем размер сжатого файла для уведомления
                 val compressedSize = UriUtil.getFileSize(appContext, savedUri) ?: testCompressionResult.compressedSize
                 val sizeReduction = if (sourceSize > 0 && compressedSize > 0) {
                     ((sourceSize - compressedSize).toFloat() / sourceSize) * 100
                 } else testCompressionResult.sizeReduction
-                
+
                 // Отправляем уведомление о завершении сжатия
                 sendCompressionStatusNotification(
                     finalFileName,
@@ -316,15 +336,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                     sizeReduction,
                     false
                 )
-                
+
                 setForeground(createForegroundInfo("✅ ${appContext.getString(R.string.notification_compression_completed)}"))
-                
+
                 // Обновляем статус и возвращаем успех
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
 
                 // Добавляем URI в недавно обработанные (уже удален из обработки выше)
                 uriProcessingTracker.addRecentlyProcessedUri(imageUri)
-                
+
                 return@withContext Result.success()
             } else {
                 // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
@@ -377,10 +397,15 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Удаляем URI из обрабатываемых в случае ошибки (с синхронизацией)
                 uriProcessingTracker.removeProcessingUriSafe(uri)
             }
-            
+
             return@withContext Result.failure()
         } finally {
             testResult?.compressedStream?.close()
+            // Помогаем GC: поток будет собран после закрытия
+            testResult?.let { result ->
+                // Явно освобождаем ссылку на поток для помощи GC
+                result.copy(compressedStream = null)
+            }
         }
     }
 
@@ -449,19 +474,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Критическая ошибка при отправке уведомления: ${e.message}", e)
-            // Fallback: попытка показать Toast через Handler (если возможно)
-            try {
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        appContext,
-                        "Ошибка при отправке уведомления о сжатии",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } catch (toastException: Exception) {
-                // Игнорируем ошибки при показе Toast
-                LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Не удалось показать fallback Toast: ${toastException.message}")
-            }
+            // Fallback: показываем error notification
+            NotificationUtil.showErrorNotification(
+                context = appContext,
+                title = "Ошибка уведомления",
+                message = "Не удалось отправить уведомление. Проверьте настройки."
+            )
         }
     }
 

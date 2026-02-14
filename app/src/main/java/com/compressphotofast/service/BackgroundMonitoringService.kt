@@ -21,6 +21,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancelAndJoin
+import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
@@ -43,6 +48,7 @@ class BackgroundMonitoringService : Service() {
     // Service-scoped корутины для привязки к lifecycle сервиса
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
+    private var isServiceDestroyed = AtomicBoolean(false)
 
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
@@ -59,7 +65,32 @@ class BackgroundMonitoringService : Service() {
 
     // Job для периодической очистки временных файлов
     private var cleanupJob: Job? = null
-    
+
+    /**
+     * Безопасный запуск корутины в scope сервиса
+     * Проверяет состояние сервиса перед запуском и обрабатывает исключения
+     */
+    private fun launchServiceScope(block: suspend CoroutineScope.() -> Unit) {
+        if (isServiceDestroyed.get()) {
+            LogUtil.warning(null, "Service", "Попытка запуска корутины после уничтожения сервиса")
+            return
+        }
+
+        serviceScope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e // Пробрасываем для корректной отмены
+            } catch (e: Exception) {
+                LogUtil.error(null, "ServiceCoroutine", "Ошибка в корутине сервиса", e)
+            } finally {
+                if (isActive) {
+                    // Очищаем ресурсы если корутина ещё активна
+                }
+            }
+        }
+    }
+
     // BroadcastReceiver для обработки запросов на обработку изображений
     private val imageProcessingReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -70,13 +101,13 @@ class BackgroundMonitoringService : Service() {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra(Constants.EXTRA_URI)
                 }
-                
+
                 uri?.let {
                     // Запускаем корутину для проверки статуса изображения
-                    serviceScope.launch {
+                    launchServiceScope {
                         // Проверяем, не было ли изображение уже обработано
                         if (!StatsTracker.shouldProcessImage(context, uri)) {
-                            return@launch
+                            return@launchServiceScope Unit
                         }
 
                         // Добавляем URI в список обрабатываемых и запускаем обработку
@@ -98,13 +129,14 @@ class BackgroundMonitoringService : Service() {
                     val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "неизвестный"
                     val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
                     val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
-                    
+
                     // Создаем Uri из строки
                     val uri = Uri.parse(uriString)
-                    
+
                     // Удаляем URI из списка обрабатываемых (с синхронизацией)
-                    serviceScope.launch {
+                    launchServiceScope {
                         uriProcessingTracker.removeProcessingUriSafe(uri)
+                        return@launchServiceScope Unit
                     }
                     
                     // Показываем уведомление о результате сжатия
@@ -203,8 +235,16 @@ class BackgroundMonitoringService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isServiceDestroyed.set(true)
 
-        // Отменяем все корутины, связанные с сервисом
+        // Ждём завершения всех корутин с таймаутом
+        runBlocking {
+            withTimeout(5000) {
+                serviceScope.coroutineContext[Job]?.children?.forEach { it.cancelAndJoin() }
+            }
+        }
+
+        // Окончательная отмена после таймаута
         serviceJob.cancel()
 
         // Отменяем регистрацию MediaStoreObserver
@@ -212,7 +252,6 @@ class BackgroundMonitoringService : Service() {
 
         // Останавливаем периодическое сканирование
         scanJob?.cancel()
-        // Останавливаем периодическую очистку
         cleanupJob?.cancel()
 
         // Отменяем регистрацию BroadcastReceiver
@@ -231,7 +270,7 @@ class BackgroundMonitoringService : Service() {
         // Создаем MediaStoreObserver
         val observer = MediaStoreObserver(applicationContext, OptimizedCacheUtil, uriProcessingTracker) { uri ->
             // Этот код будет выполнен при обнаружении изменений после задержки
-            serviceScope.launch {
+            launchServiceScope {
                 processNewImage(uri)
             }
         }
@@ -241,7 +280,7 @@ class BackgroundMonitoringService : Service() {
         observer.register()
 
         // Запускаем начальное сканирование
-        serviceScope.launch {
+        launchServiceScope {
             scanGalleryForUnprocessedImages()
         }
     }

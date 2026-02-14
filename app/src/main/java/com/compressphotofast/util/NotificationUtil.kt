@@ -854,6 +854,92 @@ object NotificationUtil {
     }
 
     /**
+     * Показывает уведомление об ошибке
+     */
+    fun showErrorNotification(
+        context: Context,
+        title: String,
+        message: String,
+        notificationId: Int = 9999
+    ) {
+        // Проверяем разрешения перед показом уведомления
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Error notification пропущен - отсутствуют разрешения: '$title'")
+            return
+        }
+
+        try {
+            val pendingIntent = createMainActivityPendingIntent(context)
+
+            val notification = createNotification(
+                context = context,
+                channelId = "compression_completion_channel",
+                title = "❌ $title",
+                content = message,
+                priority = NotificationCompat.PRIORITY_HIGH,
+                autoCancel = true,
+                contentIntent = pendingIntent
+            )
+
+            getNotificationManager(context).notify(notificationId, notification)
+            LogUtil.debug("NotificationUtil", "Показано error notification: $title")
+        } catch (e: SecurityException) {
+            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе error notification - отсутствует разрешение POST_NOTIFICATIONS: '$title'", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
+    }
+
+    /**
+     * Показывает уведомление об ошибке OOM при сжатии изображения
+     *
+     * @param context Контекст приложения
+     * @param fileName Имя файла
+     * @param requiredMemoryMb Требуемая память в MB
+     * @param availableMemoryMb Доступная память в MB
+     */
+    fun showOomErrorNotification(
+        context: Context,
+        fileName: String,
+        requiredMemoryMb: Long,
+        availableMemoryMb: Long
+    ) {
+        // Проверяем разрешения перед показом уведомления
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "OOM notification пропущен - нет разрешений: '$fileName'")
+            return
+        }
+
+        try {
+            val pendingIntent = createMainActivityPendingIntent(context)
+
+            val notification = createNotification(
+                context = context,
+                channelId = "compression_errors",
+                title = "Недостаточно памяти",
+                content = "Не удалось сжать $fileName. " +
+                    "Требуется ${requiredMemoryMb}MB, доступно ${availableMemoryMb}MB.",
+                priority = NotificationCompat.PRIORITY_HIGH,
+                autoCancel = true,
+                contentIntent = pendingIntent
+            )
+
+            val notificationId = System.currentTimeMillis().toInt()
+            getNotificationManager(context).notify(notificationId, notification)
+            LogUtil.debug("NotificationUtil", "Показано OOM уведомление: $fileName")
+        } catch (e: SecurityException) {
+            LogUtil.error(
+                android.net.Uri.EMPTY,
+                "Notification",
+                "SecurityException при показе OOM уведомления - нет разрешения POST_NOTIFICATIONS: '$fileName'",
+                e
+            )
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
+    }
+
+    /**
      * Очищает coroutine scope (должен вызываться при уничтожении приложения)
      */
     fun destroy() {

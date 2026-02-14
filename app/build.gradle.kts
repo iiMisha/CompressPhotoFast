@@ -205,7 +205,14 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 
     sourceDirectories.setFrom(files("${project.layout.projectDirectory.dir("src/main/java")}"))
     classDirectories.setFrom(files("${project.layout.buildDirectory.get()}/tmp/kotlin-classes/debug"))
-    executionData.setFrom(files("${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec"))
+    // ИСПРАВЛЕНИЕ: Добавлены оба возможных пути к .exec файлу для надёжности
+    // Стандартный путь + альтернативный путь (где на самом деле создаётся файл)
+    executionData.setFrom(
+        files(
+            "${project.layout.buildDirectory.get()}/jacoco/testDebugUnitTest.exec",
+            "${project.layout.buildDirectory.get()}/outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+        )
+    )
 
     // Исключения для сгенерированных файлов
     val exclusions = listOf(

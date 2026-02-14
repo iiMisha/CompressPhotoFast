@@ -235,32 +235,13 @@ object MediaStoreUtil {
             // Проверяем наличие файла с таким же именем (только для Android 10+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: ищем файл С УЧЕТОМ директории (DISPLAY_NAME + RELATIVE_PATH)
-                    // Используем OR условие для проверки обоих вариантов пути (со слешем и без)
-                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
-                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
-
-
-
-                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-                    val selectionArgs = arrayOf(fileName, pathWithSlash, pathWithoutSlash)
-
-                    var existingUri: Uri? = null
-                    context.contentResolver.query(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        arrayOf(MediaStore.Images.Media._ID),
-                        selection,
-                        selectionArgs,
-                        null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                            if (idColumn != -1 && !cursor.isNull(idColumn)) {
-                                val id = cursor.getLong(idColumn)
-                                existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                            }
-                        }
-                    }
+                    // Пакетная проверка (группируем с другими файлами из той же директории)
+                    val existingFiles = batchCheckFilesExist(
+                        context,
+                        listOf(fileName),
+                        targetRelativePath
+                    )
+                    val existingUri = existingFiles[fileName]
 
                     // Если файл существует И режим замены: возвращаем existingUri с флагом true
                     // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
@@ -541,6 +522,9 @@ object MediaStoreUtil {
             // Завершаем IS_PENDING состояние
             clearIsPendingFlag(context, uri)
 
+            // Инвалидируем кэш URI после успешного сохранения
+            UriUtil.invalidateUriExistsCache(uri)
+
             // Возвращаем результат
             return@withContext Pair(uri, null)
         } catch (e: Exception) {
@@ -593,14 +577,24 @@ object MediaStoreUtil {
                         // Fallback: пытаемся создать новый файл
                         val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
                         if (fallbackResult != null) {
-                            context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                inputStream.resetOrCopy(context).use { resetStream ->
-                                    // Используем потоковое копирование вместо readBytes() для избежания OOM
-                                    resetStream.copyTo(outputStream, bufferSize = 8192)
+                            try {
+                                context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
+                                    inputStream.resetOrCopy(context).use { resetStream ->
+                                        // Используем потоковое копирование вместо readBytes() для избежания OOM
+                                        resetStream.copyTo(outputStream, bufferSize = 8192)
+                                    }
                                 }
+                                clearIsPendingFlag(context, fallbackResult)
+                                return@withContext fallbackResult
+                            } catch (e: Exception) {
+                                LogUtil.error(originalUri, "Сохранение через fallback", "❌ Критическая ошибка при сохранении через fallback: ${e.message}", e)
+                                NotificationUtil.showErrorNotification(
+                                    context = context,
+                                    title = "Ошибка сохранения",
+                                    message = "Не удалось сохранить сжатое изображение через fallback. Попробуйте ещё раз."
+                                )
+                                return@withContext null
                             }
-                            clearIsPendingFlag(context, fallbackResult)
-                            return@withContext fallbackResult
                         }
                         return@withContext null
                     }
@@ -635,6 +629,9 @@ object MediaStoreUtil {
                     quality,
                     exifDataMemory
                 )
+
+                // Инвалидируем кэш URI после успешного сохранения
+                UriUtil.invalidateUriExistsCache(uri)
 
                 return@withContext uri
             } catch (e: Exception) {
@@ -845,6 +842,83 @@ object MediaStoreUtil {
         } catch (e: Exception) {
             LogUtil.error(Uri.EMPTY, "MediaStore", "Критическая ошибка при проверке конфликтов имён: ${e.message}", e)
             // Возвращаем пустую карту, но логируем ошибку для мониторинга
+            fileNames.associateWith { null }
+        }
+    }
+
+    /**
+     * Пакетная проверка существования файлов
+     *
+     * @param context Контекст приложения
+     * @param fileNames Список имен файлов для проверки
+     * @param relativePath Относительный путь для фильтрации (только для Android 10+)
+     * @return Map где ключ = имя файла, значение = Uri (существующий) или null
+     */
+    suspend fun batchCheckFilesExist(
+        context: Context,
+        fileNames: List<String>,
+        relativePath: String? = null
+    ): Map<String, Uri?> = withContext(Dispatchers.IO) {
+        if (fileNames.isEmpty()) return@withContext emptyMap<String, Uri?>()
+
+        try {
+            val pathWithoutSlash = relativePath?.trimEnd('/')
+            val pathWithSlash = if (!pathWithoutSlash.isNullOrEmpty() && !pathWithoutSlash.endsWith("/")) {
+                "$pathWithoutSlash/"
+            } else {
+                pathWithoutSlash ?: ""
+            }
+
+            val placeholders = fileNames.map { "?" }.joinToString(",")
+
+            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
+                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND " +
+                "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR " +
+                "${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+            } else {
+                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
+            }
+
+            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
+                (fileNames + listOf(pathWithSlash, pathWithoutSlash)).toTypedArray()
+            } else {
+                fileNames.toTypedArray()
+            }
+
+            val results = mutableMapOf<String, Uri?>()
+
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME),
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(nameColumn)
+                    val id = cursor.getLong(idColumn)
+                    val uri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+                    results[name] = uri
+                }
+            }
+
+            // Для файлов не найденных в запросе добавляем null
+            fileNames.forEach { fileName ->
+                if (!results.containsKey(fileName)) {
+                    results[fileName] = null
+                }
+            }
+
+            results
+        } catch (e: Exception) {
+            LogUtil.error(Uri.EMPTY, "MediaStore", "Ошибка при пакетной проверке", e)
+            // Fallback к поодиночным запросам
             fileNames.associateWith { null }
         }
     }

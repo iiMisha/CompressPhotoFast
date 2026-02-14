@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Утилитарный класс для работы с URI и получения информации о файлах
@@ -26,7 +27,24 @@ import java.util.Date
  */
 class PendingItemException(val uri: Uri, cause: Throwable) : Exception(cause.message, cause)
 
+/**
+ * Результат проверки существования URI с дополнительной информацией
+ */
+private data class UriExistsResult(
+    val exists: Boolean,
+    val timestamp: Long = System.currentTimeMillis(),
+    val reason: String? = null
+) {
+    fun isExpired(ttlMs: Long): Boolean = System.currentTimeMillis() - timestamp > ttlMs
+}
+
 object UriUtil {
+    // Кэш результатов проверки существования URI
+    private val uriExistsCache = ConcurrentHashMap<String, UriExistsResult>()
+
+    private const val URI_EXISTS_CACHE_TTL = 10_000L // 10 минут
+    private const val URI_EXISTS_CACHE_SIZE = 100 // максимум 100 URI в кэше
+
     /**
      * Получает полный путь к файлу из URI
      */
@@ -279,112 +297,82 @@ object UriUtil {
             relativePath
         }
     }
-    
+
+    /**
+     * Инвалидирует кэш для конкретного URI (при изменении файла)
+     */
+    fun invalidateUriExistsCache(uri: Uri) {
+        uriExistsCache.remove(uri.toString())
+        LogUtil.processDebug("Кэш URI инвалидирован: $uri")
+    }
+
+    /**
+     * Оптимизированная проверка существования URI с использованием кэша
+     */
+    private suspend fun checkUriExistsOptimized(
+        context: Context,
+        uri: Uri
+    ): UriExistsResult = withContext(Dispatchers.IO) {
+        // Единый запрос для получения всех метаданных
+        val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            arrayOf(
+                MediaStore.Images.Media.IS_PENDING,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media._ID
+            )
+        } else {
+            arrayOf(
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media._ID
+            )
+        }
+
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (!cursor.moveToFirst()) {
+                return@withContext UriExistsResult(false, reason = "not_found")
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val isPending = cursor.getInt(0) == 1
+                if (isPending) {
+                    return@withContext UriExistsResult(false, reason = "pending")
+                }
+            }
+
+            val size = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                cursor.getLong(1)
+            } else {
+                cursor.getLong(0)
+            }
+
+            if (size < 0) {
+                return@withContext UriExistsResult(false, reason = "negative_size")
+            }
+
+            return@withContext UriExistsResult(true)
+        } ?: UriExistsResult(false, reason = "query_failed")
+    }
+
     /**
      * Централизованная проверка существования файла
      */
     suspend fun isUriExistsSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверка is_pending в начале - если файл в pending, считаем что существует
-            // (он скоро будет доступен для чтения)
-            val isPending = isFilePending(context, uri)
-            if (isPending) {
-                LogUtil.debug("isUriExistsSuspend", "Файл имеет is_pending=1, считаем что существует: $uri")
-                return@withContext true
-            }
+        val cacheKey = uri.toString()
 
-            // Первая быстрая проверка через getType
-            val mimeType = context.contentResolver.getType(uri)
-            if (mimeType != null) {
-                // MIME тип есть, но файл может быть в процессе записи
-                // Добавляем небольшую задержку и дополнительную проверку
-                delay(20)
-            }
-
-            // Усиленная проверка через InputStream с детальной обработкой ошибок
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    // Проверяем, что поток можно прочитать (имеет данные)
-                    val available = stream.available()
-                    if (available > 0) {
-                        return@withContext true
-                    } else {
-                        LogUtil.debug("Проверка существования", "Файл существует, но пуст (${uri})")
-                        return@withContext true // Пустой файл все равно существует
-                    }
-                }
-            } catch (e: java.io.FileNotFoundException) {
-                LogUtil.debug("Проверка существования", "Файл не найден (${uri}): ${e.message}")
-                return@withContext false
-            } catch (e: java.io.IOException) {
-                LogUtil.debug("Проверка существования", "Ошибка ввода/вывода (${uri}): ${e.message}")
-                return@withContext false
-            } catch (e: java.lang.SecurityException) {
-                // Проверяем, не является ли это "Only owner is able to interact with pending item"
-                val message = e.message ?: ""
-                if (message.contains("pending item", ignoreCase = true) || 
-                    message.contains("Only owner", ignoreCase = true)) {
-                    LogUtil.debug("Проверка существования", "Файл существует но pending (SecurityException): $uri")
-                    throw PendingItemException(uri, e)
-                }
-                LogUtil.debug("Проверка существования", "Нет прав доступа (${uri}): ${e.message}")
-                return@withContext false
-            } catch (e: java.lang.IllegalStateException) {
-                // Android 11+ иногда выбрасывает IllegalStateException для pending items
-                val message = e.message ?: ""
-                if (message.contains("pending item", ignoreCase = true) || 
-                    message.contains("Only owner", ignoreCase = true)) {
-                    LogUtil.debug("Проверка существования", "Файл существует но pending (IllegalStateException): $uri")
-                    throw PendingItemException(uri, e)
-                }
-                LogUtil.debug("Проверка существования", "Ошибка состояния (${uri}): ${e.message}")
-                return@withContext false
-            } catch (e: Exception) {
-                LogUtil.debug("Проверка существования", "Неожиданная ошибка (${uri}): ${e.message}")
-                return@withContext false
-            }
-
-            // Дополнительная проверка для file:// URI
-            if (uri.scheme == "file") {
-                val path = uri.path
-                if (path != null) {
-                    val file = File(path)
-                    val exists = file.exists() && file.canRead()
-                    LogUtil.debug("Проверка существования", "File URI проверка (${uri}): $exists")
-                    return@withContext exists
-                }
-            }
-
-            // Проверка для content:// URI через путь (если возможно)
-            if (uri.scheme == "content") {
-                val path = getFilePathFromUri(context, uri)
-                if (path != null && path != uri.toString()) {
-                    val file = File(path)
-                    val exists = file.exists() && file.canRead()
-                    LogUtil.debug("Проверка существования", "Content URI проверка через путь (${uri}): $exists")
-                    if (exists) {
-                        return@withContext true
-                    }
-                }
-
-                // Дополнительная проверка через DocumentFile
-                try {
-                    val documentFile = DocumentFile.fromSingleUri(context, uri)
-                    if (documentFile != null && documentFile.exists()) {
-                        LogUtil.debug("Проверка существования", "DocumentFile подтверждает существование (${uri})")
-                        return@withContext true
-                    }
-                } catch (e: Exception) {
-                    LogUtil.debug("Проверка существования", "DocumentFile проверка не удалась (${uri}): ${e.message}")
-                }
-            }
-
-            return@withContext false
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            LogUtil.error(uri, "Проверка существования", "Критическая ошибка при проверке", e)
-            return@withContext false
+        // Проверяем кэш
+        val cached = uriExistsCache[cacheKey]
+        if (cached != null && !cached.isExpired(URI_EXISTS_CACHE_TTL)) {
+            LogUtil.processDebug("URI из кэша: $uri -> ${cached.exists}")
+            return@withContext cached.exists
         }
+
+        // Оптимизированная проверка
+        val result = checkUriExistsOptimized(context, uri)
+
+        // Кэшируем результат
+        uriExistsCache[cacheKey] = result
+
+        return@withContext result.exists
     }
     
     /**

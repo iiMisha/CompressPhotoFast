@@ -38,8 +38,47 @@ object ExifUtil {
     private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
 
+    /**
+     * TTL-aware LruCache implementation
+     * Кэш с поддержкой времени жизни (TTL) для записей
+     */
+    private class TtlLruCache<K, V>(
+        maxSize: Int,
+        private val ttlMs: Long
+    ) : LruCache<K, V>(maxSize) {
+        private val timestamps = ConcurrentHashMap<K, Long>()
+
+        override fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {
+            if (evicted || newValue == null) timestamps.remove(key)
+        }
+
+        fun isExpired(key: K): Boolean {
+            val timestamp = timestamps[key] ?: return true
+            return System.currentTimeMillis() - timestamp > ttlMs
+        }
+
+        fun putWithTimestamp(key: K, value: V?): V? {
+            if (value != null) {
+                timestamps[key] = System.currentTimeMillis()
+            }
+            return put(key, value)
+        }
+
+        fun getWithTtl(key: K): V? {
+            return if (isExpired(key)) {
+                remove(key)
+                null
+            } else {
+                get(key)
+            }
+        }
+    }
+
     // Кэш для хранения считанных EXIF-данных. Ключ - String URI, значение - карта с данными.
-    private val exifDataCache = LruCache<String, Map<String, Any>>(20)
+    private val exifDataCache = TtlLruCache<String, Map<String, Any>>(
+        maxSize = 20,
+        ttlMs = 10 * 60 * 1000L // 10 минут
+    )
 
     /**
      * Список важных EXIF тегов для копирования
@@ -102,12 +141,11 @@ object ExifUtil {
     )
 
     // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
-    // Используем LruCache для ограничения размера и предотвращения утечек памяти
-    private val exifCheckCache = LruCache<String, Boolean>(100)
-    // Время жизни кэша EXIF (5 минут)
-    private const val EXIF_CACHE_EXPIRATION = 5 * 60 * 1000L
-    // Время последнего обновления кэша
-    private val exifCacheTimestamps = ConcurrentHashMap<String, Long>()
+    // Используем TtlLruCache для ограничения размера, предотвращения утечек памяти и автоматического устаревания
+    private val exifCheckCache = TtlLruCache<String, Boolean>(
+        maxSize = 100,
+        ttlMs = 10 * 60 * 1000L // 10 минут
+    )
 
     // Суффикс для HEIC файлов, которым не удалось добавить EXIF-маркер
     private const val HEIC_COMPRESSED_SUFFIX = "_compressed"
@@ -568,7 +606,7 @@ object ExifUtil {
     suspend fun readExifDataToMemory(context: Context, uri: Uri): Map<String, Any> = withContext(Dispatchers.IO) {
         val uriString = uri.toString()
         // Сначала проверяем кэш
-        exifDataCache.get(uriString)?.let {
+        exifDataCache.getWithTtl(uriString)?.let {
             LogUtil.processInfo("Чтение EXIF данных из кэша для $uri")
             return@withContext it
         }
@@ -636,7 +674,7 @@ object ExifUtil {
             LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов, сохраняем в кэш")
             // Сохраняем в кэш
             if (exifData.isNotEmpty()) {
-                exifDataCache.put(uriString, exifData)
+                exifDataCache.putWithTimestamp(uriString, exifData)
             }
         } catch (e: Exception) {
             LogUtil.error(uri, "Чтение EXIF в память", e)
@@ -1219,7 +1257,6 @@ object ExifUtil {
     fun clearExifCaches() {
         exifDataCache.evictAll()
         exifCheckCache.evictAll()
-        exifCacheTimestamps.clear()
         LogUtil.processInfo("EXIF кэши очищены")
     }
 } 

@@ -151,6 +151,9 @@ object FileOperationsUtil {
                     LogUtil.processInfo("Результат удаления через MediaStore: $result")
                     if (!result) {
                         LogUtil.processWarning("Удаление через MediaStore не удалось для URI: $cleanUri")
+                    } else {
+                        // Инвалидируем кэш URI после успешного удаления
+                        UriUtil.invalidateUriExistsCache(cleanUri)
                     }
                     return result
                 } catch (e: SecurityException) {
@@ -175,6 +178,9 @@ object FileOperationsUtil {
                     LogUtil.processInfo("Результат удаления файла: $result")
                     if (!result) {
                         LogUtil.processWarning("Удаление файла по пути не удалось: $path")
+                    } else {
+                        // Инвалидируем кэш URI после успешного удаления
+                        UriUtil.invalidateUriExistsCache(cleanUri)
                     }
                     return result
                 } else {

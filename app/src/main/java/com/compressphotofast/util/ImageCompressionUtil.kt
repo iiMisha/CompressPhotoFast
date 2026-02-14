@@ -21,6 +21,72 @@ import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.NotificationUtil
+
+/**
+ * Базовый класс исключений сжатия изображения
+ */
+sealed class CompressionException(
+    message: String,
+    cause: Throwable? = null
+) : Exception(message, cause) {
+
+    /**
+     * OOM ошибка - недостаточно памяти
+     */
+    data class OutOfMemory(
+        val requiredMb: Long,
+        val availableMb: Long,
+        override val cause: Throwable
+    ) : CompressionException(
+        "Недостаточно памяти: требуется ${requiredMb}MB, доступно ${availableMb}MB",
+        cause
+    )
+
+    /**
+     * Поврежденный файл
+     */
+    data class CorruptedFile(
+        val fileName: String,
+        override val cause: Throwable
+    ) : CompressionException(
+        "Файл повреждён: $fileName",
+        cause
+    )
+
+    /**
+     * Неподдерживаемый формат
+     */
+    data class UnsupportedFormat(
+        val mimeType: String?,
+        val fileName: String
+    ) : CompressionException(
+        "Неподдерживаемый формат: $mimeType для файла $fileName"
+    )
+
+    /**
+     * Ошибка прав доступа
+     */
+    data class PermissionDenied(
+        val uri: Uri,
+        override val cause: Throwable
+    ) : CompressionException(
+        "Нет прав доступа: $uri",
+        cause
+    )
+
+    /**
+     * Ошибка I/O
+     */
+    data class IoError(
+        val operation: String,
+        val uri: Uri,
+        override val cause: Throwable
+    ) : CompressionException(
+        "Ошибка I/O при $operation: $uri",
+        cause
+    )
+}
 
 /**
  * Централизованная утилита для сжатия изображений
@@ -45,12 +111,12 @@ object ImageCompressionUtil {
         uri: Uri,
         mimeType: String?
     ): Pair<Int, Int>? = withContext(Dispatchers.IO) {
+        var width = 0
+        var height = 0
         try {
                 if (isHeicFormat(mimeType)) {
                     // Используем ImageDecoder для HEIC/HEIF (API 28+)
                     val source = ImageDecoder.createSource(context.contentResolver, uri)
-                    var width = 0
-                    var height = 0
 
                     try {
                         // Используем ImageDecoder для получения размеров без полной аллокации
@@ -82,11 +148,27 @@ object ImageCompressionUtil {
                 }
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     BitmapFactory.decodeStream(inputStream, null, options)
+                    width = options.outWidth
+                    height = options.outHeight
                     if (options.outWidth > 0 && options.outHeight > 0) {
                         return@withContext Pair(options.outWidth, options.outHeight)
                     }
                 }
             }
+        } catch (e: OutOfMemoryError) {
+            val requiredMemory = (width * height * 4L) / (1024 * 1024)
+            val availableMemory = Runtime.getRuntime().freeMemory() / (1024 * 1024)
+
+            throw CompressionException.OutOfMemory(
+                requiredMemory,
+                availableMemory,
+                e
+            )
+        } catch (e: ImageDecoder.DecodeException) {
+            throw CompressionException.CorruptedFile(
+                UriUtil.getFileNameFromUri(context, uri) ?: "неизвестный",
+                e
+            )
         } catch (e: Exception) {
             LogUtil.error(uri, "Декодирование границ изображения", e)
         }
@@ -155,6 +237,8 @@ object ImageCompressionUtil {
     ): ByteArrayOutputStream? = withTimeoutOrNull(60_000L) { // 60 секунд максимум
         withContext(Dispatchers.IO) {
             var inputBitmap: Bitmap? = null
+            var width = 0
+            var height = 0
 
             try {
                 LogUtil.uriInfo(uri, "Сжатие изображения в поток")
@@ -164,7 +248,11 @@ object ImageCompressionUtil {
 
                 // Этап 1: Получаем размеры изображения без загрузки в память (decodeBounds)
                 // Используем ImageDecoder для HEIC/HEIF, BitmapFactory для остальных форматов
-                val (width, height) = decodeImageBounds(context, uri, mimeType) ?: run {
+                val bounds = decodeImageBounds(context, uri, mimeType)
+                if (bounds != null) {
+                    width = bounds.first
+                    height = bounds.second
+                } else {
                     LogUtil.error(uri, "Сжатие в поток", "Не удалось получить размеры изображения")
                     return@withContext null
                 }
@@ -221,6 +309,43 @@ object ImageCompressionUtil {
                 }
 
                 return@withContext outputStream
+            } catch (e: OutOfMemoryError) {
+                val requiredMemory = (width * height * 4L) / (1024 * 1024)
+                val availableMemory = Runtime.getRuntime().freeMemory() / (1024 * 1024)
+
+                LogUtil.error(uri, "Сжатие в поток", "OOM: Недостаточно памяти", e)
+                NotificationUtil.showOomErrorNotification(
+                    context,
+                    UriUtil.getFileNameFromUri(context, uri) ?: "неизвестный",
+                    requiredMemory,
+                    availableMemory
+                )
+                throw CompressionException.OutOfMemory(
+                    requiredMemory,
+                    availableMemory,
+                    e
+                )
+            } catch (e: ImageDecoder.DecodeException) {
+                LogUtil.warning(uri, "Сжатие в поток", "Поврежденный HEIC файл")
+                throw CompressionException.CorruptedFile(
+                    UriUtil.getFileNameFromUri(context, uri) ?: "неизвестный",
+                    e
+                )
+            } catch (e: CompressionException.OutOfMemory) {
+                // OOM уже обработан выше
+                return@withContext null
+            } catch (e: CompressionException.CorruptedFile) {
+                // Поврежденный файл
+                return@withContext null
+            } catch (e: CompressionException.UnsupportedFormat) {
+                // Неподдерживаемый формат
+                return@withContext null
+            } catch (e: CompressionException.PermissionDenied) {
+                // Нет прав доступа
+                return@withContext null
+            } catch (e: CompressionException.IoError) {
+                // Ошибка I/O
+                return@withContext null
             } catch (e: Exception) {
                 LogUtil.error(uri, "Сжатие в поток", e)
                 return@withContext null
