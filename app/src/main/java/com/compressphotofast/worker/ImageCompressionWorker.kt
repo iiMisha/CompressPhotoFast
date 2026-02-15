@@ -125,7 +125,15 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             // Обновляем уведомление
-            setForeground(createForegroundInfo("🔧 ${appContext.getString(R.string.notification_compression_in_progress)}"))
+            // Для batch-обработки используем тихий режим для предотвращения спама уведомлений
+            if (batchId.isNullOrEmpty()) {
+                setForeground(createForegroundInfo("🔧 ${appContext.getString(R.string.notification_compression_in_progress)}"))
+            } else {
+                setForeground(NotificationUtil.createSilentForegroundInfo(
+                    appContext,
+                    Constants.NOTIFICATION_ID_COMPRESSION
+                ))
+            }
 
             // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
             val exifDataMemory = try {
@@ -149,7 +157,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Если файл уже обработан и не требует повторной обработки, пропускаем его
             if (!processingCheckResult.processingRequired && 
                 processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED) {
-                setForeground(createForegroundInfo("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}"))
+                if (batchId.isNullOrEmpty()) {
+                    setForeground(createForegroundInfo("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}"))
+                } else {
+                    setForeground(NotificationUtil.createSilentForegroundInfo(
+                        appContext,
+                        Constants.NOTIFICATION_ID_COMPRESSION
+                    ))
+                }
                 return@withContext Result.success()
             }
 
@@ -177,7 +192,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Если размер слишком маленький или слишком большой, пропускаем
             if (!FileOperationsUtil.isFileSizeValid(sourceSize)) {
                 LogUtil.uriInfo(imageUri, "Размер файла невалидный: $sourceSize, пропускаем")
-                setForeground(createForegroundInfo("📏 ${appContext.getString(R.string.notification_skipping_invalid_size)}"))
+                if (batchId.isNullOrEmpty()) {
+                    setForeground(createForegroundInfo("📏 ${appContext.getString(R.string.notification_skipping_invalid_size)}"))
+                } else {
+                    setForeground(NotificationUtil.createSilentForegroundInfo(
+                        appContext,
+                        Constants.NOTIFICATION_ID_COMPRESSION
+                    ))
+                }
                 return@withContext Result.success()
             }
             
@@ -192,7 +214,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             if (testResult == null) {
                 LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
-                setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                if (batchId.isNullOrEmpty()) {
+                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                } else {
+                    setForeground(NotificationUtil.createSilentForegroundInfo(
+                        appContext,
+                        Constants.NOTIFICATION_ID_COMPRESSION
+                    ))
+                }
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                 return@withContext Result.failure()
             }
@@ -215,7 +244,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 if (fileName.isNullOrEmpty()) {
                     LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    if (batchId.isNullOrEmpty()) {
+                        setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    } else {
+                        setForeground(NotificationUtil.createSilentForegroundInfo(
+                            appContext,
+                            Constants.NOTIFICATION_ID_COMPRESSION
+                        ))
+                    }
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
@@ -246,7 +282,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 if (compressedImageStream == null) {
                     LogUtil.error(imageUri, "Сжатие", "Сжатый поток утерян (null)")
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    if (batchId.isNullOrEmpty()) {
+                        setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    } else {
+                        setForeground(NotificationUtil.createSilentForegroundInfo(
+                            appContext,
+                            Constants.NOTIFICATION_ID_COMPRESSION
+                        ))
+                    }
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
@@ -266,7 +309,14 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 if (savedUri == null) {
                     LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
-                    setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    if (batchId.isNullOrEmpty()) {
+                        setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+                    } else {
+                        setForeground(NotificationUtil.createSilentForegroundInfo(
+                            appContext,
+                            Constants.NOTIFICATION_ID_COMPRESSION
+                        ))
+                    }
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     // Попытка восстановить оригинальный файл, если он был удален
                     // FileOperationsUtil.restoreOriginalFileIfNeeded(appContext, imageUri)
@@ -309,15 +359,22 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Если удаление не удалось, возвращаем failure вместо success
                 if (deleteFailed) {
                     LogUtil.error(imageUri, "Удаление", "КРИТИЧЕСКАЯ ОШИБКА: Не удалось удалить оригинальный файл после успешного сжатия. Причина: ${deleteErrorMessage ?: "неизвестно"}")
-
+                    
                     // Показываем уведомление об ошибке удаления пользователю
                     NotificationUtil.showErrorNotification(
                         context = appContext,
                         title = "Ошибка удаления оригинала",
                         message = "Сжатый файл сохранён, но не удалось удалить оригинал. Возможен дубликат."
                     )
-
-                    setForeground(createForegroundInfo("⚠️ Ошибка удаления оригинала"))
+ 
+                    if (batchId.isNullOrEmpty()) {
+                        setForeground(createForegroundInfo("⚠️ Ошибка удаления оригинала"))
+                    } else {
+                        setForeground(NotificationUtil.createSilentForegroundInfo(
+                            appContext,
+                            Constants.NOTIFICATION_ID_COMPRESSION
+                        ))
+                    }
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                     return@withContext Result.failure()
                 }
@@ -337,7 +394,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                     false
                 )
 
-                setForeground(createForegroundInfo("✅ ${appContext.getString(R.string.notification_compression_completed)}"))
+                if (batchId.isNullOrEmpty()) {
+                    setForeground(createForegroundInfo("✅ ${appContext.getString(R.string.notification_compression_completed)}"))
+                } else {
+                    setForeground(NotificationUtil.createSilentForegroundInfo(
+                        appContext,
+                        Constants.NOTIFICATION_ID_COMPRESSION
+                    ))
+                }
 
                 // Обновляем статус и возвращаем успех
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
@@ -359,7 +423,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Сохраняем обновленные EXIF-данные и, если нужно, маркер сжатия
                 ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, qualityForMarker)
                 
-                setForeground(createForegroundInfo("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}"))
+                if (batchId.isNullOrEmpty()) {
+                    setForeground(createForegroundInfo("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}"))
+                } else {
+                    setForeground(NotificationUtil.createSilentForegroundInfo(
+                        appContext,
+                        Constants.NOTIFICATION_ID_COMPRESSION
+                    ))
+                }
                 
                 // Получаем имя файла для уведомления
                 val fileName = getFileNameSafely(imageUri)
@@ -387,7 +458,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие", "Ошибка при сжатии изображения", e)
-            setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+            if (batchId.isNullOrEmpty()) {
+                setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
+            } else {
+                setForeground(NotificationUtil.createSilentForegroundInfo(
+                    appContext,
+                    Constants.NOTIFICATION_ID_COMPRESSION
+                ))
+            }
             
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString != null) {
@@ -397,7 +475,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Удаляем URI из обрабатываемых в случае ошибки (с синхронизацией)
                 uriProcessingTracker.removeProcessingUriSafe(uri)
             }
-
+            
             return@withContext Result.failure()
         } finally {
             testResult?.compressedStream?.close()

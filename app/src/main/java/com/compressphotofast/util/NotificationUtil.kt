@@ -202,6 +202,35 @@ object NotificationUtil {
     }
     
     /**
+     * Создание тихого ForegroundInfo для batch-обработки
+     * Использует минимальный приоритет и тихий канал для предотвращения спама уведомлений
+     */
+    fun createSilentForegroundInfo(
+        context: Context,
+        notificationId: Int,
+        content: String = context.getString(R.string.notification_processing)
+    ): ForegroundInfo {
+        // Для batch-обработки не проверяем разрешения - foreground сервис требует уведомления
+        // Используем тихий канал с минимальной важностью
+        
+        // Создаем уведомление с минимальным приоритетом
+        val notification = createNotification(
+            context = context,
+            channelId = "compression_silent_channel",
+            title = "Обработка изображений...",
+            content = content,
+            priority = NotificationCompat.PRIORITY_MIN,
+            ongoing = true
+        )
+        
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(notificationId, notification)
+        }
+    }
+    
+    /**
      * Создает основной канал уведомлений с настройками по умолчанию
      * Централизованный метод, используемый во всем приложении
      */
@@ -233,6 +262,18 @@ object NotificationUtil {
                 showBadge = true,
                 enableLights = true,
                 enableVibration = true
+            )
+            
+            // Создаем тихий канал для batch-обработки (без звука и вибрации)
+            createNotificationChannel(
+                context,
+                "compression_silent_channel",
+                "Фоновая обработка",
+                "Канал для пакетной обработки изображений без уведомлений",
+                NotificationManager.IMPORTANCE_MIN,
+                showBadge = false,
+                enableLights = false,
+                enableVibration = false
             )
             
             // LogUtil.notification("Уведомления: каналы уведомлений созданы")
