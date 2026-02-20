@@ -1,0 +1,6 @@
+* text=auto
+
+# Symlinks - ensure they're preserved
+CLAUDE.md symlink
+GEMINI.md symlink
+QWEN.md symlink
