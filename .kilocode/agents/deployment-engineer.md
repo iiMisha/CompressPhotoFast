@@ -1,1 +1,0 @@
-/home/misha/Документы/1 Проекты/CompressPhotoFast/.agents/agents/deployment-engineer.md
