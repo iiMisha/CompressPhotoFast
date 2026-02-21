@@ -361,8 +361,7 @@ Task(tool: Task, subagent_type: "general-purpose",
 
 | Скилл | Вызываемые агенты | Назначение |
 |-------|------------------|------------|
-| `/test-runner` | `general-purpose` | Запуск тестов в изолированном контексте |
-| `/android-test-suite` | `general-purpose`, `android-test-analyzer` | Запуск тестов + анализ покрытия |
+| `/android-test-suite` | `general-purpose` ⛔ НЕ вызывает android-test-analyzer (рекурсия!) | Запуск тестов в изолированном контексте |
 | `/lint-check` | `general-purpose`, `kotlin-specialist`, `android-code-reviewer` | Lint + исправление + review |
 | `/android-optimization-analyzer` | `kotlin-specialist`, `android-silent-failure-hunter` | Анализ производительности + error handling |
 | `/agents-updater` | (нет агентов) | Прямые инструменты Glob/Grep/Read |
