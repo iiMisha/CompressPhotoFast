@@ -16,6 +16,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
@@ -100,6 +102,59 @@ object ImageCompressionUtil {
     private fun isHeicFormat(mimeType: String?): Boolean {
         return mimeType?.equals("image/heic", ignoreCase = true) == true ||
                mimeType?.equals("image/heif", ignoreCase = true) == true
+    }
+
+    private data class OrientationTransform(
+        val rotationDegrees: Int = 0,
+        val flipHorizontal: Boolean = false,
+        val flipVertical: Boolean = false
+    )
+
+    private fun getOrientationTransform(context: Context, uri: Uri): OrientationTransform {
+        val exif = ExifUtil.getExifInterface(context, uri) 
+            ?: return OrientationTransform()
+        
+        val orientation = exif.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION, 
+            ExifInterface.ORIENTATION_NORMAL
+        )
+        
+        return when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> OrientationTransform(rotationDegrees = 90)
+            ExifInterface.ORIENTATION_ROTATE_180 -> OrientationTransform(rotationDegrees = 180)
+            ExifInterface.ORIENTATION_ROTATE_270 -> OrientationTransform(rotationDegrees = 270)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> OrientationTransform(flipHorizontal = true)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> OrientationTransform(flipVertical = true)
+            ExifInterface.ORIENTATION_TRANSPOSE -> OrientationTransform(rotationDegrees = 90, flipHorizontal = true)
+            ExifInterface.ORIENTATION_TRANSVERSE -> OrientationTransform(rotationDegrees = 270, flipHorizontal = true)
+            else -> OrientationTransform()
+        }
+    }
+
+    private fun applyOrientationTransform(bitmap: Bitmap, transform: OrientationTransform): Bitmap {
+        if (transform.rotationDegrees == 0 && !transform.flipHorizontal && !transform.flipVertical) {
+            return bitmap
+        }
+        
+        val matrix = Matrix()
+        
+        if (transform.rotationDegrees != 0) {
+            matrix.postRotate(transform.rotationDegrees.toFloat())
+        }
+        
+        if (transform.flipHorizontal) {
+            matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
+        }
+        
+        if (transform.flipVertical) {
+            matrix.postScale(1f, -1f, bitmap.width / 2f, bitmap.height / 2f)
+        }
+        
+        return Bitmap.createBitmap(
+            bitmap, 0, 0,
+            bitmap.width, bitmap.height,
+            matrix, true
+        )
     }
 
     /**
@@ -292,6 +347,21 @@ object ImageCompressionUtil {
                 if (inputBitmap == null) {
                     LogUtil.error(uri, "Сжатие в поток", "Не удалось декодировать изображение")
                     return@withContext null
+                }
+
+                // ImageDecoder автоматически применяет EXIF orientation для HEIC файлов
+                // поэтому пропускаем ручное применение для HEIC, чтобы избежать двойного поворота
+                if (!isHeicFormat(mimeType)) {
+                    val orientationTransform = getOrientationTransform(context, uri)
+                    if (orientationTransform.rotationDegrees != 0 || 
+                        orientationTransform.flipHorizontal || 
+                        orientationTransform.flipVertical) {
+                        LogUtil.debug("Сжатие", "Применение EXIF трансформации: rotation=${orientationTransform.rotationDegrees}°, " +
+                            "flipH=${orientationTransform.flipHorizontal}, flipV=${orientationTransform.flipVertical}")
+                        val transformedBitmap = applyOrientationTransform(inputBitmap, orientationTransform)
+                        inputBitmap.recycle()
+                        inputBitmap = transformedBitmap
+                    }
                 }
 
                 // Создаем ByteArrayOutputStream с ограничением размера для предотвращения OOM

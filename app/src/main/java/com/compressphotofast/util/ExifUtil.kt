@@ -723,6 +723,10 @@ object ExifUtil {
                     }
                 }
                 
+                // После трансформации пикселей в compressImageToStream устанавливаем orientation = NORMAL
+                exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
+                LogUtil.debug("EXIF", "Ориентация установлена в NORMAL (изображение трансформировано)")
+                
                 // Применяем GPS-данные, если они есть
                 var gpsTagsApplied = 0
                 // LogUtil.processInfo("Начинаем применение GPS данных из памяти")
