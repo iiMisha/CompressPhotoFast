@@ -9,12 +9,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -24,6 +19,170 @@ import java.io.InputStream
  * Утилитарный класс для работы с MediaStore и сохранением файлов
  */
 object MediaStoreUtil {
+
+    /**
+     * Вычисляет относительный путь для сохранения файла в MediaStore
+     *
+     * @param context Контекст приложения
+     * @param isReplaceMode Режим замены оригинала
+     * @param originalUri URI оригинального файла (для режима замены)
+     * @param directory Базовая директория для сохранения
+     * @return Относительный путь для Android 10+, пустая строка для Android < 10
+     */
+    private fun buildTargetRelativePath(
+        context: Context,
+        isReplaceMode: Boolean,
+        originalUri: Uri?,
+        directory: String
+    ): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return ""
+        }
+
+        var path = if (isReplaceMode && originalUri != null) {
+            // В режиме замены используем оригинальную директорию файла
+            UriUtil.getDirectoryFromUri(context, originalUri)
+        } else if (directory.isEmpty()) {
+            Environment.DIRECTORY_PICTURES
+        } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
+            // Если директория уже начинается с Pictures (например, Pictures или Pictures/Album), используем как есть
+            directory
+        } else if (directory.contains("/")) {
+            // Если директория уже содержит полный путь (например, Downloads/MyAlbum)
+            "${Environment.DIRECTORY_PICTURES}/$directory"
+        } else {
+            // Если указана только поддиректория, добавляем "Pictures/"
+            "${Environment.DIRECTORY_PICTURES}/$directory"
+        }
+
+        // КРИТИЧЕСКО: Нормализуем путь - добавляем слеш в конце, если его нет
+        // MediaStore хранит RELATIVE_PATH с завершающим слешем (например "Pictures/")
+        if (!path.endsWith("/")) {
+            path = "$path/"
+        }
+
+        return path
+    }
+
+    /**
+     * Обрабатывает конфликты имен файлов, генерируя уникальное имя
+     *
+     * Использует пакетную проверку с IN clause для оптимизации запросов к MediaStore.
+     * Генерирует имена вида "имя_1.ext", "имя_2.ext" до "имя_99.ext".
+     * Если все индексы заняты, использует временную метку.
+     *
+     * @param context Контекст приложения
+     * @param fileName Имя файла для проверки
+     * @param contentValues ContentValues для обновления DISPLAY_NAME
+     * @param targetRelativePath Целевой относительный путь (для Android 10+)
+     */
+    private suspend fun handleFileNameConflict(
+        context: Context,
+        fileName: String,
+        contentValues: ContentValues,
+        targetRelativePath: String
+    ) = withContext(Dispatchers.IO) {
+        try {
+            var existingUri: Uri? = null
+
+            // Проверяем наличие файла с таким же именем
+            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // ИСПРАВЛЕНИЕ: Используем OR условие для проверки обоих вариантов пути
+                val pathWithoutSlash = targetRelativePath.trimEnd('/')
+                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+                "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+            } else {
+                "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+            }
+
+            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val pathWithoutSlash = targetRelativePath.trimEnd('/')
+                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+                arrayOf(fileName, pathWithSlash, pathWithoutSlash)
+            } else {
+                arrayOf(fileName)
+            }
+
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media._ID),
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                    if (idColumn != -1 && !cursor.isNull(idColumn)) {
+                        val id = cursor.getLong(idColumn)
+                        existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+                    }
+                }
+            }
+
+            if (existingUri != null) {
+                val fileNameWithoutExt = fileName.substringBeforeLast(".")
+                val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
+
+                // OPTIMIZED: Генерируем ВСЕ возможные имена для проверки (до 100)
+                val fileNamesToCheck = mutableListOf(fileName)
+                for (i in 1 until 100) {
+                    fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
+                }
+
+                // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
+                val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
+                val batchSelection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
+                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+                    "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+                } else {
+                    "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
+                }
+
+                val batchArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
+                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+                    fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
+                } else {
+                    fileNamesToCheck.toTypedArray()
+                }
+
+                val existingNames = mutableSetOf<String>()
+                context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                    batchSelection,
+                    batchArgs,
+                    null
+                )?.use { cursor ->
+                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                    while (cursor.moveToNext()) {
+                        existingNames.add(cursor.getString(nameColumn))
+                    }
+                }
+
+                // Находим первый свободный индекс
+                var foundFreeName = false
+                for (name in fileNamesToCheck) {
+                    if (!existingNames.contains(name)) {
+                        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                        foundFreeName = true
+                        break
+                    }
+                }
+
+                // Если все 100 индексов заняты, используем временную метку
+                if (!foundFreeName) {
+                    val timestamp = System.currentTimeMillis()
+                    val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
+                    contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
+                }
+            }
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Обработка конфликта имен", e)
+        }
+    }
+
     /**
      * Вставляет запись в MediaStore для изображения с проверкой существующих файлов
      */
@@ -35,35 +194,19 @@ object MediaStoreUtil {
         originalUri: Uri? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
+            val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+            val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
+
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
                 put(MediaStore.Images.Media.MIME_TYPE, mimeType)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val relativePath = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
-                        // В режиме замены используем оригинальную директорию файла
-                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                        LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
-                        originalDirectory
-                    } else if (directory.isEmpty()) {
-                        // Если директория пуста (например, для режима замены в корневой директории)
-                        Environment.DIRECTORY_PICTURES
-                    } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
-                        // Если директория уже начинается с Pictures (например, Pictures или Pictures/Album), используем как есть
-                        directory
-                    } else if (directory.contains("/")) {
-                        // Если директория уже содержит полный путь (например, Downloads/MyAlbum)
-                        "${Environment.DIRECTORY_PICTURES}/$directory"
-                    } else {
-                        // Если указана только поддиректория, добавляем "Pictures/"
-                        "${Environment.DIRECTORY_PICTURES}/$directory"
-                    }
-
-                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
+                    put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 } else {
                     // Для API < 29 нужно указать полный путь к файлу
-                    val targetDir = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
+                    val targetDir = if (isReplaceMode && originalUri != null) {
                         // В режиме замены используем оригинальную директорию
                         val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
                         File(Environment.getExternalStorageDirectory(), originalDirectory)
@@ -85,100 +228,38 @@ object MediaStoreUtil {
                 // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
                 MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
             }
-            
+
             // Проверяем нужно ли обрабатывать конфликты имен файлов
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    // Проверяем наличие файла с таким же именем в указанной директории
-                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-                    val selectionArgs = arrayOf(fileName)
-                    
-                    var existingUri: Uri? = null
-                    context.contentResolver.query(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        arrayOf(MediaStore.Images.Media._ID),
-                        selection,
-                        selectionArgs,
-                        null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                            if (idColumn != -1 && !cursor.isNull(idColumn)) {
-                                val id = cursor.getLong(idColumn)
-                                existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                            }
-                        }
-                    }
-                    
-                    // Если файл существует и включен режим замены, удаляем его
-                    if (existingUri != null && FileOperationsUtil.isSaveModeReplace(context)) {
+                    // Если включен режим замены, удаляем существующий файл
+                    val existingFiles = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)
+                    val existingUri = existingFiles[fileName]
+
+                    if (existingUri != null && isReplaceMode) {
                         try {
-                            context.contentResolver.delete(existingUri!!, null, null)
+                            context.contentResolver.delete(existingUri, null, null)
                         } catch (e: Exception) {
                             LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла в режиме замены", e)
                             LogUtil.processWarning("[MediaStore] ВНИМАНИЕ: Не удалось удалить существующий файл, будет создан дубликат!")
-                            // Метрика для отслеживания проблем с удалением
                             StatsTracker.recordDeleteFailure(existingUri)
                         }
                     } else if (existingUri != null) {
-                        // Если файл существует, но режим замены выключен, добавляем числовой индекс
-                        val fileNameWithoutExt = fileName.substringBeforeLast(".")
-                        val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
-
-                        // OPTIMIZED: Генерируем ВСЕ возможные имена для проверки (до 100)
-                        val fileNamesToCheck = mutableListOf(fileName)
-                        for (i in 1 until 100) {
-                            fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
-                        }
-
-                        // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
-                        val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
-                        val batchSelection = "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
-                        val batchArgs = fileNamesToCheck.toTypedArray()
-
-                        val existingNames = mutableSetOf<String>()
-                        context.contentResolver.query(
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                            batchSelection,
-                            batchArgs,
-                            null
-                        )?.use { cursor ->
-                            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                            while (cursor.moveToNext()) {
-                                existingNames.add(cursor.getString(nameColumn))
-                            }
-                        }
-
-                        // Находим первый свободный индекс
-                        var foundFreeName = false
-                        for ((index, name) in fileNamesToCheck.withIndex()) {
-                            if (!existingNames.contains(name)) {
-                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                                foundFreeName = true
-                                break
-                            }
-                        }
-
-                        // Если все 100 индексов заняты, используем временную метку
-                        if (!foundFreeName) {
-                            val timestamp = System.currentTimeMillis()
-                            val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
-                            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
-                        }
+                        // Если файл существует, но режим замены выключен, обрабатываем конфликт
+                        handleFileNameConflict(context, fileName, contentValues, targetRelativePath)
                     }
                 } catch (e: Exception) {
                     LogUtil.errorWithException("Проверка существующего файла", e)
                 }
             }
-            
+
             // Создаем новую запись
             val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            
+
             if (uri == null) {
                 throw IOException("Не удалось создать запись MediaStore")
             }
-            
+
             return@withContext uri
         } catch (e: Exception) {
             LogUtil.errorWithException("Создание записи в MediaStore", e)
@@ -204,33 +285,7 @@ object MediaStoreUtil {
     ): Pair<Uri?, Boolean> = withContext(Dispatchers.IO) {
         try {
             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
-
-            // КРИТИЧЕСКО: Вычисляем targetRelativePath СРАЗУ, чтобы использовать в запросах
-            // Это устраняет дублирование кода и обеспечивает правильный поиск файла
-            val targetRelativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                var path = if (isReplaceMode && originalUri != null) {
-                    val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                    originalDirectory
-                } else if (directory.isEmpty()) {
-                    Environment.DIRECTORY_PICTURES
-                } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
-                    directory
-                } else if (directory.contains("/")) {
-                    "${Environment.DIRECTORY_PICTURES}/$directory"
-                } else {
-                    "${Environment.DIRECTORY_PICTURES}/$directory"
-                }
-
-                // КРИТИЧЕСКО: Нормализуем путь - добавляем слеш в конце, если его нет
-                // MediaStore хранит RELATIVE_PATH с завершающим слешем (например "Pictures/")
-                if (!path.endsWith("/")) {
-                    path = "$path/"
-                }
-
-                path
-            } else {
-                "" // Не используется для Android < 10
-            }
+            val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
 
             // Проверяем наличие файла с таким же именем (только для Android 10+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -250,9 +305,7 @@ object MediaStoreUtil {
                     }
 
                     // Если файл существует, но режим НЕ замены: добавляем числовой индекс
-                    if (existingUri != null && !isReplaceMode) {
-                        // Логика добавления индекса будет ниже при создании contentValues
-                    }
+                    // (будет обработано ниже при создании contentValues)
 
                 } catch (e: Exception) {
                     LogUtil.errorWithException("Проверка существующего файла", e)
@@ -265,7 +318,6 @@ object MediaStoreUtil {
                 put(MediaStore.Images.Media.MIME_TYPE, mimeType)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    // ИСПРАВЛЕНИЕ: Используем targetRelativePath, вычисленный выше
                     put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
                     put(MediaStore.Images.Media.IS_PENDING, 1)
                 } else {
@@ -294,80 +346,7 @@ object MediaStoreUtil {
 
             // Обработка конфликта имен для режима отдельной папки (Android 10+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isReplaceMode) {
-                try {
-                    var existingUri: Uri? = null
-                    // ИСПРАВЛЕНИЕ: Используем OR условие для проверки обоих вариантов пути
-                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
-                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
-
-                    val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-                    val selectionArgs = arrayOf(fileName, pathWithSlash, pathWithoutSlash)
-
-                    context.contentResolver.query(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        arrayOf(MediaStore.Images.Media._ID),
-                        selection,
-                        selectionArgs,
-                        null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                            if (idColumn != -1 && !cursor.isNull(idColumn)) {
-                                val id = cursor.getLong(idColumn)
-                                existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                            }
-                        }
-                    }
-
-                    if (existingUri != null) {
-                        val fileNameWithoutExt = fileName.substringBeforeLast(".")
-                        val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
-
-                        // OPTIMIZED: Генерируем ВСЕ возможные имена для проверки (до 100)
-                        val fileNamesToCheck = mutableListOf(fileName)
-                        for (i in 1 until 100) {
-                            fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
-                        }
-
-                        // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
-                        val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
-                        val batchSelection = "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-                        val batchArgs = fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
-
-                        val existingNames = mutableSetOf<String>()
-                        context.contentResolver.query(
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                            batchSelection,
-                            batchArgs,
-                            null
-                        )?.use { cursor ->
-                            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                            while (cursor.moveToNext()) {
-                                existingNames.add(cursor.getString(nameColumn))
-                            }
-                        }
-
-                        // Находим первый свободный индекс
-                        var foundFreeName = false
-                        for (name in fileNamesToCheck) {
-                            if (!existingNames.contains(name)) {
-                                contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                                foundFreeName = true
-                                break
-                            }
-                        }
-
-                        // Если все 100 индексов заняты, используем временную метку
-                        if (!foundFreeName) {
-                            val timestamp = System.currentTimeMillis()
-                            val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
-                            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
-                        }
-                    }
-                } catch (e: Exception) {
-                    LogUtil.errorWithException("Обработка конфликта имен", e)
-                }
+                handleFileNameConflict(context, fileName, contentValues, targetRelativePath)
             }
 
             // Создаем новую запись
@@ -395,7 +374,7 @@ object MediaStoreUtil {
             context.contentResolver.update(uri, contentValues, null, null)
         }
     }
-    
+
     /**
      * Вставляет изображение в MediaStore
      */
@@ -413,63 +392,49 @@ object MediaStoreUtil {
                 LogUtil.error(null, "MediaStore", "Файл не существует: ${file.absolutePath}")
                 return@withContext null
             }
-            
+
+            val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+            val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
+
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val relativePath = if (FileOperationsUtil.isSaveModeReplace(context) && originalUri != null) {
-                        // В режиме замены используем оригинальную директорию файла
-                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                        LogUtil.processInfo("Режим замены, использую оригинальную директорию: $originalDirectory")
-                        originalDirectory
-                    } else if (directory.isEmpty()) {
-                        Environment.DIRECTORY_PICTURES
-                    } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
-                        // Если директория уже начинается с Pictures (например, Pictures или Pictures/Album), используем как есть
-                        directory
-                    } else if (directory.contains("/")) {
-                        // Если директория уже содержит полный путь (например, Downloads/MyAlbum)
-                        "${Environment.DIRECTORY_PICTURES}/$directory"
-                    } else {
-                        // Если указана только поддиректория, добавляем "Pictures/"
-                        "${Environment.DIRECTORY_PICTURES}/$directory"
-                    }
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, targetRelativePath)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
 
                 // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
                 MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
             }
-            
+
             val uri = context.contentResolver.insert(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 contentValues
             ) ?: throw IOException("Ошибка при вставке в MediaStore")
-            
+
             // Копируем данные
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                 file.inputStream().use { inputStream ->
                     inputStream.copyTo(outputStream)
                 }
             } ?: throw IOException("Не удалось открыть выходной поток")
-            
+
             // Завершаем операцию для Android 10+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 contentValues.clear()
                 contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
                 context.contentResolver.update(uri, contentValues, null, null)
             }
-            
+
             return@withContext uri
         } catch (e: Exception) {
             LogUtil.error(null, "MediaStore", "Ошибка при вставке в медиатеку", e)
             return@withContext null
         }
     }
-    
+
     /**
      * Сохраняет сжатое изображение из файла в галерею
      */
@@ -532,7 +497,7 @@ object MediaStoreUtil {
             return@withContext Pair(null, null)
         }
     }
-    
+
     /**
      * Сохраняет сжатое изображение из потока
      *
@@ -637,15 +602,15 @@ object MediaStoreUtil {
             } catch (e: Exception) {
                 LogUtil.errorWithException("Запись данных изображения", e)
             }
-            
+
             return@withContext uri
-            
+
         } catch (e: Exception) {
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
             return@withContext null
         }
     }
-    
+
     /**
      * Проверяет доступность URI для операций с файлом, ожидая в течение указанного времени
      */
@@ -728,7 +693,7 @@ object MediaStoreUtil {
      * Вспомогательный extension метод для InputStream
      * Пытается сбросить поток в начало (если поддерживается), иначе использует временный файл
      * Используется в fallback сценариях при повторной попытке записи
-     * 
+     *
      * OPTIMIZED: Использует временный файл вместо чтения в память для избежания OOM
      * при обработке больших изображений (50MP+)
      */

@@ -9,6 +9,7 @@ import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -163,6 +164,37 @@ object ExifUtil {
     }
 
     /**
+     * Получает displayName и dateModified из MediaStore для HEIC файла
+     * @param context Контекст приложения
+     * @param uri URI изображения
+     * @return Pair<String?, Long?> где первый элемент - displayName, второй - dateModified в миллисекундах
+     */
+    private suspend fun getHeicDisplayNameAndDate(
+        context: Context,
+        uri: Uri
+    ): Pair<String?, Long?> = withContext(Dispatchers.IO) {
+        val projection = arrayOf(
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_MODIFIED
+        )
+        var displayName: String? = null
+        var dateModified: Long? = null
+
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
+                displayName = cursor.getString(nameIndex)
+                if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
+                    dateModified = cursor.getLong(dateIndex) * 1000 // Конвертируем секунды в миллисекунды
+                }
+            }
+        }
+
+        return@withContext Pair(displayName, dateModified)
+    }
+
+    /**
      * Проверяет, есть ли у HEIC файла суффикс _compressed
      * @param displayName Имя файла (displayName из MediaStore)
      * @return true если имя содержит суффикс _compressed перед расширением
@@ -186,15 +218,7 @@ object ExifUtil {
             LogUtil.processInfo("Попытка сохранить EXIF для HEIC не удалась, переименовываем файл")
 
             // Получаем текущий displayName из MediaStore
-            val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
-            var currentDisplayName: String? = null
-
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                    currentDisplayName = cursor.getString(nameIndex)
-                }
-            }
+            val (currentDisplayName, _) = getHeicDisplayNameAndDate(context, uri)
 
             if (currentDisplayName == null) {
                 LogUtil.error(uri, "Переименование HEIC", "Не удалось получить текущее имя файла")
@@ -922,20 +946,7 @@ object ExifUtil {
         try {
             // Сначала проверяем HEIC файлы с суффиксом _compressed
             if (isHeicFile(context, uri)) {
-                val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_MODIFIED)
-                var displayName: String? = null
-                var dateModified: Long? = null
-
-                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                        val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
-                        displayName = cursor.getString(nameIndex)
-                        if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
-                            dateModified = cursor.getLong(dateIndex) * 1000
-                        }
-                    }
-                }
+                val (displayName, dateModified) = getHeicDisplayNameAndDate(context, uri)
 
                 if (hasHeicCompressedSuffix(displayName)) {
                     LogUtil.processDebug("Найден HEIC маркер сжатия в имени: $displayName")
@@ -1024,20 +1035,8 @@ object ExifUtil {
         try {
             // Сначала проверяем HEIC файлы с суффиксом _compressed в имени
             if (isHeicFile(context, uri)) {
-                // Получаем displayName из MediaStore
-                val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATE_MODIFIED)
-                var displayName: String? = null
-                var dateModified: Long? = null
-
-                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                        val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
-                        displayName = cursor.getString(nameIndex)
-                        if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
-                            dateModified = cursor.getLong(dateIndex) * 1000 // Конвертируем секунды в миллисекунды
-                        }
-                    }
+                val (displayName, dateModified) = runBlocking {
+                    getHeicDisplayNameAndDate(context, uri)
                 }
 
                 // Проверяем суффикс _compressed в имени HEIC файла

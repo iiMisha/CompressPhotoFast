@@ -38,7 +38,19 @@ class SettingsManager @Inject constructor(
     fun isSaveModeReplace(): Boolean {
         return sharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, false)
     }
-    
+
+    /**
+     * Получение режима сохранения
+     * @return SAVE_MODE_REPLACE если включён режим замены, SAVE_MODE_SEPARATE в противном случае
+     */
+    fun getSaveMode(): Int {
+        return if (isSaveModeReplace()) {
+            Constants.SAVE_MODE_REPLACE
+        } else {
+            Constants.SAVE_MODE_SEPARATE
+        }
+    }
+
     /**
      * Установка режима сохранения
      * @param replace true - заменять оригинальные файлы, false - сохранять в отдельной папке
@@ -47,13 +59,6 @@ class SettingsManager @Inject constructor(
         sharedPreferences.edit()
             .putBoolean(Constants.PREF_SAVE_MODE, replace)
             .apply()
-    }
-    
-    /**
-     * Получение текущего режима сохранения
-     */
-    fun getSaveMode(): Int {
-        return if (isSaveModeReplace()) Constants.SAVE_MODE_REPLACE else Constants.SAVE_MODE_SEPARATE
     }
     
     /**

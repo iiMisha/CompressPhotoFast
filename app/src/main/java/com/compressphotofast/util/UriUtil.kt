@@ -388,20 +388,6 @@ object UriUtil {
     }
     
     /**
-     * Получает размер файла по URI (синхронная версия для тестов)
-     * @deprecated Используйте suspend версию {@link #getFileSize(Context, Uri)} для production кода
-     */
-    @Deprecated(
-        "Используйте suspend версию getFileSize() для production кода",
-        ReplaceWith("getFileSize(context, uri)")
-    )
-    fun getFileSizeSync(context: Context, uri: Uri): Long {
-        return kotlinx.coroutines.runBlocking {
-            getFileSize(context, uri)
-        }
-    }
-
-    /**
      * Получает размер файла по URI (suspend версия для production кода)
      */
     suspend fun getFileSize(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {

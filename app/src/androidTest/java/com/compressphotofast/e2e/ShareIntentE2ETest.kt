@@ -291,7 +291,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
         }
 
         val uri = testUris[0]
-        val originalSize = UriUtil.getFileSizeSync(context, uri)
+        val originalSize = UriUtil.getFileSize(context, uri)
 
         // Запоминаем время перед отправкой Intent
         val beforeTimestamp = System.currentTimeMillis() / 1000
@@ -334,7 +334,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
         assertThat(hasMarker).isTrue()
 
         // Проверяем, что размер файла уменьшился
-        val compressedSize = UriUtil.getFileSizeSync(context, finalUri)
+        val compressedSize = UriUtil.getFileSize(context, finalUri)
         assertThat(compressedSize).isLessThan(originalSize)
 
         LogUtil.processDebug("Сжатие с разным качеством: $originalSize -> $compressedSize байт")

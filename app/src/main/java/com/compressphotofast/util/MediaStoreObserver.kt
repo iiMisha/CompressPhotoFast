@@ -15,6 +15,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 
 /**
  * Класс для централизованной работы с ContentObserver для отслеживания изменений в MediaStore
@@ -27,20 +30,20 @@ class MediaStoreObserver @Inject constructor(
     private val uriProcessingTracker: UriProcessingTracker,
     private var imageChangeListener: ((Uri) -> Unit)? = null
 ) {
-    // Shared handler для всех экземпляров
+    // Shared CoroutineScope для всех экземпляров
     companion object {
-        private val mainHandler = Handler(Looper.getMainLooper())
+        private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     }
 
-    private val handler: Handler = mainHandler
+    private val handlerScope = mainScope
     // CoroutineScope для асинхронных операций
     private val observerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = ConcurrentHashMap<String, Long>()
     private val contentObserverDebounceTime = 5000L // 5000мс (5 секунд) для дедупликации событий - увеличиваем для надежности
-    
+
     // Очередь отложенных задач для ContentObserver
-    private val pendingTasks = ConcurrentHashMap<String, Runnable>()
+    private val pendingTasks = ConcurrentHashMap<String, Job>()
     
     // Счетчик попыток для каждого URI, чтобы избежать бесконечных циклов
     private val retryCounts = ConcurrentHashMap<String, Int>()
@@ -48,7 +51,9 @@ class MediaStoreObserver @Inject constructor(
     private val baseRetryDelayMs = 1000L // Базовая задержка (1 секунда вместо 7) для экспоненциального backoff
     
     // ContentObserver для отслеживания изменений в MediaStore
-    private val contentObserver: ContentObserver = object : ContentObserver(handler) {
+    // Handler все еще нужен для ContentObserver, но используется минимально
+    private val contentObserverHandler = Handler(Looper.getMainLooper())
+    private val contentObserver: ContentObserver = object : ContentObserver(contentObserverHandler) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             super.onChange(selfChange, uri)
 
@@ -91,92 +96,99 @@ class MediaStoreObserver @Inject constructor(
                     
                     // Логируем событие
                     LogUtil.processDebug("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
-                    
+
                     // Отменяем предыдущую отложенную задачу для этого URI, если она существует
-                    pendingTasks[uriString]?.let { runnable ->
-                        handler.removeCallbacks(runnable)
-                        LogUtil.processDebug("MediaStoreObserver: предыдущая задача для $uriString отменена")
-                    }
-                    
+                    pendingTasks[uriString]?.cancel()
+                    LogUtil.processDebug("MediaStoreObserver: предыдущая задача для $uriString отменена")
+
                     // Создаем новую задачу с задержкой
-                    val delayTask = Runnable {
-                        LogUtil.processDebug("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
-
-                        // Проверяем, является ли URI недоступным перед обработкой
-                        if (uriProcessingTracker.isUriUnavailable(it)) {
-                            LogUtil.processDebug("MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: $uriString")
-                            pendingTasks.remove(uriString)
-                            return@Runnable
-                        }
-
-                        // Проверяем is_pending перед проверкой существования
-                        val isPending = UriUtil.isFilePending(context, it)
-                        if (isPending) {
-                            val currentRetries = retryCounts.getOrDefault(uriString, 0)
-                            if (currentRetries < maxRetries) {
-                                val nextRetry = currentRetries + 1
-                                retryCounts[uriString] = nextRetry
-                                // Экспоненциальный backoff: 1с, 2с, 4с, 8с (вместо линейных 7с)
-                                val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
-                                LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
-
-                                // Перепланируем ту же задачу с экспоненциальной задержкой
-                                handler.postDelayed({
-                                    pendingTasks[uriString]?.run()
-                                }, delayMs)
-                                return@Runnable
-                            } else {
-                                LogUtil.processDebug("MediaStoreObserver: файл все еще is_pending=1 после $maxRetries попыток, пропускаем: $uriString")
-                                retryCounts.remove(uriString)
-                                pendingTasks.remove(uriString)
-                                return@Runnable
-                            }
-                        }
-
-                        // Если дошли сюда, значит файл больше не pending по флагу MediaStore
-                        // или мы решили его проверить физически
-                        retryCounts.remove(uriString)
-
-                        // Проверяем существование URI перед передачей в обработчик
-                        observerScope.launch {
-                            try {
-                                val exists = UriUtil.isUriExistsSuspend(context, it)
-                                if (exists) {
-                                    imageChangeListener?.invoke(it)
-                                } else {
-                                    LogUtil.processDebug("MediaStoreObserver: URI не существует, помечаем как недоступный: $uriString")
-                                    uriProcessingTracker.markUriUnavailable(it)
-                                }
-                            } catch (e: PendingItemException) {
-                                // Файл физически есть, но доступен только владельцу (is_pending=1 в другом смысле)
-                                val currentRetries = retryCounts.getOrDefault(uriString, 0)
-                                if (currentRetries < maxRetries) {
-                                    val nextRetry = currentRetries + 1
-                                    retryCounts[uriString] = nextRetry
-                                    // Экспоненциальный backoff: 1с, 2с, 4с, 8с (вместо линейных 7с)
-                                    val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
-                                    LogUtil.processDebug("MediaStoreObserver: обнаружен PendingItemException (Only owner), планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
-
-                                    handler.postDelayed({
-                                        pendingTasks[uriString]?.run()
-                                    }, delayMs)
-                                } else {
-                                    LogUtil.processDebug("MediaStoreObserver: файл все еще PendingItem после $maxRetries попыток, пропускаем: $uriString")
-                                    retryCounts.remove(uriString)
-                                    uriProcessingTracker.markUriUnavailable(it)
-                                }
-                            } catch (e: Exception) {
-                                LogUtil.error(it, "MediaStoreObserver", "Ошибка при первичной проверке существования", e)
-                            }
-                            pendingTasks.remove(uriString)
-                        }
+                    val delayJob = handlerScope.launch {
+                        delay(Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000L)
+                        processUriWithRetry(it, uriString)
                     }
-                    
-                    // Сохраняем задачу и планируем ее выполнение с задержкой
-                    pendingTasks[uriString] = delayTask
-                    handler.postDelayed(delayTask, Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000)
+
+                    // Сохраняем задачу
+                    pendingTasks[uriString] = delayJob
                 }
             }
+        }
+    }
+
+    /**
+     * Обрабатывает URI с механизмами повтора при is_pending и ошибках
+     */
+    private fun processUriWithRetry(uri: Uri, uriString: String) {
+        LogUtil.processDebug("MediaStoreObserver: начинаем обработку URI $uriString после задержки")
+
+        // Проверяем, является ли URI недоступным перед обработкой
+        if (uriProcessingTracker.isUriUnavailable(uri)) {
+            LogUtil.processDebug("MediaStoreObserver: URI помечен как недоступный, пропускаем обработку: $uriString")
+            pendingTasks.remove(uriString)
+            return
+        }
+
+        // Проверяем is_pending перед проверкой существования
+        val isPending = UriUtil.isFilePending(context, uri)
+        if (isPending) {
+            val currentRetries = retryCounts.getOrDefault(uriString, 0)
+            if (currentRetries < maxRetries) {
+                val nextRetry = currentRetries + 1
+                retryCounts[uriString] = nextRetry
+                // Экспоненциальный backoff: 1с, 2с, 4с, 8с
+                val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
+                LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
+
+                // Перепланируем задачу с экспоненциальной задержкой
+                val retryJob = handlerScope.launch {
+                    delay(delayMs)
+                    processUriWithRetry(uri, uriString)
+                }
+                pendingTasks[uriString] = retryJob
+            } else {
+                LogUtil.processDebug("MediaStoreObserver: файл все еще is_pending=1 после $maxRetries попыток, пропускаем: $uriString")
+                retryCounts.remove(uriString)
+                pendingTasks.remove(uriString)
+            }
+            return
+        }
+
+        // Если дошли сюда, значит файл больше не pending по флагу MediaStore
+        retryCounts.remove(uriString)
+
+        // Проверяем существование URI перед передачей в обработчик
+        observerScope.launch {
+            try {
+                val exists = UriUtil.isUriExistsSuspend(context, uri)
+                if (exists) {
+                    imageChangeListener?.invoke(uri)
+                } else {
+                    LogUtil.processDebug("MediaStoreObserver: URI не существует, помечаем как недоступный: $uriString")
+                    uriProcessingTracker.markUriUnavailable(uri)
+                }
+            } catch (e: PendingItemException) {
+                // Файл физически есть, но доступен только владельцу (is_pending=1 в другом смысле)
+                val currentRetries = retryCounts.getOrDefault(uriString, 0)
+                if (currentRetries < maxRetries) {
+                    val nextRetry = currentRetries + 1
+                    retryCounts[uriString] = nextRetry
+                    // Экспоненциальный backoff: 1с, 2с, 4с, 8с
+                    val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
+                    LogUtil.processDebug("MediaStoreObserver: обнаружен PendingItemException (Only owner), планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
+
+                    val retryJob = handlerScope.launch {
+                        delay(delayMs)
+                        processUriWithRetry(uri, uriString)
+                    }
+                    pendingTasks[uriString] = retryJob
+                } else {
+                    LogUtil.processDebug("MediaStoreObserver: файл все еще PendingItem после $maxRetries попыток, пропускаем: $uriString")
+                    retryCounts.remove(uriString)
+                    uriProcessingTracker.markUriUnavailable(uri)
+                }
+            } catch (e: Exception) {
+                LogUtil.error(uri, "MediaStoreObserver", "Ошибка при первичной проверке существования", e)
+            }
+            pendingTasks.remove(uriString)
         }
     }
     
@@ -207,14 +219,14 @@ class MediaStoreObserver @Inject constructor(
         context.contentResolver.unregisterContentObserver(contentObserver)
 
         // Очищаем все отложенные задачи
-        pendingTasks.forEach { (uri, runnable) ->
-            handler.removeCallbacks(runnable)
+        pendingTasks.forEach { (uri, job) ->
+            job.cancel()
             LogUtil.processDebug("MediaStoreObserver: отменена отложенная задача для $uri при остановке")
         }
         pendingTasks.clear()
 
         // Отменяем все корутины
-        observerScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+        observerScope.cancel()
 
         LogUtil.processDebug("MediaStoreObserver: ContentObserver отменен")
     }
@@ -223,10 +235,18 @@ class MediaStoreObserver @Inject constructor(
      * Очищает все задачи
      */
     fun clearTasks() {
-        pendingTasks.forEach { (uri, runnable) ->
-            handler.removeCallbacks(runnable)
+        pendingTasks.forEach { (uri, job) ->
+            job.cancel()
             LogUtil.processDebug("MediaStoreObserver: отменена отложенная задача для $uri при очистке")
         }
         pendingTasks.clear()
+    }
+
+    /**
+     * Очищает coroutine scopes (должен вызываться при уничтожении)
+     */
+    fun destroy() {
+        unregister()
+        handlerScope.cancel()
     }
 } 

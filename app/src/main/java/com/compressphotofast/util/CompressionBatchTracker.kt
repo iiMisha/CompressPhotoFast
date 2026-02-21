@@ -1,14 +1,14 @@
 package com.compressphotofast.util
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -32,8 +32,8 @@ class CompressionBatchTracker @Inject constructor(
     }
 
     companion object {
-        // Shared Handler для всех экземпляров
-        private val sharedMainHandler = Handler(Looper.getMainLooper())
+        // Shared CoroutineScope для всех экземпляров
+        private val sharedMainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         /**
          * Статический экземпляр для обратной совместимости
@@ -124,7 +124,7 @@ class CompressionBatchTracker @Inject constructor(
     }
 
     private val batches = ConcurrentHashMap<String, CompressionBatch>()
-    private val mainHandler = sharedMainHandler
+    private val mainScope = sharedMainScope
     private val batchIdCounter = AtomicInteger(1)
 
     // Singleton coroutine scope для батч-операций (используем Default вместо Main для избежания блокировки UI)
@@ -154,7 +154,7 @@ class CompressionBatchTracker @Inject constructor(
         val expectedCount: Int?, // Если null - автобатч, количество неизвестно
         val isIntentBatch: Boolean,
         var results: MutableList<CompressionResult> = mutableListOf(),
-        var timeoutRunnable: Runnable? = null
+        var timeoutJob: Job? = null
     ) {
         fun isComplete(): Boolean {
             return if (expectedCount != null) {
@@ -270,7 +270,7 @@ class CompressionBatchTracker @Inject constructor(
         val batch = batches.remove(batchId) ?: return
 
         // Отменяем таймаут
-        batch.timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+        batch.timeoutJob?.cancel()
 
         val results = batch.results
         if (results.isEmpty()) {
@@ -426,17 +426,17 @@ class CompressionBatchTracker @Inject constructor(
      */
     private fun scheduleTimeout(batchId: String, timeoutMs: Long) {
         val batch = batches[batchId] ?: return
-        
+
         // Отменяем предыдущий таймаут
-        batch.timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
-        
-        val timeoutRunnable = Runnable {
+        batch.timeoutJob?.cancel()
+
+        val timeoutJob = mainScope.launch {
+            delay(timeoutMs)
             LogUtil.processDebug("Истек таймаут для батча: $batchId")
             processBatch(batchId)
         }
-        
-        batch.timeoutRunnable = timeoutRunnable
-        mainHandler.postDelayed(timeoutRunnable, timeoutMs)
+
+        batch.timeoutJob = timeoutJob
     }
 
     /**
@@ -462,18 +462,18 @@ class CompressionBatchTracker @Inject constructor(
      */
     private fun cleanupOldBatches() {
         if (batches.size <= MAX_BATCHES) return
-        
+
         val now = System.currentTimeMillis()
         val oldBatches = batches.entries.filter { (batchId, batch) ->
             val age = now - getBatchTimestamp(batchId)
             age > 300000L // 5 минут
         }
-        
+
         oldBatches.forEach { (batchId, batch) ->
-            batch.timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+            batch.timeoutJob?.cancel()
             batches.remove(batchId)
         }
-        
+
         if (oldBatches.isNotEmpty()) {
             LogUtil.processDebug("Очищено старых батчей: ${oldBatches.size}")
         }
@@ -489,7 +489,7 @@ class CompressionBatchTracker @Inject constructor(
      */
     fun clearAllBatches() {
         batches.values.forEach { batch ->
-            batch.timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+            batch.timeoutJob?.cancel()
         }
         batches.clear()
         LogUtil.processDebug("Все батчи очищены")
@@ -500,6 +500,7 @@ class CompressionBatchTracker @Inject constructor(
      */
     fun destroy() {
         batchScope.cancel()
+        mainScope.cancel()
         clearAllBatches()
     }
 }

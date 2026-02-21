@@ -651,8 +651,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             for (uri in newUris) {
                 val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
                 if (hasMarker) {
-                    val originalSize = UriUtil.getFileSizeSync(context, uri)
-                    val compressedSize = UriUtil.getFileSizeSync(context, uri) // В режиме замены размер тот же
+                    val originalSize = UriUtil.getFileSize(context, uri)
+                    val compressedSize = UriUtil.getFileSize(context, uri) // В режиме замены размер тот же
                     totalOriginalSize += originalSize
                     totalCompressedSize += compressedSize
                     processedCount++

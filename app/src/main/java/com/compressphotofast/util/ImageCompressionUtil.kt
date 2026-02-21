@@ -824,31 +824,6 @@ object ImageCompressionUtil {
         }
     }
 
-    /**
-     * Вспомогательный метод для сброса или копирования потока
-     *
-     * Пытается сбросить поток для повторного чтения.
-     * Если это невозможно, читает весь поток в байтовый массив и создает новый ByteArrayInputStream.
-     *
-     * @return this если сброс удался, или новый ByteArrayInputStream с копией данных
-     * @throws IOException если не удалось сбросить поток для повторного чтения
-     */
-    private fun InputStream.resetOrCopy(): InputStream {
-        return try {
-            // Пытаемся сбросить поток
-            if (this is ByteArrayInputStream) {
-                this.reset()
-                this
-            } else {
-                // Если нельзя сбросить, читаем в байтовый массив
-                val bytes = this.readBytes()
-                ByteArrayInputStream(bytes)
-            }
-        } catch (e: Exception) {
-            LogUtil.errorWithException("Сброс потока", e)
-            throw IOException("Не удалось сбросить поток для повторного чтения", e)
-        }
-    }
 
     /**
      * Вычисляет оптимальный коэффициент downsampling (inSampleSize)
