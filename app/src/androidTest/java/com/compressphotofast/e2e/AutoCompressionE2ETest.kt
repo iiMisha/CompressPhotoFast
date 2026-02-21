@@ -184,7 +184,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что изображение обработано
-            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, newUri).first }
             // Примечание: Это зависит от реализации логики авто-сжатия
             LogUtil.processDebug("Новое изображение обработано: $hasMarker")
         }
@@ -203,7 +203,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             }
 
             // Проверяем, что изображение не сжато
-            val hasMarkerBefore = ExifUtil.getCompressionMarker(context, smallUri).first
+            val hasMarkerBefore = runBlocking { ExifUtil.getCompressionMarker(context, smallUri).first }
             assertThat(hasMarkerBefore).isFalse()
 
             // Включаем авто-сжатие
@@ -220,7 +220,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что изображение обработано (или пропущено по размеру)
-            val hasMarkerAfter = ExifUtil.getCompressionMarker(context, smallUri).first
+            val hasMarkerAfter = runBlocking { ExifUtil.getCompressionMarker(context, smallUri).first }
             // Примечание: Это зависит от реализации логики авто-сжатия
             LogUtil.processDebug("Ранее пропущенное изображение обработано: $hasMarkerAfter")
         }
@@ -401,7 +401,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что изображение обработано
-            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, newUri).first }
             LogUtil.processDebug("Изображение обработано с низким качеством: $hasMarker")
         }
     }
@@ -439,7 +439,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что изображение обработано
-            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, newUri).first }
             LogUtil.processDebug("Изображение обработано в режиме замены: $hasMarker")
         }
     }
@@ -487,7 +487,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что изображение обработано
-            val hasMarker = ExifUtil.getCompressionMarker(context, newUri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, newUri).first }
             LogUtil.processDebug("Изображение обработано в режиме отдельной папки: $hasMarker")
         }
     }
@@ -528,7 +528,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что скриншот пропущен (если логика игнорирования работает)
-            val hasMarker = ExifUtil.getCompressionMarker(context, screenshotUri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, screenshotUri).first }
             LogUtil.processDebug("Скриншот обработан при авто-сжатии: $hasMarker")
         }
     }
@@ -569,7 +569,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             delay(5000)
 
             // Проверяем, что фото из мессенджера пропущено (если логика игнорирования работает)
-            val hasMarker = ExifUtil.getCompressionMarker(context, messengerUri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, messengerUri).first }
             LogUtil.processDebug("Фото из мессенджера обработано при авто-сжатии: $hasMarker")
         }
     }
@@ -605,7 +605,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             // Проверяем, что изображения обработаны
             var processedCount = 0
             for (uri in newUris) {
-                val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+                val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, uri).first }
                 if (hasMarker) {
                     processedCount++
                 }
@@ -649,7 +649,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
             var processedCount = 0
 
             for (uri in newUris) {
-                val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+                val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, uri).first }
                 if (hasMarker) {
                     val originalSize = UriUtil.getFileSize(context, uri)
                     val compressedSize = UriUtil.getFileSize(context, uri) // В режиме замены размер тот же

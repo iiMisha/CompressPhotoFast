@@ -51,15 +51,6 @@ object StatsTracker {
         return ImageProcessingChecker.shouldProcessImage(context, uri)
     }
 
-    /**
-     * Проверяет, обрабатывается ли URI через MainActivity
-     * Метод для обратной совместимости
-     * @deprecated Больше не используется, всегда возвращает false
-     */
-    @Deprecated("Метод больше не используется, всегда возвращает false")
-    fun isUriBeingProcessedByMainActivity(): Boolean {
-        return false // Всегда возвращает false, так как механизм регистрации больше не используется
-    }
 
     /**
      * Регистрирует ошибку удаления файла для метрик

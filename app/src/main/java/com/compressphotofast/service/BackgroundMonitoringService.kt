@@ -6,9 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.content.pm.ServiceInfo
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.StatsTracker
@@ -23,8 +21,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.TimeoutCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.ImageProcessingUtil
@@ -237,20 +235,22 @@ class BackgroundMonitoringService : Service() {
         super.onDestroy()
         isServiceDestroyed.set(true)
 
-        // Ждём завершения всех корутин с таймаутом
-        runBlocking {
-            withTimeout(5000) {
-                serviceScope.coroutineContext[Job]?.children?.forEach { it.cancelAndJoin() }
+        // Неблокирующее завершение корутин сервиса
+        serviceScope.launch {
+            try {
+                withTimeout(5000) {
+                    serviceScope.coroutineContext[Job]?.children?.forEach { it.cancelAndJoin() }
+                }
+            } catch (e: TimeoutCancellationException) {
+                LogUtil.warning(null, "BackgroundMonitoringService", "Таймаут ожидания завершения корутин (5000мс)")
+            } finally {
+                // Окончательная отмена job
+                serviceJob.cancel()
             }
         }
 
-        // Окончательная отмена после таймаута
-        serviceJob.cancel()
-
-        // Отменяем регистрацию MediaStoreObserver
+        // Немедленно освобождаем ресурсы (без блокировки)
         mediaStoreObserver?.unregister()
-
-        // Останавливаем периодическое сканирование
         scanJob?.cancel()
         cleanupJob?.cancel()
 

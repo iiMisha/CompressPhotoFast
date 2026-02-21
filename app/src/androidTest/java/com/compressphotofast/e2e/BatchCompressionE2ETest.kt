@@ -342,7 +342,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
                         message.contains("太小") || message.contains("small") -> {
                             skipped++
                         }
-                        ExifUtil.getCompressionMarker(context, uri).first -> {
+                        runBlocking { ExifUtil.getCompressionMarker(context, uri).first } -> {
                             // Дополнительная проверка: если есть маркер сжатия
                             alreadyOptimized++
                         }

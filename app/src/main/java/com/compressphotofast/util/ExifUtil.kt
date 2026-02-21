@@ -9,7 +9,6 @@ import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -1031,11 +1030,11 @@ object ExifUtil {
      *   - Int: качество сжатия или -1, если неизвестно
      *   - Long: временная метка сжатия в миллисекундах или 0L, если неизвестно
      */
-    fun getCompressionMarker(context: Context, uri: Uri): Triple<Boolean, Int, Long> {
+    suspend fun getCompressionMarker(context: Context, uri: Uri): Triple<Boolean, Int, Long> {
         try {
             // Сначала проверяем HEIC файлы с суффиксом _compressed в имени
             if (isHeicFile(context, uri)) {
-                val (displayName, dateModified) = runBlocking {
+                val (displayName, dateModified) = withContext(Dispatchers.IO) {
                     getHeicDisplayNameAndDate(context, uri)
                 }
 
@@ -1079,19 +1078,11 @@ object ExifUtil {
     }
     
     /**
-     * Получает информацию о сжатии из тега UserComment (suspend вариант)
-     * Выполняет I/O операции в фоновом потоке.
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @return Triple<Boolean, Int, Long> где:
-     *   - Boolean: было ли изображение сжато ранее
-     *   - Int: качество сжатия или -1, если неизвестно
-     *   - Long: временная метка сжатия в миллисекундах или 0L, если неизвестно
+     * Suspend версия getCompressionMarker.
+     * @see getCompressionMarker
      */
-    suspend fun getCompressionMarkerSuspend(context: Context, uri: Uri): Triple<Boolean, Int, Long> = 
-        withContext(Dispatchers.IO) {
-            return@withContext getCompressionMarker(context, uri)
-        }
+    suspend fun getCompressionMarkerSuspend(context: Context, uri: Uri): Triple<Boolean, Int, Long> =
+        getCompressionMarker(context, uri)
     
     /**
      * Централизованный метод для обработки EXIF данных при сохранении сжатого изображения

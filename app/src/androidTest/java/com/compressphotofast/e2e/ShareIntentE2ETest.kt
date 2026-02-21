@@ -200,7 +200,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Дополнительно проверяем, что у найденных файлов есть маркеры
         var processedCount = 0
         for (uri in compressedUris) {
-            val hasMarker = ExifUtil.getCompressionMarker(context, uri).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, uri).first }
             if (hasMarker) {
                 processedCount++
             }
@@ -241,9 +241,9 @@ class ShareIntentE2ETest : BaseE2ETest() {
         
         // Ждем обработки
         delay(3000)
-        
+
         // Проверяем результат
-        val hasMarker = ExifUtil.getCompressionMarker(context, pngUri).first
+        val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, pngUri).first }
         LogUtil.processDebug("PNG изображение обработано: $hasMarker")
         }
     }
@@ -330,7 +330,7 @@ class ShareIntentE2ETest : BaseE2ETest() {
 
         // Проверяем, что изображение сжато
         val finalUri = compressedUri ?: findLatestCompressedUriByModifiedDate(beforeTimestamp)!!
-        val hasMarker = ExifUtil.getCompressionMarker(context, finalUri).first
+        val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, finalUri).first }
         assertThat(hasMarker).isTrue()
 
         // Проверяем, что размер файла уменьшился

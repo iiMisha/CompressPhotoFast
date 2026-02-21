@@ -11,6 +11,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -200,7 +202,9 @@ class ExifUtilHeicTest : BaseUnitTest() {
         every { mockCursor.close() } returns Unit
 
         // Act
-        val (isCompressed, quality, timestamp) = ExifUtil.getCompressionMarker(mockContext, heicUri)
+        val (isCompressed, quality, timestamp) = runBlocking {
+            ExifUtil.getCompressionMarker(mockContext, heicUri)
+        }
 
         // Assert
         assertTrue("HEIC file with _compressed suffix should be marked as compressed", isCompressed)
@@ -255,7 +259,9 @@ class ExifUtilHeicTest : BaseUnitTest() {
         every { mockCursor.close() } returns Unit
 
         // Act
-        val (isCompressed, quality, timestamp) = ExifUtil.getCompressionMarker(mockContext, heicUri)
+        val (isCompressed, quality, timestamp) = runBlocking {
+            ExifUtil.getCompressionMarker(mockContext, heicUri)
+        }
 
         // Assert
         assertFalse("HEIC file without _compressed suffix should not be marked as compressed", isCompressed)
@@ -280,7 +286,9 @@ class ExifUtilHeicTest : BaseUnitTest() {
         // Вместо этого будет попытка открыть EXIF (который провалится в unit тесте)
         // Мы ожидаем, что getCompressionMarker вернет (false, -1, 0)
 
-        val (isCompressed, quality, timestamp) = ExifUtil.getCompressionMarker(mockContext, jpegUri)
+        val (isCompressed, quality, timestamp) = runBlocking {
+            ExifUtil.getCompressionMarker(mockContext, jpegUri)
+        }
 
         // Assert
         assertFalse("JPEG without EXIF marker should not be compressed", isCompressed)
@@ -324,7 +332,9 @@ class ExifUtilHeicTest : BaseUnitTest() {
         every { mockCursor.close() } returns Unit
 
         // Act
-        val (isCompressed, quality, timestamp) = ExifUtil.getCompressionMarker(mockContext, heifUri)
+        val (isCompressed, quality, timestamp) = runBlocking {
+            ExifUtil.getCompressionMarker(mockContext, heifUri)
+        }
 
         // Assert
         assertTrue("HEIF file with _compressed suffix should be marked as compressed", isCompressed)
@@ -363,7 +373,9 @@ class ExifUtilHeicTest : BaseUnitTest() {
         every { mockCursor.close() } returns Unit
 
         // Act
-        val (isCompressed, quality, timestamp) = ExifUtil.getCompressionMarker(mockContext, heicUri)
+        val (isCompressed, quality, timestamp) = runBlocking {
+            ExifUtil.getCompressionMarker(mockContext, heicUri)
+        }
 
         // Assert
         assertTrue("Should be marked as compressed", isCompressed)
@@ -421,7 +433,9 @@ class ExifUtilHeicTest : BaseUnitTest() {
                 } returns mockCursor
             }
 
-            val (isCompressed, _, _) = ExifUtil.getCompressionMarker(mockContext, uri)
+            val (isCompressed, _, _) = runBlocking {
+                ExifUtil.getCompressionMarker(mockContext, uri)
+            }
 
             assertEquals(
                 "File '$fileName' compression status",

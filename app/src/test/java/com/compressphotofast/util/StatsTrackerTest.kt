@@ -54,13 +54,6 @@ class StatsTrackerTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Метод isUriBeingProcessedByMainActivity всегда возвращает false`() {
-        // Arrange & Act & Assert
-        val result = StatsTracker.isUriBeingProcessedByMainActivity()
-        assert(!result) { "Метод должен всегда возвращать false (deprecated)" }
-    }
-
-    @Test
     fun `Обновление статуса для несуществующего URI не вызывает ошибку`() {
         // Arrange & Act & Assert
         // Не должно выбрасываться исключение

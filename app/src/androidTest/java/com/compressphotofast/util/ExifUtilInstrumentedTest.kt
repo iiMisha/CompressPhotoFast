@@ -391,8 +391,9 @@ class ExifUtilInstrumentedTest {
             ExifUtil.markCompressedImage(context, testImage, quality)
 
             // Act - не suspend метод
-            val (isCompressed, markedQuality, timestamp) =
+            val (isCompressed, markedQuality, timestamp) = runBlocking {
                 ExifUtil.getCompressionMarker(context, testImage)
+            }
 
             // Assert
             assertThat(isCompressed).isTrue()
@@ -530,7 +531,9 @@ class ExifUtilInstrumentedTest {
         val jpegImage = createTestImageInMediaStore()
 
         // Act
-        val (isCompressed, quality, timestamp) = ExifUtil.getCompressionMarker(context, jpegImage)
+        val (isCompressed, quality, timestamp) = runBlocking {
+            ExifUtil.getCompressionMarker(context, jpegImage)
+        }
 
         // Assert - у только что созданного файла нет маркера
         assertThat(isCompressed).isFalse()
@@ -555,7 +558,9 @@ class ExifUtilInstrumentedTest {
             assertThat(markResult).isTrue()
 
             // Act
-            val (isCompressed, detectedQuality, timestamp) = ExifUtil.getCompressionMarker(context, jpegImage)
+            val (isCompressed, detectedQuality, timestamp) = runBlocking {
+                ExifUtil.getCompressionMarker(context, jpegImage)
+            }
 
             // Assert
             assertThat(isCompressed).isTrue()
@@ -662,7 +667,9 @@ class ExifUtilInstrumentedTest {
             assertThat(applyResult).isTrue()
 
             // Verify - проверяем что маркер сжатия добавлен через EXIF (не через суффикс)
-            val (isCompressed, markedQuality, timestamp) = ExifUtil.getCompressionMarker(context, uri)
+            val (isCompressed, markedQuality, timestamp) = runBlocking {
+                ExifUtil.getCompressionMarker(context, uri)
+            }
             assertThat(isCompressed).isTrue()
             assertThat(markedQuality).isEqualTo(quality)
             assertThat(timestamp).isGreaterThan(0L)
@@ -741,7 +748,9 @@ class ExifUtilInstrumentedTest {
             )
 
             // Проверяем маркер после первого вызова
-            val (isCompressed1, markedQuality1, timestamp1) = ExifUtil.getCompressionMarker(context, uri)
+            val (isCompressed1, markedQuality1, timestamp1) = runBlocking {
+                ExifUtil.getCompressionMarker(context, uri)
+            }
 
             // Небольшая пауза чтобы timestamp отличался
             kotlinx.coroutines.delay(100)
@@ -755,7 +764,9 @@ class ExifUtilInstrumentedTest {
             )
 
             // Проверяем маркер после второго вызова
-            val (isCompressed2, markedQuality2, timestamp2) = ExifUtil.getCompressionMarker(context, uri)
+            val (isCompressed2, markedQuality2, timestamp2) = runBlocking {
+                ExifUtil.getCompressionMarker(context, uri)
+            }
 
             // Assert - оба вызова успешны (идемпотентность)
             assertThat(applyResult1).isTrue()
@@ -873,7 +884,9 @@ class ExifUtilInstrumentedTest {
             assertThat(applyResult).isTrue()
 
             // Verify - проверяем что маркер сжатия добавлен через EXIF
-            val (isCompressed, markedQuality, timestamp) = ExifUtil.getCompressionMarker(context, uri)
+            val (isCompressed, markedQuality, timestamp) = runBlocking {
+                ExifUtil.getCompressionMarker(context, uri)
+            }
             assertThat(isCompressed).isTrue()
             assertThat(markedQuality).isEqualTo(quality)
             assertThat(timestamp).isGreaterThan(0L)

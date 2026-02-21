@@ -288,7 +288,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             val uri = testUris[0]
 
             // Получаем EXIF-данные до сжатия
-            val exifBefore = ExifUtil.getCompressionMarker(context, uri)
+            val exifBefore = runBlocking { ExifUtil.getCompressionMarker(context, uri) }
 
             // Выполняем сжатие
             val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
@@ -301,7 +301,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             assertThat(result.second).isNotNull()
 
             // Получаем EXIF-данные после сжатия
-            val exifAfter = ExifUtil.getCompressionMarker(context, result.second!!)
+            val exifAfter = runBlocking { ExifUtil.getCompressionMarker(context, result.second!!) }
 
             // Проверяем, что маркер сжатия добавлен
             assertThat(exifAfter.first).isTrue()
@@ -404,7 +404,7 @@ class ManualCompressionE2ETest : BaseE2ETest() {
             assertThat(result1.second).isNotNull()
 
             // Проверяем, что маркер сжатия добавлен
-            val hasMarker = ExifUtil.getCompressionMarker(context, result1.second!!).first
+            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, result1.second!!).first }
             assertThat(hasMarker).isTrue()
 
             // Пытаемся сжать уже сжатый файл
