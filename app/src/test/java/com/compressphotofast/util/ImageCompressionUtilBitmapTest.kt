@@ -145,12 +145,12 @@ class ImageCompressionUtilBitmapTest {
     @Test
     fun `calculateInSampleSize returns 1 when image exactly matches required size`() {
         val options = BitmapFactory.Options().apply {
-            outWidth = 2048
-            outHeight = 2048
+            outWidth = Constants.MAX_IMAGE_WIDTH
+            outHeight = Constants.MAX_IMAGE_HEIGHT
         }
 
-        val reqWidth = 2048
-        val reqHeight = 2048
+        val reqWidth = Constants.MAX_IMAGE_WIDTH
+        val reqHeight = Constants.MAX_IMAGE_HEIGHT
 
         val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
             "calculateInSampleSize",
@@ -163,7 +163,57 @@ class ImageCompressionUtilBitmapTest {
 
         val result = method.invoke(ImageCompressionUtil, options.outWidth, options.outHeight, reqWidth, reqHeight) as Int
 
-        assertEquals("inSampleSize должен быть 1 для точного соответствия", 1, result)
+        assertEquals("inSampleSize должен быть 1 для точного соответствия лимиту", 1, result)
+    }
+
+    /**
+     * Тестирует порог изменения разрешения (8192 пикселя)
+     * При лимите 4096, изображение 8000x8000 НЕ должно уменьшаться (inSampleSize=1),
+     * так как halfHeight (4000) меньше 4096.
+     */
+    @Test
+    fun `calculateInSampleSize returns 1 for image just below double limit`() {
+        val width = 8000
+        val height = 8000
+        val reqSize = Constants.MAX_IMAGE_WIDTH // 4096
+
+        val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
+            "calculateInSampleSize",
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType
+        )
+        method.isAccessible = true
+
+        val result = method.invoke(ImageCompressionUtil, width, height, reqSize, reqSize) as Int
+
+        assertEquals("inSampleSize должен быть 1 для 8000x8000 при лимите 4096", 1, result)
+    }
+
+    /**
+     * Тестирует порог изменения разрешения (8192 пикселя)
+     * При лимите 4096, изображение 9000x9000 ДОЛЖНО уменьшиться (inSampleSize=2),
+     * так как halfHeight (4500) больше 4096.
+     */
+    @Test
+    fun `calculateInSampleSize returns 2 for image above double limit`() {
+        val width = 9000
+        val height = 9000
+        val reqSize = Constants.MAX_IMAGE_WIDTH // 4096
+
+        val method = ImageCompressionUtil.javaClass.getDeclaredMethod(
+            "calculateInSampleSize",
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType
+        )
+        method.isAccessible = true
+
+        val result = method.invoke(ImageCompressionUtil, width, height, reqSize, reqSize) as Int
+
+        assertEquals("inSampleSize должен быть 2 для 9000x9000 при лимите 4096", 2, result)
     }
 
     /**

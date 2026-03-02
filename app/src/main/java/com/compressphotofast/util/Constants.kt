@@ -105,6 +105,6 @@ object Constants {
     const val MIN_COMPRESSION_RATIO = 0.8f
 
     // Параметры декодирования изображений для оптимизации памяти
-    const val MAX_IMAGE_WIDTH = 2048  // Максимальная ширина изображения при декодировании
-    const val MAX_IMAGE_HEIGHT = 2048 // Максимальная высота изображения при декодировании
+    const val MAX_IMAGE_WIDTH = 4096  // Максимальная ширина изображения при декодировании
+    const val MAX_IMAGE_HEIGHT = 4096 // Максимальная высота изображения при декодировании
 } 

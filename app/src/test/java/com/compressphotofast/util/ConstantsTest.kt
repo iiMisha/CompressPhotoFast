@@ -118,6 +118,20 @@ class ConstantsTest : BaseUnitTest() {
         assertEquals(100, Constants.MAX_COMPRESSION_QUALITY)
     }
 
+    // ========== Тесты лимитов разрешения ==========
+
+    @Test
+    fun `проверка максимальной ширины изображения`() {
+        // Arrange & Act & Assert
+        assertEquals(4096, Constants.MAX_IMAGE_WIDTH)
+    }
+
+    @Test
+    fun `проверка максимальной высоты изображения`() {
+        // Arrange & Act & Assert
+        assertEquals(4096, Constants.MAX_IMAGE_HEIGHT)
+    }
+
     // ========== Тесты экономии при сжатии ==========
 
     @Test
