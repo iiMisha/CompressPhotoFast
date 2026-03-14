@@ -5,10 +5,16 @@ description: |
   Использовать ОБЯЗАТЕЛЬНО для любого запуска тестов в проекте CompressPhotoFast.
 
   **Когда использовать:**
-  - Запуск unit тестов (./gradlew testDebugUnitTest)
-  - Запуск instrumentation тестов (./scripts/run_instrumentation_tests.sh)
-  - Запуск всех тестов (./scripts/run_all_tests.sh)
+  - Запуск unit тестов (./gradlew testDebugUnitTest) - **ПО УМОЛЧАНИЮ**
+  - Запуск instrumentation тестов (./scripts/run_instrumentation_tests.sh) - **ТОЛЬКО ПРИ НЕОБХОДИМОСТИ**
+  - Запуск всех тестов (./scripts/run_all_tests.sh) - **ТОЛЬКО ПЕРЕД РЕЛИЗОМ**
   - Любые другие команды тестирования Android проекта
+
+  **ПРАВИЛО:** По умолчанию запускай ТОЛЬКО unit тесты (~10 минут).
+  Instrumentation тесты (~20 минут) запускай только:
+  - Перед созданием PR в main ветку
+  - При изменении кода, который работает с Android API (Activity, Fragment, BroadcastReceiver)
+  - При подозрении на проблемы с UI или фоновыми сервисами
 
   **ВАЖНО:** Этот скилл ВСЕГДА запускает тесты в отдельном субагенте через Task tool,
   чтобы избежать блокировки основного контекста и корректно вернуть результаты.
@@ -24,9 +30,9 @@ description: |
 ## Quick Start
 
 Для запуска тестов выберите нужный тип:
-- Unit тесты: `./gradlew testDebugUnitTest`
-- Instrumentation тесты: `./scripts/run_instrumentation_tests.sh`
-- Все тесты: `./scripts/run_all_tests.sh`
+- Unit тесты (ПО УМОЛЧАНИЮ): `./gradlew testDebugUnitTest` (~10 минут)
+- Instrumentation тесты (Только при необходимости): `./scripts/run_instrumentation_tests.sh` (~20 минут)
+- Все тесты (Только перед релизом): `./scripts/run_all_tests.sh` (~30 минут)
 
 ## Результаты
 
