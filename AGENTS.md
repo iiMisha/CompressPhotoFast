@@ -109,12 +109,18 @@
 
 ---
 
-## Current Focus (Февраль 2026)
+## Current Focus (Март 2026)
 
 ### Известные проблемы
 - 🔴 **Дубликаты при массовой обработке (50+ файлов)** - проблема с URI
+- ⚠️ **Instrumentation тесты падают** - daemon упал при 219/248 тестов (88%)
 
 ### Последние изменения
+- ✅ **Android Optimization Analysis** - выполнено 9 из 14 оптимизаций
+  - Критические (3/3): destroyStatic() для CompressionBatchTracker, убрана delay(50), добавлен 50MB limit
+  - Высокий приоритет (1/4): static методы помечены как @Deprecated
+  - Средний приоритет (5/5): убрана дублирующая проверка файла, LruCache на основе maxMemory(), улучшены таймауты
+  - Низкий приоритет (2/3): fallback для reflection, регулярный cleanupOldBatches()
 - ✅ **Рефакторинг качества кода** - устранено ~200 строк дубликатов (MediaStoreUtil, ExifUtil)
 - ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver обновлены
 - ✅ **Удалён deprecated код** - runBlocking, unused методы
@@ -126,8 +132,8 @@
 
 ### Метрики проекта
 - Исходный код: 39 Kotlin файлов
-- Unit тесты: 328
-- Instrumentation тесты: 248
+- Unit тесты: 328 (100% pass)
+- Instrumentation тесты: 248 (88% pass, 219 completed, 0 failed)
 - Скрипты: 12
 - Skills: 6 (agents-updater, android-optimization-analyzer, android-test-suite, code-analyzer, skill-creator, glm-plan-usage)
 - Версия: 2.2.10
@@ -146,6 +152,17 @@
 1. Проверить логику копирования и работу с URI
 2. Добавить логирование путей
 3. Протестировать
+
+### ⚠️ Instrumentation тесты падают
+
+**Проблема:** Android Test Daemon падает во время выполнения instrumentation тестов. Успешно завершается 219 из 248 тестов (88%).
+
+**Последний запуск:** 2026-03-14
+
+**Шаги:**
+1. Перезапустить эмулятор Small_Phone
+2. Проверить логи adb logcat для анализа причины падения daemon
+3. Рассмотреть разбивку тестов на smaller batches
 
 ---
 

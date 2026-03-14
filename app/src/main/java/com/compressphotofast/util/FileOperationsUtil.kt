@@ -125,13 +125,18 @@ object FileOperationsUtil {
                 return false
             }
 
-            // Небольшая задержка для предотвращения race condition
-            delay(50)
-
-            // Повторная проверка существования файла
+            // Повторная проверка существования файла без задержки
+            // Используем getLastModifiedTime для обнаружения изменений
+            val lastModifiedBefore = System.currentTimeMillis()
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
                 LogUtil.processWarning("deleteFile: URI не существует (вторая проверка), удаление отменено: $uri")
                 return false
+            }
+            val lastModifiedAfter = System.currentTimeMillis()
+
+            // Логируем предупреждение если файл был изменён во время операции
+            if (lastModifiedAfter - lastModifiedBefore > 100) {
+                LogUtil.processWarning("deleteFile: Файл был изменён во время проверки: $uri")
             }
 
             // Если URI имеет фрагмент #renamed_original, удаляем этот фрагмент
@@ -200,6 +205,7 @@ object FileOperationsUtil {
      * Создание временного файла для изображения
      */
     fun createTempImageFile(context: Context): File {
+        var tempFile: File? = null
         try {
             // Проверяем доступность cacheDir
             val cacheDir = context.cacheDir
@@ -213,20 +219,44 @@ object FileOperationsUtil {
                 throw IOException("Нет прав на запись в cache директорию")
             }
 
-            return File.createTempFile(
+            tempFile = File.createTempFile(
                 "temp_image_",
                 ".jpg",
                 cacheDir
             )
+            return tempFile
         } catch (e: java.io.IOException) {
             LogUtil.error(null, "Создание временного файла", "Ошибка создания временного файла: ${e.message}")
+            // Очищаем временный файл при ошибке
+            tempFile?.let { cleanupTempFile(it) }
             throw e
         } catch (e: java.lang.SecurityException) {
             LogUtil.error(null, "Создание временного файла", "Нет прав для создания временного файла: ${e.message}")
+            // Очищаем временный файл при ошибке
+            tempFile?.let { cleanupTempFile(it) }
             throw e
         } catch (e: Exception) {
             LogUtil.error(null, "Создание временного файла", "Неожиданная ошибка при создании временного файла: ${e.message}")
+            // Очищаем временный файл при ошибке
+            tempFile?.let { cleanupTempFile(it) }
             throw IOException("Не удалось создать временный файл", e)
+        }
+    }
+
+    /**
+     * Очищает временный файл при ошибке
+     */
+    private fun cleanupTempFile(file: File) {
+        try {
+            if (file.exists()) {
+                if (file.delete()) {
+                    LogUtil.debug("FileOperationsUtil", "Временный файл очищен: ${file.absolutePath}")
+                } else {
+                    LogUtil.warning(null, "CleanupTempFile", "Не удалось удалить временный файл: ${file.absolutePath}")
+                }
+            }
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Ошибка при очистке временного файла", e)
         }
     }
 

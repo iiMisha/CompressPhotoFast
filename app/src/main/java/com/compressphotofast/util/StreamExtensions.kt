@@ -43,9 +43,14 @@ private object StreamReflectionCache {
  * @return ByteArrayInputStream, использующий тот же буфер памяти что и исходный ByteArrayOutputStream
  */
 fun ByteArrayOutputStream.toInputStream(): ByteArrayInputStream {
-    // Используем кэшированные Field объекты для оптимизации производительности
-    val buffer = StreamReflectionCache.bufField.get(this) as ByteArray
-    val count = StreamReflectionCache.countField.getInt(this)
-
-    return ByteArrayInputStream(buffer, 0, count)
+    return try {
+        // Используем кэшированные Field объекты для оптимизации производительности
+        val buffer = StreamReflectionCache.bufField.get(this) as ByteArray
+        val count = StreamReflectionCache.countField.getInt(this)
+        ByteArrayInputStream(buffer, 0, count)
+    } catch (e: Exception) {
+        // Fallback на стандартный метод при ошибке рефлексии
+        // (например, если изменение API сделает поля недоступными)
+        ByteArrayInputStream(this.toByteArray())
+    }
 }

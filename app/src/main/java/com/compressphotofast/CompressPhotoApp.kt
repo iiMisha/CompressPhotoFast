@@ -12,6 +12,7 @@ import com.compressphotofast.R
 import com.compressphotofast.util.FileInfoUtil
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.CompressionBatchTracker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
@@ -56,6 +57,12 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             // Игнорируем ошибку и продолжаем
             Timber.w("WorkManager already initialized, skipping initialization")
         }
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        // Очищаем статические ресурсы CompressionBatchTracker
+        CompressionBatchTracker.destroyStatic()
     }
 
     /**

@@ -271,12 +271,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                         Constants.APP_DIRECTORY
                     }
 
-                // Проверка существования файла перед открытием потока
-                if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    return@withContext Result.failure()
-                }
-
                 // Используем уже сжатый поток из параметров теста
                 val compressedImageStream = testResult.compressedStream
                 

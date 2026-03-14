@@ -36,6 +36,17 @@ class CompressionBatchTracker @Inject constructor(
         private val sharedMainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         /**
+         * Очищает статические ресурсы (sharedMainScope и staticInstance)
+         * Должен вызываться при уничтожении приложения
+         */
+        @JvmStatic
+        fun destroyStatic() {
+            sharedMainScope.cancel()
+            staticInstance = null
+            LogUtil.processDebug("CompressionBatchTracker статические ресурсы очищены")
+        }
+
+        /**
          * Статический экземпляр для обратной совместимости
          * Используется в ImageProcessingUtil (object) который не может инжектировать зависимости
          *
@@ -49,7 +60,9 @@ class CompressionBatchTracker @Inject constructor(
         /**
          * Получает экземпляр CompressionBatchTracker
          * Для использования в object классах которые не поддерживают DI
+         * @deprecated Используйте инжектируемый экземпляр через Hilt
          */
+        @Deprecated("Use injected instance via Hilt instead", ReplaceWith("injectedInstance"))
         @JvmStatic
         fun getInstance(context: Context): CompressionBatchTracker {
             return staticInstance ?: synchronized(this) {

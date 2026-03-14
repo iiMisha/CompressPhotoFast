@@ -367,8 +367,14 @@ object ImageCompressionUtil {
                 // Создаем ByteArrayOutputStream с ограничением размера для предотвращения OOM
                 // Вычисляем оценочный размер с запасом (RGB_888 worst case: 3 bytes per pixel)
                 val estimatedSize = (decodedWidth * decodedHeight * 3L).toInt()
-                // Ограничиваем максимум 50MB для предотвращения OOM
-                val outputStream = ByteArrayOutputStream(minOf(estimatedSize, 50 * 1024 * 1024))
+
+                // Проверяем размер перед созданием ByteArrayOutputStream
+                if (estimatedSize > 50 * 1024 * 1024) {
+                    LogUtil.error(uri, "Сжатие в поток", "Оценочный размер слишком большой: ${estimatedSize / 1024 / 1024}MB, максимально допустимый: 50MB")
+                    return@withContext null
+                }
+
+                val outputStream = ByteArrayOutputStream(estimatedSize)
 
                 // Сжимаем Bitmap в ByteArrayOutputStream
                 val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
@@ -425,7 +431,8 @@ object ImageCompressionUtil {
             }
         }
     } ?: run {
-        LogUtil.error(uri, "Сжатие в поток", "Таймаут операции сжатия (60 секунд)")
+        // Логируем таймаут отдельно для лучшей диагностики
+        LogUtil.error(uri, "Сжатие в поток", "Таймаут операции сжатия (60 секунд) - возможно изображение слишком большое или повреждено")
         null
     }
     

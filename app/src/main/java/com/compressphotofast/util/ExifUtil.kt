@@ -75,10 +75,21 @@ object ExifUtil {
     }
 
     // Кэш для хранения считанных EXIF-данных. Ключ - String URI, значение - карта с данными.
+    // Размер кэша вычисляется на основе доступной памяти (1/8 от maxMemory)
     private val exifDataCache = TtlLruCache<String, Map<String, Any>>(
-        maxSize = 20,
+        maxSize = calculateCacheSize(),
         ttlMs = 10 * 60 * 1000L // 10 минут
     )
+
+    /**
+     * Вычисляет оптимальный размер кэша на основе доступной памяти
+     * Использует 1/8 от maxMemory, минимум 20 элементов
+     */
+    private fun calculateCacheSize(): Int {
+        val maxMemory = Runtime.getRuntime().maxMemory()
+        val cacheSize = (maxMemory / 8 / 1024).toInt() // Примерная оценка размера одной записи ~1KB
+        return maxOf(cacheSize, 20) // Минимум 20 элементов
+    }
 
     /**
      * Список важных EXIF тегов для копирования
