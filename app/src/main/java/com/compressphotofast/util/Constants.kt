@@ -55,7 +55,7 @@ object Constants {
     // Настройки сжатия
     const val COMPRESSION_QUALITY_LOW = 60
     const val COMPRESSION_QUALITY_MEDIUM = 70
-    const val COMPRESSION_QUALITY_HIGH = 85
+    const val COMPRESSION_QUALITY_HIGH = 80
     const val MIN_COMPRESSION_SAVING_PERCENT = 30f // Минимальный процент экономии для продолжения сжатия
     
     // Интервалы

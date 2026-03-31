@@ -762,14 +762,14 @@ class MainActivity : AppCompatActivity() {
      * Настройка переключателей уровня сжатия
      */
     private fun setupCompressionQualityRadioButtons() {
-        // Выбираем соответствующую радиокнопку
+        updateQualityRadioButtonTexts()
+        
         when (viewModel.getCompressionQuality()) {
             Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
             Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
             else -> binding.rbQualityMedium.isChecked = true
         }
         
-        // Устанавливаем обработчики событий
         binding.rbQualityLow.setOnClickListener {
             viewModel.setCompressionPreset(CompressionPreset.LOW)
         }
@@ -782,15 +782,21 @@ class MainActivity : AppCompatActivity() {
             viewModel.setCompressionPreset(CompressionPreset.HIGH)
         }
         
-        // Наблюдаем за изменениями качества сжатия
         viewModel.compressionQuality.observe(this) { quality ->
             LogUtil.processDebug("Установлено качество сжатия: $quality")
+            updateQualityRadioButtonTexts()
             when (quality) {
                 Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
                 Constants.COMPRESSION_QUALITY_MEDIUM -> binding.rbQualityMedium.isChecked = true
                 Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
             }
         }
+    }
+
+    private fun updateQualityRadioButtonTexts() {
+        binding.rbQualityLow.text = getString(R.string.compression_quality_low_with_value, Constants.COMPRESSION_QUALITY_LOW)
+        binding.rbQualityMedium.text = getString(R.string.compression_quality_medium_with_value, Constants.COMPRESSION_QUALITY_MEDIUM)
+        binding.rbQualityHigh.text = getString(R.string.compression_quality_high_with_value, Constants.COMPRESSION_QUALITY_HIGH)
     }
 
     /**

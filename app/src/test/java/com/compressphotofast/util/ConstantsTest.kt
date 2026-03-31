@@ -97,7 +97,7 @@ class ConstantsTest : BaseUnitTest() {
     @Test
     fun `проверка качества сжатия - высокое`() {
         // Arrange & Act & Assert
-        assertEquals(85, Constants.COMPRESSION_QUALITY_HIGH)
+        assertEquals(80, Constants.COMPRESSION_QUALITY_HIGH)
     }
 
     @Test

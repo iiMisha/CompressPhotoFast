@@ -18,6 +18,9 @@
     <string name="compression_quality_low">🔥 Низкое</string>
     <string name="compression_quality_medium">⚖️ Среднее</string>
     <string name="compression_quality_high">💎 Высокое</string>
+    <string name="compression_quality_low_with_value">🔥 Низкое (%d%%)</string>
+    <string name="compression_quality_medium_with_value">⚖️ Среднее (%d%%)</string>
+    <string name="compression_quality_high_with_value">💎 Высокое (%d%%)</string>
     <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->

@@ -217,7 +217,8 @@
                 android:layout_weight="1"
                 android:textSize="13sp"
                 android:paddingStart="4dp"
-                android:text="@string/compression_quality_low" />
+                android:text="@string/compression_quality_low"
+                tools:text="🔥 Низкое (60%)" />
             
             <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbQualityMedium"
@@ -226,7 +227,8 @@
                 android:layout_weight="1"
                 android:textSize="13sp"
                 android:paddingStart="4dp"
-                android:text="@string/compression_quality_medium" />
+                android:text="@string/compression_quality_medium"
+                tools:text="⚖️ Среднее (70%)" />
             
             <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbQualityHigh"
@@ -235,7 +237,8 @@
                 android:layout_weight="1"
                 android:textSize="13sp"
                 android:paddingStart="4dp"
-                android:text="@string/compression_quality_high" />
+                android:text="@string/compression_quality_high"
+                tools:text="💎 Высокое (85%)" />
         </RadioGroup>
 
         <!-- Кнопка для выбора фото через Photo Picker -->
