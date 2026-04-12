@@ -19,7 +19,7 @@ import org.junit.After
  * 1. Файлы с недавним DATE_ADDED, но старым DATE_MODIFIED
  * 2. Файлы, измененные в последние 3 секунды
  * 3. Файлы с устаревшим флагом IS_PENDING
- * 4. Расширенное 24-часовое окно сканирования
+ * 4. Расширенное окно сканирования истории (по умолчанию 2 дня)
  */
 class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
 
@@ -136,19 +136,19 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
     }
 
     /**
-     * Тест 3: Проверка 24-часового окна сканирования для старых файлов
+     * Тест 3: Проверка окна сканирования истории для старых файлов
      *
      * Сценарий:
-     * - 24-часовое окно (86400 секунд)
+     * - Окно сканирования истории (по умолчанию 172800 секунд / 2 дня)
      * - DATE_ADDED = сейчас
      * - DATE_MODIFIED = 2020 год
      *
-     * Ожидание: Файл НАЙДЕН при сканировании за 24 часа
+     * Ожидание: Файл НАЙДЕН при сканировании истории
      *
-     * Цель: Проверить расширенное окно сканирования
+     * Цель: Проверить расширенное окно сканирования истории
      */
     @Test
-    fun scanDayOldImages_detectsRecentlyCopiedOldFiles() = runTest {
+    fun scanHistoryImages_detectsRecentlyCopiedOldFiles() = runTest {
         val currentTime = System.currentTimeMillis() / 1000
 
         // Создаем mock cursor со старым файлом
@@ -168,12 +168,12 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         mockkObject(SettingsManager)
         every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
 
-        // Выполняем сканирование за 24 часа
-        val result = GalleryScanUtil.scanDayOldImages(mockContext)
-
+        // Выполняем сканирование истории
+        val result = GalleryScanUtil.scanHistoryImages(mockContext)
+        
         // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
         // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertEquals("Файл должен быть найден при 24-часовом сканировании", 1, result.processedCount)
+        // assertEquals("Файл должен быть найден при сканировании истории", 1, result.processedCount)
         // assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
     }
 

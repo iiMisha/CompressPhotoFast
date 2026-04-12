@@ -148,12 +148,12 @@ object GalleryScanUtil {
     }
     
     /**
-     * Сканирует галерею для поиска необработанных изображений за последние 24 часа
+     * Сканирует галерею для поиска необработраных изображений за историю (по умолчанию 2 дня)
      * @param context Контекст приложения
      * @return Результат сканирования
      */
-    suspend fun scanDayOldImages(context: Context): ScanResult = withContext(Dispatchers.IO) {
-        // Вызываем сканирование с окном в 24 часа (86400 секунд)
-        scanRecentImages(context, 86400)
+    suspend fun scanHistoryImages(context: Context): ScanResult = withContext(Dispatchers.IO) {
+        // Вызываем сканирование с окном из констант (по умолчанию 48 часов)
+        scanRecentImages(context, Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt())
     }
 } 

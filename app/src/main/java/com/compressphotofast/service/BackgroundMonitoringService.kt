@@ -345,11 +345,11 @@ class BackgroundMonitoringService : Service() {
     }
     
     /**
-     * Сканирование галереи для поиска необработанных изображений
+     * Сканирует галерею для поиска необработанных изображений
      */
     private suspend fun scanGalleryForUnprocessedImages() = withContext(Dispatchers.IO) {
-        // Используем централизованную логику сканирования за 24 часа
-        val scanResult = GalleryScanUtil.scanDayOldImages(applicationContext)
+        // Используем централизованную логику сканирования за историю (по умолчанию 48 часов)
+        val scanResult = GalleryScanUtil.scanHistoryImages(applicationContext)
         
         // Обрабатываем найденные изображения
         scanResult.foundUris.forEach { uri ->

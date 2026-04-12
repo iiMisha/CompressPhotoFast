@@ -266,9 +266,9 @@ class MainViewModel @Inject constructor(
      */
     suspend fun processUncompressedImages() = withContext(Dispatchers.IO) {
         try {
-            // Получаем все изображения, созданные за последние 24 часа
+            // Получаем все изображения, созданные за историю (по умолчанию 48 часов)
             val currentTime = System.currentTimeMillis()
-            val oneDayAgo = currentTime - (24 * 60 * 60 * 1000) // 24 часа в миллисекундах
+            val historyAgo = currentTime - Constants.HISTORY_SCAN_WINDOW_MILLIS
             
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
@@ -277,9 +277,9 @@ class MainViewModel @Inject constructor(
                 MediaStore.Images.Media.RELATIVE_PATH
             )
             
-            // Ищем изображения, добавленные за последние 24 часа
+            // Ищем изображения, добавленные за историю
             val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
-            val selectionArgs = arrayOf((oneDayAgo / 1000).toString()) // DATE_ADDED хранится в секундах
+            val selectionArgs = arrayOf((historyAgo / 1000).toString()) // DATE_ADDED хранится в секундах
             val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
             
             val uncompressedImages = mutableListOf<Uri>()
