@@ -27,6 +27,8 @@ import com.compressphotofast.util.BatchMediaStoreUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.OptimizedCacheUtil
 import kotlinx.coroutines.delay
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 @AndroidEntryPoint
@@ -41,8 +43,11 @@ class ImageDetectionJobService : JobService() {
     // Максимальное количество одновременно обрабатываемых URI
     private val maxConcurrentUris = 20
     
-    // Атомарная ссылка на текущий накапливающийся батч
-    private val pendingBatch = AtomicReference<MutableSet<Uri>>(mutableSetOf())
+    // Потокобезопасное множество для накапливающегося батча
+    private val pendingBatch = Collections.newSetFromMap(ConcurrentHashMap<Uri, Boolean>())
+    // Ссылка на текущую корутину дебаунсинга для возможности отмены
+    @Volatile
+    private var debounceJob: Job? = null
     
     companion object {
         private const val JOB_ID = 1000
@@ -155,32 +160,47 @@ class ImageDetectionJobService : JobService() {
      * Оптимизированная обработка URI с дебаундингом и пакетными запросами
      * Группирует события для избежания избыточной обработки промежуточных состояний
      */
-    private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>, params: JobParameters?) = withContext(Dispatchers.IO) {
+    private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>, params: JobParameters?) {
         try {
-            // Добавляем URI к накапливающемуся батчу
-            val currentBatch = pendingBatch.get()
-            synchronized(currentBatch) {
-                currentBatch.addAll(triggerUris)
-            }
+            // Добавляем URI к накапливающемуся батчу (ConcurrentHashMap set потокобезопасен для add)
+            pendingBatch.addAll(triggerUris)
             
-            LogUtil.processDebug("ImageDetectionJobService: добавлены ${triggerUris.size} URI к батчу, общий размер: ${currentBatch.size}")
+            LogUtil.processDebug("ImageDetectionJobService: добавлены ${triggerUris.size} URI к батчу, общий размер: ${pendingBatch.size}")
             
-            // Ждем дебаунс-период для накопления событий
-            delay(DEBOUNCE_DELAY_MS)
+            // Отменяем предыдущую задачу дебаунса, если она еще активна
+            // Это реализует "trailing" debounce - обработка начнется только через DEBOUNCE_DELAY_MS 
+            // после ПОСЛЕДНЕГО добавления URI
+            debounceJob?.cancel()
             
-            // Атомарно извлекаем накопленный батч
-            val batchToProcess = pendingBatch.getAndSet(mutableSetOf())
-            
-            if (batchToProcess.isNotEmpty()) {
-                LogUtil.processDebug("ImageDetectionJobService: начинаем обработку дебаунсного батча из ${batchToProcess.size} URI")
-                PerformanceMonitor.recordDebouncedBatch(batchToProcess.size)
-                processOptimizedBatch(batchToProcess.toList(), params)
-            } else {
-                LogUtil.processDebug("ImageDetectionJobService: дебаунсный батч пустой, пропускаем обработку")
+            // Запускаем новую задачу ожидания
+            debounceJob = jobScope.launch {
+                try {
+                    // Ждем дебаунс-период
+                    delay(DEBOUNCE_DELAY_MS)
+                    
+                    // Атомарно извлекаем накопленный батч и очищаем хранилище внутри синхронизации
+                    val batchToProcess = mutableSetOf<Uri>()
+                    synchronized(pendingBatch) {
+                        batchToProcess.addAll(pendingBatch)
+                        pendingBatch.clear()
+                    }
+                    
+                    if (batchToProcess.isNotEmpty()) {
+                        LogUtil.processDebug("ImageDetectionJobService: начинаем обработку дебаунсного батча из ${batchToProcess.size} URI")
+                        PerformanceMonitor.recordDebouncedBatch(batchToProcess.size)
+                        processOptimizedBatch(batchToProcess.toList(), params)
+                    } else {
+                        LogUtil.processDebug("ImageDetectionJobService: дебаунсный батч пустой, пропускаем обработку")
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Нормальное поведение при дебаунсе
+                } catch (e: Exception) {
+                    LogUtil.error(null, "DEBOUNCING_TASK", "Ошибка в задаче дебаунса", e)
+                }
             }
         } catch (e: Exception) {
-            LogUtil.error(null, "DEBOUNCING", "Ошибка при дебаунсной обработке", e)
-            // Fallback к оригинальной логике
+            LogUtil.error(null, "DEBOUNCING_ENTRY", "Ошибка при входе в дебаунс", e)
+            // Fallback к немедленной обработке
             PerformanceMonitor.recordImmediateProcessing()
             processOptimizedBatch(triggerUris, params)
         }

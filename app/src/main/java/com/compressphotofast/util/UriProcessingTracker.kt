@@ -59,8 +59,8 @@ class UriProcessingTracker @Inject constructor(
     // Максимальное количество URI в обработке
     private val MAX_PROCESSING_URIS = 50
 
-    // Время после которого URI считается stale (5 минут)
-    private val STALE_URI_THRESHOLD = 5 * 60 * 1000L
+    // Время после которого URI считается stale (15 минут)
+    private val STALE_URI_THRESHOLD = 15 * 60 * 1000L
 
     // Карта для Mutex'ов на каждый URI - заменяет busy wait на эффективную блокировку
     private val uriLocks = ConcurrentHashMap<String, Mutex>()
@@ -408,31 +408,8 @@ class UriProcessingTracker @Inject constructor(
         val isIgnored = shouldIgnoreUri(uriString)
         val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
 
-        // Если передано время модификации файла, используем его для дополнительной проверки
-        if (fileModifiedDate > 0) {
-            val currentTime = System.currentTimeMillis()
-            // Если файл был изменен совсем недавно (в течение 5 секунд),
-            // возможно он все еще находится в процессе обработки другим процессом
-            if (currentTime - fileModifiedDate < 5000L) {
-                return true
-            }
-        } else {
-            // Дополнительная проверка: если файл был обработан совсем недавно, но уже вышел из кэша,
-            // все равно временно игнорируем его
-            if (!isRecentlyProcessed && !isIgnored && !isProcessing) {
-                // Проверяем время модификации файла - если он был изменен совсем недавно,
-                // возможно он все еще находится в процессе обработки другим процессом
-                try {
-                    val lastModified = UriUtil.getFileLastModified(context, uri)
-                    val currentTime = System.currentTimeMillis()
-                    if (lastModified > 0 && (currentTime - lastModified < 5000L)) { // 5 секунд
-                        return true
-                    }
-                } catch (e: Exception) {
-                    // Если не удается получить время модификации, продолжаем стандартную проверку
-                }
-            }
-        }
+        // Проверка по времени модификации удалена, так как вызывала ложные срабатывания
+        // для новых фотографий с камеры.
 
         return isProcessing || isIgnored || isRecentlyProcessed
     }

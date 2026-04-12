@@ -317,10 +317,6 @@ class BackgroundMonitoringService : Service() {
      * Обработка нового изображения
      */
     private suspend fun processNewImage(uri: Uri) {
-        if (uriProcessingTracker.isProcessing(uri)) {
-            return
-        }
-
         try {
             if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
                 return

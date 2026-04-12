@@ -107,12 +107,6 @@ object GalleryScanUtil {
                     val contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
                         ?: Uri.parse("${MediaStore.Images.Media.EXTERNAL_CONTENT_URI}/$id")
                     
-                    // Проверяем, не находится ли URI уже в процессе обработки
-                    if (checkProcessable && UriProcessingTracker.getInstance(context).isImageBeingProcessed(contentUri)) {
-                        LogUtil.processDebug("Уже в обработке: $contentUri")
-                        skippedCount++
-                        continue
-                    }
 
                     allUris.add(contentUri)
                     uriSizeMap[contentUri] = size
