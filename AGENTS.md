@@ -14,22 +14,7 @@
 
 ### Agent Symlinks
 
-Единая система символических ссылок для синхронизации агентов и скиллов между AI-платформами (`.claude/`, `.gemini/`, `.opencode/`, `.qwen/`). Оригиналы в `.agents/`, платформы используют symlinks.
-
-**Структура:**
-```
-.agents/                    # Оригинальные файлы (источник истинности)
-├── agents/                 # 6 агентов
-├── rules/                  # Единые правила
-└── skills/                 # 5 скиллов
-
-.claude/                    # Папка платформы
-├── agents → .agents/agents (symlink)
-├── rules → .agents/rules   (symlink)
-└── skills → .agents/skills (symlink)
-```
-
-**Преимущества:** единый источник изменений, без дублирования, автоматическая синхронизация между платформами.
+Символические ссылки `.agents/` → `.claude/`, `.gemini/`, `.opencode/`, `.qwen/` для синхронизации агентов и скиллов между AI-платформами. Оригиналы в `.agents/`, платформы используют symlinks.
 
 ---
 
@@ -75,7 +60,7 @@
 
 - Ручное сжатие: выбор одного или нескольких изображений
 - Автоматическое сжатие: фоновое обнаружение новых фото (30 секунд)
-- Настройки качества: 60/70/85
+- Настройки качества: 60/70/80
 - Режимы сохранения: замена оригинала или отдельная папка
 - Обработка через "Поделиться" (Share Intent)
 - Сохранение EXIF (GPS требует отдельного разрешения)
@@ -109,31 +94,25 @@
 
 ---
 
-## Current Focus (Март 2026)
+## Current Focus (Апрель 2026)
 
 ### Известные проблемы
 - 🔴 **Дубликаты при массовой обработке (50+ файлов)** - проблема с URI
-- ⚠️ **Instrumentation тесты падают** - daemon упал при 219/248 тестов (88%)
 
 ### Последние изменения
-- ✅ **Android Optimization Analysis** - выполнено 9 из 14 оптимизаций
-  - Критические (3/3): destroyStatic() для CompressionBatchTracker, убрана delay(50), добавлен 50MB limit
-  - Высокий приоритет (1/4): static методы помечены как @Deprecated
-  - Средний приоритет (5/5): убрана дублирующая проверка файла, LruCache на основе maxMemory(), улучшены таймауты
-  - Низкий приоритет (2/3): fallback для reflection, регулярный cleanupOldBatches()
-- ✅ **Рефакторинг качества кода** - устранено ~200 строк дубликатов (MediaStoreUtil, ExifUtil)
-- ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver обновлены
-- ✅ **Удалён deprecated код** - runBlocking, unused методы
-- ✅ **Все 576 тестов проходят** - 328 unit + 248 instrumentation
-- ✅ **Добавлен скилл code-analyzer** - анализ кода на дубликаты, мёртвый код и качество
-- ✅ **Добавлен скилл android-test-suite** - запуск тестов в изолированном субагенте
-- ✅ **Изменён формат имени APK** - унифицированный формат для debug/release сборок
-- ✅ **Исправлена ориентация Samsung (JPEG + HEIC)** - обработка EXIF orientation, поворот bitmap, тесты
+- ✅ **Улучшен debouncing в ImageDetectionJobService** - trailing debounce через ConcurrentHashMap вместо AtomicReference
+- ✅ **Расширено окно сканирования галереи** - 24ч → 48ч (scanDayOldImages → scanHistoryImages)
+- ✅ **Обновлены настройки качества** - HIGH: 85→80, динамический текст радиокнопок с значениями
+- ✅ **Убрана ложная блокировка обработки** - удалена проверка isProcessing/isImageBeingProcessed для новых фото, fileModifiedDate в UriProcessingTracker
+- ✅ **UriProcessingTracker: stale URI порог** - 5→15 мин, удалена проверка модификации файла (ложные срабатывания)
+- ✅ **Android Optimization Analysis** - 9/14 оптимизаций (критические, средний приоритет)
+- ✅ **Рефакторинг качества кода** - ~200 строк дубликатов устранено
+- ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver
 
 ### Метрики проекта
-- Исходный код: 39 Kotlin файлов
-- Unit тесты: 328 (100% pass)
-- Instrumentation тесты: 248 (88% pass, 219 completed, 0 failed)
+- Исходный код: 38 Kotlin файлов
+- Unit тесты: 33 файла
+- Instrumentation тесты: 25 файлов
 - Скрипты: 12
 - Skills: 6 (agents-updater, android-optimization-analyzer, android-test-suite, code-analyzer, skill-creator, glm-plan-usage)
 - Версия: 2.2.10
@@ -152,17 +131,6 @@
 1. Проверить логику копирования и работу с URI
 2. Добавить логирование путей
 3. Протестировать
-
-### ⚠️ Instrumentation тесты падают
-
-**Проблема:** Android Test Daemon падает во время выполнения instrumentation тестов. Успешно завершается 219 из 248 тестов (88%).
-
-**Последний запуск:** 2026-03-14
-
-**Шаги:**
-1. Перезапустить эмулятор Small_Phone
-2. Проверить логи adb logcat для анализа причины падения daemon
-3. Рассмотреть разбивку тестов на smaller batches
 
 ---
 
