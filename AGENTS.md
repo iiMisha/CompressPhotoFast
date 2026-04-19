@@ -100,21 +100,22 @@
 - 🔴 **Дубликаты при массовой обработке (50+ файлов)** - проблема с URI
 
 ### Последние изменения
-- ✅ **Улучшен debouncing в ImageDetectionJobService** - trailing debounce через ConcurrentHashMap вместо AtomicReference
-- ✅ **Расширено окно сканирования галереи** - 24ч → 48ч (scanDayOldImages → scanHistoryImages)
-- ✅ **Обновлены настройки качества** - HIGH: 85→80, динамический текст радиокнопок с значениями
-- ✅ **Убрана ложная блокировка обработки** - удалена проверка isProcessing/isImageBeingProcessed для новых фото, fileModifiedDate в UriProcessingTracker
-- ✅ **UriProcessingTracker: stale URI порог** - 5→15 мин, удалена проверка модификации файла (ложные срабатывания)
-- ✅ **Android Optimization Analysis** - 9/14 оптимизаций (критические, средний приоритет)
+- ✅ **Оптимизация двойного управления URI** - устранено дублирование логики URI в ImageDetectionJobService, улучшена обработка параллельных задач
+- ✅ **Безопасная проверка целостности** - динамический контроль баллов сжатия и верификация для устранения повреждений файлов (8 файлов)
+- ✅ **Улучшен debouncing в ImageDetectionJobService** - trailing debounce через ConcurrentHashMap
+- ✅ **Расширено окно сканирования галереи** - 24ч → 48ч
+- ✅ **Обновлены настройки качества** - HIGH: 85→80
+- ✅ **Android Optimization Analysis** - 9/14 оптимизаций
 - ✅ **Рефакторинг качества кода** - ~200 строк дубликатов устранено
 - ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver
 
 ### Метрики проекта
 - Исходный код: 38 Kotlin файлов
-- Unit тесты: 33 файла
+- Unit тесты: 35 файлов
 - Instrumentation тесты: 25 файлов
-- Скрипты: 12
-- Skills: 6 (agents-updater, android-optimization-analyzer, android-test-suite, code-analyzer, skill-creator, glm-plan-usage)
+- Скрипты: 11
+- Skills: 5 (agents-updater, android-optimization-analyzer, android-test-suite, code-analyzer, skill-creator)
+- Агенты: 14 файлов
 - Версия: 2.2.10
 
 ---
@@ -123,14 +124,16 @@
 
 ### 🔴 Дубликаты при массовой обработке
 
-**Проблема:** При обработке 50+ файлов с автоматическим сжатием создаются дубликаты в отдельной папке. Подозрение: проблема с URI.
+**Проблема:** При обработке 50+ файлов с автоматическим сжатием создаются дубликаты в отдельной папке. Проблема с URI.
 
-**Файлы:** MediaStoreUtil.kt, FileOperationsUtil.kt, ImageCompressionWorker.kt
+**Прогресс:** Частично исправлено (d6ec39f, 5e7edbd) — устранено дублирование логики URI, добавлена проверка целостности.
+
+**Файлы:** MediaStoreUtil.kt, FileOperationsUtil.kt, ImageCompressionWorker.kt, ImageDetectionJobService.kt
 
 **Шаги:**
-1. Проверить логику копирования и работу с URI
-2. Добавить логирование путей
-3. Протестировать
+1. Протестировать на 50+ файлах
+2. Проверить логирование путей
+3. Если проблема сохраняется — добавить content-based дедупликацию
 
 ---
 
