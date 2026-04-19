@@ -371,19 +371,21 @@ class ImageDetectionJobService : JobService() {
             
             // Проверяем необходимость обработки с оптимизированным кэшированием
             if (shouldProcessImageOptimized(uri, currentMetadata)) {
-                val added = uriProcessingTracker.addProcessingUriSafe(uri, "ImageDetectionJobService")
-                if (!added) {
+                // Используем только read-проверку: handleImage() внутри processImage()
+                // сам вызывает addProcessingUriSafe/removeProcessingUriSafe.
+                // Двойной вызов addProcessingUriSafe приводит к тому, что handleImage
+                // получает false ("уже обрабатывается") и тихо пропускает сжатие.
+                if (uriProcessingTracker.isProcessing(uri)) {
                     LogUtil.processDebug("ImageDetectionJobService: URI уже обрабатывается: $uri")
                     return@withContext ProcessingResult(skipped = true)
                 }
 
-                // Обрабатываем изображение
+                // Обрабатываем изображение (handleImage внутри управляет processingUris)
                 if (ImageProcessingUtil.processImage(applicationContext, uri)) {
                     LogUtil.processDebug("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
                     return@withContext ProcessingResult(processed = true)
                 } else {
                     LogUtil.processDebug("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                    uriProcessingTracker.removeProcessingUriSafe(uri)
                     return@withContext ProcessingResult(skipped = true)
                 }
             } else {
