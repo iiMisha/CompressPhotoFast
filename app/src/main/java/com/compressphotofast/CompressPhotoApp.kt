@@ -16,6 +16,7 @@ import com.compressphotofast.util.CompressionBatchTracker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import javax.inject.Inject
+import java.util.concurrent.Executors
 
 /**
  * Основной класс приложения, отвечающий за инициализацию компонентов.
@@ -73,6 +74,8 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .setDefaultProcessName("com.compressphotofast")
+            .setExecutor(Executors.newFixedThreadPool(2))
+            .setTaskExecutor(Executors.newFixedThreadPool(2))
             .build()
             
     /**

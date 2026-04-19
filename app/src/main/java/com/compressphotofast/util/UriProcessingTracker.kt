@@ -357,17 +357,19 @@ class UriProcessingTracker @Inject constructor(
     /**
      * Безопасно добавляет URI в список обрабатываемых с блокировкой
      */
-    suspend fun addProcessingUriSafe(uri: Uri, source: String = "unknown") {
+    suspend fun addProcessingUriSafe(uri: Uri, source: String = "unknown"): Boolean {
         val uriString = uri.toString()
         val mutex = uriLocks.getOrPut(uriString) { Mutex() }
         return mutex.withLock {
             if (processingUris.contains(uriString)) {
                 LogUtil.processDebug("URI уже обрабатывается: $uriString")
-                return@withLock
+                false
+            } else {
+                processingUris.add(uriString)
+                uriProcessingTime[uriString] = System.currentTimeMillis()
+                LogUtil.processDebug("URI добавлен (safe): $uriString из $source")
+                true
             }
-            processingUris.add(uriString)
-            uriProcessingTime[uriString] = System.currentTimeMillis()
-            LogUtil.processDebug("URI добавлен (safe): $uriString из $source")
         }
     }
 

@@ -384,6 +384,18 @@ object ImageCompressionUtil {
                     return@withContext null
                 }
 
+                val compressedBytes = outputStream.toByteArray()
+                val validationOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(compressedBytes, 0, compressedBytes.size, validationOptions)
+                if (validationOptions.outWidth <= 0 || validationOptions.outHeight <= 0) {
+                    LogUtil.error(uri, "Сжатие", "ВАЛИДАЦИЯ НЕ ПРОШЛА: JPEG данные повреждены (decodeByteArray: ${validationOptions.outWidth}x${validationOptions.outHeight})")
+                    return@withContext null
+                }
+                LogUtil.debug("Сжатие", "Валидация JPEG прошла: ${validationOptions.outWidth}x${validationOptions.outHeight}")
+
+                outputStream.reset()
+                outputStream.write(compressedBytes)
+
                 return@withContext outputStream
             } catch (e: OutOfMemoryError) {
                 val requiredMemory = (width * height * 4L) / (1024 * 1024)

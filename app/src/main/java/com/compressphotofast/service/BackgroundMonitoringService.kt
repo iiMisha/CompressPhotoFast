@@ -331,6 +331,10 @@ class BackgroundMonitoringService : Service() {
                 return
             }
 
+            if (uriProcessingTracker.isImageBeingProcessed(uri)) {
+                return
+            }
+
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
 
             if (!result.first) {

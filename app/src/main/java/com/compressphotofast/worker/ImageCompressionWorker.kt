@@ -320,6 +320,16 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Добавляем URI в кэш недавно оптимизированных
                 uriProcessingTracker.setIgnorePeriod(savedUri)
 
+                // Верификация сохранённого файла перед удалением оригинала
+                if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
+                    val isSavedFileValid = verifySavedImageIntegrity(savedUri)
+                    if (!isSavedFileValid) {
+                        LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён! Отмена удаления оригинала")
+                        StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                        return@withContext Result.failure()
+                    }
+                }
+
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
                 // НО: если savedUri == imageUri, значит файл был перезаписан на месте и удалять не нужно
                 var deleteFailed = false
@@ -448,6 +458,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 
                 // Обновляем статус и возвращаем успех с пропуском
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+
+                uriProcessingTracker.removeProcessingUriSafe(imageUri)
+                uriProcessingTracker.addRecentlyProcessedUri(imageUri)
+
                 return@withContext Result.success()
             }
         } catch (e: Exception) {
@@ -619,6 +633,27 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             val timestamp = System.currentTimeMillis()
             return "compressed_image_$timestamp.jpg"
+        }
+    }
+
+    private suspend fun verifySavedImageIntegrity(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
+                if (options.outWidth <= 0 || options.outHeight <= 0) {
+                    LogUtil.error(uri, "Верификация", "Файл не является корректным изображением: ${options.outWidth}x${options.outHeight}")
+                    return@withContext false
+                }
+                LogUtil.debug("Верификация", "Файл прошёл проверку: ${options.outWidth}x${options.outHeight}")
+            } ?: run {
+                LogUtil.error(uri, "Верификация", "Не удалось открыть поток для проверки")
+                return@withContext false
+            }
+            return@withContext true
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Верификация", "Ошибка при проверке целостности файла", e)
+            return@withContext false
         }
     }
 }

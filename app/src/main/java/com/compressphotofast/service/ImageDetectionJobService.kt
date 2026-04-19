@@ -41,7 +41,7 @@ class ImageDetectionJobService : JobService() {
     // Используем var для возможности пересоздания после отмены
     private var jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Максимальное количество одновременно обрабатываемых URI
-    private val maxConcurrentUris = 20
+    private val maxConcurrentUris = 5
     
     // Потокобезопасное множество для накапливающегося батча
     private val pendingBatch = Collections.newSetFromMap(ConcurrentHashMap<Uri, Boolean>())
@@ -363,12 +363,6 @@ class ImageDetectionJobService : JobService() {
                 return@withContext ProcessingResult(skipped = true)
             }
             
-            // Проверяем, не обрабатывается ли URI уже
-            if (uriProcessingTracker.isImageBeingProcessed(uri)) {
-                LogUtil.processDebug("ImageDetectionJobService: URI $uri уже в процессе обработки, пропускаем")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
             // Проверяем, не должен ли URI игнорироваться
             if (uriProcessingTracker.shouldIgnore(uri)) {
                 LogUtil.processDebug("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
@@ -377,8 +371,11 @@ class ImageDetectionJobService : JobService() {
             
             // Проверяем необходимость обработки с оптимизированным кэшированием
             if (shouldProcessImageOptimized(uri, currentMetadata)) {
-                // Регистрируем URI как обрабатываемый (с синхронизацией)
-                uriProcessingTracker.addProcessingUriSafe(uri, "ImageDetectionJobService")
+                val added = uriProcessingTracker.addProcessingUriSafe(uri, "ImageDetectionJobService")
+                if (!added) {
+                    LogUtil.processDebug("ImageDetectionJobService: URI уже обрабатывается: $uri")
+                    return@withContext ProcessingResult(skipped = true)
+                }
 
                 // Обрабатываем изображение
                 if (ImageProcessingUtil.processImage(applicationContext, uri)) {

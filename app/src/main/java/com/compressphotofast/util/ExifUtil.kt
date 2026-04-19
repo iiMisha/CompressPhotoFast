@@ -848,9 +848,39 @@ object ExifUtil {
                     LogUtil.processInfo("Добавлен маркер сжатия: $compressionInfo")
                 }
                 
-                // 2. Сохраняем изменения в EXIF
-                exif.saveAttributes()
-                LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
+                // 2. Сохраняем изменения в EXIF (с backup для защиты от повреждения)
+                val backupFile = File(context.cacheDir, "exif_backup_${System.currentTimeMillis()}.jpg")
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(backupFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                } catch (e: Exception) {
+                    LogUtil.warning(uri, "EXIF backup", "Не удалось создать backup: ${e.message}")
+                }
+
+                try {
+                    exif.saveAttributes()
+                    LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "EXIF save", "saveAttributes() упал, восстанавливаем файл из backup", e)
+                    if (backupFile.exists()) {
+                        try {
+                            context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                                backupFile.inputStream().use { input ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            LogUtil.processInfo("Файл восстановлен из backup после ошибки saveAttributes()")
+                        } catch (restoreError: Exception) {
+                            LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
+                        }
+                    }
+                    throw e
+                } finally {
+                    backupFile.delete()
+                }
                 
                 // 3. Восстанавливаем исходную дату модификации
                 if (originalLastModified > 0) {
@@ -1120,6 +1150,14 @@ object ExifUtil {
                 try {
                     exifSuccess = applyExifFromMemory(context, destinationUri, exifDataMemory, quality)
                     LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
+
+                    if (exifSuccess) {
+                        val isValid = verifyImageIntegrity(context, destinationUri)
+                        if (!isValid) {
+                            LogUtil.error(destinationUri, "EXIF", "Файл повреждён после saveAttributes()")
+                            exifSuccess = false
+                        }
+                    }
                 } catch (e: Exception) {
                     LogUtil.error(destinationUri, "EXIF", "Ошибка при применении EXIF данных из памяти", e)
                 }
@@ -1263,5 +1301,22 @@ object ExifUtil {
         exifDataCache.evictAll()
         exifCheckCache.evictAll()
         LogUtil.processInfo("EXIF кэши очищены")
+    }
+
+    private fun verifyImageIntegrity(context: Context, uri: Uri): Boolean {
+        return try {
+            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                android.graphics.BitmapFactory.decodeStream(inputStream, null, options)
+                if (options.outWidth <= 0 || options.outHeight <= 0) {
+                    LogUtil.error(uri, "EXIF верификация", "Файл повреждён: ${options.outWidth}x${options.outHeight}")
+                    return false
+                }
+            } ?: return false
+            true
+        } catch (e: Exception) {
+            LogUtil.error(uri, "EXIF верификация", "Ошибка проверки целостности", e)
+            false
+        }
     }
 } 

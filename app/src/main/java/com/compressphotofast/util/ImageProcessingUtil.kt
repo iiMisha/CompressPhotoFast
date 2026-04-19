@@ -34,8 +34,11 @@ object ImageProcessingUtil {
      */
     suspend fun handleImage(context: Context, uri: Uri, forceProcess: Boolean = false, batchId: String? = null): Triple<Boolean, Boolean, String> = withContext(Dispatchers.IO) {
         try {
-            // Добавляем URI в список обрабатываемых (с синхронизацией)
-            UriProcessingTracker.getInstance(context).addProcessingUriSafe(uri, "ImageProcessingUtil")
+            val added = UriProcessingTracker.getInstance(context).addProcessingUriSafe(uri, "ImageProcessingUtil")
+            if (!added) {
+                LogUtil.processDebug("URI уже обрабатывается, пропуск handleImage: $uri")
+                return@withContext Triple(true, false, "Изображение уже обрабатывается")
+            }
 
             try {
                 // Сначала проверяем, требуется ли обработка - используем централизованную логику
@@ -64,7 +67,7 @@ object ImageProcessingUtil {
 
                 // Создаем уникальный тег для работы
                 val fileName = UriUtil.getFileNameFromUri(context, uri)
-                val workTag = "compress_${System.currentTimeMillis()}_$fileName"
+                val workTag = "compress_${uri.hashCode()}"
 
                 // Получаем размер исходного файла для логирования
                 val originalSize = UriUtil.getFileSize(context, uri)
@@ -98,7 +101,7 @@ object ImageProcessingUtil {
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(
                         workTag,
-                        ExistingWorkPolicy.REPLACE,
+                        ExistingWorkPolicy.KEEP,
                         compressionWorkRequest
                     )
 
