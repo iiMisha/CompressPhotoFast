@@ -334,9 +334,13 @@ object ImageCompressionUtil {
                 LogUtil.debug("Сжатие", "Оптимизированное декодирование: ${decodedWidth}x${decodedHeight}, inSampleSize=$inSampleSize")
                 LogUtil.debug("Сжатие", "Оценочный размер: ${optimizedEstimatedBytes / 1024 / 1024}MB, экономия памяти: ${"%.1f".format(memoryReduction)}%")
 
-                // Проверяем доступную память с оптимизированным размером
-                if (!FileOperationsUtil.hasEnoughMemory(context, optimizedEstimatedBytes)) {
-                    LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования изображения даже с оптимизацией")
+                // Проверяем память с учётом: bitmap (RGB_565) + output buffer (оценка JPEG)
+                // JPEG output ~1-3 bytes/pixel при quality 60-80 (эмпирически)
+                val estimatedOutputBytes = decodedWidth * decodedHeight * 2L
+                val totalRequiredBytes = optimizedEstimatedBytes + estimatedOutputBytes
+
+                if (!FileOperationsUtil.hasEnoughMemory(context, totalRequiredBytes)) {
+                    LogUtil.error(uri, "Сжатие в поток", "Недостаточно памяти для декодирования + сжатия (требуется ~${totalRequiredBytes / 1024 / 1024}MB)")
                     return@withContext null
                 }
 
@@ -364,26 +368,34 @@ object ImageCompressionUtil {
                     }
                 }
 
-                // Создаем ByteArrayOutputStream с ограничением размера для предотвращения OOM
-                // Вычисляем оценочный размер с запасом (RGB_888 worst case: 3 bytes per pixel)
-                val estimatedSize = (decodedWidth * decodedHeight * 3L).toInt()
+                // Проверяем runtime heap перед созданием output stream
+                val runtime = Runtime.getRuntime()
+                val usedHeap = runtime.totalMemory() - runtime.freeMemory()
+                val maxHeap = runtime.maxMemory()
+                val availableHeap = maxHeap - usedHeap
 
-                // Проверяем размер перед созданием ByteArrayOutputStream
-                if (estimatedSize > 50 * 1024 * 1024) {
-                    LogUtil.error(uri, "Сжатие в поток", "Оценочный размер слишком большой: ${estimatedSize / 1024 / 1024}MB, максимально допустимый: 50MB")
+                if (availableHeap < 10 * 1024 * 1024) {
+                    LogUtil.error(uri, "Сжатие в поток", "Мало heap памяти: доступно ${availableHeap / 1024 / 1024}MB")
                     return@withContext null
                 }
 
-                val outputStream = ByteArrayOutputStream(estimatedSize)
+                // Не pre-size ByteArrayOutputStream — JPEG сжатый выход намного меньше raw пикселей
+                // Типичный JPEG quality 60-80: 2-8MB для 4000x4000, не 48MB как при raw RGB
+                val outputStream = ByteArrayOutputStream(256 * 1024)
 
                 // Сжимаем Bitmap в ByteArrayOutputStream
                 val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+
+                // Освобождаем bitmap ДО валидации — уменьшает пиковое потребление памяти на 18-32MB
+                inputBitmap?.recycle()
+                inputBitmap = null
 
                 if (!success) {
                     LogUtil.error(uri, "Сжатие", "Ошибка при сжатии Bitmap в поток")
                     return@withContext null
                 }
 
+                // Валидация JPEG данных
                 val compressedBytes = outputStream.toByteArray()
                 val validationOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(compressedBytes, 0, compressedBytes.size, validationOptions)
@@ -392,9 +404,6 @@ object ImageCompressionUtil {
                     return@withContext null
                 }
                 LogUtil.debug("Сжатие", "Валидация JPEG прошла: ${validationOptions.outWidth}x${validationOptions.outHeight}")
-
-                outputStream.reset()
-                outputStream.write(compressedBytes)
 
                 return@withContext outputStream
             } catch (e: OutOfMemoryError) {
