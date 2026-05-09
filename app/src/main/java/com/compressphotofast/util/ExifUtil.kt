@@ -284,14 +284,15 @@ object ExifUtil {
             val finalUri = try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                     uri.toString().startsWith("content://media/")) {
-                    val originalUri = MediaStore.setRequireOriginal(uri)
-                    // LogUtil.processDebug("🔧 ExifInterface: Использую MediaStore.setRequireOriginal() для $uri")
-                    originalUri
+                    MediaStore.setRequireOriginal(uri)
                 } else {
                     uri
                 }
+            } catch (e: IllegalStateException) {
+                LogUtil.processDebug("EXIF: setRequireOriginal failed для pending-файла, используем обычный URI: $uri")
+                uri
             } catch (e: Exception) {
-                LogUtil.processWarning("⚠️ Ошибка при получении оригинального URI для EXIF, используем исходный: ${e.message}")
+                LogUtil.processWarning("Ошибка при получении оригинального URI для EXIF, используем исходный: ${e.message}")
                 uri
             }
 
@@ -301,6 +302,9 @@ object ExifUtil {
                 }
             } catch (e: FileNotFoundException) {
                 LogUtil.error(uri, "Получение EXIF", "Файл не найден: ${e.message}")
+                return null
+            } catch (e: IllegalStateException) {
+                LogUtil.processDebug("EXIF: файл в состоянии pending, пропускаем: $uri")
                 return null
             }
         } catch (e: Exception) {

@@ -73,7 +73,6 @@ object PerformanceMonitor {
      */
     fun recordCacheHit(cacheType: String) {
         cacheHits.incrementAndGet()
-        LogUtil.processDebug("PerformanceMonitor: Cache hit - $cacheType")
     }
 
     /**
@@ -81,7 +80,6 @@ object PerformanceMonitor {
      */
     fun recordCacheMiss(cacheType: String) {
         cacheMisses.incrementAndGet()
-        LogUtil.processDebug("PerformanceMonitor: Cache miss - $cacheType")
     }
 
     /**

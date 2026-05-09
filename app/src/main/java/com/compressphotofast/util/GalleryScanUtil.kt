@@ -38,6 +38,8 @@ object GalleryScanUtil {
     ): ScanResult = withContext(Dispatchers.IO) {
         var processedCount = 0
         var skippedCount = 0
+        var smallFilesCount = 0
+        var largeFilesCount = 0
         val foundUris = mutableListOf<Uri>()
         
         try {
@@ -90,14 +92,14 @@ object GalleryScanUtil {
                     
                     // Пропускаем слишком маленькие файлы
                     if (size < Constants.MIN_FILE_SIZE) {
-                        LogUtil.processDebug("Маленький файл: $name ($size B)")
+                        smallFilesCount++
                         skippedCount++
                         continue
                     }
                     
                     // Пропускаем слишком большие файлы
                     if (size > Constants.MAX_FILE_SIZE) {
-                        LogUtil.processDebug("Большой файл: $name (${size / (1024 * 1024)} MB)")
+                        largeFilesCount++
                         skippedCount++
                         continue
                     }
@@ -128,7 +130,6 @@ object GalleryScanUtil {
                             foundUris.add(uri)
                             processedCount++
                         } else {
-                            LogUtil.processDebug("Оптимизировано: $uri")
                             skippedCount++
                         }
                     }
@@ -139,6 +140,8 @@ object GalleryScanUtil {
                 }
                 
                 LogUtil.processDebug("Сканирование: +$processedCount, -$skippedCount")
+                if (smallFilesCount > 0) LogUtil.processDebug("Пропущено $smallFilesCount маленьких файлов")
+                if (largeFilesCount > 0) LogUtil.processDebug("Пропущено $largeFilesCount слишком больших файлов")
             }
         } catch (e: Exception) {
             LogUtil.errorWithException("SCAN_GALLERY", e)

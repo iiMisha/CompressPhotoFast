@@ -91,7 +91,7 @@ object ImageProcessingChecker {
                     LogUtil.processDebug("Изображение из мессенджера, разрешаем запуск воркера для записи EXIF.")
                     return@withContext true
                 }
-                LogUtil.processDebug("Изображение не требует обработки: ${result.reason}")
+                LogUtil.debug("ImageProcessingChecker", "Изображение не требует обработки: ${result.reason}")
             }
             return@withContext result.processingRequired
         } catch (e: Exception) {

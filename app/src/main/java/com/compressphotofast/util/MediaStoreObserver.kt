@@ -105,6 +105,13 @@ class MediaStoreObserver @Inject constructor(
                     // Создаем новую задачу с задержкой
                     val delayJob = handlerScope.launch {
                         delay(Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000L)
+
+                        if (UriUtil.isFilePending(context, it)) {
+                            LogUtil.processDebug("MediaStoreObserver: файл ещё в процессе записи (pending), планируем повтор: $it")
+                            processUriWithRetry(it, uriString)
+                            return@launch
+                        }
+
                         val (isAlreadyCompressed, _, compressionTimestamp) = withContext(Dispatchers.IO) {
                             ExifUtil.getCompressionMarker(context, it)
                         }

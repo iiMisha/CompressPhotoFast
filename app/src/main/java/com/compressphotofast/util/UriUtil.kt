@@ -506,10 +506,11 @@ object UriUtil {
                                             return false
                                         }
                                     }
+                                } catch (e: IllegalStateException) {
+                                    return true
                                 } catch (e: Exception) {
-                                    // Файл не читается, считаем его pending для безопасности
-                                    LogUtil.warning(uri, "isPending", "Ошибка при проверке is_pending, считаем файл pending: ${e.message}")
-                                    return true  // При ошибке считаем файл pending для безопасности
+                                    LogUtil.processDebug("isPending: файл недоступен, считаем pending: ${e.message}")
+                                    return true
                                 }
                             }
 

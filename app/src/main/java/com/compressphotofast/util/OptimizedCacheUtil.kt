@@ -213,7 +213,6 @@ object OptimizedCacheUtil {
                     // Выходим из read lock для получения write lock
                 } else {
                     // Кэш актуален
-                    LogUtil.processDebug("EXIF-данные получены из кэша для $uri")
                     return cached
                 }
             }
