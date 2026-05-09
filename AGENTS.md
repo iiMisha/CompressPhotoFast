@@ -16,6 +16,10 @@
 
 Символические ссылки `.agents/` → `.claude/`, `.gemini/`, `.opencode/`, `.qwen/` для синхронизации агентов и скиллов между AI-платформами. Оригиналы в `.agents/`, платформы используют symlinks.
 
+### Обязательное чтение
+
+Перед началом работы обязательно прочитайте `.claude/rules/rules.md` — правила разработки проекта.
+
 ---
 
 ## Tech Stack
@@ -25,7 +29,7 @@
 - MVVM + Hilt 2.57.1 (DI)
 - Compressor 3.0.1, Coil 3.3.0, DataStore 1.1.7, ExifInterface 1.4.1
 - Coroutines 1.10.2, WorkManager 2.10.3
-- JUnit, MockK, Espresso, JaCoCo (мин 30% coverage)
+- JUnit, MockK, Espresso, JaCoCo
 - Android Test Orchestrator 1.5.0
 - minSdk 29, targetSdk 36
 
@@ -135,11 +139,9 @@
 
 ---
 
-## Testing Coverage
+## Testing
 
-**Минимум:** 30% (JaCoCo)
-
-### Команды тестирования
+### Команды тестирования (по запросу)
 ```bash
 # Unit тесты
 ./gradlew testDebugUnitTest
@@ -176,12 +178,8 @@
 **Шаги:**
 1. Запустить `/code-analyzer` для анализа
 2. Использовать `voltagent-lang:kotlin-specialist` для рефакторинга
-3. Обновить тесты (если нужно)
-4. Выполнить `./gradlew assembleDebug`
-5. Запустить все тесты через `Task(general-purpose)`
-6. Commit и `/agents-updater`
-
-**Важно**: Всегда запускать тесты в отдельном субагенте через Task tool
+3. Выполнить `./gradlew assembleDebug`
+4. Commit и `/agents-updater`
 
 ---
 
