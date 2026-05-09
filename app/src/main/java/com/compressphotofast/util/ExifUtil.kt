@@ -863,6 +863,23 @@ object ExifUtil {
                 try {
                     exif.saveAttributes()
                     LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
+
+                    if (!verifyImageIntegrity(context, uri)) {
+                        LogUtil.error(uri, "EXIF верификация", "Файл повреждён после saveAttributes(), восстанавливаем из backup")
+                        if (backupFile.exists()) {
+                            try {
+                                context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                                    backupFile.inputStream().use { input ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                                LogUtil.processInfo("Файл восстановлен из backup после повреждения saveAttributes()")
+                            } catch (restoreError: Exception) {
+                                LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
+                            }
+                        }
+                        return@withContext false
+                    }
                 } catch (e: Exception) {
                     LogUtil.error(uri, "EXIF save", "saveAttributes() упал, восстанавливаем файл из backup", e)
                     if (backupFile.exists()) {

@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Класс для централизованной работы с ContentObserver для отслеживания изменений в MediaStore
@@ -104,6 +105,14 @@ class MediaStoreObserver @Inject constructor(
                     // Создаем новую задачу с задержкой
                     val delayJob = handlerScope.launch {
                         delay(Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000L)
+                        val (isAlreadyCompressed, _, compressionTimestamp) = withContext(Dispatchers.IO) {
+                            ExifUtil.getCompressionMarker(context, it)
+                        }
+                        if (isAlreadyCompressed && (System.currentTimeMillis() - compressionTimestamp) < 60_000L) {
+                            LogUtil.processDebug("MediaStoreObserver: URI $it имеет свежий маркер сжатия (< 60 сек), пропускаем")
+                            pendingTasks.remove(uriString)
+                            return@launch
+                        }
                         processUriWithRetry(it, uriString)
                     }
 

@@ -334,17 +334,22 @@ class ImageDetectionJobService : JobService() {
             // Обработка isPending с ожиданием
             var currentMetadata = metadata
             if (currentMetadata?.isPending == true) {
-                LogUtil.processDebug("ImageDetectionJobService: файл в процессе создания, пробуем подождать: $uri")
-                delay(5000)
-                // Получаем свежие метаданные
-                val refreshedMetadata = BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, listOf(uri))
-                currentMetadata = refreshedMetadata[uri]
-                
-                if (currentMetadata?.isPending == true) {
-                    LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания после ожидания, пропускаем: $uri")
-                    return@withContext ProcessingResult(skipped = true)
+                LogUtil.processDebug("ImageDetectionJobService: файл в процессе создания, ожидание с backoff: $uri")
+                val backoffDelays = listOf(3000L, 6000L, 12000L)
+                for ((attempt, delayMs) in backoffDelays.withIndex()) {
+                    delay(delayMs)
+                    val refreshedMetadata = BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, listOf(uri))
+                    currentMetadata = refreshedMetadata[uri]
+                    if (currentMetadata?.isPending != true) {
+                        LogUtil.processDebug("ImageDetectionJobService: файл готов после попытки ${attempt + 1}: $uri")
+                        break
+                    }
+                    if (attempt == backoffDelays.lastIndex) {
+                        LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания после ${backoffDelays.size} попыток, пропускаем: $uri")
+                        return@withContext ProcessingResult(skipped = true)
+                    }
+                    LogUtil.processDebug("ImageDetectionJobService: попытка ${attempt + 1} — файл все еще pending, ждём: $uri")
                 }
-                LogUtil.processDebug("ImageDetectionJobService: файл готов после ожидания: $uri")
             }
             
             if (currentMetadata == null) {
@@ -371,16 +376,6 @@ class ImageDetectionJobService : JobService() {
             
             // Проверяем необходимость обработки с оптимизированным кэшированием
             if (shouldProcessImageOptimized(uri, currentMetadata)) {
-                // Используем только read-проверку: handleImage() внутри processImage()
-                // сам вызывает addProcessingUriSafe/removeProcessingUriSafe.
-                // Двойной вызов addProcessingUriSafe приводит к тому, что handleImage
-                // получает false ("уже обрабатывается") и тихо пропускает сжатие.
-                if (uriProcessingTracker.isProcessing(uri)) {
-                    LogUtil.processDebug("ImageDetectionJobService: URI уже обрабатывается: $uri")
-                    return@withContext ProcessingResult(skipped = true)
-                }
-
-                // Обрабатываем изображение (handleImage внутри управляет processingUris)
                 if (ImageProcessingUtil.processImage(applicationContext, uri)) {
                     LogUtil.processDebug("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
                     return@withContext ProcessingResult(processed = true)

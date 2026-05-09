@@ -317,11 +317,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                     return@withContext Result.failure()
                 }
 
-                // Добавляем URI в кэш недавно оптимизированных
                 uriProcessingTracker.setIgnorePeriod(savedUri)
+                if (savedUri != imageUri) {
+                    uriProcessingTracker.setIgnorePeriod(imageUri)
+                }
 
-                // Верификация сохранённого файла перед удалением оригинала
-                if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
+                if (FileOperationsUtil.isSaveModeReplace(appContext)) {
                     val isSavedFileValid = verifySavedImageIntegrity(savedUri)
                     if (!isSavedFileValid) {
                         LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён! Отмена удаления оригинала")

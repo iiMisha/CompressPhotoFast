@@ -50,8 +50,9 @@ class UriProcessingTracker @Inject constructor(
     // Время истечения для недавно обработанных URI (10 минут)
     private val RECENTLY_PROCESSED_EXPIRATION = 10 * 60 * 1000L
 
-    // Время игнорирования URI после обработки (5 секунд)
-    private val IGNORE_PERIOD = 5000L
+    // Время игнорирования URI после обработки (60 секунд)
+    // Увеличено для предотвращения повторной обработки при длинных сериях фото (burst mode)
+    private val IGNORE_PERIOD = 60_000L
 
     // Карта для отслеживания времени добавления URI
     private val uriProcessingTime = ConcurrentHashMap<String, Long>()
