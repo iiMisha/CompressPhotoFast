@@ -100,7 +100,7 @@ android {
 
 // Функция для формирования версии с датой и временем сборки
 fun getBuildVersion(baseVersion: String): String {
-    val dateFormat = SimpleDateFormat("dd.MM.yyyy-HH:mm")
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy-HHmm")
     val dateTime = dateFormat.format(Date())
     return "${baseVersion}(${dateTime})"
 }

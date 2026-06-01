@@ -6,6 +6,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import androidx.work.WorkInfo
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.worker.ImageCompressionWorker
 import kotlinx.coroutines.Dispatchers
@@ -65,11 +66,8 @@ object ImageProcessingUtil {
                 // Получаем качество сжатия из настроек
                 val quality = settingsManager.getCompressionQuality()
 
-                // Создаем уникальный тег для работы
-                val fileName = UriUtil.getFileNameFromUri(context, uri)
-                val workTag = "compress_${uri.hashCode()}"
-
                 // Получаем размер исходного файла для логирования
+                val fileName = UriUtil.getFileNameFromUri(context, uri)
                 val originalSize = UriUtil.getFileSize(context, uri)
 
                 // Создаем данные для работы
@@ -81,10 +79,8 @@ object ImageProcessingUtil {
 
                 // Добавляем batch ID если он предоставлен, или создаем автобатч
                 val finalBatchId = batchId ?: if (forceProcess) {
-                    // Для Intent-сжатий batch ID уже передан, для автосжатий создаем его
                     null
                 } else {
-                    // Для автоматического сжатия создаем или используем существующий автобатч
                     CompressionBatchTracker.getOrCreateAutoBatchCompat(context)
                 }
 
@@ -92,20 +88,29 @@ object ImageProcessingUtil {
                     inputData[Constants.WORK_BATCH_ID] = finalBatchId
                 }
 
-                // Создаем и запускаем работу по сжатию
+                val perUriTag = "compress_${uri.hashCode()}"
+                val alreadyQueued = WorkManager.getInstance(context)
+                    .getWorkInfosByTag(perUriTag).get()
+                    .any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
+                if (alreadyQueued) {
+                    UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
+                    LogUtil.processDebug("URI уже в очереди WorkManager, пропуск: $uri")
+                    return@withContext Triple(true, false, "Изображение уже в очереди")
+                }
+
                 val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
                     .setInputData(workDataOf(*inputData.toList().toTypedArray()))
-                    .addTag(workTag)
+                    .addTag(perUriTag)
                     .build()
 
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(
-                        workTag,
-                        ExistingWorkPolicy.KEEP,
+                        "sequential_image_compression",
+                        ExistingWorkPolicy.APPEND,
                         compressionWorkRequest
                     )
 
-                LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri с тегом $workTag${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
+                LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri в последовательной очереди${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки (с синхронизацией)

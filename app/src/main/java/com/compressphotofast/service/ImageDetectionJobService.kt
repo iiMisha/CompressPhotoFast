@@ -16,7 +16,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.async
 import kotlinx.coroutines.SupervisorJob
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.ImageProcessingUtil
@@ -40,9 +39,7 @@ class ImageDetectionJobService : JobService() {
     // Scope для корутин JobService с SupervisorJob для изоляции ошибок
     // Используем var для возможности пересоздания после отмены
     private var jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    // Максимальное количество одновременно обрабатываемых URI
-    private val maxConcurrentUris = 5
-    
+
     // Потокобезопасное множество для накапливающегося батча
     private val pendingBatch = Collections.newSetFromMap(ConcurrentHashMap<Uri, Boolean>())
     // Ссылка на текущую корутину дебаунсинга для возможности отмены
@@ -255,36 +252,16 @@ class ImageDetectionJobService : JobService() {
             
             LogUtil.processDebug("ImageDetectionJobService: после быстрой фильтрации осталось ${validUris.size} из ${existingUris.size} URI")
             
-            // Разбиваем валидные URI на батчи для предотвращения перегрузки системы
-            val batches = validUris.chunked(maxConcurrentUris)
-            
-            for (batch in batches) {
-                // Обрабатываем каждый батч параллельно с использованием async для возврата результатов
-                val deferredResults = batch.map { uri ->
-                    async {
-                        val metadata = batchMetadata[uri]
-                        processUriWithOptimizations(uri, metadata)
-                    }
+            for (uri in validUris) {
+                val metadata = batchMetadata[uri]
+                val result = try {
+                    processUriWithOptimizations(uri, metadata)
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "BATCH_ITEM", "Ошибка при обработке URI в батче", e)
+                    ProcessingResult(skipped = true)
                 }
-                
-                val results = deferredResults.map { deferred ->
-                    try {
-                        deferred.await()
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        // Игнорируем исключение отмены корутины, это нормальное поведение
-                        LogUtil.debug("BATCH_PROCESSING", "Корутина батчевой обработки была отменена: ${e.message}")
-                        ProcessingResult(false, true) // Отмена считается как пропуск
-                    } catch (e: Exception) {
-                        LogUtil.error(null, "URI_PROCESSING", "Ошибка при обработке URI", e)
-                        ProcessingResult(false, true) // Ошибка считается как пропуск
-                    }
-                }
-                
-                // Подсчитываем результаты батча
-                results.forEach { result ->
-                    if (result.processed) processedCount++
-                    if (result.skipped) skippedCount++
-                }
+                if (result.processed) processedCount++
+                if (result.skipped) skippedCount++
             }
             
             // Добавляем пропущенные URI (невалидные по метаданным)

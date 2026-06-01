@@ -98,18 +98,14 @@
 
 ---
 
-## Current Focus (Май 2026)
+## Current Focus (Июнь 2026)
 
 ### Последние изменения
-- ✅ **Исправление битых файлов при burst-режиме** (c81dd50) — 5 исправлений в 5 файлах:
-  - `UriProcessingTracker.kt`: IGNORE_PERIOD 5с → 60с для предотвращения Petri-цикла уведомлений
-  - `ImageCompressionWorker.kt`: верификация ВСЕГДА (не только при разных URI), ignore period на оба URI
-  - `ImageDetectionJobService.kt`: убран TOCTOU race condition, экспоненциальный backoff для isPending (3с/6с/12с)
-  - `MediaStoreObserver.kt`: проверка свежего маркера сжатия (< 60с) перед обработкой
-  - `ExifUtil.kt`: верификация целостности после saveAttributes() с восстановлением из backup
-- ✅ **Оптимизация двойного управления URI** - устранено дублирование логики URI в ImageDetectionJobService
-- ✅ **Безопасная проверка целостности** - динамический контроль баллов сжатия и верификация
-- ✅ **Улучшен debouncing в ImageDetectionJobService** - trailing debounce через ConcurrentHashMap
+- ✅ **Последовательная обработка изображений** — устранение повреждения файлов при массовой обработке:
+  - `ImageProcessingUtil.kt`: единая WorkManager очередь `"sequential_image_compression"` с `APPEND` вместо параллельных цепочек, добавлена дедупликация через `getWorkInfosByTag()`
+  - `ImageDetectionJobService.kt`: последовательный `for` цикл вместо `async`/`await` параллельных батчей (убран `maxConcurrentUris`, `import async`), добавлен `try/catch` на итерацию
+  - `app/build.gradle.kts`: формат таймстампа `HH:mm` → `HHmm` (исправлен illegal char на Windows)
+- ✅ **Исправление битых файлов при burst-режиме** (c81dd50) — IGNORE_PERIOD 60с, верификация целостности, TOCTOU fix, backoff для isPending
 - ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver
 
 ### Метрики проекта
@@ -129,9 +125,9 @@
 
 **Проблема:** При обработке 50+ файлов с автосжатием создаются дубликаты в отдельной папке.
 
-**Прогресс:** Значительно улучшено (c81dd50) — устранены Petri-цикл уведомлений, TOCTOU race condition, пропуски верификации.
+**Прогресс:** Значительно улучшено — последовательная обработка + дедупликация через WorkInfo + IGNORE_PERIOD 60с.
 
-**Файлы:** UriProcessingTracker.kt, ImageCompressionWorker.kt, ImageDetectionJobService.kt, MediaStoreObserver.kt, ExifUtil.kt
+**Файлы:** ImageProcessingUtil.kt, ImageDetectionJobService.kt, UriProcessingTracker.kt, ImageCompressionWorker.kt
 
 **Шаги:**
 1. Протестировать на 50+ файлах (burst-режим камеры)
