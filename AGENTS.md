@@ -101,11 +101,12 @@
 ## Current Focus (Июнь 2026)
 
 ### Последние изменения
-- ✅ **Исправлен уровень логирования "Файл уже сжат"** — `SequentialImageProcessor.kt:300`: штатный пропуск `LogUtil.error()` → `LogUtil.skipImage()` + `onCompressionSkipped()` вместо `onCompressionFailed()`. Устраняет ~76 ложных `[ОШИБКА]` при массовой обработке
-- ✅ **Тест 100 фото (burst-режим)** — 0 битых файлов, 0 ошибок, 99 верификаций пройдено, 0 дубликатов обработки. Экономия 75-80%. Подтверждена корректность последовательной обработки
-- ✅ **Последовательная обработка изображений** — `ImageProcessingUtil.kt` единая очередь `APPEND`, `ImageDetectionJobService.kt` последовательный цикл, дедупликация через `getWorkInfosByTag()`
-- ✅ **Исправление битых файлов при burst-режиме** (c81dd50) — IGNORE_PERIOD 60с, верификация целостности, TOCTOU fix, backoff для isPending
-- ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver
+- ✅ **Race condition в CompressionBatchTracker** (6f1d59f) — убран `extendAutoBatchTimeout()` из `getOrCreateAutoBatch()`. Сканирование и workers конкурентно вызывали `scheduleTimeout()` на `var timeoutJob` без синхронизации → старый таймаут не отменялся → батч финализировался преждевременно (7 из 49 результатов). Теперь только `addResult()` продлевает таймаут
+- ✅ **APPEND → APPEND_OR_REPLACE** (955bd87) — `ImageProcessingUtil.kt`: застрявшая цепочка WorkManager блокировала новые work'ы. `APPEND_OR_REPLACE` не прерывает running workers, только заменяет завершённые цепочки
+- ✅ **Idle timeout для автобатчей** (955bd87) — `CompressionBatchTracker.kt`: idle 20с после последнего `addResult()`, max lifetime 10 мин, `createdAt` вместо парсинга batchId
+- ✅ **cleanupStuckWorkManagerChain** (955bd87) — `MainActivity.kt`: очистка >50 застрявших works при запуске
+- ✅ **Исправлен уровень логирования "Файл уже сжат"** — `SequentialImageProcessor.kt:300`: `LogUtil.error()` → `LogUtil.skipImage()` + `onCompressionSkipped()`
+- ✅ **Handler → Coroutines** — CompressionBatchTracker, MediaStoreObserver
 
 ### Метрики проекта
 - Исходный код: 38 Kotlin файлов
@@ -125,6 +126,12 @@
 **Результат:** Тест 100 фото (burst-режим) — 0 дубликатов обработки, 0 битых файлов, 99 верификаций пройдено.
 
 **Что помогло:** Последовательная обработка + дедупликация через WorkInfo + IGNORE_PERIOD 60с.
+
+### ✅ Burst разбивается на несколько батчей (решено)
+
+**Результат:** Тест 49 фото — батч финализировался с 7 результатами вместо 49 из-за race condition.
+
+**Что помогло:** Убран `extendAutoBatchTimeout()` из `getOrCreateAutoBatch()` — только `addResult()` продлевает таймаут, устраняя конкуренцию между scanning thread и worker thread.
 
 ---
 
