@@ -298,8 +298,13 @@ class SequentialImageProcessor(
             }
 
             if (!result.first) {
-                LogUtil.error(uri, "Обработка", result.third)
-                listener?.onCompressionFailed(uri, result.third)
+                if (result.third == "Файл уже сжат") {
+                    LogUtil.skipImage(uri, result.third)
+                    listener?.onCompressionSkipped(uri, result.third)
+                } else {
+                    LogUtil.error(uri, "Обработка", result.third)
+                    listener?.onCompressionFailed(uri, result.third)
+                }
                 return@withContext null
             }
 
@@ -310,6 +315,29 @@ class SequentialImageProcessor(
             }
 
             val savedUri = result.second!!
+
+            // Верификация целостности сохранённого файла
+            val isValid = try {
+                val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(savedUri)?.use { inputStream ->
+                    android.graphics.BitmapFactory.decodeStream(inputStream, null, options)
+                    options.outWidth > 0 && options.outHeight > 0
+                } ?: false
+            } catch (e: Exception) {
+                LogUtil.error(savedUri, "Верификация", "Ошибка при проверке целостности", e)
+                false
+            }
+
+            if (!isValid) {
+                LogUtil.error(uri, "Верификация", "Сохранённый файл повреждён, удаляем: $savedUri")
+                try {
+                    context.contentResolver.delete(savedUri, null, null)
+                } catch (e: Exception) {
+                    LogUtil.error(savedUri, "Cleanup", "Не удалось удалить повреждённый файл", e)
+                }
+                listener?.onCompressionFailed(uri, "Файл повреждён после сжатия")
+                return@withContext null
+            }
             val originalSize = try {
                 UriUtil.getFileSize(context, uri)
             } catch (e: java.io.FileNotFoundException) {

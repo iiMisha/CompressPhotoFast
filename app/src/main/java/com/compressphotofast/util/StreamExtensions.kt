@@ -4,53 +4,26 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 /**
- * Кэшированные Field объекты для рефлексии ByteArrayOutputStream.
- * Инициализируются лениво при первом использовании.
- */
-private object StreamReflectionCache {
-    val bufField: java.lang.reflect.Field by lazy {
-        ByteArrayOutputStream::class.java.getDeclaredField("buf").apply {
-            isAccessible = true
-        }
-    }
-
-    val countField: java.lang.reflect.Field by lazy {
-        ByteArrayOutputStream::class.java.getDeclaredField("count").apply {
-            isAccessible = true
-        }
-    }
-}
-
-/**
- * Создаёт ByteArrayInputStream, который использует внутренний буфер ByteArrayOutputStream
- * напрямую через рефлексию, избегая лишнего копирования данных.
+ * Создаёт ByteArrayInputStream из содержимого ByteArrayOutputStream.
  *
- * Важно: после создания ByteArrayInputStream НЕ следует модифицировать исходный
- * ByteArrayOutputStream, так как это повлияет на InputStream.
+ * Использует безопасное копирование через toByteArray() вместо рефлексии.
+ * Это гарантирует, что InputStream владеет своей копией данных и не зависит
+ * от состояния исходного ByteArrayOutputStream.
+ *
+ * При массовой обработке изображений рефлексионный zero-copy подход приводил
+ * к повреждению данных из-за shared buffer mutation.
  *
  * Пример использования:
  * ```kotlin
  * val outputStream = ByteArrayOutputStream()
  * // ... записываем данные ...
  *
- * // ❌ Создаёт копию 2-10 MB
- * val inputStream1 = ByteArrayInputStream(outputStream.toByteArray())
- *
- * // ✅ Использует буфер напрямую через рефлексию
- * val inputStream2 = outputStream.toInputStream()
+ * val inputStream = outputStream.toInputStream()
+ * // inputStream владеет своей копией — безопасно даже после закрытия outputStream
  * ```
  *
- * @return ByteArrayInputStream, использующий тот же буфер памяти что и исходный ByteArrayOutputStream
+ * @return ByteArrayInputStream с независимой копией данных
  */
 fun ByteArrayOutputStream.toInputStream(): ByteArrayInputStream {
-    return try {
-        // Используем кэшированные Field объекты для оптимизации производительности
-        val buffer = StreamReflectionCache.bufField.get(this) as ByteArray
-        val count = StreamReflectionCache.countField.getInt(this)
-        ByteArrayInputStream(buffer, 0, count)
-    } catch (e: Exception) {
-        // Fallback на стандартный метод при ошибке рефлексии
-        // (например, если изменение API сделает поля недоступными)
-        ByteArrayInputStream(this.toByteArray())
-    }
+    return ByteArrayInputStream(this.toByteArray())
 }

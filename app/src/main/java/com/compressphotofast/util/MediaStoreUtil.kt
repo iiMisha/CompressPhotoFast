@@ -573,7 +573,20 @@ object MediaStoreUtil {
                     } ?: throw IOException("Не удалось открыть OutputStream")
                 }
 
-                // Сразу завершаем IS_PENDING состояние до обработки EXIF, чтобы файл стал доступен
+                // ВЕРИФИКАЦИЯ ЦЕЛОСТНОСТИ перед снятием IS_PENDING
+                // Повреждённый файл НЕ ДОЛЖЕН стать видимым в галерее
+                val isValid = verifyImageIntegrity(context, uri)
+                if (!isValid) {
+                    LogUtil.error(originalUri, "Сохранение", "КРИТИЧЕСКАЯ ОШИБКА: Записанный файл повреждён, удаляем из MediaStore: $uri")
+                    try {
+                        context.contentResolver.delete(uri, null, null)
+                    } catch (deleteEx: Exception) {
+                        LogUtil.error(uri, "Cleanup", "Не удалось удалить повреждённый файл из MediaStore", deleteEx)
+                    }
+                    return@withContext null
+                }
+
+                // Файл верифицирован — снимаем IS_PENDING, делая его видимым
                 clearIsPendingFlag(context, uri)
 
                 // Ждем, чтобы файл стал доступен в системе
@@ -601,6 +614,14 @@ object MediaStoreUtil {
                 return@withContext uri
             } catch (e: Exception) {
                 LogUtil.errorWithException("Запись данных изображения", e)
+                // При ошибке записи удаляем незавершённую запись из MediaStore
+                try {
+                    context.contentResolver.delete(uri, null, null)
+                    LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
+                } catch (deleteEx: Exception) {
+                    LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
+                }
+                return@withContext null
             }
 
             return@withContext uri
@@ -608,6 +629,36 @@ object MediaStoreUtil {
         } catch (e: Exception) {
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
             return@withContext null
+        }
+    }
+
+    /**
+     * Верифицирует целостность сохранённого изображения
+     * Использует BitmapFactory.decodeStream с inJustDecodeBounds=true для проверки
+     * что файл содержит валидное изображение (корректные заголовки JPEG/PNG)
+     *
+     * @param context Контекст приложения
+     * @param uri URI сохранённого файла
+     * @return true если изображение корректно декодируется, false если повреждено
+     */
+    private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                android.graphics.BitmapFactory.decodeStream(inputStream, null, options)
+                if (options.outWidth <= 0 || options.outHeight <= 0) {
+                    LogUtil.error(uri, "Верификация", "Файл не является корректным изображением: ${options.outWidth}x${options.outHeight}")
+                    return@withContext false
+                }
+                LogUtil.debug("Верификация", "Файл прошёл проверку целостности: ${options.outWidth}x${options.outHeight}")
+            } ?: run {
+                LogUtil.error(uri, "Верификация", "Не удалось открыть поток для проверки целостности")
+                return@withContext false
+            }
+            return@withContext true
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Верификация", "Ошибка при проверке целостности файла", e)
+            return@withContext false
         }
     }
 

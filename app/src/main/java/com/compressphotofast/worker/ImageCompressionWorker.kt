@@ -322,13 +322,20 @@ class ImageCompressionWorker @AssistedInject constructor(
                     uriProcessingTracker.setIgnorePeriod(imageUri)
                 }
 
-                if (FileOperationsUtil.isSaveModeReplace(appContext)) {
-                    val isSavedFileValid = verifySavedImageIntegrity(savedUri)
-                    if (!isSavedFileValid) {
-                        LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён! Отмена удаления оригинала")
-                        StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                        return@withContext Result.failure()
+                // Верификация целостности ВСЕГДА, не только в режиме замены
+                // Надёжность важнее скорости — повреждённый файл не должен попасть в галерею
+                val isSavedFileValid = verifySavedImageIntegrity(savedUri)
+                if (!isSavedFileValid) {
+                    LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён!")
+                    // Удаляем повреждённый файл из MediaStore
+                    try {
+                        appContext.contentResolver.delete(savedUri, null, null)
+                        LogUtil.error(imageUri, "Верификация", "Повреждённый файл удалён из MediaStore: $savedUri")
+                    } catch (e: Exception) {
+                        LogUtil.error(savedUri, "Верификация", "Не удалось удалить повреждённый файл", e)
                     }
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+                    return@withContext Result.failure()
                 }
 
                 // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового

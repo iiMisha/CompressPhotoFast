@@ -101,10 +101,9 @@
 ## Current Focus (Июнь 2026)
 
 ### Последние изменения
-- ✅ **Последовательная обработка изображений** — устранение повреждения файлов при массовой обработке:
-  - `ImageProcessingUtil.kt`: единая WorkManager очередь `"sequential_image_compression"` с `APPEND` вместо параллельных цепочек, добавлена дедупликация через `getWorkInfosByTag()`
-  - `ImageDetectionJobService.kt`: последовательный `for` цикл вместо `async`/`await` параллельных батчей (убран `maxConcurrentUris`, `import async`), добавлен `try/catch` на итерацию
-  - `app/build.gradle.kts`: формат таймстампа `HH:mm` → `HHmm` (исправлен illegal char на Windows)
+- ✅ **Исправлен уровень логирования "Файл уже сжат"** — `SequentialImageProcessor.kt:300`: штатный пропуск `LogUtil.error()` → `LogUtil.skipImage()` + `onCompressionSkipped()` вместо `onCompressionFailed()`. Устраняет ~76 ложных `[ОШИБКА]` при массовой обработке
+- ✅ **Тест 100 фото (burst-режим)** — 0 битых файлов, 0 ошибок, 99 верификаций пройдено, 0 дубликатов обработки. Экономия 75-80%. Подтверждена корректность последовательной обработки
+- ✅ **Последовательная обработка изображений** — `ImageProcessingUtil.kt` единая очередь `APPEND`, `ImageDetectionJobService.kt` последовательный цикл, дедупликация через `getWorkInfosByTag()`
 - ✅ **Исправление битых файлов при burst-режиме** (c81dd50) — IGNORE_PERIOD 60с, верификация целостности, TOCTOU fix, backoff для isPending
 - ✅ **Handler → Coroutines** - CompressionBatchTracker, MediaStoreObserver
 
@@ -121,17 +120,11 @@
 
 ## Known Issues
 
-### 🟡 Дубликаты при массовой обработке (в процессе исправления)
+### ✅ Дубликаты при массовой обработке (решено)
 
-**Проблема:** При обработке 50+ файлов с автосжатием создаются дубликаты в отдельной папке.
+**Результат:** Тест 100 фото (burst-режим) — 0 дубликатов обработки, 0 битых файлов, 99 верификаций пройдено.
 
-**Прогресс:** Значительно улучшено — последовательная обработка + дедупликация через WorkInfo + IGNORE_PERIOD 60с.
-
-**Файлы:** ImageProcessingUtil.kt, ImageDetectionJobService.kt, UriProcessingTracker.kt, ImageCompressionWorker.kt
-
-**Шаги:**
-1. Протестировать на 50+ файлах (burst-режим камеры)
-2. Если проблема сохраняется — добавить content-based дедупликацию
+**Что помогло:** Последовательная обработка + дедупликация через WorkInfo + IGNORE_PERIOD 60с.
 
 ---
 

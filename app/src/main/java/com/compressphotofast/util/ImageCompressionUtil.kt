@@ -289,7 +289,7 @@ object ImageCompressionUtil {
         context: Context,
         uri: Uri,
         quality: Int
-    ): ByteArrayOutputStream? = withTimeoutOrNull(60_000L) { // 60 секунд максимум
+    ): ByteArrayOutputStream? = withTimeoutOrNull(120_000L) { // 120 секунд — надёжность важнее скорости
         withContext(Dispatchers.IO) {
             var inputBitmap: Bitmap? = null
             var width = 0
@@ -403,6 +403,16 @@ object ImageCompressionUtil {
                     LogUtil.error(uri, "Сжатие", "ВАЛИДАЦИЯ НЕ ПРОШЛА: JPEG данные повреждены (decodeByteArray: ${validationOptions.outWidth}x${validationOptions.outHeight})")
                     return@withContext null
                 }
+
+                // Дополнительная проверка JPEG маркеров SOI/EOI
+                if (compressedBytes.size >= 2) {
+                    val hasSOI = compressedBytes[0] == 0xFF.toByte() && compressedBytes[1] == 0xD8.toByte()
+                    val hasEOI = compressedBytes[compressedBytes.size - 2] == 0xFF.toByte() && compressedBytes[compressedBytes.size - 1] == 0xD9.toByte()
+                    if (!hasSOI || !hasEOI) {
+                        LogUtil.error(uri, "Сжатие", "ВАЛИДАЦИЯ НЕ ПРОШЛА: JPEG маркеры повреждены (SOI=$hasSOI, EOI=$hasEOI)")
+                        return@withContext null
+                    }
+                }
                 LogUtil.debug("Сжатие", "Валидация JPEG прошла: ${validationOptions.outWidth}x${validationOptions.outHeight}")
 
                 return@withContext outputStream
@@ -453,7 +463,7 @@ object ImageCompressionUtil {
         }
     } ?: run {
         // Логируем таймаут отдельно для лучшей диагностики
-        LogUtil.error(uri, "Сжатие в поток", "Таймаут операции сжатия (60 секунд) - возможно изображение слишком большое или повреждено")
+        LogUtil.error(uri, "Сжатие в поток", "Таймаут операции сжатия (120 секунд) - возможно изображение слишком большое или повреждено")
         null
     }
     

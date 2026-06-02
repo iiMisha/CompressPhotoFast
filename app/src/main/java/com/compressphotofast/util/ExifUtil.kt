@@ -870,33 +870,54 @@ object ExifUtil {
 
                     if (!verifyImageIntegrity(context, uri)) {
                         LogUtil.error(uri, "EXIF верификация", "Файл повреждён после saveAttributes(), восстанавливаем из backup")
-                        if (backupFile.exists()) {
+                        if (backupFile.exists() && backupFile.length() > 0) {
                             try {
-                                context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
-                                    backupFile.inputStream().use { input ->
-                                        input.copyTo(output)
+                                // openOutputStream("wt") не работает надёжно на Android 12+
+                                // Используем ParcelFileDescriptor "rwt" для надёжной перезаписи
+                                context.contentResolver.openFileDescriptor(uri, "rwt")?.use { pfd ->
+                                    FileOutputStream(pfd.fileDescriptor).use { output ->
+                                        backupFile.inputStream().use { input ->
+                                            input.copyTo(output)
+                                        }
+                                        output.flush()
                                     }
                                 }
-                                LogUtil.processInfo("Файл восстановлен из backup после повреждения saveAttributes()")
+                                // Верифицируем что restore прошёл успешно
+                                if (verifyImageIntegrity(context, uri)) {
+                                    LogUtil.processInfo("✅ Файл успешно восстановлен из backup после повреждения saveAttributes()")
+                                } else {
+                                    LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым даже после восстановления из backup")
+                                }
                             } catch (restoreError: Exception) {
                                 LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
                             }
+                        } else {
+                            LogUtil.error(uri, "EXIF restore", "Backup файл отсутствует или пуст, восстановление невозможно")
                         }
                         return@withContext false
                     }
                 } catch (e: Exception) {
                     LogUtil.error(uri, "EXIF save", "saveAttributes() упал, восстанавливаем файл из backup", e)
-                    if (backupFile.exists()) {
+                    if (backupFile.exists() && backupFile.length() > 0) {
                         try {
-                            context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
-                                backupFile.inputStream().use { input ->
-                                    input.copyTo(output)
+                            context.contentResolver.openFileDescriptor(uri, "rwt")?.use { pfd ->
+                                FileOutputStream(pfd.fileDescriptor).use { output ->
+                                    backupFile.inputStream().use { input ->
+                                        input.copyTo(output)
+                                    }
+                                    output.flush()
                                 }
                             }
-                            LogUtil.processInfo("Файл восстановлен из backup после ошибки saveAttributes()")
+                            if (verifyImageIntegrity(context, uri)) {
+                                LogUtil.processInfo("✅ Файл успешно восстановлен из backup после ошибки saveAttributes()")
+                            } else {
+                                LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым после restore")
+                            }
                         } catch (restoreError: Exception) {
                             LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
                         }
+                    } else {
+                        LogUtil.error(uri, "EXIF restore", "Backup файл отсутствует или пуст")
                     }
                     throw e
                 } finally {
