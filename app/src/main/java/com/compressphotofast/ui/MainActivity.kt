@@ -330,6 +330,9 @@ class MainActivity : AppCompatActivity() {
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
         
+        // Очистка застрявших works от предыдущей сессии
+        cleanupStuckWorkManagerChain()
+        
         // Запрашиваем разрешения только если это не Share интент
         if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_SEND_MULTIPLE) {
             checkAndRequestPermissions()
@@ -342,6 +345,31 @@ class MainActivity : AppCompatActivity() {
             viewModel.stopBatchProcessing()
         }
         handleIntent(intent)
+    }
+    
+    /**
+     * Очищает застрявшие works из цепочки sequential_image_compression
+     * при запуске приложения. Защищает от блокировки цепочки из-за
+     * killed-сессии (work остаётся в RUNNING/ENQUEUED).
+     */
+    private fun cleanupStuckWorkManagerChain() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val workManager = androidx.work.WorkManager.getInstance(this@MainActivity)
+                val workInfos = workManager.getWorkInfosForUniqueWork("sequential_image_compression").get()
+                val stuckCount = workInfos.count {
+                    it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
+                }
+                if (stuckCount > 50) {
+                    LogUtil.processDebug("Очистка $stuckCount застрявших works при запуске (из ${workInfos.size} всего)")
+                    workManager.cancelUniqueWork("sequential_image_compression")
+                } else if (stuckCount > 0) {
+                    LogUtil.processDebug("WorkManager: $stuckCount активных works (норма)")
+                }
+            } catch (e: Exception) {
+                LogUtil.processDebug("WorkManager: ошибка при очистке: ${e.message}")
+            }
+        }
     }
     
     /**

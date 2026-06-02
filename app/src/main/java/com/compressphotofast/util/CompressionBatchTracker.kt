@@ -143,8 +143,10 @@ class CompressionBatchTracker @Inject constructor(
     // Singleton coroutine scope для батч-операций (используем Default вместо Main для избежания блокировки UI)
     private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // Константы для автобатчей
-    private val AUTO_BATCH_TIMEOUT_MS = 30000L // 30 секунд для завершения автобатча
+    // Константы таймаутов
+    private val AUTO_BATCH_IDLE_TIMEOUT_MS = 20000L    // 20 сек idle после последнего addResult()
+    private val AUTO_BATCH_MAX_LIFETIME_MS = 600000L   // 10 мин максимальное время жизни автобатча
+    private val INTENT_BATCH_TIMEOUT_MS = 30000L       // 30 сек таймаут безопасности для Intent-батчей
     private val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
 
     /**
@@ -167,7 +169,8 @@ class CompressionBatchTracker @Inject constructor(
         val expectedCount: Int?, // Если null - автобатч, количество неизвестно
         val isIntentBatch: Boolean,
         var results: MutableList<CompressionResult> = mutableListOf(),
-        var timeoutJob: Job? = null
+        var timeoutJob: Job? = null,
+        val createdAt: Long = System.currentTimeMillis()
     ) {
         fun isComplete(): Boolean {
             return if (expectedCount != null) {
@@ -193,8 +196,8 @@ class CompressionBatchTracker @Inject constructor(
         batches[batchId] = batch
         LogUtil.processDebug("Создан Intent батч: $batchId, ожидается файлов: $expectedCount")
 
-        // Устанавливаем таймаут безопасности для Intent батчей (30 секунд)
-        scheduleTimeout(batchId, 30000L)
+        // Устанавливаем таймаут безопасности для Intent батчей
+        scheduleTimeout(batchId, INTENT_BATCH_TIMEOUT_MS)
 
         cleanupOldBatches()
         return batchId
@@ -204,9 +207,10 @@ class CompressionBatchTracker @Inject constructor(
      * Получает или создает автобатч для автоматического сжатия
      */
     fun getOrCreateAutoBatch(): String {
-        // Ищем активный автобатч
+        // Ищем активный автобатч, не превышший максимальное время жизни
         val activeBatch = batches.values.find {
-            !it.isIntentBatch && System.currentTimeMillis() - getBatchTimestamp(it.batchId) < AUTO_BATCH_TIMEOUT_MS
+            !it.isIntentBatch &&
+            (System.currentTimeMillis() - it.createdAt) < AUTO_BATCH_MAX_LIFETIME_MS
         }
 
         if (activeBatch != null) {
@@ -228,7 +232,7 @@ class CompressionBatchTracker @Inject constructor(
         batches[batchId] = batch
         LogUtil.processDebug("Создан автобатч: $batchId")
 
-        scheduleTimeout(batchId, AUTO_BATCH_TIMEOUT_MS)
+        scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
         cleanupOldBatches()
         return batchId
     }
@@ -262,9 +266,19 @@ class CompressionBatchTracker @Inject constructor(
         // Проверяем, завершен ли батч
         if (batch.isComplete()) {
             processBatch(batchId)
+            return
         }
-        // Для автобатчей НЕ продлеваем таймаут при добавлении результатов
-        // Автобатчи завершаются только по исходному таймауту (30 секунд)
+
+        // Для автобатчей продлеваем таймаут при каждом добавлении результата
+        // Это гарантирует, что батч дождётся завершения всех Worker'ов
+        if (batch.expectedCount == null) {
+            val lifetime = System.currentTimeMillis() - batch.createdAt
+            if (lifetime < AUTO_BATCH_MAX_LIFETIME_MS) {
+                scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
+            }
+            // Если превысил максимальное время жизни — таймаут не продлевается,
+            // батч будет финализирован по текущему таймауту
+        }
     }
 
     /**
@@ -456,18 +470,7 @@ class CompressionBatchTracker @Inject constructor(
      * Продлевает таймаут автобатча
      */
     private fun extendAutoBatchTimeout(batchId: String) {
-        scheduleTimeout(batchId, AUTO_BATCH_TIMEOUT_MS)
-    }
-
-    /**
-     * Извлекает временную метку из ID батча
-     */
-    private fun getBatchTimestamp(batchId: String): Long {
-        return try {
-            batchId.substringAfterLast("_").toLong()
-        } catch (e: Exception) {
-            0L
-        }
+        scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
     }
 
     /**
@@ -477,8 +480,8 @@ class CompressionBatchTracker @Inject constructor(
         if (batches.size <= MAX_BATCHES) return
 
         val now = System.currentTimeMillis()
-        val oldBatches = batches.entries.filter { (batchId, batch) ->
-            val age = now - getBatchTimestamp(batchId)
+        val oldBatches = batches.entries.filter { (_, batch) ->
+            val age = now - batch.createdAt
             age > 300000L // 5 минут
         }
 

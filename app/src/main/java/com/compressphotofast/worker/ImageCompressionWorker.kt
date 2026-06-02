@@ -80,6 +80,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val batchId = inputData.getString(Constants.WORK_BATCH_ID)
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        LogUtil.processDebug("ImageCompressionWorker.doWork() НАЧАЛО: ${inputData.getString(Constants.WORK_INPUT_IMAGE_URI)}")
         var testResult: ImageCompressionUtil.CompressionTestResult? = null
         try {
             // Получаем параметры задачи

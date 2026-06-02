@@ -106,11 +106,12 @@ object ImageProcessingUtil {
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(
                         "sequential_image_compression",
-                        ExistingWorkPolicy.APPEND,
+                        ExistingWorkPolicy.APPEND_OR_REPLACE,
                         compressionWorkRequest
                     )
 
                 LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri в последовательной очереди${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
+
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки (с синхронизацией)
