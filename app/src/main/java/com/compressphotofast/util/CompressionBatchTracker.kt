@@ -214,8 +214,6 @@ class CompressionBatchTracker @Inject constructor(
         }
 
         if (activeBatch != null) {
-            // Продлеваем таймаут существующего автобатча
-            extendAutoBatchTimeout(activeBatch.batchId)
             LogUtil.processDebug("Используется существующий автобатч: ${activeBatch.batchId}")
             return activeBatch.batchId
         }
@@ -464,13 +462,6 @@ class CompressionBatchTracker @Inject constructor(
         }
 
         batch.timeoutJob = timeoutJob
-    }
-
-    /**
-     * Продлевает таймаут автобатча
-     */
-    private fun extendAutoBatchTimeout(batchId: String) {
-        scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
     }
 
     /**
