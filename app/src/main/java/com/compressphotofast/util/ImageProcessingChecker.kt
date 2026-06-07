@@ -241,21 +241,20 @@ object ImageProcessingChecker {
             val fileSize = UriUtil.getFileSize(context, uri)
             val modificationTimestamp = UriUtil.getFileLastModified(context, uri)
             
-            // Проверяем кэшированные EXIF данные сначала
-            val cachedExifData = OptimizedCacheUtil.getCachedExifData(uri, modificationTimestamp)
-            val (isCompressed, quality, compressionTimestamp) = if (cachedExifData != null) {
-                PerformanceMonitor.recordCacheHit("EXIF")
-                Triple(cachedExifData.isCompressed, cachedExifData.quality, cachedExifData.compressionTimestamp)
-            } else {
+            // Атомарное чтение/вычисление EXIF-данных с double-check locking
+            val exifData = OptimizedCacheUtil.getOrComputeExifData(uri, modificationTimestamp) {
                 PerformanceMonitor.recordCacheMiss("EXIF")
-                // Выполняем EXIF запрос с измерением времени
                 PerformanceMonitor.measureExifCheck {
                     val exifResult = ExifUtil.getCompressionMarker(context, uri)
-                    // Кэшируем результат
-                    OptimizedCacheUtil.cacheExifData(uri, exifResult.first, exifResult.second, exifResult.third, modificationTimestamp)
-                    exifResult
+                    OptimizedCacheUtil.CachedExifData(exifResult.first, exifResult.second, exifResult.third, modificationTimestamp)
                 }
             }
+            if (exifData != null) {
+                PerformanceMonitor.recordCacheHit("EXIF")
+            }
+            val isCompressed = exifData?.isCompressed ?: false
+            val quality = exifData?.quality ?: -1
+            val compressionTimestamp = exifData?.compressionTimestamp ?: 0L
             
             // Дополнительная проверка: если файл был изменен после кэширования EXIF, используем свежие данные
             result.hasCompressionMarker = isCompressed

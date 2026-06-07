@@ -65,6 +65,12 @@ class MediaStoreObserver @Inject constructor(
                     return
                 }
 
+                // Пропускаем URI, которые сейчас обрабатываются приложением
+                if (uriProcessingTracker.isProcessing(it)) {
+                    LogUtil.processDebug("MediaStoreObserver: URI $it пропущен, так как сейчас обрабатывается приложением.")
+                    return
+                }
+
                 // Проверяем, что это новое изображение с базовой фильтрацией
                 if (it.toString().contains("media") && it.toString().contains("image")) {
                     // Проверяем, не является ли файл переименованным оригиналом (с суффиксом _original)

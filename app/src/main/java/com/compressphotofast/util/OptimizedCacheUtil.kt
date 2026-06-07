@@ -169,41 +169,18 @@ object OptimizedCacheUtil {
     }
 
     /**
-     * Кэширует EXIF-данные для быстрого доступа
+     * Получает кэшированные EXIF-данные или вычисляет их с использованием double-check паттерна.
+     * Поддерживает suspend-функции в compute-лямбде.
+     * Lock освобождается перед вычислением для совместимости с корутинами.
      */
-    fun cacheExifData(
-        uri: Uri, 
-        isCompressed: Boolean, 
-        quality: Int, 
-        compressionTimestamp: Long,
-        fileModificationTime: Long
-    ) {
-        val cacheKey = uri.toString()
-        val exifData = CachedExifData(
-            isCompressed, 
-            quality, 
-            compressionTimestamp,
-            fileModificationTime
-        )
-        
-        exifCacheLock.write {
-            exifCache.put(cacheKey, exifData)
-        }
-        
-        LogUtil.processDebug("EXIF-данные закэшированы для $uri")
-    }
-
-    /**
-     * Получает кэшированные EXIF-данные или вычисляет их с использованием double-check locking.
-     * Это предотвращает одновременное вычисление EXIF для одного и того же URI в разных потоках.
-     */
-    fun getOrComputeExifData(
+    suspend fun getOrComputeExifData(
         uri: Uri,
         currentModificationTime: Long,
-        compute: () -> CachedExifData
+        compute: suspend () -> CachedExifData
     ): CachedExifData? {
         val cacheKey = uri.toString()
 
+        // Fast path: проверяем кэш с read lock
         exifCacheLock.read {
             val cached = exifCache.get(cacheKey)
             if (cached != null && !cached.isExpired()) {
@@ -213,26 +190,26 @@ object OptimizedCacheUtil {
             }
         }
 
-        // Если мы здесь, кэша нет или он устарел.
+        // Slow path: вычисляем БЕЗ удержания lock (поддерживает suspend)
+        val computed = try {
+            compute()
+        } catch (e: Exception) {
+            LogUtil.error(uri, "CacheUtil", "Ошибка при вычислении EXIF-данных", e)
+            return null
+        }
+
+        // Сохраняем с write lock, double-check перед записью
         exifCacheLock.write {
-            // Double-check после получения write lock
             val cached = exifCache.get(cacheKey)
             if (cached != null && !cached.isExpired()) {
                 if (currentModificationTime == 0L || !cached.isStaleFor(currentModificationTime)) {
                     return cached
                 }
             }
-
-            // Вычисляем значение
-            return try {
-                val computed = compute()
-                exifCache.put(cacheKey, computed)
-                computed
-            } catch (e: Exception) {
-                LogUtil.error(uri, "CacheUtil", "Ошибка при вычислении EXIF-данных", e)
-                null
-            }
+            exifCache.put(cacheKey, computed)
         }
+
+        return computed
     }
 
     /**
