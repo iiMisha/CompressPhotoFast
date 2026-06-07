@@ -34,15 +34,14 @@ object TempFilesCleaner {
                                     file.name.endsWith(".jpg") ||
                                     file.name.endsWith(".jpeg")
                     
-                    // Проверяем, что файл достаточно старый или имеет нулевой размер
-                    val isOldOrEmpty = (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE) || 
-                                       file.length() == 0L
+                    // Проверяем, что файл достаточно старый
+                    val isOld = (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
                     
                     // Не удаляем файл, если он используется в текущем процессе
                     val isCurrentlyInUse = currentTempFile != null && 
                                          file.name.contains(currentTempFile as CharSequence)
                     
-                    isTempFile && (isOldOrEmpty || !isCurrentlyInUse)
+                    isTempFile && (isOld || (!isCurrentlyInUse && file.length() == 0L && currentTime - file.lastModified() > 60_000L))
                 }
                 
                 var deletedCount = 0

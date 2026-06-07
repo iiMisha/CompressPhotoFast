@@ -200,7 +200,11 @@ class MediaStoreObserver @Inject constructor(
             } catch (e: Exception) {
                 LogUtil.error(uri, "MediaStoreObserver", "Ошибка при первичной проверке существования", e)
             }
-            pendingTasks.remove(uriString)
+            // Удаляем только если задача не была перезаписана новым onChange
+            val job = pendingTasks[uriString]
+            if (job == null || job.isCompleted) {
+                pendingTasks.remove(uriString)
+            }
         }
     }
     
