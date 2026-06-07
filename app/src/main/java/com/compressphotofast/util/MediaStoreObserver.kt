@@ -146,10 +146,8 @@ class MediaStoreObserver @Inject constructor(
         // Проверяем is_pending перед проверкой существования
         val isPending = UriUtil.isFilePending(context, uri)
         if (isPending) {
-            val currentRetries = retryCounts.getOrDefault(uriString, 0)
-            if (currentRetries < maxRetries) {
-                val nextRetry = currentRetries + 1
-                retryCounts[uriString] = nextRetry
+            val nextRetry = retryCounts.compute(uriString) { _, current -> (current ?: 0) + 1 } ?: 1
+            if (nextRetry <= maxRetries) {
                 // Экспоненциальный backoff: 1с, 2с, 4с, 8с
                 val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
                 LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
@@ -183,10 +181,8 @@ class MediaStoreObserver @Inject constructor(
                 }
             } catch (e: PendingItemException) {
                 // Файл физически есть, но доступен только владельцу (is_pending=1 в другом смысле)
-                val currentRetries = retryCounts.getOrDefault(uriString, 0)
-                if (currentRetries < maxRetries) {
-                    val nextRetry = currentRetries + 1
-                    retryCounts[uriString] = nextRetry
+                val nextRetry = retryCounts.compute(uriString) { _, current -> (current ?: 0) + 1 } ?: 1
+                if (nextRetry <= maxRetries) {
                     // Экспоненциальный backoff: 1с, 2с, 4с, 8с
                     val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
                     LogUtil.processDebug("MediaStoreObserver: обнаружен PendingItemException (Only owner), планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")

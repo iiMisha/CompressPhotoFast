@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -168,7 +169,7 @@ class CompressionBatchTracker @Inject constructor(
         val batchId: String,
         val expectedCount: Int?, // Если null - автобатч, количество неизвестно
         val isIntentBatch: Boolean,
-        var results: MutableList<CompressionResult> = mutableListOf(),
+        var results: MutableList<CompressionResult> = Collections.synchronizedList(mutableListOf()),
         var timeoutJob: Job? = null,
         val createdAt: Long = System.currentTimeMillis()
     ) {
@@ -249,33 +250,35 @@ class CompressionBatchTracker @Inject constructor(
     ) {
         val batch = batches[batchId] ?: return
         
-        val result = CompressionResult(
-            fileName = fileName,
-            originalSize = originalSize,
-            compressedSize = compressedSize,
-            sizeReduction = sizeReduction,
-            skipped = skipped,
-            skipReason = skipReason
-        )
-        
-        batch.results.add(result)
-        LogUtil.processDebug("Добавлен результат в батч $batchId: $fileName (${batch.results.size}${if (batch.expectedCount != null) "/${batch.expectedCount}" else ""})")
-        
-        // Проверяем, завершен ли батч
-        if (batch.isComplete()) {
-            processBatch(batchId)
-            return
-        }
-
-        // Для автобатчей продлеваем таймаут при каждом добавлении результата
-        // Это гарантирует, что батч дождётся завершения всех Worker'ов
-        if (batch.expectedCount == null) {
-            val lifetime = System.currentTimeMillis() - batch.createdAt
-            if (lifetime < AUTO_BATCH_MAX_LIFETIME_MS) {
-                scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
+        synchronized(batch) {
+            val result = CompressionResult(
+                fileName = fileName,
+                originalSize = originalSize,
+                compressedSize = compressedSize,
+                sizeReduction = sizeReduction,
+                skipped = skipped,
+                skipReason = skipReason
+            )
+            
+            batch.results.add(result)
+            LogUtil.processDebug("Добавлен результат в батч $batchId: $fileName (${batch.results.size}${if (batch.expectedCount != null) "/${batch.expectedCount}" else ""})")
+            
+            // Проверяем, завершен ли батч
+            if (batch.isComplete()) {
+                processBatch(batchId)
+                return
             }
-            // Если превысил максимальное время жизни — таймаут не продлевается,
-            // батч будет финализирован по текущему таймауту
+
+            // Для автобатчей продлеваем таймаут при каждом добавлении результата
+            // Это гарантирует, что батч дождётся завершения всех Worker'ов
+            if (batch.expectedCount == null) {
+                val lifetime = System.currentTimeMillis() - batch.createdAt
+                if (lifetime < AUTO_BATCH_MAX_LIFETIME_MS) {
+                    scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
+                }
+                // Если превысил максимальное время жизни — таймаут не продлевается,
+                // батч будет финализирован по текущему таймауту
+            }
         }
     }
 
@@ -452,16 +455,18 @@ class CompressionBatchTracker @Inject constructor(
     private fun scheduleTimeout(batchId: String, timeoutMs: Long) {
         val batch = batches[batchId] ?: return
 
-        // Отменяем предыдущий таймаут
-        batch.timeoutJob?.cancel()
+        synchronized(batch) {
+            // Отменяем предыдущий таймаут
+            batch.timeoutJob?.cancel()
 
-        val timeoutJob = mainScope.launch {
-            delay(timeoutMs)
-            LogUtil.processDebug("Истек таймаут для батча: $batchId")
-            processBatch(batchId)
+            val timeoutJob = mainScope.launch {
+                delay(timeoutMs)
+                LogUtil.processDebug("Истек таймаут для батча: $batchId")
+                processBatch(batchId)
+            }
+
+            batch.timeoutJob = timeoutJob
         }
-
-        batch.timeoutJob = timeoutJob
     }
 
     /**

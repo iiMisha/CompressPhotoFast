@@ -18,10 +18,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
  * ОПТИМИЗИРОВАНО: Использует Mutex вместо busy wait для эффективной синхронизации
  * HILT-MANAGED: Управляется через Hilt для корректного внедрения зависимостей
  */
-@Singleton
-class UriProcessingTracker @Inject constructor(
+class UriProcessingTracker private constructor(
     @ApplicationContext private val context: Context
 ) {
+
+    init {
+        fallbackInstance = this
+    }
 
     // Множество URI, которые в данный момент обрабатываются
     private val processingUris = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
@@ -39,6 +42,7 @@ class UriProcessingTracker @Inject constructor(
     private val ignoreUrisUntil = ConcurrentHashMap<String, Long>()
 
     // Время последней очистки recentlyProcessedUris
+    @Volatile
     private var lastCleanupTime = System.currentTimeMillis()
 
     // Интервал очистки (1 час)

@@ -82,6 +82,9 @@ class ImageCompressionWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         LogUtil.processDebug("ImageCompressionWorker.doWork() НАЧАЛО: ${inputData.getString(Constants.WORK_INPUT_IMAGE_URI)}")
         var testResult: ImageCompressionUtil.CompressionTestResult? = null
+        var isLockOwner = false
+        val uriStringInput = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
+        val globalImageUri = if (uriStringInput != null) Uri.parse(uriStringInput) else null
         try {
             // Получаем параметры задачи
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
@@ -173,6 +176,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // ЗАЩИТА ОТ ДВОЙНОЙ ОБРАБОТКИ: если URI уже обрабатывается другим путём
             // (SequentialImageProcessor или другой Worker), прекращаем работу
             val addedToProcessing = uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
+            isLockOwner = addedToProcessing
             if (!addedToProcessing) {
                 LogUtil.processDebug("URI уже обрабатывается другим потоком, пропускаем Worker: $imageUri")
                 return@withContext Result.success() // success чтобы не блокировать цепочку WorkManager
@@ -350,9 +354,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 var deleteFailed = false
                 var deleteErrorMessage: String? = null
                 if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
-                    // Добавляем URI в отслеживание обработки для предотвращения race condition
-                    uriProcessingTracker.addProcessingUriSafe(imageUri, "delete_operation")
-
                     try {
                         if (UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                             val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
@@ -366,13 +367,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                         LogUtil.error(imageUri, "Удаление", "Ошибка при удалении оригинального файла", e)
                         deleteFailed = true
                         deleteErrorMessage = e.message
-                    } finally {
-                        // Всегда удаляем URI из отслеживания после попытки удаления
-                        uriProcessingTracker.removeProcessingUriSafe(imageUri)
                     }
-                } else {
-                    // Если удаление не требуется, всё равно удаляем URI из обработки
-                    uriProcessingTracker.removeProcessingUriSafe(imageUri)
                 }
 
                 // Если удаление не удалось, возвращаем failure вместо success
@@ -425,9 +420,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Обновляем статус и возвращаем успех
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
 
-                // Добавляем URI в недавно обработанные (уже удален из обработки выше)
-                uriProcessingTracker.addRecentlyProcessedUri(imageUri)
-
                 return@withContext Result.success()
             } else {
                 // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
@@ -474,9 +466,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Обновляем статус и возвращаем успех с пропуском
                 StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
 
-                uriProcessingTracker.removeProcessingUriSafe(imageUri)
-                uriProcessingTracker.addRecentlyProcessedUri(imageUri)
-
                 return@withContext Result.success()
             }
         } catch (e: Exception) {
@@ -494,13 +483,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (uriString != null) {
                 val uri = Uri.parse(uriString)
                 StatsTracker.updateStatus(uri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                
-                // Удаляем URI из обрабатываемых в случае ошибки (с синхронизацией)
-                uriProcessingTracker.removeProcessingUriSafe(uri)
             }
             
             return@withContext Result.failure()
         } finally {
+            if (isLockOwner && globalImageUri != null) {
+                uriProcessingTracker.removeProcessingUriSafe(globalImageUri)
+                uriProcessingTracker.addRecentlyProcessedUri(globalImageUri)
+            }
             testResult?.compressedStream?.close()
             // Помогаем GC: поток будет собран после закрытия
             testResult?.let { result ->

@@ -194,6 +194,48 @@ object OptimizedCacheUtil {
     }
 
     /**
+     * Получает кэшированные EXIF-данные или вычисляет их с использованием double-check locking.
+     * Это предотвращает одновременное вычисление EXIF для одного и того же URI в разных потоках.
+     */
+    fun getOrComputeExifData(
+        uri: Uri,
+        currentModificationTime: Long,
+        compute: () -> CachedExifData
+    ): CachedExifData? {
+        val cacheKey = uri.toString()
+
+        exifCacheLock.read {
+            val cached = exifCache.get(cacheKey)
+            if (cached != null && !cached.isExpired()) {
+                if (currentModificationTime == 0L || !cached.isStaleFor(currentModificationTime)) {
+                    return cached
+                }
+            }
+        }
+
+        // Если мы здесь, кэша нет или он устарел.
+        exifCacheLock.write {
+            // Double-check после получения write lock
+            val cached = exifCache.get(cacheKey)
+            if (cached != null && !cached.isExpired()) {
+                if (currentModificationTime == 0L || !cached.isStaleFor(currentModificationTime)) {
+                    return cached
+                }
+            }
+
+            // Вычисляем значение
+            return try {
+                val computed = compute()
+                exifCache.put(cacheKey, computed)
+                computed
+            } catch (e: Exception) {
+                LogUtil.error(uri, "CacheUtil", "Ошибка при вычислении EXIF-данных", e)
+                null
+            }
+        }
+    }
+
+    /**
      * Получает кэшированные EXIF-данные
      * Улучшенная версия с инвалидацией при изменении файла
      */

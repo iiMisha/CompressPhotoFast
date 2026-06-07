@@ -80,4 +80,13 @@ object AppModule {
     fun provideSettingsDataStore(@ApplicationContext context: Context): SettingsDataStore {
         return SettingsDataStore(context)
     }
+
+    /**
+     * Предоставляет синглтон экземпляр UriProcessingTracker
+     */
+    @Provides
+    @Singleton
+    fun provideUriProcessingTracker(@ApplicationContext context: Context): com.compressphotofast.util.UriProcessingTracker {
+        return com.compressphotofast.util.UriProcessingTracker.getInstance(context)
+    }
 }

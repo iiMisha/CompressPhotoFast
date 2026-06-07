@@ -112,6 +112,7 @@ object ImageProcessingUtil {
 
                 LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri в последовательной очереди${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
 
+                UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки (с синхронизацией)

@@ -4,6 +4,8 @@ import com.compressphotofast.BaseUnitTest
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -323,7 +325,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Автобатч продлевается при каждом addResult и остаётся активным`() {
+    fun `Автобатч продлевается при каждом addResult и остаётся активным`() = runTest {
         val batchId = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
         // Добавляем 5 результатов с интервалом
@@ -336,7 +338,8 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
                 sizeReduction = 50.0f,
                 skipped = false
             )
-            Thread.sleep(50)
+            advanceTimeBy(50)
+            runCurrent()
         }
 
         // Автобатч должен оставаться активным, так как таймаут продлевается при каждом addResult
@@ -344,7 +347,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Автобатч финализируется по idle таймауту после последнего addResult`() {
+    fun `Автобатч финализируется по idle таймауту после последнего addResult`() = runTest {
         val tracker = CompressionBatchTracker(mockContext)
         val batchId = CompressionBatchTracker.getOrCreateAutoBatchCompat(mockContext)
 
@@ -370,7 +373,8 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         assert(CompressionBatchTracker.getActiveBatchCountCompat() == 1) { "Автобатч должен быть активен сразу после addResult" }
 
         // Ждём idle таймаут (20 сек) + запас
-        Thread.sleep(21000)
+        advanceTimeBy(21000)
+        runCurrent()
 
         // После idle таймаута батч должен быть финализирован
         assert(CompressionBatchTracker.getActiveBatchCountCompat() == 0) { "Автобатч должен быть финализирован после idle таймаута" }

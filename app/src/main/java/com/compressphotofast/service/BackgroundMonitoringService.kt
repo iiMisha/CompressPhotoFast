@@ -64,6 +64,9 @@ class BackgroundMonitoringService : Service() {
     // Job для периодической очистки временных файлов
     private var cleanupJob: Job? = null
 
+    // Mutex для предотвращения конкурентного сканирования
+    private val scanMutex = kotlinx.coroutines.sync.Mutex()
+
     /**
      * Безопасный запуск корутины в scope сервиса
      * Проверяет состояние сервиса перед запуском и обрабатывает исключения
@@ -290,26 +293,34 @@ class BackgroundMonitoringService : Service() {
      */
     private fun scanForNewImages() {
         serviceScope.launch {
-            // Периодически проверяем недоступные URI и восстанавливаем их
+            if (!scanMutex.tryLock()) {
+                LogUtil.processDebug("Сканирование уже выполняется, пропуск")
+                return@launch
+            }
             try {
-                uriProcessingTracker.retryUnavailableUris()
-            } catch (e: Exception) {
-                LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
-            }
-
-            // Используем централизованную логику сканирования
-            val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
-
-            // Обрабатываем найденные изображения
-            scanResult.foundUris.forEach { uri ->
-                // Проверяем состояние автоматического сжатия еще раз перед началом обработки
-                if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
-                    processNewImage(uri)
+                // Периодически проверяем недоступные URI и восстанавливаем их
+                try {
+                    uriProcessingTracker.retryUnavailableUris()
+                } catch (e: Exception) {
+                    LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
                 }
-            }
 
-            // Выводим автоматический отчет о производительности
-            PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
+                // Используем централизованную логику сканирования
+                val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
+
+                // Обрабатываем найденные изображения
+                scanResult.foundUris.forEach { uri ->
+                    // Проверяем состояние автоматического сжатия еще раз перед началом обработки
+                    if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+                        processNewImage(uri)
+                    }
+                }
+
+                // Выводим автоматический отчет о производительности
+                PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
+            } finally {
+                scanMutex.unlock()
+            }
         }
     }
     
@@ -352,16 +363,24 @@ class BackgroundMonitoringService : Service() {
      * Сканирует галерею для поиска необработанных изображений
      */
     private suspend fun scanGalleryForUnprocessedImages() = withContext(Dispatchers.IO) {
-        // Используем централизованную логику сканирования за историю (по умолчанию 48 часов)
-        val scanResult = GalleryScanUtil.scanHistoryImages(applicationContext)
-        
-        // Обрабатываем найденные изображения
-        scanResult.foundUris.forEach { uri ->
-            processNewImage(uri)
+        if (!scanMutex.tryLock()) {
+            LogUtil.processDebug("Сканирование уже выполняется, пропуск")
+            return@withContext
         }
-        
-        // Выводим автоматический отчет о производительности
-        PerformanceMonitor.autoReportIfNeeded(applicationContext)
+        try {
+            // Используем централизованную логику сканирования за историю (по умолчанию 48 часов)
+            val scanResult = GalleryScanUtil.scanHistoryImages(applicationContext)
+            
+            // Обрабатываем найденные изображения
+            scanResult.foundUris.forEach { uri ->
+                processNewImage(uri)
+            }
+            
+            // Выводим автоматический отчет о производительности
+            PerformanceMonitor.autoReportIfNeeded(applicationContext)
+        } finally {
+            scanMutex.unlock()
+        }
     }
 
     /**
