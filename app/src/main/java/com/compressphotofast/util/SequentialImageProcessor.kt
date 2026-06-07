@@ -251,7 +251,13 @@ class SequentialImageProcessor(
             return@withContext null
         }
 
-        uriProcessingTracker.addProcessingUriSafe(uri, "SequentialImageProcessor")
+        // ЗАЩИТА ОТ ДВОЙНОЙ ОБРАБОТКИ: если URI уже обрабатывается Worker'ом, пропускаем
+        val addedToProcessing = uriProcessingTracker.addProcessingUriSafe(uri, "SequentialImageProcessor")
+        if (!addedToProcessing) {
+            LogUtil.processDebug("URI уже обрабатывается другим потоком, пропускаем в SequentialImageProcessor: $uri")
+            listener?.onCompressionSkipped(uri, "Уже обрабатывается")
+            return@withContext null
+        }
         try {
             // Проверка 2: после добавления
             if (!isActive || processingCancelled.get()) {

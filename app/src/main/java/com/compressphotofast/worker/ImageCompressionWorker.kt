@@ -170,7 +170,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             // Добавляем URI в отслеживание обработки (с синхронизацией)
-            uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
+            // ЗАЩИТА ОТ ДВОЙНОЙ ОБРАБОТКИ: если URI уже обрабатывается другим путём
+            // (SequentialImageProcessor или другой Worker), прекращаем работу
+            val addedToProcessing = uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
+            if (!addedToProcessing) {
+                LogUtil.processDebug("URI уже обрабатывается другим потоком, пропускаем Worker: $imageUri")
+                return@withContext Result.success() // success чтобы не блокировать цепочку WorkManager
+            }
             
             // Проверка на временный файл
             if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {

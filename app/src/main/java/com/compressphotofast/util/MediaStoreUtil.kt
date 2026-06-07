@@ -9,16 +9,49 @@ import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Утилитарный класс для работы с MediaStore и сохранением файлов
  */
 object MediaStoreUtil {
+
+    /**
+     * Мьютексы по originalUri для предотвращения конкурентной записи
+     * в один и тот же файл из разных потоков/путей обработки.
+     * Ключ — строковое представление originalUri.
+     */
+    private val fileSaveLocks = ConcurrentHashMap<String, Mutex>()
+
+    /**
+     * Максимальное количество хранимых мьютексов (для ограничения памяти)
+     */
+    private const val MAX_SAVE_LOCKS = 200
+
+    /**
+     * Получает или создаёт Mutex для данного URI.
+     * Автоматически очищает старые мьютексы при превышении лимита.
+     */
+    private fun getSaveLock(uri: Uri): Mutex {
+        val key = uri.toString()
+        val mutex = fileSaveLocks.getOrPut(key) { Mutex() }
+        // Очистка при переполнении: удаляем незалоченные мьютексы
+        if (fileSaveLocks.size > MAX_SAVE_LOCKS) {
+            val toRemove = fileSaveLocks.entries
+                .filter { !it.value.isLocked }
+                .take(fileSaveLocks.size - MAX_SAVE_LOCKS / 2)
+                .map { it.key }
+            toRemove.forEach { fileSaveLocks.remove(it) }
+        }
+        return mutex
+    }
 
     /**
      * Вычисляет относительный путь для сохранения файла в MediaStore
@@ -511,6 +544,32 @@ object MediaStoreUtil {
      * @param mimeType MIME тип для сохранения (по умолчанию "image/jpeg")
      */
     suspend fun saveCompressedImageFromStream(
+        context: Context,
+        inputStream: InputStream,
+        fileName: String,
+        directory: String,
+        originalUri: Uri,
+        quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
+        exifDataMemory: Map<String, Any>? = null,
+        mimeType: String = "image/jpeg"
+    ): Uri? = withContext(Dispatchers.IO) {
+        // ЗАЩИТА ОТ КОНКУРЕНТНОЙ ЗАПИСИ: Mutex по originalUri гарантирует,
+        // что два потока не будут одновременно записывать в один и тот же файл.
+        // Это defense-in-depth на случай, если оба пути обработки (Worker + Processor)
+        // проскочат проверку addProcessingUriSafe.
+        val saveLock = getSaveLock(originalUri)
+        saveLock.withLock {
+            saveCompressedImageFromStreamInternal(
+                context, inputStream, fileName, directory, originalUri, quality, exifDataMemory, mimeType
+            )
+        }
+    }
+
+    /**
+     * Внутренняя реализация сохранения сжатого изображения из потока.
+     * Вызывается из saveCompressedImageFromStream() под защитой Mutex.
+     */
+    private suspend fun saveCompressedImageFromStreamInternal(
         context: Context,
         inputStream: InputStream,
         fileName: String,

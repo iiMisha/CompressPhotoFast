@@ -92,23 +92,23 @@ object LogUtil {
     }
 
     /**
-     * Логирование информации о процессе (INFO)
+     * Логирование информации о процессе (DEBUG)
      */
     fun processInfo(message: String) {
         val msg = "[$CATEGORY_PROCESS] $message"
-        if (shouldLog(msg)) {
-            Timber.i(msg)
+        if (shouldLog(msg, isDebug = true)) {
+            Timber.d(msg)
         }
     }
 
     /**
-     * Логирование пропуска изображения (INFO)
+     * Логирование пропуска изображения (DEBUG)
      */
     fun skipImage(uri: Uri, reason: String) {
         val fileId = getFileId(uri)
         val msg = "[$CATEGORY_PROCESS:$fileId] Пропуск: $reason"
-        if (shouldLog(msg)) {
-            Timber.i(msg)
+        if (shouldLog(msg, isDebug = true)) {
+            Timber.d(msg)
         }
     }
 
@@ -214,8 +214,8 @@ object LogUtil {
     
     fun permissionsInfo(message: String) {
         val msg = "[$CATEGORY_PERMISSIONS] $message"
-        if (shouldLog(msg)) {
-            Timber.i(msg)
+        if (shouldLog(msg, isDebug = true)) {
+            Timber.d(msg)
         }
     }
     
