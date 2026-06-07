@@ -244,30 +244,12 @@ object OptimizedCacheUtil {
 
         exifCacheLock.read {
             val cached = exifCache.get(cacheKey)
-
-            // Если кэш есть, проверяем актуальность
-            if (cached != null && !cached.isExpired()) {
-
-                // НОВАЯ ПРОВЕРКА: файл модифицирован после кэширования?
-                if (currentModificationTime > 0L && cached.isStaleFor(currentModificationTime)) {
-                    // Файл был модифицирован - кэш устарел, удаляем
-                    LogUtil.processDebug("EXIF-кэш устарел (файл модифицирован): $uri")
-                    // Выходим из read lock для получения write lock
-                } else {
-                    // Кэш актуален
-                    return cached
+            if (cached != null) {
+                if (cached.isExpired() || (currentModificationTime > 0L && cached.isStaleFor(currentModificationTime))) {
+                    // Stale — не возвращаем, но и не удаляем (cleanupExpiredEntries() почистит)
+                    return@read null
                 }
-            }
-        }
-
-        // Если мы здесь, значит нужно удалить устаревший кэш или его нет
-        if (currentModificationTime > 0L) {
-            exifCacheLock.write {
-                val cached = exifCache.get(cacheKey)
-                if (cached != null && cached.isStaleFor(currentModificationTime)) {
-                    exifCache.remove(cacheKey)
-                    LogUtil.processDebug("EXIF-кэш удален (файл модифицирован): $uri")
-                }
+                return cached
             }
         }
 

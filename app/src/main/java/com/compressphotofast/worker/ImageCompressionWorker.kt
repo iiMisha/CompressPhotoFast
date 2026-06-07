@@ -95,6 +95,24 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             val imageUri = Uri.parse(uriString)
 
+            // ЗАХВАТ БЛОКИРОВКИ (в самом начале, до чтения EXIF)
+            val isHandledByIpu = inputData.getBoolean("is_handled_by_ipu", false)
+            val addedToProcessing = if (isHandledByIpu) {
+                // IPU добавил URI в трекер и не снял — Worker наследует владение.
+                // addProcessingUriSafe — перестраховка: если cleanup уже удалил URI, добавим заново.
+                // Результат игнорируем: IPU гарантирует эксклюзивность через per-URI WorkManager tag
+                uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker_Takeover")
+                true
+            } else {
+                uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
+            }
+            
+            isLockOwner = addedToProcessing
+            if (!addedToProcessing) {
+                LogUtil.processDebug("URI уже обрабатывается другим потоком, пропускаем Worker: $imageUri")
+                return@withContext Result.success() // success чтобы не блокировать цепочку WorkManager
+            }
+
             // Если URI помечен как недоступный, проверяем его повторно перед выходом
             if (uriProcessingTracker.isUriUnavailable(imageUri)) {
                 val exists = try {
@@ -172,15 +190,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.success()
             }
 
-            // Добавляем URI в отслеживание обработки (с синхронизацией)
-            // ЗАЩИТА ОТ ДВОЙНОЙ ОБРАБОТКИ: если URI уже обрабатывается другим путём
-            // (SequentialImageProcessor или другой Worker), прекращаем работу
-            val addedToProcessing = uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
-            isLockOwner = addedToProcessing
-            if (!addedToProcessing) {
-                LogUtil.processDebug("URI уже обрабатывается другим потоком, пропускаем Worker: $imageUri")
-                return@withContext Result.success() // success чтобы не блокировать цепочку WorkManager
-            }
+            // Блокировка URI теперь захватывается в самом начале doWork()
             
             // Проверка на временный файл
             if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {

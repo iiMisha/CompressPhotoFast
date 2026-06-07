@@ -388,6 +388,8 @@ class SequentialImageProcessor(
             return@withContext null
         } finally {
             uriProcessingTracker.removeProcessingUriSafe(uri)
+            uriProcessingTracker.addRecentlyProcessedUri(uri)
+            uriProcessingTracker.setIgnorePeriod(uri)
         }
     }
     

@@ -3,6 +3,10 @@ package com.compressphotofast.util
 import com.compressphotofast.BaseUnitTest
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import io.mockk.just
+import io.mockk.Runs
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -23,13 +27,20 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         mockContext = mockk(relaxed = true)
         every { mockContext.applicationContext } returns mockContext
 
+        mockkObject(NotificationUtil)
+        every { NotificationUtil.showCompressionResultToast(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>()) } just Runs
+        every { NotificationUtil.showToast(any<android.content.Context>(), any<String>(), any<Int>()) } just Runs
+        every { NotificationUtil.showBatchCompressionNotification(any<android.content.Context>(), any<Int>(), any<Int>(), any<Long>(), any<Long>(), any<Float>(), any()) } just Runs
+        every { NotificationUtil.showCompressionResultNotification(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>(), any<Boolean>(), any()) } just Runs
+
         CompressionBatchTracker.clearAllBatchesCompat()
     }
 
     @After
     override fun tearDown() {
-        super.tearDown()
         CompressionBatchTracker.clearAllBatchesCompat()
+        unmockkObject(NotificationUtil)
+        super.tearDown()
     }
 
     @Test

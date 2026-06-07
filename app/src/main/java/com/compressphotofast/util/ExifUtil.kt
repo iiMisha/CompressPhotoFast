@@ -65,11 +65,13 @@ object ExifUtil {
         }
 
         fun getWithTtl(key: K): V? {
-            return if (isExpired(key)) {
-                remove(key)
-                null
-            } else {
-                get(key)
+            synchronized(this) {
+                return if (isExpired(key)) {
+                    remove(key)
+                    null
+                } else {
+                    get(key)
+                }
             }
         }
     }

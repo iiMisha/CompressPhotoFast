@@ -119,24 +119,10 @@ object FileOperationsUtil {
         try {
             LogUtil.processInfo("Начинаем удаление файла: $uri")
 
-            // Двойная проверка существования файла перед удалением
+            // Проверка существования файла перед удалением
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.processWarning("deleteFile: URI не существует (первая проверка), удаление отменено: $uri")
+                LogUtil.processWarning("deleteFile: URI не существует, удаление отменено: $uri")
                 return false
-            }
-
-            // Повторная проверка существования файла без задержки
-            // Используем getLastModifiedTime для обнаружения изменений
-            val lastModifiedBefore = System.currentTimeMillis()
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.processWarning("deleteFile: URI не существует (вторая проверка), удаление отменено: $uri")
-                return false
-            }
-            val lastModifiedAfter = System.currentTimeMillis()
-
-            // Логируем предупреждение если файл был изменён во время операции
-            if (lastModifiedAfter - lastModifiedBefore > 100) {
-                LogUtil.processWarning("deleteFile: Файл был изменён во время проверки: $uri")
             }
 
             // Если URI имеет фрагмент #renamed_original, удаляем этот фрагмент

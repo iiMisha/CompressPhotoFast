@@ -98,6 +98,8 @@ object ImageProcessingUtil {
                     return@withContext Triple(true, false, "Изображение уже в очереди")
                 }
 
+                inputData["is_handled_by_ipu"] = true
+
                 val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
                     .setInputData(workDataOf(*inputData.toList().toTypedArray()))
                     .addTag(perUriTag)
@@ -112,7 +114,7 @@ object ImageProcessingUtil {
 
                 LogUtil.imageCompression(uri, "Запущена работа по сжатию для $uri в последовательной очереди${if (finalBatchId != null) " в батче $finalBatchId" else ""}")
 
-                UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
+                // НЕ СНИМАЕМ URI с отслеживания: Worker сам снимет его в finally
                 return@withContext Triple(true, true, "Сжатие запущено")
             } catch (e: Exception) {
                 // Удаляем URI из списка обрабатываемых в случае ошибки (с синхронизацией)

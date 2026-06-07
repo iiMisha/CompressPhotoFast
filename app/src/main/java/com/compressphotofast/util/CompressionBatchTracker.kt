@@ -208,32 +208,34 @@ class CompressionBatchTracker @Inject constructor(
      * Получает или создает автобатч для автоматического сжатия
      */
     fun getOrCreateAutoBatch(): String {
-        // Ищем активный автобатч, не превышший максимальное время жизни
-        val activeBatch = batches.values.find {
-            !it.isIntentBatch &&
-            (System.currentTimeMillis() - it.createdAt) < AUTO_BATCH_MAX_LIFETIME_MS
+        synchronized(batches) {
+            // Ищем активный автобатч, не превышший максимальное время жизни
+            val activeBatch = batches.values.find {
+                !it.isIntentBatch &&
+                (System.currentTimeMillis() - it.createdAt) < AUTO_BATCH_MAX_LIFETIME_MS
+            }
+
+            if (activeBatch != null) {
+                LogUtil.processDebug("Используется существующий автобатч: ${activeBatch.batchId}")
+                return activeBatch.batchId
+            }
+
+            // Создаем новый автобатч
+            val batchId = "auto_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
+            // Application Context инжектируется через конструктор
+            val batch = CompressionBatch(
+                batchId = batchId,
+                expectedCount = null,
+                isIntentBatch = false
+            )
+
+            batches[batchId] = batch
+            LogUtil.processDebug("Создан автобатч: $batchId")
+
+            scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
+            cleanupOldBatches()
+            return batchId
         }
-
-        if (activeBatch != null) {
-            LogUtil.processDebug("Используется существующий автобатч: ${activeBatch.batchId}")
-            return activeBatch.batchId
-        }
-
-        // Создаем новый автобатч
-        val batchId = "auto_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
-        // Application Context инжектируется через конструктор
-        val batch = CompressionBatch(
-            batchId = batchId,
-            expectedCount = null,
-            isIntentBatch = false
-        )
-
-        batches[batchId] = batch
-        LogUtil.processDebug("Создан автобатч: $batchId")
-
-        scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
-        cleanupOldBatches()
-        return batchId
     }
 
     /**

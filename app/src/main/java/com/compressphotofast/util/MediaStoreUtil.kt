@@ -36,11 +36,10 @@ object MediaStoreUtil {
     private const val MAX_SAVE_LOCKS = 200
 
     /**
-     * Получает или создаёт Mutex для данного URI.
+     * Получает или создаёт Mutex для данного ключа.
      * Автоматически очищает старые мьютексы при превышении лимита.
      */
-    private fun getSaveLock(uri: Uri): Mutex {
-        val key = uri.toString()
+    private fun getSaveLock(key: String): Mutex {
         val mutex = fileSaveLocks.getOrPut(key) { Mutex() }
         // Очистка при переполнении: удаляем незалоченные мьютексы
         if (fileSaveLocks.size > MAX_SAVE_LOCKS) {
@@ -553,11 +552,15 @@ object MediaStoreUtil {
         exifDataMemory: Map<String, Any>? = null,
         mimeType: String = "image/jpeg"
     ): Uri? = withContext(Dispatchers.IO) {
-        // ЗАЩИТА ОТ КОНКУРЕНТНОЙ ЗАПИСИ: Mutex по originalUri гарантирует,
+        // ЗАЩИТА ОТ КОНКУРЕНТНОЙ ЗАПИСИ: Mutex по целевому пути гарантирует,
         // что два потока не будут одновременно записывать в один и тот же файл.
-        // Это defense-in-depth на случай, если оба пути обработки (Worker + Processor)
-        // проскочат проверку addProcessingUriSafe.
-        val saveLock = getSaveLock(originalUri)
+        // Это defense-in-depth на случай, если разные исходные файлы 
+        // имеют одинаковое целевое имя.
+        val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+        val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
+        val lockKey = "$targetRelativePath$fileName"
+
+        val saveLock = getSaveLock(lockKey)
         saveLock.withLock {
             saveCompressedImageFromStreamInternal(
                 context, inputStream, fileName, directory, originalUri, quality, exifDataMemory, mimeType
