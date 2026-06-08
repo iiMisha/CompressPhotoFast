@@ -43,6 +43,22 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class BackgroundMonitoringService : Service() {
 
+    companion object {
+        /**
+         * Атомарный флаг активности Foreground Service.
+         * Используется ImageDetectionJobService для быстрого пропуска обработки,
+         * когда ContentObserver уже обеспечивает real-time обнаружение.
+         *
+         * Volatile гарантирует видимость изменений между потоками.
+         * Устанавливается в onCreate/onDestroy — корректно работает даже при
+         * force-kill (значение сбрасывается при перезапуске процесса).
+         */
+        @Volatile
+        @JvmStatic
+        var isRunning: Boolean = false
+            private set
+    }
+
     // Service-scoped корутины для привязки к lifecycle сервиса
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
@@ -54,9 +70,9 @@ class BackgroundMonitoringService : Service() {
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
 
-    // Интервал сканирования галереи для новых изображений (5 минут)
-    // Оптимизировано с 1 минуты для снижения энергопотребления на 40-60%
-    private val scanInterval = 300000L
+    // Интервал сканирования галереи — резервный механизм на случай пропуска событий
+    // ContentObserver и JobService. Используем константу из Constants.
+    private val scanInterval = Constants.BACKGROUND_SCAN_INTERVAL_MINUTES * 60 * 1000L
 
     // Job для периодического сканирования галереи
     private var scanJob: Job? = null
@@ -152,6 +168,8 @@ class BackgroundMonitoringService : Service() {
     
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
+         
         
         // Создаем канал уведомлений
         NotificationUtil.createDefaultNotificationChannel(applicationContext)
@@ -236,6 +254,7 @@ class BackgroundMonitoringService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isRunning = false
         isServiceDestroyed.set(true)
 
         // Неблокирующее завершение корутин сервиса

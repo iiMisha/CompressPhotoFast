@@ -151,7 +151,7 @@ class ConstantsTest : BaseUnitTest() {
     @Test
     fun `проверка интервала фонового сканирования`() {
         // Arrange & Act & Assert
-        assertEquals(30L, Constants.BACKGROUND_SCAN_INTERVAL_MINUTES)
+        assertEquals(15L, Constants.BACKGROUND_SCAN_INTERVAL_MINUTES)
     }
 
     @Test

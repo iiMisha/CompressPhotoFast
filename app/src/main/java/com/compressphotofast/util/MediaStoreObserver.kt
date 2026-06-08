@@ -112,6 +112,18 @@ class MediaStoreObserver @Inject constructor(
                     val delayJob = handlerScope.launch {
                         delay(Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000L)
 
+                        // Early exit: если URI уже обработан или обрабатывается — не трогаем диск
+                        if (uriProcessingTracker.shouldIgnore(it)) {
+                            LogUtil.processDebug("MediaStoreObserver: URI $it уже в периоде игнорирования после задержки, пропускаем")
+                            pendingTasks.remove(uriString)
+                            return@launch
+                        }
+                        if (uriProcessingTracker.isProcessing(it)) {
+                            LogUtil.processDebug("MediaStoreObserver: URI $it обрабатывается другим механизмом, пропускаем")
+                            pendingTasks.remove(uriString)
+                            return@launch
+                        }
+
                         if (UriUtil.isFilePending(context, it)) {
                             LogUtil.processDebug("MediaStoreObserver: файл ещё в процессе записи (pending), планируем повтор: $it")
                             processUriWithRetry(it, uriString)

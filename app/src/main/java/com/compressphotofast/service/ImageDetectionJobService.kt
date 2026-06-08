@@ -111,6 +111,15 @@ class ImageDetectionJobService : JobService() {
     override fun onStartJob(params: JobParameters?): Boolean {
         LogUtil.processDebug("ImageDetectionJobService: onStartJob вызван")
 
+        // Если Foreground Service активен, его ContentObserver уже обеспечивает
+        // real-time обнаружение — пропускаем обработку для экономии ресурсов
+        if (BackgroundMonitoringService.isRunning) {
+            LogUtil.processDebug("ImageDetectionJobService: Foreground Service активен, пропускаем обработку")
+            scheduleJob(applicationContext)
+            jobFinished(params, false)
+            return false
+        }
+
         // Пересоздаём scope если был отменён
         if (jobScope.coroutineContext[Job]?.isActive != true) {
             LogUtil.processDebug("ImageDetectionJobService: пересоздаём jobScope после отмены")
