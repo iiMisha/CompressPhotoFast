@@ -119,12 +119,6 @@ object FileOperationsUtil {
         try {
             LogUtil.processInfo("Начинаем удаление файла: $uri")
 
-            // Проверка существования файла перед удалением
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.processWarning("deleteFile: URI не существует, удаление отменено: $uri")
-                return false
-            }
-
             // Если URI имеет фрагмент #renamed_original, удаляем этот фрагмент
             val cleanUri = if (uri.toString().contains("#renamed_original")) {
                 val original = Uri.parse(uri.toString().replace("#renamed_original", ""))

@@ -41,7 +41,7 @@ object TempFilesCleaner {
                     val isCurrentlyInUse = currentTempFile != null && 
                                          file.name.contains(currentTempFile as CharSequence)
                     
-                    isTempFile && (isOld || (!isCurrentlyInUse && file.length() == 0L && currentTime - file.lastModified() > 60_000L))
+                    isTempFile && isOld && !isCurrentlyInUse
                 }
                 
                 var deletedCount = 0
@@ -49,7 +49,7 @@ object TempFilesCleaner {
                 
                 files?.forEach { file ->
                     // Дополнительная проверка перед удалением
-                    if (file.exists() && !isFileInUse(file)) {
+                    if (file.exists()) {
                         val fileSize = file.length()
                         
                         try {
@@ -77,27 +77,6 @@ object TempFilesCleaner {
             }
         } catch (e: Exception) {
             LogUtil.errorWithException("FILE_CLEANUP", e)
-        }
-    }
-    
-    /**
-     * Проверяет, используется ли файл в данный момент
-     */
-    private fun isFileInUse(file: File): Boolean {
-        return try {
-            // Проверяем через tryLock без модификации файла
-            java.io.RandomAccessFile(file, "rw").use { raf ->
-                val lock = raf.channel.tryLock()
-                if (lock != null) {
-                    lock.release()
-                    false // Файл не используется
-                } else {
-                    true // Файл заблокирован другим процессом
-                }
-            }
-        } catch (e: Exception) {
-            LogUtil.processDebug("Файл используется другим процессом: ${file.absolutePath}")
-            true // Файл используется
         }
     }
 } 
