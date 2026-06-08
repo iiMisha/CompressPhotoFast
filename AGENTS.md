@@ -4,6 +4,19 @@
 
 ---
 
+## Быстрая шпаргалка
+
+```bash
+# AGENTS.md
+ПРОЧИТАЙ: AGENTS.md
+Статус: [AGENTS.md: Active]
+
+# Сборка
+./gradlew assembleDebug
+```
+
+---
+
 ## Project Overview
 
 Кроссплатформенное приложение для сжатия фотографий. Android (API 29+) + CLI (Python 3.10+). Идентичная логика сжатия с сохранением EXIF-маркеров.
