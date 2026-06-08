@@ -80,11 +80,12 @@
 ## 🎯 Текущий фокус (Июнь 2026)
 
 ### Недавние изменения и исправления
-- ✅ **Предотвращение преждевременного завершения батчей** (`6f1d59f`) — исправлен race condition в [CompressionBatchTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/CompressionBatchTracker.kt). Продление таймаута перенесено исключительно в метод `addResult()`.
-- ✅ **Стабильность WorkManager** (`955bd87`) — замена `APPEND` на `APPEND_OR_REPLACE` в [ImageProcessingUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageProcessingUtil.kt), автоочистка зависших цепочек (>50) при запуске.
-- ✅ **Оптимизация таймаутов автобатчей** (`955bd87`) — idle-таймаут 20с с момента последнего сжатия, максимальное время жизни батча 10 минут.
-- ✅ **Исправление логирования** — логирование «Файл уже сжат» переведено на уровень `skipImage` в [SequentialImageProcessor.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/SequentialImageProcessor.kt).
-- ✅ **Рефакторинг потоков** — устаревшие Handler заменены на Coroutines в `CompressionBatchTracker` и `MediaStoreObserver`.
+- ✅ **Координация сервисов обнаружения** (`e02298b`) — `BackgroundMonitoringService.isRunning` volatile-флаг для пропуска обработки в `ImageDetectionJobService`, когда ContentObserver уже активен.
+- ✅ **Оптимизация ContentObserver** (`e02298b`) — early exit в [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt) после задержки: проверка `shouldIgnore`/`isProcessing` до обращения к диску.
+- ✅ **Упрощение очистки временных файлов** (`ca8c949`) — из [TempFilesCleaner.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/TempFilesCleaner.kt) удалён `isFileInUse()` и лишние условия, удаление только старых неиспользуемых `.tmp`.
+- ✅ **Интервал сканирования 15 мин** (`e02298b`) — `BACKGROUND_SCAN_INTERVAL_MINUTES` уменьшен с 30 до 15 в [Constants.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/Constants.kt).
+- ✅ **Потокобезопасность и EXIF-оптимизация** (`754994e`, `eaed7ad`) — double-check паттерн в кэше EXIF, улучшена конкурентная обработка URI и файлов.
+- ✅ **Стабильность WorkManager и автобатчей** (`955bd87`, `6f1d59f`) — `APPEND_OR_REPLACE`, автоочистка зависших цепочек, race condition fix в [CompressionBatchTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/CompressionBatchTracker.kt).
 
 ### Метрики
 - Исходный код: 38 Kotlin-файлов, 9 Python-файлов
