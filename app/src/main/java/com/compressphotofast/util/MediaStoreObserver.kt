@@ -269,6 +269,6 @@ class MediaStoreObserver @Inject constructor(
      */
     fun destroy() {
         unregister()
-        handlerScope.cancel()
+        // НЕ отменяем статический handlerScope (= mainScope) — он общий для всех экземпляров
     }
 } 

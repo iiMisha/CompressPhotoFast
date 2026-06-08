@@ -58,10 +58,12 @@ object ExifUtil {
         }
 
         fun putWithTimestamp(key: K, value: V?): V? {
-            if (value != null) {
-                timestamps[key] = System.currentTimeMillis()
+            synchronized(this) {
+                if (value != null) {
+                    timestamps[key] = System.currentTimeMillis()
+                }
+                return put(key, value)
             }
-            return put(key, value)
         }
 
         fun getWithTtl(key: K): V? {

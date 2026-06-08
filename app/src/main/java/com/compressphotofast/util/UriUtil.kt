@@ -42,7 +42,7 @@ object UriUtil {
     // Кэш результатов проверки существования URI
     private val uriExistsCache = ConcurrentHashMap<String, UriExistsResult>()
 
-    private const val URI_EXISTS_CACHE_TTL = 10_000L // 10 минут
+    private const val URI_EXISTS_CACHE_TTL = 10_000L // 10 секунд
     private const val URI_EXISTS_CACHE_SIZE = 100 // максимум 100 URI в кэше
 
     /**

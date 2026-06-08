@@ -53,12 +53,7 @@ object TempFilesCleaner {
                         val fileSize = file.length()
                         
                         try {
-                            // Пробуем сначала очистить содержимое файла
-                            if (fileSize > 0) {
-                                FileOutputStream(file).use { it.channel.truncate(0) }
-                            }
-                            
-                            // Теперь пытаемся удалить файл
+                            // Удаляем файл (delete атомарен на Linux)
                             if (file.delete()) {
                                 totalSize += fileSize
                                 deletedCount++
@@ -90,11 +85,15 @@ object TempFilesCleaner {
      */
     private fun isFileInUse(file: File): Boolean {
         return try {
-            synchronized(this) {
-                // Пробуем открыть файл для записи - если не получается, значит файл используется
-                val channel = FileOutputStream(file, true).channel
-                channel.close()
-                false // Файл не используется
+            // Проверяем через tryLock без модификации файла
+            java.io.RandomAccessFile(file, "rw").use { raf ->
+                val lock = raf.channel.tryLock()
+                if (lock != null) {
+                    lock.release()
+                    false // Файл не используется
+                } else {
+                    true // Файл заблокирован другим процессом
+                }
             }
         } catch (e: Exception) {
             LogUtil.processDebug("Файл используется другим процессом: ${file.absolutePath}")

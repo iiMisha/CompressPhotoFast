@@ -5,6 +5,8 @@ import android.net.Uri
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Утилитарный класс для отслеживания статистики и статуса сжатия изображений
@@ -18,7 +20,8 @@ object StatsTracker {
     const val COMPRESSION_STATUS_SKIPPED = 4
 
     // Множество для отслеживания URI в процессе обработки
-    private val processingUris = mutableSetOf<String>()
+    // Потокобезопасная реализация: доступ из Worker + MediaStoreObserver потоков
+    private val processingUris = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
     
     /**
      * Начинает отслеживание URI
