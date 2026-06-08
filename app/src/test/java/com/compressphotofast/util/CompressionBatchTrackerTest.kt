@@ -39,6 +39,10 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
     @After
     override fun tearDown() {
         CompressionBatchTracker.clearAllBatchesCompat()
+        // Ждем завершения фоновых корутин в batchScope (Dispatchers.Default),
+        // которые могли быть запущены в конце теста (например, при финализации автобатча),
+        // чтобы они успели использовать замоканный NotificationUtil
+        Thread.sleep(500)
         unmockkObject(NotificationUtil)
         super.tearDown()
     }
