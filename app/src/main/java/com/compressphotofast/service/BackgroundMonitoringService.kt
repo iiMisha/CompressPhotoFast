@@ -324,8 +324,21 @@ class BackgroundMonitoringService : Service() {
                     LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
                 }
 
-                // Используем централизованную логику сканирования
-                val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
+                // Вычисляем динамическое окно сканирования на основе lastScanTimestamp
+                val currentTimeMs = System.currentTimeMillis()
+                val lastScanMs = SettingsManager.getInstance(applicationContext).getLastScanTimestamp()
+                val timeWindowSeconds = ((currentTimeMs - lastScanMs) / 1000L)
+                    .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS)
+                    .toInt()
+
+                // Используем централизованную логику сканирования с динамическим окном
+                val scanResult = GalleryScanUtil.scanRecentImages(
+                    applicationContext,
+                    timeWindowSeconds = timeWindowSeconds
+                )
+
+                // Сохраняем время начала сканирования после успеха
+                SettingsManager.getInstance(applicationContext).setLastScanTimestamp(currentTimeMs)
 
                 // Обрабатываем найденные изображения
                 scanResult.foundUris.forEach { uri ->
@@ -394,6 +407,10 @@ class BackgroundMonitoringService : Service() {
             scanResult.foundUris.forEach { uri ->
                 processNewImage(uri)
             }
+            
+            // Обновляем временную метку после первоначального сканирования истории,
+            // чтобы последующие периодические сканирования не дублировали уже найденные файлы
+            SettingsManager.getInstance(applicationContext).setLastScanTimestamp(System.currentTimeMillis())
             
             // Выводим автоматический отчет о производительности
             PerformanceMonitor.autoReportIfNeeded(applicationContext)

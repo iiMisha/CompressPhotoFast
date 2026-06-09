@@ -211,6 +211,16 @@ class SettingsManager @Inject constructor(
         sharedPreferences.edit().putBoolean(Constants.PREF_SHOW_COMPRESSION_TOAST, show).apply()
     }
 
+    fun getLastScanTimestamp(): Long {
+        return sharedPreferences.getLong(Constants.PREF_LAST_SCAN_TIMESTAMP, 0L)
+    }
+
+    fun setLastScanTimestamp(timestamp: Long) {
+        sharedPreferences.edit()
+            .putLong(Constants.PREF_LAST_SCAN_TIMESTAMP, timestamp)
+            .apply()
+    }
+
     /**
      * Выполняет пакетное обновление нескольких настроек за одну операцию I/O
      *
@@ -332,5 +342,9 @@ class SettingsEditor(private val editor: SharedPreferences.Editor) {
      */
     fun setDeletePermissionRequested(requested: Boolean) {
         editor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, requested)
+    }
+
+    fun setLastScanTimestamp(timestamp: Long) {
+        editor.putLong(Constants.PREF_LAST_SCAN_TIMESTAMP, timestamp)
     }
 }

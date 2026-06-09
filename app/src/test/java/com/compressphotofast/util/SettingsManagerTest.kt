@@ -700,4 +700,46 @@ class SettingsManagerTest : BaseUnitTest() {
         assertNotNull(result)
         verify { mockContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE) }
     }
+    
+    // ==================== Last Scan Timestamp ====================
+    
+    @Test
+    fun `getLastScanTimestamp returns 0 when not set`() {
+        // Arrange
+        every { mockSharedPreferences.getLong(Constants.PREF_LAST_SCAN_TIMESTAMP, 0L) } returns 0L
+        
+        // Act
+        val result = settingsManager.getLastScanTimestamp()
+        
+        // Assert
+        assertEquals(0L, result)
+    }
+    
+    @Test
+    fun `getLastScanTimestamp returns saved timestamp`() {
+        // Arrange
+        val timestamp = 1718000000000L
+        every { mockSharedPreferences.getLong(Constants.PREF_LAST_SCAN_TIMESTAMP, 0L) } returns timestamp
+        
+        // Act
+        val result = settingsManager.getLastScanTimestamp()
+        
+        // Assert
+        assertEquals(timestamp, result)
+    }
+    
+    @Test
+    fun `setLastScanTimestamp saves timestamp`() {
+        // Arrange
+        val timestamp = 1718000000000L
+        every { mockSharedPreferences.edit() } returns mockEditor
+        every { mockEditor.putLong(Constants.PREF_LAST_SCAN_TIMESTAMP, timestamp) } returns mockEditor
+        
+        // Act
+        settingsManager.setLastScanTimestamp(timestamp)
+        
+        // Assert
+        verify { mockEditor.putLong(Constants.PREF_LAST_SCAN_TIMESTAMP, timestamp) }
+        verify { mockEditor.apply() }
+    }
 }

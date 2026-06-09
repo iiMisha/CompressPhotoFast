@@ -20,6 +20,7 @@ object Constants {
     const val PREF_PROCESS_SCREENSHOTS = "process_screenshots"
     const val PREF_IGNORE_MESSENGER_PHOTOS = "ignore_messenger_photos"
     const val PREF_SHOW_COMPRESSION_TOAST = "show_compression_toast"
+    const val PREF_LAST_SCAN_TIMESTAMP = "last_scan_timestamp"
     
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1
