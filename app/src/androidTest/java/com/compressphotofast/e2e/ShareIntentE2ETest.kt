@@ -188,11 +188,8 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
-        // Ждем автоматического сжатия
-        delay(7000) // Увеличим задержку для нескольких файлов
-
-        // Находим все сжатые файлы, созданные после отправки Intent
-        val compressedUris = findAllCompressedUris(beforeTimestamp)
+        // Ждём завершения сжатия через polling (до 45 сек)
+        val compressedUris = waitForCompressedImages(beforeTimestamp, minCount = 2, timeoutMs = 45_000L)
 
         // Проверяем, что хотя бы 2 изображения обработаны
         assertThat(compressedUris.size).isAtLeast(2)
@@ -311,25 +308,15 @@ class ShareIntentE2ETest : BaseE2ETest() {
         // Запускаем Activity с Intent
         activityScenario = ActivityScenario.launch<MainActivity>(intent)
 
-        // Ждем автоматического сжатия (увеличено для стабильности)
-        delay(15000)
-
-        // Находим URI сжатого файла
-        val compressedUri = findLatestCompressedUri(beforeTimestamp)
+        // Ждём завершения сжатия через polling (до 45 сек)
+        val compressedUri = waitForCompressedImage(beforeTimestamp, timeoutMs = 45_000L)
         LogUtil.processDebug("Найден URI сжатого файла: $compressedUri")
 
         // Проверяем, что URI не null
-        if (compressedUri == null) {
-            // Попробуем найти через DATE_MODIFIED (режим замены)
-            val compressedUriByMod = findLatestCompressedUriByModifiedDate(beforeTimestamp)
-            LogUtil.processDebug("Попытка поиска по DATE_MODIFIED: $compressedUriByMod")
-            assertThat(compressedUriByMod).isNotNull()
-        } else {
-            assertThat(compressedUri).isNotNull()
-        }
+        assertThat(compressedUri).isNotNull()
 
         // Проверяем, что изображение сжато
-        val finalUri = compressedUri ?: findLatestCompressedUriByModifiedDate(beforeTimestamp)!!
+        val finalUri = compressedUri!!
         val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, finalUri).first }
         assertThat(hasMarker).isTrue()
 
@@ -341,6 +328,100 @@ class ShareIntentE2ETest : BaseE2ETest() {
         }
     }
 
+
+    // ========== Polling-методы для ожидания сжатия ==========
+
+    /**
+     * Polling-поиск одного сжатого изображения в MediaStore.
+     * Проверяет DATE_ADDED (новые файлы), затем DATE_MODIFIED (перезаписанные файлы).
+     *
+     * @param afterTimestamp Временная метка (в секундах) после которой ищем
+     * @param timeoutMs Максимальное время ожидания в мс (по умолчанию 45 сек)
+     * @param pollIntervalMs Интервал опроса в мс (по умолчанию 2 сек)
+     * @return URI сжатого файла или null по таймауту
+     */
+    private suspend fun waitForCompressedImage(
+        afterTimestamp: Long,
+        timeoutMs: Long = 45_000L,
+        pollIntervalMs: Long = 2_000L
+    ): Uri? {
+        val startTime = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            val uri = findLatestCompressedUri(afterTimestamp)
+            if (uri != null) return uri
+
+            val modifiedUri = findLatestCompressedUriByModifiedDate(afterTimestamp)
+            if (modifiedUri != null) return modifiedUri
+
+            delay(pollIntervalMs)
+        }
+        return findLatestCompressedUri(afterTimestamp)
+            ?: findLatestCompressedUriByModifiedDate(afterTimestamp)
+    }
+
+    /**
+     * Polling-поиск нескольких сжатых изображений в MediaStore.
+     * Комбинирует поиск по DATE_ADDED и DATE_MODIFIED.
+     *
+     * @param afterTimestamp Временная метка (в секундах) после которой ищем
+     * @param minCount Минимальное ожидаемое количество файлов
+     * @param timeoutMs Максимальное время ожидания в мс (по умолчанию 45 сек)
+     * @param pollIntervalMs Интервал опроса в мс (по умолчанию 2 сек)
+     * @return Список URI сжатых файлов
+     */
+    private suspend fun waitForCompressedImages(
+        afterTimestamp: Long,
+        minCount: Int = 1,
+        timeoutMs: Long = 45_000L,
+        pollIntervalMs: Long = 2_000L
+    ): List<Uri> {
+        val startTime = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            val addedUris = findAllCompressedUris(afterTimestamp)
+            val modifiedUris = findAllModifiedUris(afterTimestamp)
+
+            val allUris = (addedUris + modifiedUris).distinctBy { it.toString() }
+            if (allUris.size >= minCount) return allUris
+
+            delay(pollIntervalMs)
+        }
+        val addedUris = findAllCompressedUris(afterTimestamp)
+        val modifiedUris = findAllModifiedUris(afterTimestamp)
+        return (addedUris + modifiedUris).distinctBy { it.toString() }
+    }
+
+    /**
+     * Находит все URI изображений, изменённых после указанного времени.
+     * Используется как fallback при поиске результатов в режиме замены оригинала,
+     * когда DATE_ADDED не обновляется, но DATE_MODIFIED изменяется при перезаписи.
+     */
+    private fun findAllModifiedUris(afterTimestamp: Long): List<Uri> {
+        val uris = mutableListOf<Uri>()
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_MODIFIED
+        )
+
+        val selection = "${MediaStore.Images.Media.DATE_MODIFIED} > ?"
+        val selectionArgs = arrayOf(afterTimestamp.toString())
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idIndex)
+                uris.add(Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id.toString()))
+            }
+        }
+        return uris
+    }
 
     // ========== Вспомогательные методы ==========
 

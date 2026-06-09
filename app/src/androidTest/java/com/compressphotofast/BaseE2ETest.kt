@@ -9,6 +9,7 @@ import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.idling.CountingIdlingResource
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
+import com.compressphotofast.util.Constants
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -96,7 +97,7 @@ abstract class BaseE2ETest : BaseInstrumentedTest() {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
 
             // Очистка SharedPreferences
-            val prefsName = "com.compressphotofast_preferences"
+            val prefsName = Constants.PREF_FILE_NAME
             val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             prefs.edit().clear().apply()
 
