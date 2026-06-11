@@ -572,10 +572,14 @@ class ImageDetectionJobService : JobService() {
 
     override fun onStopJob(params: JobParameters?): Boolean {
         LogUtil.processDebug("onStopJob: задание остановлено, отменяем корутины")
-        
+
         // Отменяем все запущенные корутины
         jobScope.coroutineContext[Job]?.cancel()
-        
+
+        synchronized(pendingBatch) {
+            pendingBatch.clear()
+        }
+
         // Возвращаем true, чтобы перепланировать задание
         return true
     }

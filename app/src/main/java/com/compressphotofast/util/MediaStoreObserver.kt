@@ -260,6 +260,9 @@ class MediaStoreObserver @Inject constructor(
         }
         pendingTasks.clear()
 
+        recentlyObservedUris.clear()
+        retryCounts.clear()
+
         // Отменяем все корутины
         observerScope.cancel()
 

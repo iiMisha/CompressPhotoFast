@@ -868,6 +868,8 @@ object ExifUtil {
                     backupCreated = backupFile.exists() && backupFile.length() > 0
                 } catch (e: Exception) {
                     LogUtil.warning(uri, "EXIF backup", "Не удалось создать backup: ${e.message}")
+                    backupFile.delete()
+                    backupCreated = false
                 }
 
                 if (!backupCreated) {

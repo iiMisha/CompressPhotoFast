@@ -645,6 +645,11 @@ object MediaStoreUtil {
                     } catch (deleteEx: Exception) {
                         LogUtil.error(uri, "Cleanup", "Не удалось удалить повреждённый файл из MediaStore", deleteEx)
                     }
+                    NotificationUtil.showErrorNotification(
+                        context,
+                        "Ошибка сохранения",
+                        "Сжатый файл был повреждён и удалён"
+                    )
                     return@withContext null
                 }
 
@@ -960,6 +965,66 @@ object MediaStoreUtil {
             LogUtil.error(Uri.EMPTY, "MediaStore", "Ошибка при пакетной проверке", e)
             // Fallback к поодиночным запросам
             fileNames.associateWith { null }
+        }
+    }
+
+    /**
+     * Очищает stale IS_PENDING=1 записи, оставшиеся после краша приложения.
+     * Удаляет только записи, принадлежащие данному приложению.
+     * Вызывается при запуске BackgroundMonitoringService.
+     */
+    suspend fun cleanupStalePendingEntries(context: Context) = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext
+
+        try {
+            val fiveMinutesAgo = (System.currentTimeMillis() / 1000) - 300
+
+            val selection = buildString {
+                append("${MediaStore.Images.Media.IS_PENDING} = 1 AND ")
+                append("${MediaStore.Images.Media.DATE_ADDED} < ?")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    append(" AND ${MediaStore.Images.Media.OWNER_PACKAGE_NAME} = ?")
+                }
+            }
+            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                arrayOf(fiveMinutesAgo.toString(), context.packageName)
+            } else {
+                arrayOf(fiveMinutesAgo.toString())
+            }
+
+            val staleUris = mutableListOf<Uri>()
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media._ID),
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idColumn)
+                    staleUris.add(
+                        ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
+                        )
+                    )
+                }
+            }
+
+            for (uri in staleUris) {
+                try {
+                    context.contentResolver.delete(uri, null, null)
+                    LogUtil.processDebug("Удалена stale IS_PENDING запись: $uri")
+                } catch (e: Exception) {
+                    LogUtil.warning(uri, "Cleanup", "Не удалось удалить stale IS_PENDING запись: ${e.message}")
+                }
+            }
+
+            if (staleUris.isNotEmpty()) {
+                LogUtil.processInfo("Очищено ${staleUris.size} stale IS_PENDING записей от предыдущих сессий")
+            }
+        } catch (e: Exception) {
+            LogUtil.error(Uri.EMPTY, "Cleanup", "Ошибка при очистке stale pending записей", e)
         }
     }
 }

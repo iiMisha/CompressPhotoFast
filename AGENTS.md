@@ -91,6 +91,12 @@
   - [UriUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriUtil.kt): заменена `available() > 0` на `read() != -1` в `isFilePending` для стабильного обнаружения готовых файлов.
   - [MediaStoreUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreUtil.kt): в `waitForUriAvailability` заменена `available()` на `read() != -1` c `use` для исключения утечек. В `safeUpdateExistingFile` заменена `wt` на `openFileDescriptor("rwt")` для Android 12+ совместимости.
   - [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt): `available()` заменена на `UriUtil.getFileSize` в `getFileMetadata` fallback-ветке.
+- 🔧 **Аудит надежности файловых операций** — 7 исправлений в 5 файлах:
+  - [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt): CancellationException cleanup + rethrow, немедленная очистка temp-файлов при старте, вызов `cleanupStalePendingEntries`
+  - [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt): очистка `recentlyObservedUris` и `retryCounts` в `unregister()`
+  - [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt): `pendingBatch.clear()` в `onStopJob()`
+  - [ExifUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ExifUtil.kt): удаление partial backup + `backupCreated = false` при ошибке создания
+  - [MediaStoreUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreUtil.kt): `cleanupStalePendingEntries()` с фильтром `OWNER_PACKAGE_NAME` (Android 11+), уведомление о повреждённом файле
 
 ### Недавние изменения (закоммиченные)
 - ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, улучшена обработка временных файлов и ошибок удаления

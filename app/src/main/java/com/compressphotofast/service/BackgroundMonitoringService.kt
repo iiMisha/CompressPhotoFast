@@ -30,6 +30,7 @@ import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.MediaStoreObserver
+import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.OptimizedCacheUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
@@ -203,6 +204,9 @@ class BackgroundMonitoringService : Service() {
 
         // Запускаем периодическую очистку временных файлов
         startPeriodicCleanup()
+
+        // Очищаем stale IS_PENDING записи от предыдущих сессий
+        serviceScope.launch { MediaStoreUtil.cleanupStalePendingEntries(applicationContext) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -380,8 +384,9 @@ class BackgroundMonitoringService : Service() {
             if (!result.first) {
                 uriProcessingTracker.removeProcessingUriSafe(uri)
             }
-        } catch (_: kotlinx.coroutines.CancellationException) {
-            // Корутина была отменена - игнорируем
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            uriProcessingTracker.removeProcessingUri(uri)
+            throw e
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
             uriProcessingTracker.removeProcessingUriSafe(uri)
@@ -455,10 +460,11 @@ class BackgroundMonitoringService : Service() {
      */
     private fun startPeriodicCleanup() {
         cleanupJob = serviceScope.launch {
+            cleanupTempFiles() // Немедленная очистка при старте
             while (isActive) {
-                cleanupTempFiles()
                 // Планируем следующую очистку через 24 часа
                 delay(24 * 60 * 60 * 1000L) // 24 часа
+                cleanupTempFiles()
             }
         }
     }
