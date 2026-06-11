@@ -514,8 +514,8 @@ object UriUtil {
                             if (sizeIsNull || size == 0L) {
                                 try {
                                     context.contentResolver.openInputStream(uri)?.use { stream ->
-                                        if (stream.available() > 0) {
-                                            LogUtil.processDebug("Файл имеет is_pending=1 и _size=${if (sizeIsNull) "NULL" else "0"}, но физически существует, игнорируем флаг: $uri")
+                                        if (stream.read() != -1) {
+                                            LogUtil.processDebug("Файл имеет is_pending=1 и _size=${if (sizeIsNull) "NULL" else "0"}, но физически существует и читается, игнорируем флаг: $uri")
                                             return false
                                         }
                                     }

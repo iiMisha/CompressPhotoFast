@@ -556,13 +556,11 @@ class ImageDetectionJobService : JobService() {
             
             // Если основной запрос не сработал, пытаемся получить размер через альтернативный способ
             val alternativeSize = try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.available().toLong()
-                }
+                UriUtil.getFileSize(applicationContext, uri)
             } catch (e: Exception) {
                 null
             }
-            
+
             return@withContext FileMetadata(
                 size = alternativeSize ?: -1
             )

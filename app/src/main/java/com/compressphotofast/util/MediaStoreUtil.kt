@@ -734,16 +734,12 @@ object MediaStoreUtil {
 
         while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
             try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                if (inputStream != null) {
-                    val available = inputStream.available()
-                    inputStream.close()
-
-                    if (available > 0) {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    if (inputStream.read() != -1) {
                         isAvailable = true
-                        break
                     }
                 }
+                if (isAvailable) break
             } catch (e: Exception) {
                 LogUtil.warning(uri, "MediaStore", "Ошибка при проверке доступности URI: ${e.message}")
             }
@@ -769,11 +765,14 @@ object MediaStoreUtil {
         inputData: InputStream
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Используем "wt" (write + truncate) чтобы файл был усечен до записи
-            context.contentResolver.openOutputStream(existingUri, "wt")?.use { outputStream ->
-                inputData.copyTo(outputStream)
-                outputStream.flush()
-            } ?: throw IOException("Не удалось открыть OutputStream для URI: $existingUri")
+            // Используем ParcelFileDescriptor "rwt" (read-write-truncate) для надёжной перезаписи
+            // openOutputStream("wt") может работать ненадёжно на некоторых устройствах (Android 12+)
+            context.contentResolver.openFileDescriptor(existingUri, "rwt")?.use { pfd ->
+                java.io.FileOutputStream(pfd.fileDescriptor).use { outputStream ->
+                    inputData.copyTo(outputStream)
+                    outputStream.flush()
+                }
+            } ?: throw IOException("Не удалось открыть FileDescriptor для URI: $existingUri")
             true
         } catch (e: FileNotFoundException) {
             LogUtil.error(existingUri, "MediaStore", "Файл не найден при обновлении: ${e.message}", e)

@@ -87,6 +87,10 @@
   - RC-4: `STALE_URI_THRESHOLD` увеличен с 15 до 30 мин в [UriProcessingTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriProcessingTracker.kt)
   - RC-6: `CancellationException` rethrow в [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt)
   - RC-7: Убран дублирующий `shouldIgnore` check в [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt)
+- 🔧 **Повышение надежности файловых операций**:
+  - [UriUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriUtil.kt): заменена `available() > 0` на `read() != -1` в `isFilePending` для стабильного обнаружения готовых файлов.
+  - [MediaStoreUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreUtil.kt): в `waitForUriAvailability` заменена `available()` на `read() != -1` c `use` для исключения утечек. В `safeUpdateExistingFile` заменена `wt` на `openFileDescriptor("rwt")` для Android 12+ совместимости.
+  - [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt): `available()` заменена на `UriUtil.getFileSize` в `getFileMetadata` fallback-ветке.
 
 ### Недавние изменения (закоммиченные)
 - ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, улучшена обработка временных файлов и ошибок удаления
