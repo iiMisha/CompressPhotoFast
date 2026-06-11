@@ -12,6 +12,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -41,7 +43,6 @@ object MediaStoreUtil {
      */
     private fun getSaveLock(key: String): Mutex {
         val mutex = fileSaveLocks.getOrPut(key) { Mutex() }
-        // Очистка при переполнении: удаляем незалоченные мьютексы
         if (fileSaveLocks.size > MAX_SAVE_LOCKS) {
             val toRemove = fileSaveLocks.entries
                 .filter { !it.value.isLocked }
@@ -495,9 +496,6 @@ object MediaStoreUtil {
 
             if (isUpdateMode) {
                 // Режим замены: перезаписываем существующий файл напрямую
-                // Сбрасываем IS_PENDING флаг перед обновлением
-                clearIsPendingFlag(context, uri)
-
                 // Перезаписываем файл напрямую
                 compressedFile.inputStream().use { inputStream ->
                     val updateSuccess = safeUpdateExistingFile(context, uri, inputStream)
@@ -508,7 +506,6 @@ object MediaStoreUtil {
                 }
             } else {
                 // Режим создания: копируем в новый файл
-                // Копируем содержимое сжатого файла
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     compressedFile.inputStream().use { inputStream ->
                         inputStream.copyTo(outputStream)
@@ -516,7 +513,7 @@ object MediaStoreUtil {
                 }
             }
 
-            // Завершаем IS_PENDING состояние
+            // Завершаем IS_PENDING состояние (для обоих режимов)
             clearIsPendingFlag(context, uri)
 
             // Инвалидируем кэш URI после успешного сохранения
@@ -583,6 +580,11 @@ object MediaStoreUtil {
         mimeType: String = "image/jpeg"
     ): Uri? = withContext(Dispatchers.IO) {
         try {
+            val bytes = ByteArrayOutputStream().use { buf ->
+                inputStream.copyTo(buf)
+                buf.toByteArray()
+            }
+
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
 
@@ -598,7 +600,7 @@ object MediaStoreUtil {
                     clearIsPendingFlag(context, uri)
 
                     // Перезаписываем файл напрямую
-                    val updateSuccess = safeUpdateExistingFile(context, uri, inputStream)
+                    val updateSuccess = safeUpdateExistingFile(context, uri, ByteArrayInputStream(bytes))
 
                     if (!updateSuccess) {
                         // Fallback: пытаемся создать новый файл
@@ -606,9 +608,8 @@ object MediaStoreUtil {
                         if (fallbackResult != null) {
                             try {
                                 context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                    inputStream.resetOrCopy(context).use { resetStream ->
-                                        // Используем потоковое копирование вместо readBytes() для избежания OOM
-                                        resetStream.copyTo(outputStream, bufferSize = 8192)
+                                    ByteArrayInputStream(bytes).use { dataStream ->
+                                        dataStream.copyTo(outputStream, bufferSize = 8192)
                                     }
                                 }
                                 clearIsPendingFlag(context, fallbackResult)
@@ -628,9 +629,8 @@ object MediaStoreUtil {
 
                 } else {
                     // Режим создания: записываем в новый файл
-                    // Записываем сжатое изображение
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        inputStream.copyTo(outputStream)
+                        ByteArrayInputStream(bytes).copyTo(outputStream)
                         outputStream.flush()
                     } ?: throw IOException("Не удалось открыть OutputStream")
                 }
@@ -657,8 +657,7 @@ object MediaStoreUtil {
 
                 // Специальная обработка для Android 11
                 if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                    // Дополнительное ожидание для Android 11
-                    delay(300)
+                    delay(Constants.MEDIASTORE_ANDROID11_DELAY_MS)
                 }
 
                 // Делегируем всю работу с EXIF в ExifUtil
@@ -685,8 +684,6 @@ object MediaStoreUtil {
                 }
                 return@withContext null
             }
-
-            return@withContext uri
 
         } catch (e: Exception) {
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
@@ -801,40 +798,6 @@ object MediaStoreUtil {
         existingUri: Uri?,
         isReplaceMode: Boolean
     ): Boolean = existingUri != null && isReplaceMode
-
-    /**
-     * Вспомогательный extension метод для InputStream
-     * Пытается сбросить поток в начало (если поддерживается), иначе использует временный файл
-     * Используется в fallback сценариях при повторной попытке записи
-     *
-     * OPTIMIZED: Использует временный файл вместо чтения в память для избежания OOM
-     * при обработке больших изображений (50MP+)
-     */
-    private fun InputStream.resetOrCopy(context: Context): InputStream {
-        return try {
-            // Проверяем, поддерживает ли поток mark/reset
-            if (markSupported()) {
-                reset()
-                this
-            } else {
-                // Используем временный файл вместо памяти для избежания OOM
-                val tempFile = File.createTempFile("stream_cache", ".tmp", context.cacheDir)
-                tempFile.deleteOnExit()
-                java.io.FileOutputStream(tempFile).use { output ->
-                    this.copyTo(output, bufferSize = 8192)
-                }
-                tempFile.inputStream()
-            }
-        } catch (e: Exception) {
-            // Fallback: используем временный файл
-            val tempFile = File.createTempFile("stream_cache_fallback", ".tmp", context.cacheDir)
-            tempFile.deleteOnExit()
-            java.io.FileOutputStream(tempFile).use { output ->
-                this.copyTo(output, bufferSize = 8192)
-            }
-            tempFile.inputStream()
-        }
-    }
 
     /**
      * Пакетная проверка конфликтов имен файлов в MediaStore

@@ -115,9 +115,8 @@ object UriUtil {
                     }
                 }
                 
-                // Для content URI возвращаем сам URI в виде строки, чтобы можно было
-                // проверить, находится ли файл в директории приложения
-                return effectiveUri.toString()
+                // Не удалось определить путь файловой системы
+                return null
             } else {
                 // Для Android 9 и ниже используем старый подход
                 val projection = arrayOf(MediaStore.Images.Media.DATA)
@@ -144,8 +143,8 @@ object UriUtil {
             LogUtil.error(uri, "Получение пути", "Ошибка при получении пути к файлу из URI", e)
         }
         
-        // Если все методы не сработали, возвращаем URI в виде строки
-        return uri.toString()
+        // Если все методы не сработали, возвращаем null
+        return null
     }
     
     /**
@@ -434,9 +433,23 @@ object UriUtil {
 
             if (exists) {
                 try {
+                    val docFileLength = try {
+                        DocumentFile.fromSingleUri(context, uri)?.length()
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (docFileLength != null && docFileLength > 0) {
+                        return@withContext docFileLength
+                    }
+
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val available = inputStream.available()
-                        return@withContext if (available >= 0) available.toLong() else 0L
+                        var totalBytes = 0L
+                        val buffer = ByteArray(8192)
+                        var bytesRead: Int
+                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                            totalBytes += bytesRead
+                        }
+                        return@withContext totalBytes
                     }
                 } catch (e: java.io.FileNotFoundException) {
                     LogUtil.error(uri, "Получение размера", "Файл не найден при открытии потока: ${e.message}")

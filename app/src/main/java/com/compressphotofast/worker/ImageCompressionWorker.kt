@@ -382,9 +382,15 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 // Если удаление не удалось, возвращаем failure вместо success
                 if (deleteFailed) {
-                    LogUtil.error(imageUri, "Удаление", "КРИТИЧЕСКАЯ ОШИБКА: Не удалось удалить оригинальный файл после успешного сжатия. Причина: ${deleteErrorMessage ?: "неизвестно"}")
-                    
-                    // Показываем уведомление об ошибке удаления пользователю
+                    LogUtil.error(imageUri, "Удаление", "Не удалось удалить оригинальный файл после успешного сжатия. Причина: ${deleteErrorMessage ?: "неизвестно"}")
+
+                    try {
+                        ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, 99)
+                        LogUtil.processInfo("Маркер сжатия записан в неудалённый оригинал для предотвращения повторной обработки")
+                    } catch (e: Exception) {
+                        LogUtil.error(imageUri, "Маркер", "Не удалось записать маркер в оригинал", e)
+                    }
+
                     NotificationUtil.showErrorNotification(
                         context = appContext,
                         title = "Ошибка удаления оригинала",
@@ -399,8 +405,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                             Constants.NOTIFICATION_ID_COMPRESSION
                         ))
                     }
-                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    return@withContext Result.failure()
+
+                    StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+                    return@withContext Result.success()
                 }
 
                 // Получаем размер сжатого файла для уведомления
@@ -500,12 +507,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (isLockOwner && globalImageUri != null) {
                 uriProcessingTracker.removeProcessingUriSafe(globalImageUri)
                 uriProcessingTracker.addRecentlyProcessedUri(globalImageUri)
-            }
-            testResult?.compressedStream?.close()
-            // Помогаем GC: поток будет собран после закрытия
-            testResult?.let { result ->
-                // Явно освобождаем ссылку на поток для помощи GC
-                result.copy(compressedStream = null)
             }
         }
     }

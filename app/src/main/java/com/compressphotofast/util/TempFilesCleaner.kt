@@ -28,11 +28,12 @@ object TempFilesCleaner {
             synchronized(this) {
                 // Получаем все временные файлы в кэше
                 val files = cacheDir.listFiles { file ->
-                    // Проверяем все временные файлы, созданные приложением
-                    val isTempFile = file.name.startsWith("temp_image_") || 
-                                    file.name.startsWith("input_") ||
-                                    file.name.endsWith(".jpg") ||
-                                    file.name.endsWith(".jpeg")
+                    val name = file.name
+                    val isTempFile = name.startsWith("temp_image_") ||
+                                    name.startsWith("input_") ||
+                                    name.startsWith("stream_cache") ||
+                                    name.startsWith("exif_backup_") ||
+                                    name.startsWith("compressed_")
                     
                     // Проверяем, что файл достаточно старый
                     val isOld = (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)

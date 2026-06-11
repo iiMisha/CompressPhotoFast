@@ -858,14 +858,20 @@ object ExifUtil {
                 
                 // 2. Сохраняем изменения в EXIF (с backup для защиты от повреждения)
                 val backupFile = File(context.cacheDir, "exif_backup_${System.currentTimeMillis()}.jpg")
+                var backupCreated = false
                 try {
                     context.contentResolver.openInputStream(uri)?.use { input ->
                         FileOutputStream(backupFile).use { output ->
                             input.copyTo(output)
                         }
                     }
+                    backupCreated = backupFile.exists() && backupFile.length() > 0
                 } catch (e: Exception) {
                     LogUtil.warning(uri, "EXIF backup", "Не удалось создать backup: ${e.message}")
+                }
+
+                if (!backupCreated) {
+                    LogUtil.warning(uri, "EXIF backup", "Backup не создан — выполняем saveAttributes() без страховки")
                 }
 
                 try {
@@ -1211,7 +1217,7 @@ object ExifUtil {
                 // Если заранее загруженных данных нет, пробуем скопировать EXIF обычным способом
                 try {
                     // Дополнительная задержка перед работой с EXIF
-                    delay(300)
+                    delay(Constants.EXIF_COPY_DELAY_MS)
                     exifSuccess = copyExifData(context, sourceUri, destinationUri)
                     LogUtil.processDebug("Копирование EXIF данных между URI: ${if (exifSuccess) "успешно" else "неудачно"}")
                     
@@ -1226,7 +1232,7 @@ object ExifUtil {
             
             // Финальная верификация EXIF данных
             try {
-                delay(100) // Небольшая задержка перед проверкой
+                delay(Constants.EXIF_VERIFY_DELAY_MS)
                 context.contentResolver.openInputStream(destinationUri)?.use { input ->
                     val exif = ExifInterface(input)
                     val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)

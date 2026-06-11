@@ -97,6 +97,11 @@ object Constants {
     // Временные файлы
     const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут
     
+    // Задержки для EXIF и MediaStore операций (мс)
+    const val EXIF_COPY_DELAY_MS = 300L
+    const val EXIF_VERIFY_DELAY_MS = 100L
+    const val MEDIASTORE_ANDROID11_DELAY_MS = 300L
+    
     /** Минимальный размер файла для обработки (100 КБ) */
     const val MIN_PROCESSABLE_FILE_SIZE = 100 * 1024L
     
