@@ -6,8 +6,6 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import androidx.work.WorkInfo
-import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.worker.ImageCompressionWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -89,15 +87,6 @@ object ImageProcessingUtil {
                 }
 
                 val perUriTag = "compress_${uri.hashCode()}"
-                val alreadyQueued = WorkManager.getInstance(context)
-                    .getWorkInfosByTag(perUriTag).get()
-                    .any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING }
-                if (alreadyQueued) {
-                    UriProcessingTracker.getInstance(context).removeProcessingUriSafe(uri)
-                    LogUtil.processDebug("URI уже в очереди WorkManager, пропуск: $uri")
-                    return@withContext Triple(true, false, "Изображение уже в очереди")
-                }
-
                 inputData["is_handled_by_ipu"] = true
 
                 val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()

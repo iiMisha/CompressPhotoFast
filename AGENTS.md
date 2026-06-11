@@ -79,15 +79,22 @@
 
 ## 🎯 Текущий фокус (Июнь 2026)
 
-### Недавние изменения и исправления
-- ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, улучшена обработка временных файлов и ошибок удаления в [FileOperationsUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/FileOperationsUtil.kt), [UriUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriUtil.kt), [MediaStoreUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreUtil.kt).
-- ✅ **Исправлено ложное срабатывание каталога приложения** (`ec780c5`) — удалена строка "compressphotofast" из `appDirPatterns` в [ImageProcessingChecker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageProcessingChecker.kt).
-- ✅ **Отслеживание времени последнего сканирования** (`67b1543`) — динамическое окно сканирования на основе timestamp в [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt), новые методы в [SettingsManager.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/SettingsManager.kt).
-- ✅ **Исправлены E2E тесты ShareIntent** (`6fc2531`) — polling-методы вместо жестких задержек, константа для имени preferences в [ShareIntentE2ETest.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/androidTest/java/com/compressphotofast/e2e/ShareIntentE2ETest.kt).
-- ✅ **Совместимость удаления с Android 11+** (`5ff4dcf`) — `MediaStore.createDeleteRequest()` для чужих файлов в режиме замены.
-- ✅ **Поддержка `.heif` (MIME: `image/heif`)** (`5ff4dcf`) — проверка типа в [ImageProcessingChecker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageProcessingChecker.kt).
-- ✅ **Координация сервисов обнаружения** (`e02298b`) — `isRunning` volatile-флаг, early exit в [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt), интервал сканирования 15 мин.
-- ✅ **Потокобезопасность и стабильность батчей** — double-check EXIF кэш, `APPEND_OR_REPLACE`, race condition fix в [CompressionBatchTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/CompressionBatchTracker.kt).
+### В работе (незакоммиченные изменения)
+- 🔧 **Исправление race conditions в механизмах обнаружения** — 8 проблем (RC-1..RC-8) проанализированы в [race-conditions-detection-mechanisms.md](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/.kilo/plans/race-conditions-detection-mechanisms.md). Реализованы:
+  - RC-1: Убран TOCTOU `alreadyQueued` check в [ImageProcessingUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageProcessingUtil.kt) — полагается на `enqueueUniqueWork` + `addProcessingUriSafe`
+  - RC-2: `synchronized(pendingBatch)` для атомарного addAll в [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt)
+  - RC-3: Проверка `isImageBeingProcessed` в JobService перед обработкой URI
+  - RC-4: `STALE_URI_THRESHOLD` увеличен с 15 до 30 мин в [UriProcessingTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriProcessingTracker.kt)
+  - RC-6: `CancellationException` rethrow в [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt)
+  - RC-7: Убран дублирующий `shouldIgnore` check в [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt)
+
+### Недавние изменения (закоммиченные)
+- ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, улучшена обработка временных файлов и ошибок удаления
+- ✅ **Ложное срабатывание каталога приложения** (`ec780c5`) — удалена "compressphotofast" из `appDirPatterns`
+- ✅ **Отслеживание времени сканирования** (`67b1543`) — динамическое окно сканирования на основе timestamp
+- ✅ **E2E тесты ShareIntent** (`6fc2531`) — polling вместо жестких задержек
+- ✅ **Android 11+ удаление + .heif** (`5ff4dcf`) — `createDeleteRequest()`, MIME `image/heif`
+- ✅ **Координация сервисов обнаружения** (`e02298b`) — `isRunning` volatile-флаг, early exit, интервал 15 мин
 
 ### Метрики
 - Исходный код: 38 Kotlin-файлов, 9 Python-файлов

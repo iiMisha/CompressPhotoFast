@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
@@ -198,11 +199,9 @@ class MediaStoreObserver @Inject constructor(
                     uriProcessingTracker.markUriUnavailable(uri)
                 }
             } catch (e: PendingItemException) {
-                // Файл физически есть, но доступен только владельцу (is_pending=1 в другом смысле)
                 val nextRetry = retryCounts.compute(uriString) { _, current -> (current ?: 0) + 1 } ?: 1
                 if (nextRetry <= maxRetries) {
-                    // Экспоненциальный backoff: 1с, 2с, 4с, 8с
-                    val delayMs = baseRetryDelayMs * (1 shl nextRetry) // 2^nextRetry
+                    val delayMs = baseRetryDelayMs * (1 shl nextRetry)
                     LogUtil.processDebug("MediaStoreObserver: обнаружен PendingItemException (Only owner), планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
 
                     val retryJob = handlerScope.launch {
@@ -215,6 +214,8 @@ class MediaStoreObserver @Inject constructor(
                     retryCounts.remove(uriString)
                     uriProcessingTracker.markUriUnavailable(uri)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 LogUtil.error(uri, "MediaStoreObserver", "Ошибка при первичной проверке существования", e)
             }

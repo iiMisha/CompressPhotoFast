@@ -64,8 +64,9 @@ class UriProcessingTracker private constructor(
     // Максимальное количество URI в обработке
     private val MAX_PROCESSING_URIS = 50
 
-    // Время после которого URI считается stale (15 минут)
-    private val STALE_URI_THRESHOLD = 15 * 60 * 1000L
+    // Время после которого URI считается stale (30 минут)
+    // Увеличено для предотвращения race condition при длительном ожидании в очереди WorkManager
+    private val STALE_URI_THRESHOLD = 30 * 60 * 1000L
 
     // Карта для Mutex'ов на каждый URI - заменяет busy wait на эффективную блокировку
     private val uriLocks = ConcurrentHashMap<String, Mutex>()

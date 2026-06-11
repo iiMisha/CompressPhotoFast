@@ -168,8 +168,10 @@ class ImageDetectionJobService : JobService() {
      */
     private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>, params: JobParameters?) {
         try {
-            // Добавляем URI к накапливающемуся батчу (ConcurrentHashMap set потокобезопасен для add)
-            pendingBatch.addAll(triggerUris)
+            // Добавляем URI к накапливающемуся батчу атомарно с drain-операцией
+            synchronized(pendingBatch) {
+                pendingBatch.addAll(triggerUris)
+            }
             
             LogUtil.processDebug("ImageDetectionJobService: добавлены ${triggerUris.size} URI к батчу, общий размер: ${pendingBatch.size}")
             
@@ -262,6 +264,12 @@ class ImageDetectionJobService : JobService() {
             LogUtil.processDebug("ImageDetectionJobService: после быстрой фильтрации осталось ${validUris.size} из ${existingUris.size} URI")
             
             for (uri in validUris) {
+                if (uriProcessingTracker.isImageBeingProcessed(uri)) {
+                    LogUtil.processDebug("ImageDetectionJobService: URI уже обрабатывается другим механизмом, пропуск: $uri")
+                    skippedCount++
+                    continue
+                }
+
                 val metadata = batchMetadata[uri]
                 val result = try {
                     processUriWithOptimizations(uri, metadata)

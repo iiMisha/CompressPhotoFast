@@ -370,10 +370,7 @@ class BackgroundMonitoringService : Service() {
                 return
             }
 
-            if (uriProcessingTracker.shouldIgnore(uri)) {
-                return
-            }
-
+            // isImageBeingProcessed включает проверку shouldIgnore + processingUris + recentlyProcessed
             if (uriProcessingTracker.isImageBeingProcessed(uri)) {
                 return
             }
