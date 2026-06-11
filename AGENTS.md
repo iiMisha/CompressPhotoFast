@@ -80,6 +80,8 @@
 ## 🎯 Текущий фокус (Июнь 2026)
 
 ### Недавние изменения и исправления
+- ✅ **Совместимость удаления с Android 11+** — в [FileOperationsUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/FileOperationsUtil.kt) добавлен перехват `SecurityException` на API 30+ с созданием запроса `MediaStore.createDeleteRequest()` для удаления чужих файлов в режиме замены.
+- ✅ **Поддержка формата `.heif` (MIME: `image/heif`)** — в [ImageProcessingChecker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageProcessingChecker.kt) добавлена проверка типа `image/heif`, синхронизируя её с компрессором и кэшем.
 - ✅ **Координация сервисов обнаружения** (`e02298b`) — `BackgroundMonitoringService.isRunning` volatile-флаг для пропуска обработки в `ImageDetectionJobService`, когда ContentObserver уже активен.
 - ✅ **Оптимизация ContentObserver** (`e02298b`) — early exit в [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt) после задержки: проверка `shouldIgnore`/`isProcessing` до обращения к диску.
 - ✅ **Упрощение очистки временных файлов** (`ca8c949`) — из [TempFilesCleaner.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/TempFilesCleaner.kt) удалён `isFileInUse()` и лишние условия, удаление только старых неиспользуемых `.tmp`.

@@ -334,7 +334,8 @@ object ImageProcessingChecker {
                (mimeType.contains("jpeg") ||
                 mimeType.contains("jpg") ||
                 mimeType.contains("png") ||
-                mimeType.equals("image/heic", ignoreCase = true))
+                mimeType.equals("image/heic", ignoreCase = true) ||
+                mimeType.equals("image/heif", ignoreCase = true))
     }
 
     private fun isInAppDirectory(path: String): Boolean {

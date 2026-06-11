@@ -142,7 +142,16 @@ object FileOperationsUtil {
                     }
                     return result
                 } catch (e: SecurityException) {
-                    if (e is android.app.RecoverableSecurityException) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        LogUtil.processInfo("Android 11+: Запрашиваем разрешение на удаление через createDeleteRequest: $cleanUri")
+                        try {
+                            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(cleanUri))
+                            return pendingIntent.intentSender
+                        } catch (ex: Exception) {
+                            LogUtil.error(cleanUri, "Удаление", "Ошибка при создании createDeleteRequest", ex)
+                            throw e
+                        }
+                    } else if (e is android.app.RecoverableSecurityException) {
                         LogUtil.processInfo("Требуется разрешение пользователя для удаления файла: $cleanUri")
                         return e.userAction.actionIntent.intentSender
                     } else {
