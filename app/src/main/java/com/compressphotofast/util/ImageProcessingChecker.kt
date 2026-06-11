@@ -53,8 +53,7 @@ object ImageProcessingChecker {
         // Проверяем точное совпадение patterns
         val appDirPatterns = listOf(
             "/pictures/compressphotofast/",
-            "/storage/emulated/0/pictures/compressphotofast/",
-            "compressphotofast"
+            "/storage/emulated/0/pictures/compressphotofast/"
         )
 
         // Проверяем каждый pattern
