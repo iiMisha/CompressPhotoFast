@@ -16,31 +16,7 @@ class StatsTrackerTest : BaseUnitTest() {
         super.setUp()
     }
 
-    @After
-    override fun tearDown() {
-        super.tearDown()
-        // Очищаем состояние после каждого теста
-        clearStatsTrackerState()
-    }
 
-    /**
-     * Очищает внутреннее состояние StatsTracker для изоляции тестов
-     */
-    private fun clearStatsTrackerState() {
-        // Поскольку StatsTracker - это object с private mutableSetOf,
-        // мы не можем напрямую очистить его состояние.
-        // Вместо этого используем рефлексию для очистки processingUris
-        try {
-            val processingUrisField = StatsTracker::class.java.declaredFields
-                .firstOrNull { it.name == "processingUris" }
-            processingUrisField?.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            val processingUris = processingUrisField?.get(StatsTracker) as? MutableSet<String>
-            processingUris?.clear()
-        } catch (e: Exception) {
-            // Игнорируем ошибки при очистке
-        }
-    }
 
     @Test
     fun `Инициализация с нулевыми значениями`() {

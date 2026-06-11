@@ -321,58 +321,6 @@ object FileOperationsUtil {
         }
     }
 
-    /**
-     * Создает временный файл с валидацией ресурсов
-     *
-     * Проверяет доступное место на диске перед созданием файла.
-     * Использует Result pattern для детализации ошибок.
-     *
-     * @param context Контекст приложения
-     * @return FileOperationResult с временным файлом или ошибкой
-     */
-    suspend fun createTempImageFileValidated(context: Context): FileOperationResult<File> = withContext(Dispatchers.IO) {
-        try {
-            // Проверка доступности cacheDir
-            val cacheDir = context.cacheDir
-            if (!cacheDir.exists()) {
-                LogUtil.error(null, "Cache директория", "Cache директория не существует")
-                return@withContext FileOperationResult.Error(
-                    FileErrorType.IO_ERROR,
-                    "Cache директория недоступна"
-                )
-            }
-
-            // Проверка места на диске (ориентировочно 50MB для временного файла)
-            val estimatedSize = 50 * 1024 * 1024L
-            if (!hasEnoughDiskSpace(context, estimatedSize, cacheDir)) {
-                return@withContext FileOperationResult.Error(
-                    FileErrorType.DISK_FULL,
-                    "Недостаточно места на диске для создания временного файла"
-                )
-            }
-
-            // Создаем временный файл
-            val tempFile = File.createTempFile("temp_image_", ".jpg", cacheDir)
-            LogUtil.processInfo("Создан временный файл: ${tempFile.absolutePath}")
-
-            return@withContext FileOperationResult.Success(tempFile)
-        } catch (e: IOException) {
-            LogUtil.errorWithException("Создание временного файла", e)
-            return@withContext FileOperationResult.Error(
-                FileErrorType.IO_ERROR,
-                "Ошибка при создании временного файла: ${e.message}",
-                e
-            )
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            LogUtil.errorWithException("Создание временного файла", e)
-            return@withContext FileOperationResult.Error(
-                FileErrorType.UNKNOWN,
-                "Неожиданная ошибка: ${e.message}",
-                e
-            )
-        }
-    }
 
     /**
      * Проверка валидности размера файла
@@ -448,22 +396,6 @@ object FileOperationsUtil {
             if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.errorWithException("Поиск сжатой версии файла", e)
             return@withContext null
-        }
-    }
-    
-    /**
-     * Проверяет, является ли изображение скриншотом
-     */
-    fun isScreenshot(context: Context, uri: Uri): Boolean {
-        try {
-            val fileName = UriUtil.getFileNameFromUri(context, uri)?.lowercase() ?: return false
-            return fileName.contains("screenshot") || 
-                   fileName.contains("screen_shot") || 
-                   fileName.contains("скриншот") || 
-                   (fileName.contains("screen") && fileName.contains("shot"))
-        } catch (e: Exception) {
-            LogUtil.error(null, "Ошибка при проверке скриншота для $uri", e)
-            return false
         }
     }
     

@@ -49,7 +49,7 @@
 ### Android-слои
 - **UI:** [MainActivity.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/ui/MainActivity.kt), [MainViewModel.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/ui/MainViewModel.kt)
 - **Domain (Бизнес-логика):** [ImageCompressionUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageCompressionUtil.kt), [ImageCompressionWorker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/worker/ImageCompressionWorker.kt), [SettingsManager.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/SettingsManager.kt)
-- **Data:** DataStore ([SettingsDataStore.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/SettingsDataStore.kt)), MediaStore
+- **Data:** MediaStore, SettingsManager
 - **DI & Singletons:** [AppModule.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/di/AppModule.kt), [UriProcessingTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriProcessingTracker.kt), [PerformanceMonitor.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/PerformanceMonitor.kt), [CompressionBatchTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/CompressionBatchTracker.kt)
 
 ### Фоновая обработка
@@ -80,31 +80,21 @@
 ## 🎯 Текущий фокус (Июнь 2026)
 
 ### В работе (незакоммиченные изменения)
-- 🔧 **Исправление race conditions в механизмах обнаружения** — 8 проблем (RC-1..RC-8) проанализированы в [race-conditions-detection-mechanisms.md](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/.kilo/plans/race-conditions-detection-mechanisms.md). Реализованы:
-  - RC-1: Убран TOCTOU `alreadyQueued` check в [ImageProcessingUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageProcessingUtil.kt) — полагается на `enqueueUniqueWork` + `addProcessingUriSafe`
-  - RC-2: `synchronized(pendingBatch)` для атомарного addAll в [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt)
-  - RC-3: Проверка `isImageBeingProcessed` в JobService перед обработкой URI
-  - RC-4: `STALE_URI_THRESHOLD` увеличен с 15 до 30 мин в [UriProcessingTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriProcessingTracker.kt)
-  - RC-6: `CancellationException` rethrow в [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt)
-  - RC-7: Убран дублирующий `shouldIgnore` check в [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt)
-- 🔧 **Повышение надежности файловых операций**:
-  - [UriUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriUtil.kt): заменена `available() > 0` на `read() != -1` в `isFilePending` для стабильного обнаружения готовых файлов.
-  - [MediaStoreUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreUtil.kt): в `waitForUriAvailability` заменена `available()` на `read() != -1` c `use` для исключения утечек. В `safeUpdateExistingFile` заменена `wt` на `openFileDescriptor("rwt")` для Android 12+ совместимости.
-  - [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt): `available()` заменена на `UriUtil.getFileSize` в `getFileMetadata` fallback-ветке.
-- 🔧 **Аудит надежности файловых операций** — 7 исправлений в 5 файлах:
-  - [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt): CancellationException cleanup + rethrow, немедленная очистка temp-файлов при старте, вызов `cleanupStalePendingEntries`
-  - [MediaStoreObserver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreObserver.kt): очистка `recentlyObservedUris` и `retryCounts` в `unregister()`
-  - [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt): `pendingBatch.clear()` в `onStopJob()`
-  - [ExifUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ExifUtil.kt): удаление partial backup + `backupCreated = false` при ошибке создания
-  - [MediaStoreUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/MediaStoreUtil.kt): `cleanupStalePendingEntries()` с фильтром `OWNER_PACKAGE_NAME` (Android 11+), уведомление о повреждённом файле
+- 🔧 **Очистка мёртвого кода** — удаление неиспользуемых классов и консолидация:
+  - Удалены: `FileInfoUtil.kt`, `Result.kt`, `SettingsDataStore.kt`
+  - [StatsTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/StatsTracker.kt): убран дублирующий `processingUris` (уже есть в UriProcessingTracker)
+  - [FileOperationsUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/FileOperationsUtil.kt): удалены `createTempImageFileValidated()` и `isScreenshot()`
+  - [UriUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriUtil.kt): `isScreenshot()` теперь использует `OptimizedCacheUtil`
+  - [AppModule.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/di/AppModule.kt): удалены провайдеры `OptimizedCacheUtil` и `SettingsDataStore`
+  - [ImageCompressionWorker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/worker/ImageCompressionWorker.kt): убрана неиспользуемая инъекция `optimizedCacheUtil`
 
 ### Недавние изменения (закоммиченные)
-- ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, улучшена обработка временных файлов и ошибок удаления
+- ✅ **Надежность работы с файлами и сервисами** (`f46f571`) — CancellationException cleanup, очистка ресурсов в unregister/onStopJob
+- ✅ **Надежность файловых операций** (`ce844d1`) — `read() != -1` вместо `available()`, `rwt` для Android 12+
+- ✅ **Race conditions в обнаружении** (`395b895`) — убран TOCTOU, synchronized batch, STALE_URI_THRESHOLD 30 мин
+- ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, обработка temp-файлов
 - ✅ **Ложное срабатывание каталога приложения** (`ec780c5`) — удалена "compressphotofast" из `appDirPatterns`
 - ✅ **Отслеживание времени сканирования** (`67b1543`) — динамическое окно сканирования на основе timestamp
-- ✅ **E2E тесты ShareIntent** (`6fc2531`) — polling вместо жестких задержек
-- ✅ **Android 11+ удаление + .heif** (`5ff4dcf`) — `createDeleteRequest()`, MIME `image/heif`
-- ✅ **Координация сервисов обнаружения** (`e02298b`) — `isRunning` volatile-флаг, early exit, интервал 15 мин
 
 ### Метрики
 - Исходный код: 38 Kotlin-файлов, 9 Python-файлов

@@ -5,8 +5,6 @@ import android.net.Uri
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Утилитарный класс для отслеживания статистики и статуса сжатия изображений
@@ -19,27 +17,21 @@ object StatsTracker {
     const val COMPRESSION_STATUS_FAILED = 3
     const val COMPRESSION_STATUS_SKIPPED = 4
 
-    // Множество для отслеживания URI в процессе обработки
-    // Потокобезопасная реализация: доступ из Worker + MediaStoreObserver потоков
-    private val processingUris = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
-    
     /**
-     * Начинает отслеживание URI
+     * Начинает отслеживание URI (для логирования)
      */
     fun startTracking(uri: Uri) {
-        processingUris.add(uri.toString())
         LogUtil.processDebug("Начато отслеживание URI: $uri")
     }
 
     /**
-     * Обновляет статус сжатия для указанного URI
+     * Обновляет статус сжатия для указанного URI (для логирования)
      */
     fun updateStatus(uri: Uri, status: Int) {
         try {
-            // Если статус завершающий (COMPLETED или FAILED), убираем URI из отслеживаемых
+            // Если статус завершающий (COMPLETED или FAILED), логируем
             if (status == COMPRESSION_STATUS_COMPLETED || status == COMPRESSION_STATUS_FAILED || status == COMPRESSION_STATUS_SKIPPED) {
-                processingUris.remove(uri.toString())
-                LogUtil.processDebug("URI удален из отслеживаемых: $uri")
+                LogUtil.processDebug("URI завершил обработку со статусом $status: $uri")
             }
         } catch (e: Exception) {
             LogUtil.error(uri, "UPDATE_STATUS", "Ошибка при обновлении статуса", e)

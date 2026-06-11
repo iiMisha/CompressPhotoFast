@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.work.WorkManager
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.SettingsDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,15 +52,6 @@ object AppModule {
     }
 
     /**
-     * Предоставляет синглтон экземпляр OptimizedCacheUtil
-     */
-    @Provides
-    @Singleton
-    fun provideOptimizedCacheUtil(): com.compressphotofast.util.OptimizedCacheUtil {
-        return com.compressphotofast.util.OptimizedCacheUtil
-    }
-
-    /**
      * Предоставляет синглтон экземпляр CompressionBatchTracker
      * Использует Application Context для предотвращения утечек памяти
      */
@@ -69,16 +59,6 @@ object AppModule {
     @Singleton
     fun provideCompressionBatchTracker(@ApplicationContext context: Context): com.compressphotofast.util.CompressionBatchTracker {
         return com.compressphotofast.util.CompressionBatchTracker(context)
-    }
-
-    /**
-     * Предоставляет экземпляр SettingsDataStore для управления настройками
-     * Асинхронная альтернатива SharedPreferences для избежания ANR
-     */
-    @Provides
-    @Singleton
-    fun provideSettingsDataStore(@ApplicationContext context: Context): SettingsDataStore {
-        return SettingsDataStore(context)
     }
 
     /**

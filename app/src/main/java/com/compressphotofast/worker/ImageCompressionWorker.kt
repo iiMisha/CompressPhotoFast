@@ -64,7 +64,6 @@ import java.util.concurrent.TimeUnit
 class ImageCompressionWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val optimizedCacheUtil: OptimizedCacheUtil,
     private val uriProcessingTracker: UriProcessingTracker,
     private val compressionBatchTracker: CompressionBatchTracker
 ) : CoroutineWorker(context, workerParams) {

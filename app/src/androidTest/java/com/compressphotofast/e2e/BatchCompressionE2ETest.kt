@@ -17,7 +17,6 @@ import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.E2ETestImageGenerator
 import com.compressphotofast.util.ExifUtil
-import com.compressphotofast.util.FileInfoUtil
 import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil

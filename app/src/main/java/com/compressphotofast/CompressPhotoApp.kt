@@ -9,7 +9,6 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.compressphotofast.R
-import com.compressphotofast.util.FileInfoUtil
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.CompressionBatchTracker
@@ -42,9 +41,6 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         // Создание канала уведомлений (для Android 8.0+)
         // Используем централизованный метод из NotificationUtil
         NotificationUtil.createDefaultNotificationChannel(this)
-
-        // Очистка устаревших записей в кэше
-        FileInfoUtil.cleanupCache()
 
         // Инициализация WorkManager с конфигурацией
         // Проверяем, что WorkManager еще не инициализирован (например, в тестах)

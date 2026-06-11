@@ -29,6 +29,9 @@ import java.io.FileOutputStream
  * - Производительность последовательного и параллельного сжатия
  * - Обработка разных форматов (JPG, HEIC, PNG)
  */
+import org.junit.Ignore
+
+@Ignore("Slow load test, takes >5 minutes and 10GB RAM")
 @RunWith(RobolectricTestRunner::class)
 @Config(
     sdk = [29], // Android 10

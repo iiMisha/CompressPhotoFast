@@ -706,10 +706,16 @@ object UriUtil {
     }
 
     /**
-     * Проверяет, является ли изображение скриншотом
-     * Делегирует вызов методу в FileOperationsUtil
+     * Проверяет, является ли изображение скриншотом.
+     * Использует OptimizedCacheUtil для кэширования результатов проверки паттернов.
      */
     fun isScreenshot(context: Context, uri: Uri): Boolean {
-        return FileOperationsUtil.isScreenshot(context, uri)
+        try {
+            val fileName = getFileNameFromUri(context, uri) ?: return false
+            return OptimizedCacheUtil.isScreenshot(fileName)
+        } catch (e: Exception) {
+            LogUtil.error(null, "Ошибка при проверке скриншота для $uri", e)
+            return false
+        }
     }
-} 
+}
