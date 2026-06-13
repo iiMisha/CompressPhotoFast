@@ -40,8 +40,6 @@ import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.ui.CompressionPreset
-import com.compressphotofast.ui.CompressionResult
-import com.compressphotofast.ui.MultipleImagesProgress
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.ImageProcessingUtil
@@ -187,28 +185,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    
-    /**
-     * BroadcastReceiver для получения уведомлений о пропуске изображения
-     */
-    private val compressionSkippedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Constants.ACTION_COMPRESSION_SKIPPED) {
-                viewModel.incrementSkippedCount()
-            }
-        }
-    }
-    
-    /**
-     * BroadcastReceiver для получения уведомлений об уже оптимизированных изображениях
-     */
-    private val alreadyOptimizedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Constants.ACTION_ALREADY_OPTIMIZED) {
-                viewModel.incrementAlreadyOptimizedCount()
-            }
-        }
-    }
 
     private val renamePermissionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -253,19 +229,6 @@ class MainActivity : AppCompatActivity() {
            IntentFilter(Constants.ACTION_REQUEST_RENAME_PERMISSION),
            Context.RECEIVER_NOT_EXPORTED)
         
-        // Регистрируем BroadcastReceiver для получения уведомлений о пропуске сжатия
-        registerReceiver(
-            compressionSkippedReceiver,
-            IntentFilter(Constants.ACTION_COMPRESSION_SKIPPED),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        
-        // Регистрируем BroadcastReceiver для получения уведомлений о ранее оптимизированных изображениях
-        registerReceiver(
-            alreadyOptimizedReceiver,
-            IntentFilter(Constants.ACTION_ALREADY_OPTIMIZED),
-            Context.RECEIVER_NOT_EXPORTED
-        )
     }
     
     override fun onStop() {
@@ -274,9 +237,7 @@ class MainActivity : AppCompatActivity() {
         listOf(
             deletePermissionReceiver,
             renamePermissionReceiver,
-            compressionCompletedReceiver,
-            compressionSkippedReceiver,
-            alreadyOptimizedReceiver
+            compressionCompletedReceiver
         ).forEach { receiver ->
             try {
                 unregisterReceiver(receiver)
@@ -473,9 +434,6 @@ class MainActivity : AppCompatActivity() {
                 return@launch
             }
 
-            // Сбрасываем счетчики перед началом новой пакетной обработки
-            viewModel.resetBatchCounters()
-
             // Создаем batch ID для Intent-сжатий
             val batchId = compressionBatchTracker.createIntentBatch(validUris.size)
             LogUtil.processDebug("Создан Intent батч для ${validUris.size} изображений: $batchId")
@@ -641,54 +599,6 @@ class MainActivity : AppCompatActivity() {
                     // Эта строка будет менять фон в зависимости от состояния (свернуто/развернуто)
                     binding.autoCompressionHeader.isActivated = isExpanded
                 }
-            }
-        }
-
-        // Наблюдение за состоянием загрузки
-        viewModel.isLoading.observe(this) { isLoading ->
-            if (isLoading) {
-                binding.progressBar.visibility = View.VISIBLE
-                // Запускаем анимацию
-                val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
-                binding.progressBar.startAnimation(rotateAnim)
-            } else {
-                binding.progressBar.clearAnimation()
-                binding.progressBar.visibility = View.GONE
-            }
-        }
-        
-        // Наблюдение за прогрессом обработки нескольких изображений
-        viewModel.multipleImagesProgress.observe(this) { progress ->
-            if (progress.total > 1 && !progress.isComplete) {
-                binding.progressBar.visibility = View.VISIBLE
-                // Запускаем анимацию
-                val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate)
-                binding.progressBar.startAnimation(rotateAnim)
-            } else if (progress.isComplete) {
-                binding.progressBar.clearAnimation()
-                binding.progressBar.visibility = View.GONE
-                
-                // Логируем завершение для отладки
-                LogUtil.processDebug("Завершена обработка всех изображений (${progress.processed}/${progress.total})")
-                // Показываем итоговое сообщение
-                viewModel.showBatchSummary()
-            }
-        }
-        
-        // Наблюдение за результатом сжатия (только для логирования)
-        viewModel.compressionResult.observe(this) { result ->
-            result?.let {
-                // Создаем детальную строку логирования с учетом пропущенных файлов
-                val resultLog = if (it.skippedImages > 0) {
-                    "Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, " +
-                    "totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, " +
-                    "skippedImages=${it.skippedImages}, failedImages=${it.failedImages}"
-                } else {
-                    "Реальный результат: success=${it.success}, allSuccessful=${it.allSuccessful}, " +
-                    "totalImages=${it.totalImages}, successfulImages=${it.successfulImages}, " +
-                    "failedImages=${it.failedImages}"
-                }
-                LogUtil.processDebug(resultLog)
             }
         }
 

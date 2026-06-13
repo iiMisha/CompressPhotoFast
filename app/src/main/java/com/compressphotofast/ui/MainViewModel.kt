@@ -12,22 +12,20 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import java.util.UUID
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageProcessingChecker
+import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.Toast
-import com.compressphotofast.util.SequentialImageProcessor
-import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.CompressionBatchTracker
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
@@ -50,29 +48,18 @@ class MainViewModel @Inject constructor(
     private val sharedPreferences: SharedPreferences,
     private val workManager: WorkManager,
     private val settingsManager: SettingsManager,
-    private val uriProcessingTracker: UriProcessingTracker
+    private val uriProcessingTracker: UriProcessingTracker,
+    private val compressionBatchTracker: CompressionBatchTracker
 ) : ViewModel() {
 
     // LiveData для URI выбранного изображения
     private val _selectedImageUri = MutableLiveData<Uri?>()
     val selectedImageUri: LiveData<Uri?> = _selectedImageUri
 
-    // LiveData для статуса загрузки
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
-    
-    // LiveData для результата сжатия
-    private val _compressionResult = MutableLiveData<CompressionResult?>()
-    val compressionResult: LiveData<CompressionResult?> = _compressionResult
-    
     // LiveData для уровня сжатия
     private val _compressionQuality = MutableLiveData<Int>()
     val compressionQuality: LiveData<Int> = _compressionQuality
-    
-    // LiveData для отслеживания прогресса обработки нескольких изображений
-    private val _multipleImagesProgress = MutableLiveData<MultipleImagesProgress>()
-    val multipleImagesProgress: LiveData<MultipleImagesProgress> = _multipleImagesProgress
-    
+
     // StateFlow для управления видимостью предупреждения
     private val _isWarningExpanded = MutableStateFlow(false)
     val isWarningExpanded = _isWarningExpanded.asStateFlow()
@@ -80,20 +67,10 @@ class MainViewModel @Inject constructor(
     // Map для хранения WorkInfo observers
     private val workObservers = mutableMapOf<UUID, Observer<WorkInfo?>>()
 
-    // Job tracking для coroutine collectors
-    private var collectionJobs = listOf<Job>()
-
-    // StateFlows для счетчиков пропущенных и уже оптимизированных изображений
-    private val _skippedCount = MutableStateFlow(0)
-    private val _alreadyOptimizedCount = MutableStateFlow(0)
-
     private val _permissionRequest = MutableLiveData<Event<IntentSenderRequest>>()
     val permissionRequest: LiveData<Event<IntentSenderRequest>> = _permissionRequest
 
 
-    // Объект для последовательной обработки изображений
-    private val sequentialImageProcessor = SequentialImageProcessor(context, uriProcessingTracker)
-    
     init {
         // Загрузить сохраненный уровень сжатия
         _compressionQuality.value = getCompressionQuality()
@@ -108,43 +85,35 @@ class MainViewModel @Inject constructor(
 
     /**
      * Сжатие списка изображений
+     *
+     * Консолидировано с ручным путём (handleIntent): создаётся batchId, каждое
+     * изображение ставится в очередь через ImageProcessingUtil.handleImage
+     * (WorkManager). Результаты группируются CompressionBatchTracker в единый
+     * Toast/уведомление по достижении expectedCount.
      */
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
 
-        // Cancel предыдущие collection jobs
-        collectionJobs.forEach { it.cancel() }
+        val batchId = compressionBatchTracker.createIntentBatch(uris.size)
+        LogUtil.processInfo("Запущена пакетная обработка ${uris.size} изображений (batch=$batchId)")
 
-        // Запускаем новые collectors и сохраняем Job
-        collectionJobs = listOf(
-            viewModelScope.launch {
-                sequentialImageProcessor.isLoading.collect { isLoading ->
-                    _isLoading.value = isLoading
-                }
-            },
-            viewModelScope.launch {
-                sequentialImageProcessor.progress.collect { progress ->
-                    _multipleImagesProgress.value = progress
-                }
-            },
-            viewModelScope.launch {
-                sequentialImageProcessor.result.collect { result ->
-                    _compressionResult.value = result
+        viewModelScope.launch(Dispatchers.IO) {
+            var enqueued = 0
+            for (uri in uris) {
+                try {
+                    val result = ImageProcessingUtil.handleImage(
+                        context, uri, forceProcess = true, batchId = batchId
+                    )
+                    if (result.first && result.second) enqueued++
+                } catch (e: Exception) {
+                    LogUtil.error(uri, "Автосжатие", "Ошибка запуска обработки", e)
                 }
             }
-        )
-
-        // Запускаем обработку изображений последовательно
-        viewModelScope.launch {
-            sequentialImageProcessor.processImages(
-                uris = uris,
-                compressionQuality = getCompressionQuality(),
-                listener = null  // Null так как не используем данные колбэки
-            )
+            // Если ни одно изображение не запущено (все пропущены/ошибки) — финализируем батч
+            if (enqueued == 0) {
+                compressionBatchTracker.finalizeBatch(batchId)
+            }
         }
-
-        // Логируем начало обработки
-        LogUtil.processInfo("Запущена последовательная обработка ${uris.size} изображений")
     }
 
     /**
@@ -293,9 +262,8 @@ class MainViewModel @Inject constructor(
      * Останавливает текущую обработку изображений
      */
     fun stopBatchProcessing() {
-        viewModelScope.launch {
-            sequentialImageProcessor.cancelProcessing()
-        }
+        // Отменяем очередь воркеров сжатия (имя работы совпадает с handleImage)
+        workManager.cancelUniqueWork("sequential_image_compression")
     }
 
     /**
@@ -303,59 +271,6 @@ class MainViewModel @Inject constructor(
      */
     fun toggleWarningExpanded() {
         _isWarningExpanded.value = !_isWarningExpanded.value
-    }
-
-    /**
-     * Увеличивает счетчик пропущенных изображений
-     */
-    fun incrementSkippedCount() {
-        _skippedCount.value++
-    }
-
-    /**
-     * Увеличивает счетчик уже оптимизированных изображений
-     */
-    fun incrementAlreadyOptimizedCount() {
-        _alreadyOptimizedCount.value++
-    }
-
-    /**
-     * Сбрасывает счетчики пакетной обработки
-     */
-    fun resetBatchCounters() {
-        _skippedCount.value = 0
-        _alreadyOptimizedCount.value = 0
-        LogUtil.processDebug("Счетчики пакетной обработки сброшены")
-    }
-
-    /**
-     * Показывает итоговое сообщение о пакетной обработке
-     */
-    fun showBatchSummary() {
-        val skipped = _skippedCount.value
-        val optimized = _alreadyOptimizedCount.value
-
-        if (skipped > 0 || optimized > 0) {
-            val messageParts = mutableListOf<String>()
-            if (skipped > 0) {
-                messageParts.add("Пропущено: $skipped")
-            }
-            if (optimized > 0) {
-                messageParts.add("Уже оптимизировано: $optimized")
-            }
-            val message = messageParts.joinToString(separator = ". ")
-            showToast(message)
-        }
-
-        // Сбрасываем счетчики после показа сообщения
-        resetBatchCounters()
-    }
-
-    /**
-     * Показывает Toast с дедупликацией
-     */
-    fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
-        NotificationUtil.showToast(context, message, duration)
     }
 
     fun requestPermission(intentSender: IntentSender) {
@@ -367,10 +282,6 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
 
-        // Отменяем все collection jobs
-        collectionJobs.forEach { it.cancel() }
-        collectionJobs = emptyList()
-
         // Удаляем всех WorkInfo observers
         workObservers.forEach { (workId, observer) ->
             try {
@@ -380,44 +291,12 @@ class MainViewModel @Inject constructor(
             }
         }
         workObservers.clear()
-
-        // OPTIMIZED: запускаем cleanup в отдельной корутине без блокировки
-        viewModelScope.launch(Dispatchers.IO) {
-            sequentialImageProcessor.destroy()
-        }
     }
 }
-
-/**
- * Результат операции сжатия
- */
-data class CompressionResult(
-    val success: Boolean,
-    val errorMessage: String? = null,
-    val totalImages: Int,
-    val successfulImages: Int,
-    val failedImages: Int,
-    val skippedImages: Int = 0,
-    val allSuccessful: Boolean
-)
 
 /**
  * Предустановки уровня сжатия
  */
 enum class CompressionPreset {
     LOW, MEDIUM, HIGH
-}
-
-/**
- * Прогресс обработки нескольких изображений
- */
-data class MultipleImagesProgress(
-    val total: Int = 0,
-    val processed: Int = 0,
-    val successful: Int = 0,
-    val failed: Int = 0,
-    val skipped: Int = 0
-) {
-    val isComplete: Boolean get() = processed >= total
-    val percentComplete: Int get() = if (total > 0) (processed * 100) / total else 0
 }

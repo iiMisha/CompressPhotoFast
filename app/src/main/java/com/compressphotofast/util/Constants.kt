@@ -78,9 +78,7 @@ object Constants {
     const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.ACTION_COMPRESSION_COMPLETED"
     const val ACTION_COMPRESSION_SKIPPED = "com.compressphotofast.ACTION_COMPRESSION_SKIPPED"
     const val ACTION_STOP_SERVICE = "com.compressphotofast.STOP_SERVICE"
-    const val ACTION_ALREADY_OPTIMIZED = "com.compressphotofast.ACTION_ALREADY_OPTIMIZED"
-    const val ACTION_COMPRESSION_PROGRESS = "com.compressphotofast.ACTION_COMPRESSION_PROGRESS"
-    
+
     // Intent extras
     const val EXTRA_URI = "extra_uri"
     const val EXTRA_DELETE_INTENT_SENDER = "extra_delete_intent_sender"
