@@ -270,17 +270,6 @@ class MediaStoreObserver @Inject constructor(
     }
     
     /**
-     * Очищает все задачи
-     */
-    fun clearTasks() {
-        pendingTasks.forEach { (uri, job) ->
-            job.cancel()
-            LogUtil.processDebug("MediaStoreObserver: отменена отложенная задача для $uri при очистке")
-        }
-        pendingTasks.clear()
-    }
-
-    /**
      * Очищает coroutine scopes (должен вызываться при уничтожении)
      */
     fun destroy() {

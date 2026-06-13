@@ -23,17 +23,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import com.compressphotofast.util.LogUtil
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.ImageCompressionUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.FileOperationsUtil
-import kotlinx.coroutines.runBlocking
-import java.lang.ref.WeakReference
 
 /**
  * Интерфейс для отслеживания прогресса сжатия
@@ -49,13 +42,6 @@ interface CompressionProgressListener {
     fun onCompressionSkipped(uri: Uri, reason: String)
     fun onCompressionFailed(uri: Uri, error: String)
     fun onBatchFailed(error: String)
-}
-
-/**
- * Интерфейс для прогресса обработки изображений
- */
-interface ProgressListener {
-    fun onProgress(progress: MultipleImagesProgress)
 }
 
 /**
@@ -86,17 +72,6 @@ class SequentialImageProcessor(
     // Флаг для отмены обработки
     private val processingCancelled = AtomicBoolean(false)
 
-    // Слушатель прогресса (WeakReference для предотвращения утечек памяти)
-    private var progressListener: WeakReference<ProgressListener>? = null
-
-    /**
-     * Устанавливает слушатель прогресса
-     * @param listener Слушатель прогресса или null для удаления
-     */
-    fun setProgressListener(listener: ProgressListener?) {
-        progressListener = listener?.let { WeakReference(it) }
-    }
-    
     /**
      * Обрабатывает список изображений последовательно
      * 
@@ -397,9 +372,6 @@ class SequentialImageProcessor(
      * Отправляет broadcast о прогрессе обработки и обновляет UI через listener
      */
     private fun updateProgress(current: Int, total: Int, fileName: String) {
-        val progress = MultipleImagesProgress(total, current, 0, 0, 0)
-        progressListener?.get()?.onProgress(progress)
-        
         // Отправляем информацию через broadcast для слушателей
         val intent = Intent(Constants.ACTION_COMPRESSION_PROGRESS)
         intent.setPackage(context.packageName)

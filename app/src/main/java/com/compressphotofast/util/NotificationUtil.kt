@@ -649,24 +649,6 @@ object NotificationUtil {
     }
     
     /**
-     * Обновляет уведомление о прогрессе
-     * @deprecated Используйте showProgressNotification вместо этого метода
-     */
-    @Deprecated("Используйте showProgressNotification вместо этого метода", 
-                ReplaceWith("showProgressNotification(context, notificationId, title, content, progress, max, indeterminate)"))
-    fun updateProgressNotification(
-        context: Context,
-        notificationId: Int,
-        title: String,
-        content: String,
-        progress: Int,
-        max: Int = 100,
-        indeterminate: Boolean = false
-    ) {
-        showProgressNotification(context, notificationId, title, content, progress, max, indeterminate)
-    }
-    
-    /**
      * Отменяет уведомление
      */
     fun cancelNotification(context: Context, notificationId: Int) {
@@ -756,69 +738,6 @@ object NotificationUtil {
             LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе summary notification - отсутствует разрешение POST_NOTIFICATIONS", e)
         } catch (e: Exception) {
             LogUtil.errorWithException("NotificationUtil", e)
-        }
-    }
-    
-    /**
-     * Показывает индивидуальное уведомление внутри группы
-     */
-    private fun showIndividualNotificationInGroup(
-        context: Context,
-        result: BatchNotificationItem,
-        index: Int
-    ) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            // Для старых версий Android не показываем индивидуальные уведомления в группе
-            return
-        }
-        
-        // Проверяем разрешения перед показом уведомления
-        if (!canShowNotifications(context)) {
-            LogUtil.debug("NotificationUtil", "Individual notification пропущен - отсутствуют разрешения: '${result.fileName}'")
-            return
-        }
-        
-        try {
-            val title = if (result.skipped) "⏭️ ${result.fileName}" else "✅ ${result.fileName}"
-            
-            val message = if (result.skipped) {
-                result.skipReason ?: "Пропущен"
-            } else {
-                val originalSizeStr = FileOperationsUtil.formatFileSize(result.originalSize)
-                val compressedSizeStr = FileOperationsUtil.formatFileSize(result.compressedSize)
-                val reductionStr = String.format("%.1f", result.sizeReduction)
-                "$originalSizeStr → $compressedSizeStr (-$reductionStr%)"
-            }
-            
-            val builder = NotificationCompat.Builder(context, "compression_completion_channel")
-                .setContentTitle(title)
-                .setContentText(message)
-                .setSmallIcon(if (result.skipped) android.R.drawable.ic_menu_close_clear_cancel else android.R.drawable.ic_menu_save)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setAutoCancel(true)
-                .setGroup(Constants.NOTIFICATION_GROUP_COMPRESSION)
-                .setGroupSummary(false)
-            
-            val notificationId = Constants.NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE + index
-            getNotificationManager(context).notify(notificationId, builder.build())
-            LogUtil.debug("NotificationUtil", "Показано individual notification: ${result.fileName}")
-        } catch (e: SecurityException) {
-            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе individual notification - отсутствует разрешение POST_NOTIFICATIONS: '${result.fileName}'", e)
-        } catch (e: Exception) {
-            LogUtil.errorWithException("NotificationUtil", e)
-        }
-    }
-    
-    /**
-     * Очищает все уведомления группы сжатия
-     */
-    fun clearCompressionNotificationGroup(context: Context) {
-        // Отменяем summary уведомление
-        cancelNotification(context, Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY)
-        
-        // Отменяем индивидуальные уведомления (максимум 50)
-        for (i in 0..50) {
-            cancelNotification(context, Constants.NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE + i)
         }
     }
     

@@ -209,13 +209,6 @@ class UriProcessingTracker private constructor(
     }
 
     /**
-     * Проверяет, был ли URI недавно обработан
-     */
-    fun wasRecentlyProcessed(uri: Uri): Boolean {
-        return isUriRecentlyProcessed(uri.toString())
-    }
-
-    /**
      * Проверяет, был ли URI недавно обработан по строковому представлению
      */
     private fun isUriRecentlyProcessed(uriString: String): Boolean {
@@ -246,14 +239,6 @@ class UriProcessingTracker private constructor(
      */
     fun shouldIgnore(uri: Uri): Boolean {
         return shouldIgnoreUri(uri.toString())
-    }
-
-    /**
-     * Возвращает количество URI, которые в настоящее время обрабатываются
-     * @return Количество обрабатываемых URI
-     */
-    fun getProcessingCount(): Int {
-        return processingUris.size
     }
 
     /**
@@ -338,29 +323,6 @@ class UriProcessingTracker private constructor(
     }
 
     /**
-     * Сбрасывает все списки отслеживания URI
-     */
-    fun resetAll() {
-        processingUris.clear()
-        recentlyProcessedUris.clear()
-        ignoreUrisUntil.clear()
-        unavailableUris.clear()
-        uriLocks.clear()
-        LogUtil.processDebug("Все списки отслеживания URI очищены")
-    }
-
-    /**
-     * Безопасно проверяет, находится ли URI в списке обрабатываемых с блокировкой
-     */
-    suspend fun isProcessingSafe(uri: Uri): Boolean {
-        val uriString = uri.toString()
-        val mutex = uriLocks.getOrPut(uriString) { Mutex() }
-        return mutex.withLock {
-            processingUris.contains(uriString)
-        }
-    }
-
-    /**
      * Безопасно добавляет URI в список обрабатываемых с блокировкой
      */
     suspend fun addProcessingUriSafe(uri: Uri, source: String = "unknown"): Boolean {
@@ -390,20 +352,6 @@ class UriProcessingTracker private constructor(
             uriProcessingTime.remove(uriString)
             LogUtil.processDebug("URI удалён (safe): $uriString")
         }
-    }
-
-    /**
-     * Проверяет, обрабатывается ли в данный момент изображение с указанным URI
-     * Расширенная проверка с учетом всех состояний
-     */
-
-    /**
-     * Добавляет URI в список обрабатываемых с дополнительной информацией
-     */
-    fun addProcessingUriWithDetails(uri: Uri, source: String = "unknown") {
-        val uriString = uri.toString()
-        processingUris.add(uriString)
-        LogUtil.processDebug("URI добавлен в список обрабатываемых из $source: $uriString (всего: ${processingUris.size})")
     }
 
     /**
@@ -445,17 +393,6 @@ class UriProcessingTracker private constructor(
         val uriString = uri.toString()
         unavailableUris.remove(uriString)
         LogUtil.processDebug("URI удален из списка недоступных: $uriString")
-    }
-
-    /**
-     * Помечает URI как временно недоступный (pending)
-     * Используется когда файл существует, но еще не готов (is_pending=1)
-     */
-    fun markUriPending(uri: Uri) {
-        val uriString = uri.toString()
-        // Используем то же множество, но логируем иначе
-        unavailableUris[uriString] = System.currentTimeMillis()
-        LogUtil.processDebug("URI помечен как ожидающий (pending): $uriString")
     }
 
     /**

@@ -112,18 +112,6 @@ object LogUtil {
         }
     }
 
-    /**
-     * Логирование EXIF операций (DEBUG)
-     */
-    fun exifOperation(uri: Uri, operation: String, success: Boolean, details: String = "") {
-        val fileId = getFileId(uri)
-        val status = if (success) "ОК" else "ОШИБКА"
-        val msg = "[$CATEGORY_EXIF:$fileId] $operation: $status${if (details.isNotEmpty()) " ($details)" else ""}"
-        if (shouldLog(msg, isDebug = true)) {
-            Timber.d(msg)
-        }
-    }
-
     // ========== Логирование ошибок (без дедупликации для критичности) ==========
     
     fun errorSimple(operation: String, message: String) {
@@ -232,15 +220,6 @@ object LogUtil {
             Timber.e(exception, msg)
         } else {
             Timber.e(msg)
-        }
-    }
-
-    /**
-     * Подробное логирование только в DEBUG режиме (используйте для избыточной информации)
-     */
-    fun verbose(category: String, message: String) {
-        if (BuildConfig.DEBUG) {
-            Timber.v("[$category] $message")
         }
     }
 

@@ -172,21 +172,6 @@ object ImageProcessingChecker {
     }
     
     /**
-     * Проверка, было ли изображение уже обработано
-     * Централизованная версия логики из разных частей приложения
-     * @return true если изображение уже обработано, false в противном случае
-     */
-    suspend fun isAlreadyProcessed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val result = isProcessingRequired(context, uri, false)
-            return@withContext !result.processingRequired
-        } catch (e: Exception) {
-            LogUtil.errorWithException("CHECK_PROCESSING", e)
-            return@withContext false
-        }
-    }
-    
-    /**
      * НОВЫЙ ЦЕНТРАЛИЗОВАННЫЙ МЕТОД
      * Проверяет, требуется ли обработка изображения
      * Объединяет различные проверки из разных частей приложения

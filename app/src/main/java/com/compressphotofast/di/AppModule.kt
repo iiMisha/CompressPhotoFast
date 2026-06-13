@@ -2,10 +2,6 @@ package com.compressphotofast.di
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.work.WorkManager
 import com.compressphotofast.util.Constants
 import dagger.Module
@@ -29,17 +25,6 @@ object AppModule {
     @Singleton
     fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
         return context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-    }
-
-    /**
-     * Предоставляет экземпляр DataStore для хранения настроек
-     */
-    @Provides
-    @Singleton
-    fun providePreferencesDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
-        return PreferenceDataStoreFactory.create(
-            produceFile = { context.preferencesDataStoreFile(Constants.PREF_FILE_NAME) }
-        )
     }
 
     /**

@@ -455,14 +455,6 @@ object BatchMediaStoreUtil {
     }
 
     /**
-     * Очистка всего кэша метаданных
-     */
-    fun clearCache() {
-        metadataCache.clear()
-        LogUtil.processDebug("Кэш метаданных очищен")
-    }
-
-    /**
      * Получение статистики кэша
      */
     fun getCacheStats(): String {

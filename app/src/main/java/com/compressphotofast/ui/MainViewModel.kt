@@ -13,17 +13,13 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import java.util.UUID
 import com.compressphotofast.service.BackgroundMonitoringService
-import com.compressphotofast.service.ImageDetectionJobService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.worker.ImageCompressionWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -108,55 +104,6 @@ class MainViewModel @Inject constructor(
      */
     fun setSelectedImageUri(uri: Uri) {
         _selectedImageUri.value = uri
-    }
-
-    /**
-     * Сжатие выбранного изображения
-     */
-    fun compressSelectedImage() {
-        val uri = selectedImageUri.value ?: return
-
-        _isLoading.value = true
-
-        // Запуск worker для сжатия изображения
-        val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-            .setInputData(workDataOf(
-                Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                Constants.WORK_COMPRESSION_QUALITY to getCompressionQuality()
-            ))
-            .build()
-
-        workManager.enqueue(compressionWorkRequest)
-
-        // Создаем и сохраняем observer
-        val observer = Observer<WorkInfo?> { workInfo ->
-            if (workInfo != null && workInfo.state.isFinished) {
-                _isLoading.postValue(false)
-
-                val success = workInfo.outputData.getBoolean("success", false)
-                val errorMessage = workInfo.outputData.getString("error_message")
-
-                // Показываем результат
-                _compressionResult.postValue(
-                    CompressionResult(
-                        success = success,
-                        errorMessage = if (!success) errorMessage else null,
-                        totalImages = 1,
-                        successfulImages = if (success) 1 else 0,
-                        failedImages = if (success) 0 else 1,
-                        allSuccessful = success
-                    )
-                )
-
-                // Логируем результат сжатия для отладки
-                LogUtil.processDebug("Результат сжатия: ${if (success) "успешно" else "с ошибкой: $errorMessage"}")
-            }
-        }
-
-        // Сохраняем observer в Map
-        workObservers[compressionWorkRequest.id] = observer
-        workManager.getWorkInfoByIdLiveData(compressionWorkRequest.id)
-            .observeForever(observer)
     }
 
     /**
@@ -249,16 +196,6 @@ class MainViewModel @Inject constructor(
     fun setCompressionPreset(preset: CompressionPreset) {
         settingsManager.setCompressionPreset(preset)
         _compressionQuality.value = settingsManager.getCompressionQuality()
-    }
-
-    /**
-     * Запуск фонового сервиса
-     */
-    suspend fun startBackgroundService() {
-        if (isAutoCompressionEnabled()) {
-            ImageDetectionJobService.scheduleJob(context)
-            LogUtil.processDebug("JobService запланирован")
-        }
     }
 
     /**
@@ -419,24 +356,6 @@ class MainViewModel @Inject constructor(
      */
     fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
         NotificationUtil.showToast(context, message, duration)
-    }
-
-    /**
-     * Проверяет, можно ли обработать изображение
-     */
-    suspend fun canProcessImage(context: Context, uri: Uri): Boolean {
-        return try {
-            withContext(Dispatchers.IO) {
-                // Используем общую логику проверки из ImageProcessingChecker
-                val shouldProcess = ImageProcessingChecker.shouldProcessImage(context, uri, false)
-                
-                // Возвращаем результат проверки
-                return@withContext shouldProcess
-            }
-        } catch (e: Exception) {
-            LogUtil.errorWithException("Ошибка при проверке возможности обработки изображения: $uri", e)
-            false
-        }
     }
 
     fun requestPermission(intentSender: IntentSender) {

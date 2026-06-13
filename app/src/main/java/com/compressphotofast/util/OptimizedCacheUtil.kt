@@ -382,17 +382,6 @@ object OptimizedCacheUtil {
     }
 
     /**
-     * Полная очистка всех кэшей
-     */
-    fun clearAllCaches() {
-        directoryCacheLock.write { directoryCache.evictAll() }
-        exifCacheLock.write { exifCache.evictAll() }
-        pathPatternCacheLock.write { pathPatternCache.evictAll() }
-        
-        LogUtil.processDebug("Все кэши очищены")
-    }
-
-    /**
      * Получение статистики по всем кэшам
      */
     fun getCacheStats(): String {
@@ -407,16 +396,5 @@ object OptimizedCacheUtil {
         }
         
         return "Кэши: $dirStats, $exifStats, $pathStats"
-    }
-
-    /**
-     * Принудительная очистка кэша EXIF для конкретного URI (при изменении файла)
-     */
-    fun invalidateExifCache(uri: Uri) {
-        val cacheKey = uri.toString()
-        exifCacheLock.write {
-            exifCache.remove(cacheKey)
-        }
-        LogUtil.processDebug("EXIF-кэш очищен для $uri")
     }
 }

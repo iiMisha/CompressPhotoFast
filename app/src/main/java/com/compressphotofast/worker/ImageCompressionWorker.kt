@@ -332,8 +332,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                         ))
                     }
                     StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
-                    // Попытка восстановить оригинальный файл, если он был удален
-                    // FileOperationsUtil.restoreOriginalFileIfNeeded(appContext, imageUri)
                     return@withContext Result.failure()
                 }
 
