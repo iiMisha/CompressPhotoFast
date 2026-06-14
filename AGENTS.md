@@ -80,25 +80,21 @@
 ## 🎯 Текущий фокус (Июнь 2026)
 
 ### В работе (незакоммиченные изменения)
-- 🔧 **Очистка мёртвого кода** — удаление неиспользуемых классов и консолидация:
-  - Удалены: `FileInfoUtil.kt`, `Result.kt`, `SettingsDataStore.kt`
-  - [StatsTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/StatsTracker.kt): убран дублирующий `processingUris` (уже есть в UriProcessingTracker)
-  - [FileOperationsUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/FileOperationsUtil.kt): удалены `createTempImageFileValidated()` и `isScreenshot()`
-  - [UriUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriUtil.kt): `isScreenshot()` теперь использует `OptimizedCacheUtil`
-  - [AppModule.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/di/AppModule.kt): удалены провайдеры `OptimizedCacheUtil` и `SettingsDataStore`
-  - [ImageCompressionWorker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/worker/ImageCompressionWorker.kt): убрана неиспользуемая инъекция `optimizedCacheUtil`
+- ✅ Рабочее дерево чистое. Активных незакоммиченных изменений нет.
+- 📌 **Очистка мёртвого кода завершена** (коммиты `7186907`, `87478cb`, `f463068`) — удалены неиспользуемые классы/компоненты, упрощена архитектура UI.
 
 ### Недавние изменения (закоммиченные)
+- ✅ **Оптимизация архитектуры UI** (`f463068`) — удалены `SequentialImageProcessor`, BroadcastReceiver'ы пропуска/готовности, избыточные наблюдатели в MainViewModel/MainActivity (-626 строк)
+- ✅ **Удаление избыточного кода** (`87478cb`) — консолидация AppModule, MediaStoreObserver, OptimizedCacheUtil, UriProcessingTracker (-472 строки)
+- ✅ **Удаление избыточных утилит** (`7186907`) — удалены `FileInfoUtil`, `Result`, `SettingsDataStore`; убран дублирующий `processingUris` в StatsTracker
 - ✅ **Надежность работы с файлами и сервисами** (`f46f571`) — CancellationException cleanup, очистка ресурсов в unregister/onStopJob
 - ✅ **Надежность файловых операций** (`ce844d1`) — `read() != -1` вместо `available()`, `rwt` для Android 12+
 - ✅ **Race conditions в обнаружении** (`395b895`) — убран TOCTOU, synchronized batch, STALE_URI_THRESHOLD 30 мин
-- ✅ **Надежность файловых операций** (`7f4bf5f`) — константы задержек EXIF/MediaStore, обработка temp-файлов
-- ✅ **Ложное срабатывание каталога приложения** (`ec780c5`) — удалена "compressphotofast" из `appDirPatterns`
 - ✅ **Отслеживание времени сканирования** (`67b1543`) — динамическое окно сканирования на основе timestamp
 
 ### Метрики
-- Исходный код: 38 Kotlin-файлов, 9 Python-файлов
-- Покрытие тестами: 35 Unit-тестов, 25 Instrumentation-тестов
+- Исходный код: 34 Kotlin-файла, 9 Python-файлов
+- Покрытие тестами: 33 Unit-теста (344 метода), 25 Instrumentation-тестов (249 методов)
 - Версия: 2.2.10
 
 ### Известные проблемы
