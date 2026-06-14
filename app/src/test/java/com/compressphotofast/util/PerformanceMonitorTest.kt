@@ -204,16 +204,6 @@ class PerformanceMonitorTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Запись устаревшей обработки`() {
-        // Arrange & Act
-        PerformanceMonitor.recordLegacyProcessing()
-
-        // Assert
-        val detailedStats = PerformanceMonitor.getDetailedStats(mockContext)
-        assert(detailedStats.contains("Устаревшая: 1")) { "Счетчик устаревшей обработки должен быть равен 1" }
-    }
-
-    @Test
     fun `Запись дебаунс-батча`() {
         // Arrange & Act
         PerformanceMonitor.recordDebouncedBatch(5)
@@ -279,30 +269,6 @@ class PerformanceMonitorTest : BaseUnitTest() {
         val quickStats = PerformanceMonitor.getQuickStats()
         assert(quickStats.contains("пакетные/индивид=0/0")) { "Все счетчики должны быть сброшены" }
         assert(quickStats.contains("кэш=0%")) { "Коэффициент попаданий должен быть сброшен" }
-    }
-
-    @Test
-    fun `Расчет экономии от оптимизаций`() = runTest {
-        // Arrange
-        PerformanceMonitor.measureBatchMetadata { "test1" }
-        PerformanceMonitor.measureBatchMetadata { "test2" }
-        PerformanceMonitor.measureIndividualMetadata { "test3" }
-
-        // Act
-        val savings = PerformanceMonitor.calculateOptimizationSavings()
-
-        // Assert
-        assert(savings.contains("Экономия от пакетной обработки:")) { "Отчет должен содержать заголовок" }
-        assert(savings.contains("Фактическое время пакетных запросов:")) { "Отчет должен содержать фактическое время" }
-    }
-
-    @Test
-    fun `Расчет экономии с недостаточными данными`() {
-        // Arrange & Act
-        val savings = PerformanceMonitor.calculateOptimizationSavings()
-
-        // Assert
-        assert(savings.contains("Недостаточно данных для расчета экономии")) { "Должно быть сообщение о недостаточных данных" }
     }
 
     @Test

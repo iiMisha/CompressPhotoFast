@@ -50,26 +50,6 @@ object LogUtil {
     }
 
     /**
-     * Общее логирование (DEBUG)
-     */
-    fun log(tag: String, message: String) {
-        if (shouldLog("[$tag] $message", isDebug = true)) {
-            Timber.tag(tag).d(message)
-        }
-    }
-
-    /**
-     * Логирование операций с файлами (INFO)
-     */
-    fun fileOperation(uri: Uri, operation: String, details: String) {
-        val fileId = getFileId(uri)
-        val msg = "[$CATEGORY_FILE:$fileId] $operation: $details"
-        if (shouldLog(msg)) {
-            Timber.i(msg)
-        }
-    }
-
-    /**
      * Логирование информации о файле (INFO)
      */
     fun fileInfo(uri: Uri, info: String) {
@@ -225,58 +205,5 @@ object LogUtil {
 
     private fun getFileId(uri: Uri): String {
         return uri.lastPathSegment?.takeLast(4) ?: uri.toString().takeLast(4)
-    }
-
-    // ========== Batch логирование для массовых операций ==========
-
-    private val batchCounters = mutableMapOf<String, Int>()
-    private val batchLock = Any()
-
-    /**
-     * Начало batch операции
-     */
-    fun batchStart(operationId: String, totalCount: Int) {
-        synchronized(batchLock) {
-            batchCounters[operationId] = 0
-        }
-        val msg = "[BATCH:$operationId] Начало обработки $totalCount файлов"
-        Timber.i(msg)
-    }
-
-    /**
-     * Логирование прогресса batch операции (каждый 50-й файл для уменьшения шума)
-     */
-    fun batchProgress(operationId: String, fileName: String? = null) {
-        val count = synchronized(batchLock) {
-            val current = batchCounters.getOrDefault(operationId, 0) + 1
-            batchCounters[operationId] = current
-            current
-        }
-        // Логируем каждый 50-й файл и первый
-        if (count == 1 || count % 50 == 0) {
-            val fileInfo = fileName?.let { " - $it" } ?: ""
-            val msg = "[BATCH:$operationId] Обработано $count файлов$fileInfo"
-            Timber.i(msg)
-        }
-    }
-
-    /**
-     * Завершение batch операции с финальной статистикой
-     */
-    fun batchComplete(operationId: String, success: Int, failed: Int, skipped: Int = 0) {
-        synchronized(batchLock) {
-            batchCounters.remove(operationId)
-        }
-        val total = success + failed + skipped
-        val msg = "[BATCH:$operationId] Завершено: $total файлов (✓$success ✗$failed →$skipped)"
-        Timber.i(msg)
-    }
-
-    /**
-     * Логирование batch ошибки (всегда логируется)
-     */
-    fun batchError(operationId: String, fileName: String, error: String) {
-        val msg = "[BATCH:$operationId] Ошибка обработки '$fileName': $error"
-        Timber.e(msg)
     }
 } 

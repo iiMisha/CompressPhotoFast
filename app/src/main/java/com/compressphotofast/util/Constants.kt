@@ -43,10 +43,8 @@ object Constants {
     const val NOTIFICATION_ID_COMPRESSION_RESULT = 4
     
     // Групповые уведомления
-    const val NOTIFICATION_GROUP_COMPRESSION = "compression_group"
     const val NOTIFICATION_ID_COMPRESSION_SUMMARY = 10
-    const val NOTIFICATION_ID_COMPRESSION_INDIVIDUAL_BASE = 100
-    
+
     // Директории
     const val APP_DIRECTORY = "CompressPhotoFast"
     
@@ -88,8 +86,6 @@ object Constants {
     const val EXTRA_COMPRESSED_SIZE = "compressed_size"
     const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
     const val EXTRA_SKIP_REASON = "skip_reason"
-    const val EXTRA_PROGRESS = "progress"
-    const val EXTRA_TOTAL = "total"
     const val EXTRA_BATCH_ID = "batch_id"
     
     // Временные файлы

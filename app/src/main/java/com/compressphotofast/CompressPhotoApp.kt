@@ -8,7 +8,6 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
-import com.compressphotofast.R
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.CompressionBatchTracker

@@ -46,6 +46,14 @@ object UriUtil {
     private const val URI_EXISTS_CACHE_SIZE = 100 // максимум 100 URI в кэше
 
     /**
+     * Проверяет, является ли MIME-тип HEIC/HEIF форматом
+     */
+    fun isHeicMimeType(mimeType: String?): Boolean {
+        return mimeType?.equals("image/heic", ignoreCase = true) == true ||
+               mimeType?.equals("image/heif", ignoreCase = true) == true
+    }
+
+    /**
      * Получает полный путь к файлу из URI
      */
     fun getFilePathFromUri(context: Context, uri: Uri): String? {
@@ -591,7 +599,7 @@ object UriUtil {
                                         if (cursor.moveToFirst()) {
                                             val dateModifiedColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
                                             // DATE_MODIFIED хранится в секундах, умножаем на 1000 для миллисекунд
-                                            val dateModified = cursor.getLong(dateModifiedColumnIndex) * 1000
+                                            val dateModified = cursor.getLong(dateModifiedColumnIndex).secondsToMillis()
                                             LogUtil.processDebug("Дата модификации файла из MediaStore: ${Date(dateModified)} (${dateModified}ms)")
                                             return@withContext dateModified
                                         }
@@ -609,7 +617,7 @@ object UriUtil {
                         if (cursor.moveToFirst()) {
                             val dateIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
                             if (dateIndex != -1) {
-                                return@withContext cursor.getLong(dateIndex) * 1000 // Переводим в миллисекунды
+                                return@withContext cursor.getLong(dateIndex).secondsToMillis() // Переводим в миллисекунды
                             }
                         }
                     }
@@ -675,7 +683,7 @@ object UriUtil {
      * Выполняет запрос к MediaStore по ID из lastPathSegment URI.
      * Используется как запасной вариант для Android 11 (API 30).
      */
-    fun queryMediaStoreWithIdFallbackApi30(
+    private fun queryMediaStoreWithIdFallbackApi30(
         context: Context,
         uri: Uri,
         projection: Array<String>

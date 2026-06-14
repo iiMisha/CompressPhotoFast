@@ -16,18 +16,6 @@ import org.junit.Test
  */
 class LogUtilTest : BaseUnitTest() {
 
-    // ========== Тесты общего логирования ==========
-
-    @Test
-    fun `log с тегом и сообщением`() {
-        // Arrange
-        val tag = "TestTag"
-        val message = "Test message"
-
-        // Act & Assert - просто проверяем, что метод не выбрасывает исключение
-        LogUtil.log(tag, message)
-    }
-
     // ========== Тесты логирования процесса ==========
 
     @Test
@@ -161,52 +149,5 @@ class LogUtilTest : BaseUnitTest() {
 
         // Act & Assert
         LogUtil.permissionsError(message, exception)
-    }
-
-    // ========== Тесты batch логирования ==========
-
-    @Test
-    fun `batchStart начинает batch операцию`() {
-        // Arrange
-        val operationId = "test-batch-1"
-        val totalCount = 50
-
-        // Act & Assert
-        LogUtil.batchStart(operationId, totalCount)
-    }
-
-    @Test
-    fun `batchProgress обновляет прогресс`() {
-        // Arrange
-        val operationId = "test-batch-2"
-        val fileName = "image1.jpg"
-
-        // Act & Assert
-        LogUtil.batchStart(operationId, 20)
-        LogUtil.batchProgress(operationId, fileName)
-        LogUtil.batchProgress(operationId, "image2.jpg")
-    }
-
-    @Test
-    fun `batchComplete завершает batch операцию`() {
-        // Arrange
-        val operationId = "test-batch-3"
-        val success = 45
-        val failed = 3
-        val skipped = 2
-
-        // Act & Assert
-        LogUtil.batchComplete(operationId, success, failed, skipped)
-    }
-
-    @Test
-    fun `batchError логирует ошибку`() {
-        // Arrange
-        val operationId = "test-batch-4"
-        val fileName = "corrupted.jpg"
-        val error = "Invalid image format"
-
-        // Act & Assert
-        LogUtil.batchError(operationId, fileName, error)
     }
 }

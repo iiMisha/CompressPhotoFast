@@ -143,13 +143,6 @@ object PerformanceMonitor {
     }
 
     /**
-     * Увеличивает счетчик устаревшей обработки
-     */
-    fun recordLegacyProcessing() {
-        legacyProcessing.incrementAndGet()
-    }
-
-    /**
      * Увеличивает счетчик дебаунс-батчей
      */
     fun recordDebouncedBatch(batchSize: Int) {
@@ -265,7 +258,7 @@ object PerformanceMonitor {
     }
 
     /**
-     * Сбрасывает все счетчики статистики
+     * Сбрасывает все счетчики статистики (для изоляции тестов)
      */
     fun resetStats() {
         batchMetadataRequests.set(0)
@@ -282,38 +275,6 @@ object PerformanceMonitor {
         debouncedBatches.set(0)
         immediateProcessing.set(0)
         processingTimesBySize.clear()
-
-        LogUtil.processDebug("PerformanceMonitor: статистика сброшена")
-    }
-
-    /**
-     * Вычисляет экономию времени от оптимизаций
-     */
-    fun calculateOptimizationSavings(): String {
-        val batchRequests = batchMetadataRequests.get()
-        val individualRequests = individualMetadataRequests.get()
-        val totalBatchTime = batchMetadataTime.get()
-        val totalIndividualTime = individualMetadataTime.get()
-
-        if (batchRequests == 0 || individualRequests == 0) {
-            return "Недостаточно данных для расчета экономии"
-        }
-
-        val avgBatchTime = totalBatchTime.toDouble() / batchRequests
-        val avgIndividualTime = totalIndividualTime.toDouble() / individualRequests
-
-        // Сколько времени заняли бы пакетные запросы если бы они делались индивидуально
-        val estimatedIndividualTime = batchRequests * avgIndividualTime
-        val actualBatchTime = totalBatchTime
-        val timeSaved = estimatedIndividualTime - actualBatchTime
-        val percentSaved = (timeSaved / estimatedIndividualTime) * 100
-
-        return """
-            |Экономия от пакетной обработки:
-            |  Фактическое время пакетных запросов: ${totalBatchTime}ms
-            | Оценочное время для индивидуальных запросов: ${estimatedIndividualTime.toLong()}ms
-            | Сэкономлено времени: ${timeSaved.toLong()}ms (${String.format("%.1f", percentSaved)}%)
-        """.trimMargin()
     }
 
     /**

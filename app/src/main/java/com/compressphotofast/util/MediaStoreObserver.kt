@@ -28,7 +28,6 @@ import javax.inject.Inject
 
 class MediaStoreObserver @Inject constructor(
     private val context: Context,
-    private val optimizedCacheUtil: OptimizedCacheUtil,
     private val uriProcessingTracker: UriProcessingTracker,
     private var imageChangeListener: ((Uri) -> Unit)? = null
 ) {

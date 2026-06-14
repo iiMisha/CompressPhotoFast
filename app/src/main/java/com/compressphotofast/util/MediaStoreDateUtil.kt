@@ -14,6 +14,9 @@ import kotlinx.coroutines.withContext
  * Решает проблему игнорирования обновлений DATE_MODIFIED на Samsung устройствах
  * путём установки DATE_ADDED при создании и многоуровневого fallback при восстановлении.
  */
+/** Конвертирует значение DATE_MODIFIED (секунды) в миллисекунды */
+fun Long.secondsToMillis(): Long = this * 1000
+
 object MediaStoreDateUtil {
 
     /**

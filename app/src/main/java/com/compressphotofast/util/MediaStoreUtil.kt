@@ -54,6 +54,16 @@ object MediaStoreUtil {
     }
 
     /**
+     * Формирует пару вариантов относительного пути (без слэша / со слэшем на конце)
+     * для запросов к MediaStore, проверяющих RELATIVE_PATH.
+     */
+    private fun buildPathVariants(relativePath: String): Pair<String, String> {
+        val pathWithoutSlash = relativePath.trimEnd('/')
+        val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
+        return Pair(pathWithSlash, pathWithoutSlash)
+    }
+
+    /**
      * Вычисляет относительный путь для сохранения файла в MediaStore
      *
      * @param context Контекст приложения
@@ -119,18 +129,15 @@ object MediaStoreUtil {
             var existingUri: Uri? = null
 
             // Проверяем наличие файла с таким же именем
+            val (pathWithSlash, pathWithoutSlash) = buildPathVariants(targetRelativePath)
             val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 // ИСПРАВЛЕНИЕ: Используем OR условие для проверки обоих вариантов пути
-                val pathWithoutSlash = targetRelativePath.trimEnd('/')
-                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
                 "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
             } else {
                 "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
             }
 
             val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val pathWithoutSlash = targetRelativePath.trimEnd('/')
-                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
                 arrayOf(fileName, pathWithSlash, pathWithoutSlash)
             } else {
                 arrayOf(fileName)
@@ -165,16 +172,12 @@ object MediaStoreUtil {
                 // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
                 val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
                 val batchSelection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
-                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
                     "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
                 } else {
                     "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
                 }
 
                 val batchArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val pathWithoutSlash = targetRelativePath.trimEnd('/')
-                    val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
                     fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
                 } else {
                     fileNamesToCheck.toTypedArray()
@@ -469,65 +472,6 @@ object MediaStoreUtil {
     }
 
     /**
-     * Сохраняет сжатое изображение из файла в галерею
-     */
-    suspend fun saveCompressedImageToGallery(
-        context: Context,
-        compressedFile: File,
-        fileName: String,
-        originalUri: Uri
-    ): Pair<Uri?, Any?> = withContext(Dispatchers.IO) {
-        try {
-            // Получаем путь к директории для сохранения
-            val directory = if (FileOperationsUtil.isSaveModeReplace(context)) {
-                // Если включен режим замены, сохраняем в той же директории
-                UriUtil.getDirectoryFromUri(context, originalUri)
-            } else {
-                // Иначе сохраняем в директории приложения
-                Constants.APP_DIRECTORY
-            }
-
-            // Используем новую версию с поддержкой режима обновления
-            val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, "image/jpeg", originalUri)
-
-            if (uri == null) {
-                return@withContext Pair(null, null)
-            }
-
-            if (isUpdateMode) {
-                // Режим замены: перезаписываем существующий файл напрямую
-                // Перезаписываем файл напрямую
-                compressedFile.inputStream().use { inputStream ->
-                    val updateSuccess = safeUpdateExistingFile(context, uri, inputStream)
-
-                    if (!updateSuccess) {
-                        return@withContext Pair(null, null)
-                    }
-                }
-            } else {
-                // Режим создания: копируем в новый файл
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    compressedFile.inputStream().use { inputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                }
-            }
-
-            // Завершаем IS_PENDING состояние (для обоих режимов)
-            clearIsPendingFlag(context, uri)
-
-            // Инвалидируем кэш URI после успешного сохранения
-            UriUtil.invalidateUriExistsCache(uri)
-
-            // Возвращаем результат
-            return@withContext Pair(uri, null)
-        } catch (e: Exception) {
-            LogUtil.errorWithException("Сохранение файла в галерею", e)
-            return@withContext Pair(null, null)
-        }
-    }
-
-    /**
      * Сохраняет сжатое изображение из потока
      *
      * @param context Контекст приложения
@@ -705,26 +649,8 @@ object MediaStoreUtil {
      * @param uri URI сохранённого файла
      * @return true если изображение корректно декодируется, false если повреждено
      */
-    private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                android.graphics.BitmapFactory.decodeStream(inputStream, null, options)
-                if (options.outWidth <= 0 || options.outHeight <= 0) {
-                    LogUtil.error(uri, "Верификация", "Файл не является корректным изображением: ${options.outWidth}x${options.outHeight}")
-                    return@withContext false
-                }
-                LogUtil.debug("Верификация", "Файл прошёл проверку целостности: ${options.outWidth}x${options.outHeight}")
-            } ?: run {
-                LogUtil.error(uri, "Верификация", "Не удалось открыть поток для проверки целостности")
-                return@withContext false
-            }
-            return@withContext true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Верификация", "Ошибка при проверке целостности файла", e)
-            return@withContext false
-        }
-    }
+    private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean =
+        ImageCompressionUtil.verifyImageIntegrity(context, uri)
 
     /**
      * Проверяет доступность URI для операций с файлом, ожидая в течение указанного времени
@@ -802,94 +728,6 @@ object MediaStoreUtil {
         existingUri: Uri?,
         isReplaceMode: Boolean
     ): Boolean = existingUri != null && isReplaceMode
-
-    /**
-     * Пакетная проверка конфликтов имен файлов в MediaStore
-     *
-     * Использует один запрос с IN clause для проверки всех файлов одновременно,
-     * что значительно снижает количество запросов при пакетной обработке.
-     *
-     * Пример: для 100 файлов выполняется 1 запрос вместо 100 отдельных запросов.
-     *
-     * @param context Контекст приложения
-     * @param fileNames Список имен файлов для проверки
-     * @param relativePath Относительный путь для фильтрации (только для Android 10+).
-     *                     Если null, проверяется без учета пути (может давать ложные срабатывания).
-     * @return Map где ключ = имя файла, значение = существующий Uri (или null если конфликта нет)
-     */
-    suspend fun checkFileNameConflictsBatch(
-        context: Context,
-        fileNames: List<String>,
-        relativePath: String? = null
-    ): Map<String, Uri?> = withContext(Dispatchers.IO) {
-        if (fileNames.isEmpty()) return@withContext emptyMap()
-
-        try {
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME
-            )
-
-            // Создаем плейсхолдеры для каждого имени файла (?, ?, ?, ...)
-            val placeholders = fileNames.map { "?" }.joinToString(",")
-
-            // Формируем условие выборки
-            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
-                // Для Android 10+ проверяем с учетом пути
-                val pathWithoutSlash = relativePath.trimEnd('/')
-                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
-                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-            } else {
-                // Для Android < 10 или если путь не указан
-                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
-            }
-
-            // Формируем аргументы выборки
-            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
-                val pathWithoutSlash = relativePath.trimEnd('/')
-                val pathWithSlash = if (!pathWithoutSlash.endsWith("/")) "$pathWithoutSlash/" else pathWithoutSlash
-                fileNames.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
-            } else {
-                fileNames.toTypedArray()
-            }
-
-            val conflicts = mutableMapOf<String, Uri?>()
-
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-
-                while (cursor.moveToNext()) {
-                    val name = cursor.getString(nameColumn)
-                    val id = cursor.getLong(idColumn)
-                    val uri = ContentUris.withAppendedId(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        id
-                    )
-                    conflicts[name] = uri
-                }
-            }
-
-            // Для файлов без конфликтов добавляем null
-            fileNames.forEach { fileName ->
-                if (!conflicts.containsKey(fileName)) {
-                    conflicts[fileName] = null
-                }
-                }
-
-            conflicts
-        } catch (e: Exception) {
-            LogUtil.error(Uri.EMPTY, "MediaStore", "Критическая ошибка при проверке конфликтов имён: ${e.message}", e)
-            // Возвращаем пустую карту, но логируем ошибку для мониторинга
-            fileNames.associateWith { null }
-        }
-    }
 
     /**
      * Пакетная проверка существования файлов

@@ -12,10 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
 import android.graphics.Matrix
 import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.util.FileOperationsUtil
@@ -99,9 +96,32 @@ object ImageCompressionUtil {
     /**
      * Проверяет, является ли MIME тип HEIC/HEIF
      */
-    private fun isHeicFormat(mimeType: String?): Boolean {
-        return mimeType?.equals("image/heic", ignoreCase = true) == true ||
-               mimeType?.equals("image/heif", ignoreCase = true) == true
+    private fun isHeicFormat(mimeType: String?): Boolean = UriUtil.isHeicMimeType(mimeType)
+
+    /**
+     * Верифицирует целостность изображения: декодирует только заголовки
+     * (inJustDecodeBounds=true) и проверяет корректность размеров.
+     *
+     * @return true если изображение корректно декодируется, false если повреждено
+     */
+    suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
+                if (options.outWidth <= 0 || options.outHeight <= 0) {
+                    LogUtil.error(uri, "Верификация", "Файл повреждён или не является изображением: ${options.outWidth}x${options.outHeight}")
+                    return@withContext false
+                }
+            } ?: run {
+                LogUtil.error(uri, "Верификация", "Не удалось открыть поток для проверки целостности")
+                return@withContext false
+            }
+            return@withContext true
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Верификация", "Ошибка при проверке целостности файла", e)
+            return@withContext false
+        }
     }
 
     private data class OrientationTransform(
@@ -531,46 +551,6 @@ object ImageCompressionUtil {
     }
     
     /**
-     * Сжимает изображение из входного потока в выходной поток
-     * 
-     * @param inputStream Входной поток с изображением
-     * @param outputStream Выходной поток для сжатого изображения
-     * @param quality Качество сжатия (0-100)
-     * @return true если сжатие успешно, false при ошибке
-     */
-    suspend fun compressStream(
-        inputStream: InputStream,
-        outputStream: OutputStream,
-        quality: Int
-    ): Boolean = withContext(Dispatchers.IO) {
-        var inputBitmap: Bitmap? = null
-
-        try {
-            // Загружаем изображение в Bitmap
-            // Оптимизация: используем RGB_565 для экономии памяти
-            val options = BitmapFactory.Options().apply {
-                inPreferredConfig = Bitmap.Config.RGB_565
-                // Добавляем автоматический inSampleSize если изображение критически большое
-                // (хотя для compressStream это обычно не требуется, так как он используется для превью или мелких файлов)
-            }
-            
-            inputBitmap = BitmapFactory.decodeStream(inputStream, null, options)
-                ?: throw IOException("Не удалось декодировать изображение")
-
-            // Сжимаем Bitmap в выходной поток
-            val success = inputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-
-            return@withContext success
-        } catch (e: Exception) {
-            LogUtil.error(null, "Сжатие потока", e)
-            return@withContext false
-        } finally {
-            // Гарантированно освобождаем память Bitmap
-            inputBitmap?.recycle()
-        }
-    }
-    
-    /**
      * Полностью обрабатывает одно изображение - сжатие и сохранение
      * 
      * @param context Контекст приложения
@@ -715,54 +695,6 @@ object ImageCompressionUtil {
     }
     
     /**
-     * Сжимает изображение во временный файл
-     * 
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @param quality Качество сжатия (0-100)
-     * @return Пара (Файл, Размер сжатого изображения) или null при ошибке
-     */
-    suspend fun compressToTempFile(
-        context: Context,
-        uri: Uri,
-        quality: Int
-    ): Pair<File, Long>? = withContext(Dispatchers.IO) {
-        try {
-            // Сжимаем изображение в поток
-            val outputStream = compressImageToStream(context, uri, quality) ?: return@withContext null
-
-            // Создаем временный файл
-            val tempFile = FileOperationsUtil.createTempImageFile(context)
-
-            // Получаем размер сжатого изображения
-            val compressedSize = outputStream.size().toLong()
-
-            // OPTIMIZED: используем toInputStream() вместо toByteArray() для избежания лишней копии
-            // Безопасная запись с использованием use{} (автоматическое закрытие)
-            try {
-                outputStream.toInputStream().use { compressedInputStream ->
-                    FileOutputStream(tempFile).use { fileOutputStream ->
-                        compressedInputStream.copyTo(fileOutputStream)
-                        fileOutputStream.flush()
-                    }
-                }
-                LogUtil.debug("Сжатие", "Сжатые данные записаны во временный файл")
-            } catch (e: IOException) {
-                LogUtil.error(null, "Запись файла", "Ошибка при записи сжатого файла во временный файл ${tempFile.absolutePath}: ${e.message}", e)
-                return@withContext null
-            }
-
-            // Закрываем outputStream после использования
-            outputStream.close()
-
-            return@withContext Pair(tempFile, compressedSize)
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Сжатие во временный файл", e)
-            return@withContext null
-        }
-    }
-    
-    /**
      * Проверяет, является ли URI действительным
      */
     private suspend fun isValidUri(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
@@ -820,49 +752,6 @@ object ImageCompressionUtil {
         }
     }
     
-    /**
-     * Создаёт запись в MediaStore для сжатого изображения
-     */
-    suspend fun createMediaStoreEntry(
-        context: Context,
-        compressedFile: File,
-        fileName: String,
-        directory: String,
-        mimeType: String = "image/jpeg"
-    ): Uri? = withContext(Dispatchers.IO) {
-        try {
-            return@withContext MediaStoreUtil.insertImageIntoMediaStore(
-                context,
-                compressedFile,
-                fileName,
-                directory,
-                mimeType
-            )
-        } catch (e: Exception) {
-            LogUtil.error(null, "Создание записи в MediaStore", e)
-            return@withContext null
-        }
-    }
-    
-    /**
-     * Копирует EXIF данные из исходного изображения в сжатое
-     */
-    suspend fun copyExifData(
-        context: Context,
-        sourceUri: Uri,
-        targetUri: Uri
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Данные должны быть уже в кэше после вызова в ImageCompressionWorker
-            val exifData = ExifUtil.readExifDataToMemory(context, sourceUri)
-            return@withContext ExifUtil.writeExifDataFromMemory(context, targetUri, exifData)
-        } catch (e: Exception) {
-            LogUtil.error(sourceUri, "Копирование EXIF данных", e)
-            return@withContext false
-        }
-    }
-
-
     /**
      * Вычисляет оптимальный коэффициент downsampling (inSampleSize)
      *

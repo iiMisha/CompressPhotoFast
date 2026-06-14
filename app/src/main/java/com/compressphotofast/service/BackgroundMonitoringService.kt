@@ -31,7 +31,6 @@ import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.MediaStoreObserver
 import com.compressphotofast.util.MediaStoreUtil
-import com.compressphotofast.util.OptimizedCacheUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.UriProcessingTracker
@@ -294,7 +293,7 @@ class BackgroundMonitoringService : Service() {
      */
     private fun setupContentObserver() {
         // Создаем MediaStoreObserver
-        val observer = MediaStoreObserver(applicationContext, OptimizedCacheUtil, uriProcessingTracker) { uri ->
+        val observer = MediaStoreObserver(applicationContext, uriProcessingTracker) { uri ->
             // Этот код будет выполнен при обнаружении изменений после задержки
             launchServiceScope {
                 processNewImage(uri)

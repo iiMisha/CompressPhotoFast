@@ -214,7 +214,7 @@ object BatchMediaStoreUtil {
                         } else null
                         
                         val lastModified = if (modifiedColumn != -1 && !cursor.isNull(modifiedColumn)) {
-                            cursor.getLong(modifiedColumn) * 1000 // Конвертируем в миллисекунды
+                            cursor.getLong(modifiedColumn).secondsToMillis() // Конвертируем в миллисекунды
                         } else 0L
                         
                         val isPending = if (pendingColumn != -1 && !cursor.isNull(pendingColumn)) {
@@ -328,7 +328,7 @@ object BatchMediaStoreUtil {
                     } else null
                     
                     val lastModified = if (modifiedColumn != -1 && !cursor.isNull(modifiedColumn)) {
-                        cursor.getLong(modifiedColumn) * 1000
+                        cursor.getLong(modifiedColumn).secondsToMillis()
                     } else 0L
                     
                     val isPending = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -461,35 +461,5 @@ object BatchMediaStoreUtil {
         val total = metadataCache.size
         val expired = metadataCache.values.count { it.isExpired() }
         return "Кэш метаданных: $total записей, $expired устарели"
-    }
-
-    /**
-     * Безопасное чтение Long из курсора с проверкой на null
-     */
-    private fun Cursor.getLongOrNull(index: Int): Long? {
-        return if (index != -1 && !isNull(index)) {
-            try {
-                getLong(index)
-            } catch (e: Exception) {
-                null
-            }
-        } else {
-            null
-        }
-    }
-
-    /**
-     * Безопасное чтение String из курсора с проверкой на null
-     */
-    private fun Cursor.getStringOrNull(index: Int): String? {
-        return if (index != -1 && !isNull(index)) {
-            try {
-                getString(index)
-            } catch (e: Exception) {
-                null
-            }
-        } else {
-            null
-        }
     }
 }

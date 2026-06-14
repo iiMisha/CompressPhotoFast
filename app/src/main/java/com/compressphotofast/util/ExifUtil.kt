@@ -172,9 +172,7 @@ object ExifUtil {
      * @return true если файл HEIC/HEIF
      */
     private fun isHeicFile(context: Context, uri: Uri): Boolean {
-        val mimeType = UriUtil.getMimeType(context, uri)
-        return mimeType?.equals("image/heic", ignoreCase = true) == true ||
-               mimeType?.equals("image/heif", ignoreCase = true) == true
+        return UriUtil.isHeicMimeType(UriUtil.getMimeType(context, uri))
     }
 
     /**
@@ -200,7 +198,7 @@ object ExifUtil {
                 val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)
                 displayName = cursor.getString(nameIndex)
                 if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
-                    dateModified = cursor.getLong(dateIndex) * 1000 // Конвертируем секунды в миллисекунды
+                    dateModified = cursor.getLong(dateIndex).secondsToMillis() // Конвертируем секунды в миллисекунды
                 }
             }
         }
@@ -1028,52 +1026,6 @@ object ExifUtil {
     }
     
     /**
-     * Получает информацию о сжатии из EXIF-тегов
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @return Triple<Boolean, Int, Long>, где:
-     *   - Boolean: было ли изображение сжато
-     *   - Int: качество сжатия или -1
-     *   - Long: временная метка сжатия или 0
-     */
-    suspend fun getCompressionInfo(context: Context, uri: Uri): Triple<Boolean, Int, Long> = withContext(Dispatchers.IO) {
-        try {
-            // Сначала проверяем HEIC файлы с суффиксом _compressed
-            if (isHeicFile(context, uri)) {
-                val (displayName, dateModified) = getHeicDisplayNameAndDate(context, uri)
-
-                if (hasHeicCompressedSuffix(displayName)) {
-                    LogUtil.processDebug("Найден HEIC маркер сжатия в имени: $displayName")
-                    return@withContext Triple(true, 85, dateModified ?: System.currentTimeMillis())
-                }
-            }
-
-            // Стандартная проверка EXIF для всех форматов
-            val exif = getExifInterface(context, uri) ?: return@withContext Triple(false, -1, 0L)
-
-            val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-            if (userComment != null && userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
-                val parts = userComment.split(":")
-                if (parts.size >= 3) {
-                    try {
-                        val quality = parts[1].toInt()
-                        val timestamp = parts[2].toLong()
-                        LogUtil.processDebug("Найден EXIF маркер сжатия в URI $uri: качество=$quality, время=${Date(timestamp)}")
-                        return@withContext Triple(true, quality, timestamp)
-                    } catch (e: NumberFormatException) {
-                        LogUtil.error(uri, "Парсинг маркера сжатия", e)
-                    }
-                }
-            }
-
-            return@withContext Triple(false, -1, 0L)
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Получение информации о сжатии", e)
-            return@withContext Triple(false, -1, 0L)
-        }
-    }
-    
-    /**
      * Добавляет маркер сжатия к изображению
      * @param context Контекст приложения
      * @param uri URI изображения
@@ -1103,17 +1055,6 @@ object ExifUtil {
             LogUtil.error(uri, "Добавление маркера сжатия", e)
             return@withContext false
         }
-    }
-    
-    /**
-     * Проверяет, было ли изображение сжато ранее
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @return true если изображение было сжато ранее
-     */
-    suspend fun isImageCompressed(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val (isCompressed, _, _) = getCompressionInfo(context, uri)
-        return@withContext isCompressed
     }
     
     /**
@@ -1171,14 +1112,7 @@ object ExifUtil {
 
         return Triple(false, -1, 0L)
     }
-    
-    /**
-     * Suspend версия getCompressionMarker.
-     * @see getCompressionMarker
-     */
-    suspend fun getCompressionMarkerSuspend(context: Context, uri: Uri): Triple<Boolean, Int, Long> =
-        getCompressionMarker(context, uri)
-    
+
     /**
      * Централизованный метод для обработки EXIF данных при сохранении сжатого изображения
      * 
@@ -1347,30 +1281,6 @@ object ExifUtil {
         }
     }
 
-    /**
-     * Очищает все EXIF кэши для освобождения памяти
-     * Должен вызываться при завершении пакетной обработки или при нехватке памяти
-     */
-    fun clearExifCaches() {
-        exifDataCache.evictAll()
-        exifCheckCache.evictAll()
-        LogUtil.processInfo("EXIF кэши очищены")
-    }
-
-    private fun verifyImageIntegrity(context: Context, uri: Uri): Boolean {
-        return try {
-            val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                android.graphics.BitmapFactory.decodeStream(inputStream, null, options)
-                if (options.outWidth <= 0 || options.outHeight <= 0) {
-                    LogUtil.error(uri, "EXIF верификация", "Файл повреждён: ${options.outWidth}x${options.outHeight}")
-                    return false
-                }
-            } ?: return false
-            true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "EXIF верификация", "Ошибка проверки целостности", e)
-            false
-        }
-    }
+    private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean =
+        ImageCompressionUtil.verifyImageIntegrity(context, uri)
 } 

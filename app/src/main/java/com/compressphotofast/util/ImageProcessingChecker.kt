@@ -2,20 +2,9 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
-import android.provider.MediaStore
-import android.provider.DocumentsContract
-import android.provider.DocumentsContract.Document
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.LogUtil
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
-import java.util.Date
-import androidx.documentfile.provider.DocumentFile
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.OptimizedCacheUtil
@@ -26,8 +15,6 @@ import com.compressphotofast.util.PerformanceMonitor
  * Предотвращает дублирование логики в разных частях приложения
  */
 object ImageProcessingChecker {
-
-    private val TAG = "ImageProcessingChecker"
 
     /**
      * Нормализует путь к файлу для надежного сравнения
@@ -158,7 +145,7 @@ object ImageProcessingChecker {
             
             // Проверяем MIME тип
             val mimeType = UriUtil.getMimeType(context, uri)
-            if (!isProcessableMimeType(mimeType)) {
+            if (!OptimizedCacheUtil.isProcessableMimeType(mimeType)) {
                 LogUtil.processDebug("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
                 return@withContext false
             }
@@ -311,43 +298,6 @@ object ImageProcessingChecker {
      * @param mimeType MIME тип файла
      * @return true если MIME тип поддерживается, false в противном случае
      */
-    private fun isProcessableMimeType(mimeType: String?): Boolean {
-        if (mimeType == null) return false
-        
-        return mimeType.startsWith("image/") &&
-               (mimeType.contains("jpeg") ||
-                mimeType.contains("jpg") ||
-                mimeType.contains("png") ||
-                mimeType.equals("image/heic", ignoreCase = true) ||
-                mimeType.equals("image/heif", ignoreCase = true))
-    }
-
-    private fun isInAppDirectory(path: String): Boolean {
-        return path.contains("/${Constants.APP_DIRECTORY}/") || 
-               (path.contains("content://media/external/images/media") && 
-                path.contains(Constants.APP_DIRECTORY))
-    }
-
-    /**
-     * Проверяет, является ли изображение файлом из мессенджера.
-     * @param path Путь к файлу
-     * @return true, если файл из мессенджера, иначе false
-     */
-    private fun isMessengerImage(path: String): Boolean {
-        val lowercasedPath = path.lowercase()
-        // Исключаем документы, которые могут быть переданы в высоком качестве
-        if (lowercasedPath.contains("/documents/")) {
-            return false
-        }
-        // Проверяем на наличие папок, содержащих названия мессенджеров
-        return lowercasedPath.contains("/whatsapp/") ||
-               lowercasedPath.contains("/telegram/") ||
-               lowercasedPath.contains("/viber/") ||
-               lowercasedPath.contains("/messenger/") ||
-               lowercasedPath.contains("/messages/") ||
-               lowercasedPath.contains("pictures/messages/")
-    }
-
     /**
      * Класс для хранения результатов проверки необходимости обработки
      */

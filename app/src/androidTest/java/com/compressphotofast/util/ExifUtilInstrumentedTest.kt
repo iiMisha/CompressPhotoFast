@@ -177,7 +177,7 @@ class ExifUtilInstrumentedTest {
             assertThat(markResult).isTrue()
 
             // Verify - проверяем, что маркер действительно добавлен
-            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionInfo(context, testImage)
+            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionMarker(context, testImage)
             assertThat(isCompressed).isTrue()
             assertThat(markedQuality).isEqualTo(quality)
         }
@@ -194,7 +194,7 @@ class ExifUtilInstrumentedTest {
             ExifUtil.markCompressedImage(context, testImage, 80)
 
             // Act
-            val isCompressed = ExifUtil.isImageCompressed(context, testImage)
+            val isCompressed = ExifUtil.getCompressionMarker(context, testImage).first
 
             // Assert
             assertThat(isCompressed).isTrue()
@@ -211,7 +211,7 @@ class ExifUtilInstrumentedTest {
             val testImage = createTestImageInMediaStore()
 
             // Act
-            val isCompressed = ExifUtil.isImageCompressed(context, testImage)
+            val isCompressed = ExifUtil.getCompressionMarker(context, testImage).first
 
             // Assert
             assertThat(isCompressed).isFalse()
@@ -222,7 +222,7 @@ class ExifUtilInstrumentedTest {
      * Тест 8: Получение информации о сжатии
      */
     @Test
-    fun test08_getCompressionInfo_returnsCorrectInfo() {
+    fun test08_getCompressionMarker_returnsCorrectInfo() {
         runBlocking {
             // Arrange
             val testImage = createTestImageInMediaStore()
@@ -231,7 +231,7 @@ class ExifUtilInstrumentedTest {
 
             // Act
             val (isCompressed, markedQuality, timestamp) =
-                ExifUtil.getCompressionInfo(context, testImage)
+                ExifUtil.getCompressionMarker(context, testImage)
 
             // Assert
             assertThat(isCompressed).isTrue()
@@ -315,7 +315,7 @@ class ExifUtilInstrumentedTest {
             assertThat(applyResult).isTrue()
 
             // Verify - проверяем, что маркер добавлен
-            val (isCompressed, quality, _) = ExifUtil.getCompressionInfo(context, destImage)
+            val (isCompressed, quality, _) = ExifUtil.getCompressionMarker(context, destImage)
             assertThat(isCompressed).isTrue()
             assertThat(quality).isEqualTo(90)
         }
@@ -348,7 +348,7 @@ class ExifUtilInstrumentedTest {
             assertThat(handleResult).isTrue()
 
             // Verify
-            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionInfo(context, destImage)
+            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionMarker(context, destImage)
             assertThat(isCompressed).isTrue()
             assertThat(markedQuality).isEqualTo(quality)
         }
@@ -426,7 +426,7 @@ class ExifUtilInstrumentedTest {
             assertThat(applyResult).isTrue()
 
             // Verify - маркер не должен быть добавлен
-            val (isCompressed, _, _) = ExifUtil.getCompressionInfo(context, destImage)
+            val (isCompressed, _, _) = ExifUtil.getCompressionMarker(context, destImage)
             assertThat(isCompressed).isFalse()
         }
     }
@@ -442,12 +442,12 @@ class ExifUtilInstrumentedTest {
 
             // Act - добавляем первый маркер
             ExifUtil.markCompressedImage(context, testImage, 70)
-            val (compressed1, quality1, _) = ExifUtil.getCompressionInfo(context, testImage)
+            val (compressed1, quality1, _) = ExifUtil.getCompressionMarker(context, testImage)
 
             // Act - добавляем второй маркер
             Thread.sleep(100) // чтобы timestamp отличался
             ExifUtil.markCompressedImage(context, testImage, 90)
-            val (compressed2, quality2, timestamp2) = ExifUtil.getCompressionInfo(context, testImage)
+            val (compressed2, quality2, timestamp2) = ExifUtil.getCompressionMarker(context, testImage)
 
             // Assert
             assertThat(compressed1).isTrue()
@@ -917,19 +917,19 @@ class ExifUtilInstrumentedTest {
     }
 
     /**
-     * Тест 25: Проверка getCompressionInfo с кэшированием
+     * Тест 25: Проверка getCompressionMarker с кэшированием
      *
-     * Проверяет, что getCompressionInfo корректно работает с HEIC файлами
+     * Проверяет, что getCompressionMarker корректно работает с HEIC файлами
      * (хотя в текущей реализации используется только MIME тип из UriUtil)
      */
     @Test
-    fun test25_getCompressionInfo_worksCorrectly() {
+    fun test25_getCompressionMarker_worksCorrectly() {
         // Arrange
         val jpegImage = createTestImageInMediaStore()
 
         // Act - для нового файла без маркера
         val (isCompressed1, quality1, timestamp1) = runBlocking {
-            ExifUtil.getCompressionInfo(context, jpegImage)
+            ExifUtil.getCompressionMarker(context, jpegImage)
         }
 
         // Assert
@@ -944,7 +944,7 @@ class ExifUtilInstrumentedTest {
 
         // Act - после добавления маркера
         val (isCompressed2, quality2, timestamp2) = runBlocking {
-            ExifUtil.getCompressionInfo(context, jpegImage)
+            ExifUtil.getCompressionMarker(context, jpegImage)
         }
 
         // Assert

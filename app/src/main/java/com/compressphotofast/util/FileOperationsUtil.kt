@@ -8,7 +8,6 @@ import android.content.IntentSender
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.os.StatFs
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -246,44 +245,6 @@ object FileOperationsUtil {
             }
         } catch (e: Exception) {
             LogUtil.errorWithException("Ошибка при очистке временного файла", e)
-        }
-    }
-
-    /**
-     * Проверяет наличие достаточного места на диске для операции
-     *
-     * @param context Контекст приложения
-     * @param requiredBytes Требуемое количество байт
-     * @param targetDir Целевая директория (по умолчанию cacheDir)
-     * @return true если достаточно места, иначе false
-     */
-    fun hasEnoughDiskSpace(
-        context: Context,
-        requiredBytes: Long,
-        targetDir: File? = null
-    ): Boolean {
-        return try {
-            val dir = targetDir ?: context.cacheDir
-            val stat = StatFs(dir.path)
-            val availableBytes = stat.availableBlocksLong * stat.blockSizeLong
-
-            // Оставляем запас 50MB
-            val minRequired = requiredBytes + (50 * 1024 * 1024)
-            val hasSpace = availableBytes >= minRequired
-
-            if (!hasSpace) {
-                LogUtil.error(
-                    null,
-                    "Проверка дискового пространства",
-                    "Недостаточно места: требуется ${minRequired / 1024 / 1024}MB, " +
-                            "доступно ${availableBytes / 1024 / 1024}MB"
-                )
-            }
-
-            hasSpace
-        } catch (e: Exception) {
-            LogUtil.errorWithException("Проверка дискового пространства", e)
-            false
         }
     }
 
