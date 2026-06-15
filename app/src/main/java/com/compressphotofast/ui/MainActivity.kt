@@ -469,14 +469,8 @@ class MainActivity : AppCompatActivity() {
      * Настройка пользовательского интерфейса
      */
     private fun setupUI() {
-        // Переключатель автоматического сжатия
+        // Переключатель автоматического сжатия (listener'ы регистрируются в attachSwitchListeners())
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
-        binding.switchAutoCompression.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setAutoCompression(isChecked)
-            if (isChecked) {
-                setupBackgroundService()
-            }
-        }
 
         // Кнопка раскрытия предупреждения
         binding.autoCompressionHeader.setOnClickListener {
@@ -511,24 +505,71 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // Переключатель режима сохранения
+        // Переключатель режима сохранения (listener'ы регистрируются в attachSwitchListeners())
         binding.switchSaveMode.isChecked = viewModel.isSaveModeReplace()
-        binding.switchSaveMode.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setSaveMode(isChecked)
-        }
         
         // Установка начального состояния для переключателей качества
         setupCompressionQualityRadioButtons()
 
-        // Переключатель игнорирования фото из мессенджеров
+        // Переключатель игнорирования фото из мессенджеров (listener'ы регистрируются в attachSwitchListeners())
         binding.switchIgnoreMessengerPhotos.isChecked = viewModel.shouldIgnoreMessengerPhotos()
-        binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setIgnoreMessengerPhotos(isChecked)
-        }
 
         binding.btnSelectPhotos.setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
+
+        // Регистрируем listener'ы переключателей после установки начальных состояний
+        attachSwitchListeners()
+    }
+
+    /**
+     * Регистрирует слушатели изменений переключателей.
+     *
+     * Вызывается после программной установки [android.widget.Switch.isChecked],
+     * чтобы избежать ложных срабатываний при инициализации.
+     * Используется как в [setupUI], так и в [syncSwitchesFromPrefs].
+     */
+    private fun attachSwitchListeners() {
+        binding.switchAutoCompression.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setAutoCompression(isChecked)
+            if (isChecked) {
+                setupBackgroundService()
+            }
+        }
+        binding.switchSaveMode.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setSaveMode(isChecked)
+        }
+        binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener { _, isChecked ->
+            viewModel.setIgnoreMessengerPhotos(isChecked)
+        }
+    }
+
+    /**
+     * Синхронизирует состояния переключателей с актуальными значениями из SettingsManager.
+     *
+     * Снимает listener'ы на время программной установки [android.widget.Switch.isChecked],
+     * чтобы предотвратить побочные эффекты (например, запуск фонового сервиса при авто-сжатии),
+     * затем повторно регистрирует listener'ы через [attachSwitchListeners].
+     *
+     * Вызывается в [onResume] для гарантии, что UI отражает хранилище после любых
+     * внешних изменений настроек (сброс тестами, возврат с другого экрана и т.п.).
+     */
+    private fun syncSwitchesFromPrefs() {
+        binding.switchAutoCompression.setOnCheckedChangeListener(null)
+        binding.switchSaveMode.setOnCheckedChangeListener(null)
+        binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener(null)
+
+        binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
+        binding.switchSaveMode.isChecked = viewModel.isSaveModeReplace()
+        binding.switchIgnoreMessengerPhotos.isChecked = viewModel.shouldIgnoreMessengerPhotos()
+
+        attachSwitchListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Ре-синхронизируем UI с актуальными значениями prefs (защита от рассинхрона)
+        syncSwitchesFromPrefs()
     }
 
     /**

@@ -80,6 +80,7 @@
 ## 🎯 Текущий фокус (Июнь 2026)
 
 ### В работе (незакоммиченные изменения)
+- 📌 **Фикс 5 падавших E2E-тестов** (Android) — по плану `.kilo/plans/fix-failing-e2e-tests.md`. Корень: дефолт `shouldIgnoreMessengerPhotos=true` + сброс prefs в `SettingsE2ETest.setUp()` ПОСЛЕ `launch()` + отсутствие UI-синхронизации → рассинхрон UI/prefs (4 отказа `SettingsE2ETest`) и грязное стартовое состояние `MainActivity` ломало share-intent сжатие (`ShareIntentE2ETest.testMultipleImagesProcessed`, 0 вместо ≥2). Правки: дефолт `IgnoreMessenger` → `false` (`SettingsManager.kt:187`); `onResume()` + `attachSwitchListeners()`/`syncSwitchesFromPrefs()` в `MainActivity` (ре-синхрон switch'ей с prefs); сброс prefs ДО `launch()` в `SettingsE2ETest.setUp()`; правка моков и rename теста в `SettingsManagerTest`. Верификация: `assembleDebug` зелёная, unit 326/0, instrumentation **248/248 PASS**.
 - 📌 **Очистка мёртвого кода v3 (Tier 1)** (Android) — по плану `.kilo/plans/dead-code-cleanup-v3.md`. Реально Tier 1 (используется только в main, не в test/androidTest): `MainViewModel.workObservers` поле + блок очистки в `onCleared()` + 3 импорта (`Observer`, `WorkInfo`, `UUID`); orphaned KDoc в `ImageProcessingChecker.kt` над `ProcessingCheckResult`. Сборка зелёная, 330 unit-тестов проходят.
 - ⚠️ **Скорректированные пункты плана (Test-only / Tier 2)** — 3 из 5 пунктов плана v3 оказались test-only и НЕ удалены (план неверно оценил «0 references», не проверив `test`/`androidTest`): `Constants.PREF_COMPRESSION_PRESET` (исп. в `SettingsIntegrationTest.kt:238,245`), `StatsTracker.COMPRESSION_STATUS_NONE` (исп. в `StatsTrackerTest.kt:25`), 5 `*Compat`-методов + instance `getActiveBatchCount()`/`clearAllBatches()` в `CompressionBatchTracker.kt` (~80 вызовов в `CompressionBatchTrackerTest.kt`). Удаление требует правки тестов (Tier 2, отклонено пользователем).
 - 📌 **Очистка мёртвого и дублирующегося кода v2** (Android, -654 строки) — удалены: мёртвые функции (`createTempImageFile`, `insertImageIntoMediaStore`, `showProgressNotification`, `cancelNotification`, 3× `destroy()`, `withUriLock`, `safelyProcessAfterRemoval`, `cleanupExpiredEntries`, `addPendingRenameRequest`, каскадно `addProcessingUri`/`cleanupUnusedMutexes`/`MAX_MUTEX_COUNT`), мёртвые подклассы исключений (`UnsupportedFormat`, `PermissionDenied`, `IoError` + catch-блоки), мёртвый broadcast-канал RENAME целиком (`renamePermissionReceiver`, `renameRequestLauncher`, `permissionRequest`, `requestPermission`, константы), неиспользуемые импорты (~35, включая всю цепочку `id.zelory.compressor`), закомментированный код; устранены дубликаты (verifyImageIntegrity, GPS-массив ×3, backup-restore ×2, хелперы `computeSizeReductionPercent`/`splitNameAndExtension`, HEIC-проверка); исправлен баг: канал `compression_errors` теперь создаётся. Сборка зелёная, 330 unit-тестов проходят.
@@ -95,7 +96,7 @@
 
 ### Метрики
 - Исходный код: 34 Kotlin-файла, 9 Python-файлов
-- Покрытие тестами: 330 Unit-тестов (проходят), 25 Instrumentation-тестов
+- Покрытие тестами: 330 Unit-тестов (проходят), 248 Instrumentation-тестов (проходят)
 - Версия: 2.2.10
 
 ### Известные проблемы

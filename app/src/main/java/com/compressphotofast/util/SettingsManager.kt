@@ -181,10 +181,10 @@ class SettingsManager @Inject constructor(
     
     /**
      * Проверяет, нужно ли игнорировать изображения из мессенджеров
-     * @return true если нужно игнорировать, false в противном случае
+     * @return true если нужно игнорировать, false в противном случае (по умолчанию false)
      */
     fun shouldIgnoreMessengerPhotos(): Boolean {
-        return sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true)
+        return sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false)
     }
     
     /**

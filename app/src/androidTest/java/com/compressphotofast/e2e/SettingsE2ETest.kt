@@ -43,10 +43,13 @@ class SettingsE2ETest : BaseE2ETest() {
         super.setUp()
         context = InstrumentationRegistry.getInstrumentation().targetContext
         settingsManager = SettingsManager.getInstance(context)
-        mainActivityScenario = ActivityScenario.launch(MainActivity::class.java)
-        
-        // Сбрасываем настройки перед каждым тестом
+
+        // Сбрасываем настройки ДО запуска Activity, чтобы onCreate/onResume
+        // считывали детерминированное стартовое состояние (все значения по умолчанию).
+        // Это устраняет рассинхронизацию UI (.isChecked) и prefs.
         resetSettings()
+
+        mainActivityScenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
     @After

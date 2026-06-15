@@ -621,21 +621,21 @@ class SettingsManagerTest : BaseUnitTest() {
     // ==================== Игнорирование фото из мессенджеров ====================
     
     @Test
-    fun `shouldIgnoreMessengerPhotos returns true when not set`() {
+    fun `shouldIgnoreMessengerPhotos returns false when not set`() {
         // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true) } returns true
+        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns false
         
         // Act
         val result = settingsManager.shouldIgnoreMessengerPhotos()
         
         // Assert
-        assertTrue(result)
+        assertFalse(result)
     }
     
     @Test
     fun `shouldIgnoreMessengerPhotos returns true when enabled`() {
         // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true) } returns true
+        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns true
         
         // Act
         val result = settingsManager.shouldIgnoreMessengerPhotos()
@@ -647,7 +647,7 @@ class SettingsManagerTest : BaseUnitTest() {
     @Test
     fun `shouldIgnoreMessengerPhotos returns false when disabled`() {
         // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true) } returns false
+        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns false
         
         // Act
         val result = settingsManager.shouldIgnoreMessengerPhotos()
