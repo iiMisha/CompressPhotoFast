@@ -24,7 +24,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.cancel
 import com.compressphotofast.util.FileOperationsUtil
 
 /**
@@ -275,6 +274,18 @@ object NotificationUtil {
                 enableLights = false,
                 enableVibration = false
             )
+
+            // Создаем канал для ошибок сжатия (OOM и др.)
+            createNotificationChannel(
+                context,
+                "compression_errors",
+                "Ошибки сжатия",
+                "Канал для уведомлений об ошибках при сжатии изображений",
+                NotificationManager.IMPORTANCE_HIGH,
+                showBadge = true,
+                enableLights = true,
+                enableVibration = true
+            )
             
             // LogUtil.notification("Уведомления: каналы уведомлений созданы")
         }
@@ -345,11 +356,7 @@ object NotificationUtil {
         val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
         val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
 
-        val reductionPercent = if (originalSize > 0) {
-            ((originalSize - compressedSize) * 100.0 / originalSize).roundToInt()
-        } else {
-            0
-        }
+        val reductionPercent = FileOperationsUtil.computeSizeReductionPercent(originalSize, compressedSize).roundToInt()
 
         val message = "$fileName: $originalSizeStr → $compressedSizeStr (-$reductionPercent%)"
         showToast(context, message, duration)
@@ -570,89 +577,6 @@ object NotificationUtil {
             intent,
             PendingIntent.FLAG_IMMUTABLE
         )
-    }
-    
-    /**
-     * Создает и/или обновляет уведомление о прогрессе с возможностью отмены
-     * @param context Контекст приложения
-     * @param notificationId ID уведомления
-     * @param title Заголовок уведомления
-     * @param content Текст уведомления
-     * @param progress Прогресс выполнения (0-100)
-     * @param max Максимальное значение прогресса
-     * @param indeterminate Показывать ли неопределенный прогресс
-     * @param cancelAction Action для кнопки отмены (если null, кнопка не отображается)
-     */
-    fun showProgressNotification(
-        context: Context,
-        notificationId: Int,
-        title: String,
-        content: String,
-        progress: Int,
-        max: Int = 100,
-        indeterminate: Boolean = false,
-        cancelAction: String? = null
-    ) {
-        // Проверяем разрешения перед показом уведомления
-        if (!canShowNotifications(context)) {
-            LogUtil.debug("NotificationUtil", "Progress notification пропущен - отсутствуют разрешения: '$title'")
-            return
-        }
-        
-        try {
-            // Создаем Intent для открытия приложения при нажатии на уведомление
-            val contentIntent = createMainActivityPendingIntent(context)
-            
-            // Список действий для уведомления
-            val actions = mutableListOf<NotificationAction>()
-            
-            // Добавляем кнопку отмены, если указан action
-            if (cancelAction != null) {
-                val cancelIntent = Intent(cancelAction)
-                val cancelPendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    notificationId,
-                    cancelIntent,
-                    PendingIntent.FLAG_IMMUTABLE
-                )
-                
-                actions.add(
-                    NotificationAction(
-                        iconRes = android.R.drawable.ic_menu_close_clear_cancel,
-                        title = context.getString(R.string.notification_action_stop),
-                        pendingIntent = cancelPendingIntent
-                    )
-                )
-            }
-            
-            // Создаем уведомление с прогрессом
-            val notification = createNotification(
-                context = context,
-                channelId = context.getString(R.string.notification_channel_id),
-                title = title,
-                content = content,
-                priority = NotificationCompat.PRIORITY_LOW,
-                ongoing = true,
-                contentIntent = contentIntent,
-                actions = actions,
-                progress = ProgressInfo(max, progress, indeterminate)
-            )
-            
-            // Показываем уведомление
-            getNotificationManager(context).notify(notificationId, notification)
-            LogUtil.debug("NotificationUtil", "Показано progress notification: $title ($progress/$max)")
-        } catch (e: SecurityException) {
-            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе progress notification - отсутствует разрешение POST_NOTIFICATIONS: '$title'", e)
-        } catch (e: Exception) {
-            LogUtil.errorWithException("NotificationUtil", e)
-        }
-    }
-    
-    /**
-     * Отменяет уведомление
-     */
-    fun cancelNotification(context: Context, notificationId: Int) {
-        getNotificationManager(context).cancel(notificationId)
     }
     
     /**
@@ -897,12 +821,5 @@ object NotificationUtil {
         } catch (e: Exception) {
             LogUtil.errorWithException("NotificationUtil", e)
         }
-    }
-
-    /**
-     * Очищает coroutine scope (должен вызываться при уничтожении приложения)
-     */
-    fun destroy() {
-        notificationScope.cancel()
     }
 } 

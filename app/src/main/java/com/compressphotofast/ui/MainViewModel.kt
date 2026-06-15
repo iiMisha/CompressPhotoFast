@@ -28,15 +28,9 @@ import kotlinx.coroutines.withContext
 import com.compressphotofast.util.CompressionBatchTracker
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.UriUtil
-import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriProcessingTracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import android.content.IntentSender
-import androidx.activity.result.IntentSenderRequest
-import com.compressphotofast.util.Event
-import com.compressphotofast.util.EventObserver
 
 
 /**
@@ -66,9 +60,6 @@ class MainViewModel @Inject constructor(
 
     // Map для хранения WorkInfo observers
     private val workObservers = mutableMapOf<UUID, Observer<WorkInfo?>>()
-
-    private val _permissionRequest = MutableLiveData<Event<IntentSenderRequest>>()
-    val permissionRequest: LiveData<Event<IntentSenderRequest>> = _permissionRequest
 
 
     init {
@@ -271,11 +262,6 @@ class MainViewModel @Inject constructor(
      */
     fun toggleWarningExpanded() {
         _isWarningExpanded.value = !_isWarningExpanded.value
-    }
-
-    fun requestPermission(intentSender: IntentSender) {
-        val request = IntentSenderRequest.Builder(intentSender).build()
-        _permissionRequest.value = Event(request)
     }
 
     // Очистка ресурсов при уничтожении ViewModel

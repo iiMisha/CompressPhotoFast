@@ -379,9 +379,7 @@ class CompressionBatchTracker @Inject constructor(
             // Считаем общую статистику для Toast
             val totalOriginalSize = successfulResults.sumOf { it.originalSize }
             val totalCompressedSize = successfulResults.sumOf { it.compressedSize }
-            val totalReduction = if (totalOriginalSize > 0) {
-                ((totalOriginalSize - totalCompressedSize).toFloat() / totalOriginalSize) * 100
-            } else 0f
+            val totalReduction = FileOperationsUtil.computeSizeReductionPercent(totalOriginalSize, totalCompressedSize)
 
             val originalSizeStr = FileOperationsUtil.formatFileSize(totalOriginalSize)
             val compressedSizeStr = FileOperationsUtil.formatFileSize(totalCompressedSize)
@@ -409,9 +407,7 @@ class CompressionBatchTracker @Inject constructor(
         // Считаем общую статистику для уведомлений
         val totalOriginalSize = successfulResults.sumOf { it.originalSize }
         val totalCompressedSize = successfulResults.sumOf { it.compressedSize }
-        val totalReduction = if (totalOriginalSize > 0) {
-            ((totalOriginalSize - totalCompressedSize).toFloat() / totalOriginalSize) * 100
-        } else 0f
+        val totalReduction = FileOperationsUtil.computeSizeReductionPercent(totalOriginalSize, totalCompressedSize)
         
         // Конвертируем результаты в формат для уведомлений
         val notificationItems = allResults.map { result ->
@@ -507,14 +503,5 @@ class CompressionBatchTracker @Inject constructor(
         }
         batches.clear()
         LogUtil.processDebug("Все батчи очищены")
-    }
-
-    /**
-     * Очищает coroutine scope (должен вызываться при уничтожении приложения)
-     */
-    fun destroy() {
-        batchScope.cancel()
-        mainScope.cancel()
-        clearAllBatches()
     }
 }

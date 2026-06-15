@@ -278,10 +278,9 @@ object OptimizedCacheUtil {
         // Быстрая проверка без использования contains() для простых случаев
         val isProcessable = when {
             mimeType.startsWith("image/jpeg") -> true
-            mimeType.startsWith("image/jpg") -> true  
+            mimeType.startsWith("image/jpg") -> true
             mimeType.startsWith("image/png") -> true
-            mimeType.equals("image/heic", ignoreCase = true) -> true
-            mimeType.equals("image/heif", ignoreCase = true) -> true
+            UriUtil.isHeicMimeType(mimeType) -> true
             mimeType.startsWith("image/") -> mimeType.contains("jpeg") || mimeType.contains("jpg") || mimeType.contains("png")
             else -> false
         }
@@ -317,68 +316,6 @@ object OptimizedCacheUtil {
         }
         
         LogUtil.processDebug("Предзагружен кэш для ${directoryGroups.size} директорий (${filePaths.size} файлов)")
-    }
-
-    /**
-     * Очищает устаревшие записи из всех кэшей
-     */
-    fun cleanupExpiredEntries() {
-        var totalCleaned = 0
-        
-        // Очищаем кэш директорий
-        directoryCacheLock.write {
-            val keysToRemove = mutableListOf<String>()
-            val snapshot = directoryCache.snapshot()
-            
-            for ((key, value) in snapshot) {
-                if (value.isExpired()) {
-                    keysToRemove.add(key)
-                }
-            }
-            
-            keysToRemove.forEach { key ->
-                directoryCache.remove(key)
-            }
-            totalCleaned += keysToRemove.size
-        }
-        
-        // Очищаем кэш EXIF-данных
-        exifCacheLock.write {
-            val keysToRemove = mutableListOf<String>()
-            val snapshot = exifCache.snapshot()
-            
-            for ((key, value) in snapshot) {
-                if (value.isExpired()) {
-                    keysToRemove.add(key)
-                }
-            }
-            
-            keysToRemove.forEach { key ->
-                exifCache.remove(key)
-            }
-            totalCleaned += keysToRemove.size
-        }
-        
-        // Очищаем кэш паттернов
-        pathPatternCacheLock.write {
-            val keysToRemove = mutableListOf<String>()
-            val snapshot = pathPatternCache.snapshot()
-            
-            for ((key, value) in snapshot) {
-                if (value.isExpired()) {
-                    keysToRemove.add(key)
-                }
-            }
-            
-            keysToRemove.forEach { key ->
-                pathPatternCache.remove(key)
-            }
-            totalCleaned += keysToRemove.size
-        }
-        
-        if (totalCleaned > 0) {
-            LogUtil.processDebug("Очищено $totalCleaned устаревших записей из кэшей")
-        }
     }
 
     /**

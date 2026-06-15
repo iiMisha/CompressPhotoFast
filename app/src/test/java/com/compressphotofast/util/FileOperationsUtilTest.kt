@@ -23,7 +23,6 @@ import android.content.Context
  *
  * Примечание: Некоторые методы требуют интеграционного тестирования с Robolectric или Hilt:
  * - deleteFile (реальная работа с MediaStore)
- * - createTempImageFile (файловая система)
  * - findCompressedVersionByOriginalName (MediaStore queries)
  * - isScreenshot (UriUtil моки)
  */

@@ -412,66 +412,6 @@ object MediaStoreUtil {
     }
 
     /**
-     * Вставляет изображение в MediaStore
-     */
-    suspend fun insertImageIntoMediaStore(
-        context: Context,
-        file: File,
-        fileName: String,
-        directory: String,
-        mimeType: String = "image/jpeg",
-        originalUri: Uri? = null
-    ): Uri? = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем существование файла
-            if (!file.exists()) {
-                LogUtil.error(null, "MediaStore", "Файл не существует: ${file.absolutePath}")
-                return@withContext null
-            }
-
-            val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
-            val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
-
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, targetRelativePath)
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
-                }
-
-                // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
-                MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
-            }
-
-            val uri = context.contentResolver.insert(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                contentValues
-            ) ?: throw IOException("Ошибка при вставке в MediaStore")
-
-            // Копируем данные
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                file.inputStream().use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            } ?: throw IOException("Не удалось открыть выходной поток")
-
-            // Завершаем операцию для Android 10+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                contentValues.clear()
-                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                context.contentResolver.update(uri, contentValues, null, null)
-            }
-
-            return@withContext uri
-        } catch (e: Exception) {
-            LogUtil.error(null, "MediaStore", "Ошибка при вставке в медиатеку", e)
-            return@withContext null
-        }
-    }
-
-    /**
      * Сохраняет сжатое изображение из потока
      *
      * @param context Контекст приложения

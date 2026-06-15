@@ -1,25 +1,17 @@
 package com.compressphotofast.worker
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.ServiceInfo
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import androidx.core.app.NotificationCompat
-import androidx.exifinterface.media.ExifInterface
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
-import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
-import androidx.work.workDataOf
 import com.compressphotofast.R
 import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.util.Constants
@@ -40,22 +32,9 @@ import com.compressphotofast.util.OptimizedCacheUtil
 import com.compressphotofast.util.toInputStream
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import id.zelory.compressor.Compressor
-import id.zelory.compressor.constraint.format
-import id.zelory.compressor.constraint.quality
-import id.zelory.compressor.constraint.resolution
-import id.zelory.compressor.constraint.size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.util.Collections
-import java.util.HashSet
-import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -342,7 +321,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 // Верификация целостности ВСЕГДА, не только в режиме замены
                 // Надёжность важнее скорости — повреждённый файл не должен попасть в галерею
-                val isSavedFileValid = verifySavedImageIntegrity(savedUri)
+                val isSavedFileValid = ImageCompressionUtil.verifyImageIntegrity(context, savedUri)
                 if (!isSavedFileValid) {
                     LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён!")
                     // Удаляем повреждённый файл из MediaStore
@@ -410,7 +389,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Получаем размер сжатого файла для уведомления
                 val compressedSize = UriUtil.getFileSize(appContext, savedUri) ?: testCompressionResult.compressedSize
                 val sizeReduction = if (sourceSize > 0 && compressedSize > 0) {
-                    ((sourceSize - compressedSize).toFloat() / sourceSize) * 100
+                    FileOperationsUtil.computeSizeReductionPercent(sourceSize, compressedSize)
                 } else testCompressionResult.sizeReduction
 
                 // Отправляем уведомление о завершении сжатия
@@ -607,27 +586,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         appContext.sendBroadcast(intent)
     }
 
-    private fun addPendingRenameRequest(uri: Uri, renamePendingIntent: IntentSender) {
-
-        // Сохраняем URI в SharedPreferences для последующей обработки
-        val prefs = appContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        val pendingRenameUris = prefs.getStringSet(Constants.PREF_PENDING_RENAME_URIS, mutableSetOf()) ?: mutableSetOf()
-        val newSet = pendingRenameUris.toMutableSet()
-        newSet.add(uri.toString())
-
-        prefs.edit()
-            .putStringSet(Constants.PREF_PENDING_RENAME_URIS, newSet)
-            .apply()
-
-        // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
-        val intent = Intent(Constants.ACTION_REQUEST_RENAME_PERMISSION).apply {
-            setPackage(appContext.packageName)
-            putExtra(Constants.EXTRA_URI, uri)
-            putExtra(Constants.EXTRA_RENAME_INTENT_SENDER, renamePendingIntent)
-        }
-        appContext.sendBroadcast(intent)
-    }
-
 
     /**
      * Получает имя файла из URI с проверкой на null
@@ -646,27 +604,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             val timestamp = System.currentTimeMillis()
             return "compressed_image_$timestamp.jpg"
-        }
-    }
-
-    private suspend fun verifySavedImageIntegrity(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BitmapFactory.decodeStream(inputStream, null, options)
-                if (options.outWidth <= 0 || options.outHeight <= 0) {
-                    LogUtil.error(uri, "Верификация", "Файл не является корректным изображением: ${options.outWidth}x${options.outHeight}")
-                    return@withContext false
-                }
-                LogUtil.debug("Верификация", "Файл прошёл проверку: ${options.outWidth}x${options.outHeight}")
-            } ?: run {
-                LogUtil.error(uri, "Верификация", "Не удалось открыть поток для проверки")
-                return@withContext false
-            }
-            return@withContext true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Верификация", "Ошибка при проверке целостности файла", e)
-            return@withContext false
         }
     }
 }

@@ -80,7 +80,7 @@
 ## 🎯 Текущий фокус (Июнь 2026)
 
 ### В работе (незакоммиченные изменения)
-- 📌 **Очистка мёртвого и дублирующегося кода** (Android) — удалены мёртвые функции, приватные зомби-методы, неиспользуемые константы/импорты, test-only код с зависящими тестами; устранены дубликаты (HEIC-детекция, verifyImageIntegrity, isProcessableMimeType, pathVariants, secondsToMillis). Сборка зелёная, 330 unit-тестов проходят.
+- 📌 **Очистка мёртвого и дублирующегося кода v2** (Android, -654 строки) — удалены: мёртвые функции (`createTempImageFile`, `insertImageIntoMediaStore`, `showProgressNotification`, `cancelNotification`, 3× `destroy()`, `withUriLock`, `safelyProcessAfterRemoval`, `cleanupExpiredEntries`, `addPendingRenameRequest`, каскадно `addProcessingUri`/`cleanupUnusedMutexes`/`MAX_MUTEX_COUNT`), мёртвые подклассы исключений (`UnsupportedFormat`, `PermissionDenied`, `IoError` + catch-блоки), мёртвый broadcast-канал RENAME целиком (`renamePermissionReceiver`, `renameRequestLauncher`, `permissionRequest`, `requestPermission`, константы), неиспользуемые импорты (~35, включая всю цепочку `id.zelory.compressor`), закомментированный код; устранены дубликаты (verifyImageIntegrity, GPS-массив ×3, backup-restore ×2, хелперы `computeSizeReductionPercent`/`splitNameAndExtension`, HEIC-проверка); исправлен баг: канал `compression_errors` теперь создаётся. Сборка зелёная, 330 unit-тестов проходят.
 
 ### Недавние изменения (закоммиченные)
 - ✅ **Оптимизация архитектуры UI** (`f463068`) — удалены `SequentialImageProcessor`, BroadcastReceiver'ы пропуска/готовности, избыточные наблюдатели в MainViewModel/MainActivity (-626 строк)

@@ -2,20 +2,15 @@ package com.compressphotofast.util
 
 import android.app.ActivityManager
 import android.content.ContentUris
-import android.content.ContentValues
 import android.content.Context
 import android.content.IntentSender
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.IOException
 import java.text.DecimalFormat
-import java.util.Date
 
 /**
  * Утилитарный класс для работы с файлами и файловыми операциями
@@ -190,65 +185,6 @@ object FileOperationsUtil {
     
     
     /**
-     * Создание временного файла для изображения
-     */
-    fun createTempImageFile(context: Context): File {
-        var tempFile: File? = null
-        try {
-            // Проверяем доступность cacheDir
-            val cacheDir = context.cacheDir
-            if (!cacheDir.exists()) {
-                LogUtil.error(null, "Cache директория", "Cache директория не существует: ${cacheDir.absolutePath}")
-                throw IOException("Cache директория недоступна")
-            }
-
-            if (!cacheDir.canWrite()) {
-                LogUtil.error(null, "Cache директория", "Нет прав на запись в cache директорию: ${cacheDir.absolutePath}")
-                throw IOException("Нет прав на запись в cache директорию")
-            }
-
-            tempFile = File.createTempFile(
-                "temp_image_",
-                ".jpg",
-                cacheDir
-            )
-            return tempFile
-        } catch (e: java.io.IOException) {
-            LogUtil.error(null, "Создание временного файла", "Ошибка создания временного файла: ${e.message}")
-            // Очищаем временный файл при ошибке
-            tempFile?.let { cleanupTempFile(it) }
-            throw e
-        } catch (e: java.lang.SecurityException) {
-            LogUtil.error(null, "Создание временного файла", "Нет прав для создания временного файла: ${e.message}")
-            // Очищаем временный файл при ошибке
-            tempFile?.let { cleanupTempFile(it) }
-            throw e
-        } catch (e: Exception) {
-            LogUtil.error(null, "Создание временного файла", "Неожиданная ошибка при создании временного файла: ${e.message}")
-            // Очищаем временный файл при ошибке
-            tempFile?.let { cleanupTempFile(it) }
-            throw IOException("Не удалось создать временный файл", e)
-        }
-    }
-
-    /**
-     * Очищает временный файл при ошибке
-     */
-    private fun cleanupTempFile(file: File) {
-        try {
-            if (file.exists()) {
-                if (file.delete()) {
-                    LogUtil.debug("FileOperationsUtil", "Временный файл очищен: ${file.absolutePath}")
-                } else {
-                    LogUtil.warning(null, "CleanupTempFile", "Не удалось удалить временный файл: ${file.absolutePath}")
-                }
-            }
-        } catch (e: Exception) {
-            LogUtil.errorWithException("Ошибка при очистке временного файла", e)
-        }
-    }
-
-    /**
      * Проверяет наличие достаточной памяти для декодирования изображения
      *
      * @param context Контекст приложения
@@ -291,6 +227,20 @@ object FileOperationsUtil {
     }
     
     /**
+     * Разбивает имя файла на базовую часть и расширение
+     * @param fileName Имя файла
+     * @return Pair(baseName, extension) где extension включает точку (например ".jpg") или пустая строка
+     */
+    fun splitNameAndExtension(fileName: String): Pair<String, String> {
+        val dotIndex = fileName.lastIndexOf('.')
+        return if (dotIndex > 0) {
+            fileName.substring(0, dotIndex) to fileName.substring(dotIndex)
+        } else {
+            fileName to ""
+        }
+    }
+
+    /**
      * Находит сжатую версию файла в директории приложения по имени оригинального файла
      */
     suspend fun findCompressedVersionByOriginalName(context: Context, originalUri: Uri): Uri? = withContext(Dispatchers.IO) {
@@ -303,17 +253,7 @@ object FileOperationsUtil {
             }
             
             // Разбиваем имя файла на основную часть и расширение
-            val dotIndex = originalFileName.lastIndexOf('.')
-            val fileBaseName: String
-            val fileExtension: String
-            
-            if (dotIndex > 0) {
-                fileBaseName = originalFileName.substring(0, dotIndex)
-                fileExtension = originalFileName.substring(dotIndex) // включая точку
-            } else {
-                fileBaseName = originalFileName
-                fileExtension = ""
-            }
+            val (fileBaseName, fileExtension) = splitNameAndExtension(originalFileName)
             
             // Формируем запрос для поиска файлов в директории приложения
             val projection = arrayOf(
@@ -358,6 +298,15 @@ object FileOperationsUtil {
             LogUtil.errorWithException("Поиск сжатой версии файла", e)
             return@withContext null
         }
+    }
+    
+    /**
+     * Вычисляет процент уменьшения размера с защитой от деления на ноль
+     * @return Процент уменьшения (0..100) или 0 если originalSize <= 0
+     */
+    fun computeSizeReductionPercent(originalSize: Long, compressedSize: Long): Float {
+        if (originalSize <= 0) return 0f
+        return ((originalSize - compressedSize).toFloat() / originalSize) * 100f
     }
     
     /**

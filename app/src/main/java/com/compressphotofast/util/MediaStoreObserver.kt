@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import com.compressphotofast.util.LogUtil
-import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.io.File
 import com.compressphotofast.util.UriUtil
@@ -266,13 +265,5 @@ class MediaStoreObserver @Inject constructor(
         observerScope.cancel()
 
         LogUtil.processDebug("MediaStoreObserver: ContentObserver отменен")
-    }
-    
-    /**
-     * Очищает coroutine scopes (должен вызываться при уничтожении)
-     */
-    fun destroy() {
-        unregister()
-        // НЕ отменяем статический handlerScope (= mainScope) — он общий для всех экземпляров
     }
 } 

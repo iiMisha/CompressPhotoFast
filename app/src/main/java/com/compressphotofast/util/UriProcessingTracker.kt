@@ -7,8 +7,6 @@ import android.net.Uri
 import com.compressphotofast.util.LogUtil
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import javax.inject.Inject
-import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 /**
@@ -71,35 +69,6 @@ class UriProcessingTracker private constructor(
     // Карта для Mutex'ов на каждый URI - заменяет busy wait на эффективную блокировку
     private val uriLocks = ConcurrentHashMap<String, Mutex>()
 
-    // Максимальное количество Mutex'ов в карте (для оптимизации памяти)
-    private val MAX_MUTEX_COUNT = 100
-
-    /**
-     * Добавляет URI в список обрабатываемых
-     * Проверяет на дубликаты и добавляет трекинг времени
-     * OPTIMIZED: атомарная операция без race condition
-     */
-    fun addProcessingUri(uri: Uri) {
-        val uriString = uri.toString()
-
-        // OPTIMIZED: проверяем и добавляем атомарно через возвращаемое значение add()
-        // ConcurrentHashMap.newSetFromMap().add() возвращает false если элемент уже был
-        val wasAdded = processingUris.add(uriString)
-
-        if (!wasAdded) {
-            LogUtil.processDebug("URI уже в списке обрабатываемых: $uriString")
-            return
-        }
-
-        uriProcessingTime[uriString] = System.currentTimeMillis()
-        LogUtil.processDebug("URI добавлен в список обрабатываемых: $uriString (всего: ${processingUris.size})")
-
-        // Автоматическая очистка если слишком много
-        if (processingUris.size > MAX_PROCESSING_URIS) {
-            cleanupStaleUris()
-        }
-    }
-
     /**
      * Проверяет, находится ли URI в списке обрабатываемых
      */
@@ -140,61 +109,6 @@ class UriProcessingTracker private constructor(
 
         if (toRemove.isNotEmpty()) {
             LogUtil.processDebug("Очистка ${toRemove.size} stale URIs")
-        }
-    }
-
-    /**
-     * Очищает неиспользуемые Mutex'ы для оптимизации памяти
-     * Удаляет Mutex'ы для URI, которые сейчас не обрабатываются
-     */
-    private fun cleanupUnusedMutexes() {
-        val toRemove = mutableListOf<String>()
-
-        uriLocks.keys.forEach { uriString ->
-            // Удаляем Mutex если URI не обрабатывается в данный момент
-            if (!processingUris.contains(uriString)) {
-                toRemove.add(uriString)
-            }
-        }
-
-        toRemove.forEach { uriString ->
-            uriLocks.remove(uriString)
-        }
-
-        if (toRemove.isNotEmpty()) {
-            LogUtil.processDebug("Очистка ${toRemove.size} неиспользуемых Mutex'ов (осталось: ${uriLocks.size})")
-        }
-    }
-
-    /**
-     * Выполняет операцию с блокировкой на уровне URI для предотвращения race conditions
-     * ИСПОЛЬЗУЕТ MUTEX: Заменяет неэффективный busy wait на эффективную блокировку
-     *
-     * @param uri URI для блокировки
-     * @param operation Операция, которую нужно выполнить с блокировкой
-     * @return Результат операции
-     */
-    suspend fun <T> withUriLock(uri: Uri, operation: suspend () -> T): T {
-        val uriString = uri.toString()
-
-        // Получаем или создаем Mutex для конкретного URI
-        val mutex = uriLocks.getOrPut(uriString) { Mutex() }
-
-        // Очищаем неиспользуемые Mutex'ы если их слишком много
-        if (uriLocks.size > MAX_MUTEX_COUNT) {
-            cleanupUnusedMutexes()
-        }
-
-        return mutex.withLock {
-            // Добавляем в обработку внутри блокировки
-            addProcessingUri(uri)
-
-            try {
-                operation()
-            } finally {
-                // Гарантированно удаляем из обработки
-                removeProcessingUri(uri)
-            }
         }
     }
 
@@ -473,22 +387,6 @@ class UriProcessingTracker private constructor(
         }
 
         return@withContext recoveredUris.size
-    }
-
-    /**
-     * Атомарно удаляет URI из обработки, выполняет действие и добавляет в недавно обработанные
-     * Безопасная обертка для предотвращения гонок состояний
-     */
-    suspend fun <T> safelyProcessAfterRemoval(
-        uri: Uri,
-        action: suspend () -> T
-    ): T {
-        removeProcessingUri(uri)
-        return try {
-            action()
-        } finally {
-            addRecentlyProcessedUri(uri)
-        }
     }
 
     // Примечание: fallbackInstance используется для object-классов, которые не могут использовать Hilt DI.

@@ -100,10 +100,6 @@ class BackgroundMonitoringService : Service() {
                 throw e // Пробрасываем для корректной отмены
             } catch (e: Exception) {
                 LogUtil.error(null, "ServiceCoroutine", "Ошибка в корутине сервиса", e)
-            } finally {
-                if (isActive) {
-                    // Очищаем ресурсы если корутина ещё активна
-                }
             }
         }
     }

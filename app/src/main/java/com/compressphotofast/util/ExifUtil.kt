@@ -13,19 +13,12 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.FileOutputStream
-import java.io.FileInputStream
-import java.util.Collections
 import java.util.Date
 import java.util.HashMap
 import java.text.SimpleDateFormat
 import java.util.Locale
-import android.provider.DocumentsContract
-import androidx.documentfile.provider.DocumentFile
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.UriUtil
-import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.MediaStoreUtil
 import android.content.ContentValues
 import java.util.concurrent.ConcurrentHashMap
 
@@ -35,8 +28,20 @@ import java.util.concurrent.ConcurrentHashMap
 object ExifUtil {
 
     // Константы для EXIF маркировки
-    private const val EXIF_USER_COMMENT = ExifInterface.TAG_USER_COMMENT
     private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
+
+    // GPS-теги для копирования/проверки/применения
+    private val GPS_TAGS = arrayOf(
+        ExifInterface.TAG_GPS_LATITUDE,
+        ExifInterface.TAG_GPS_LATITUDE_REF,
+        ExifInterface.TAG_GPS_LONGITUDE,
+        ExifInterface.TAG_GPS_LONGITUDE_REF,
+        ExifInterface.TAG_GPS_ALTITUDE,
+        ExifInterface.TAG_GPS_ALTITUDE_REF,
+        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+        ExifInterface.TAG_GPS_TIMESTAMP,
+        ExifInterface.TAG_GPS_DATESTAMP
+    )
 
     /**
      * TTL-aware LruCache implementation
@@ -244,10 +249,8 @@ object ExifUtil {
             }
 
             // Формируем новое имя: добавляем _compressed перед расширением
-            val dotIndex = currentDisplayName!!.lastIndexOf('.')
-            val newDisplayName = if (dotIndex > 0) {
-                val nameWithoutExt = currentDisplayName!!.substring(0, dotIndex)
-                val extension = currentDisplayName!!.substring(dotIndex)
+            val (nameWithoutExt, extension) = FileOperationsUtil.splitNameAndExtension(currentDisplayName!!)
+            val newDisplayName = if (extension.isNotEmpty()) {
                 "$nameWithoutExt$HEIC_COMPRESSED_SUFFIX$extension"
             } else {
                 "$currentDisplayName$HEIC_COMPRESSED_SUFFIX"
@@ -448,17 +451,7 @@ object ExifUtil {
             var gpsErrors = 0
             var detailedGpsInfo = StringBuilder("Копирование GPS тегов:\n")
 
-            for (tag in arrayOf(
-                ExifInterface.TAG_GPS_LATITUDE,
-                ExifInterface.TAG_GPS_LATITUDE_REF,
-                ExifInterface.TAG_GPS_LONGITUDE,
-                ExifInterface.TAG_GPS_LONGITUDE_REF,
-                ExifInterface.TAG_GPS_ALTITUDE,
-                ExifInterface.TAG_GPS_ALTITUDE_REF,
-                ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                ExifInterface.TAG_GPS_TIMESTAMP,
-                ExifInterface.TAG_GPS_DATESTAMP
-            )) {
+            for (tag in GPS_TAGS) {
                 try {
                     val value = sourceExif.getAttribute(tag)
                     if (value != null && value.isNotEmpty()) {
@@ -530,19 +523,8 @@ object ExifUtil {
      */
     private fun checkGpsTagsAvailability(exif: ExifInterface): List<String> {
         val availableTags = mutableListOf<String>()
-        val gpsTagsToCheck = arrayOf(
-            ExifInterface.TAG_GPS_LATITUDE,
-            ExifInterface.TAG_GPS_LATITUDE_REF,
-            ExifInterface.TAG_GPS_LONGITUDE,
-            ExifInterface.TAG_GPS_LONGITUDE_REF,
-            ExifInterface.TAG_GPS_ALTITUDE,
-            ExifInterface.TAG_GPS_ALTITUDE_REF,
-            ExifInterface.TAG_GPS_PROCESSING_METHOD,
-            ExifInterface.TAG_GPS_TIMESTAMP,
-            ExifInterface.TAG_GPS_DATESTAMP
-        )
         
-        for (tag in gpsTagsToCheck) {
+        for (tag in GPS_TAGS) {
             try {
                 val value = exif.getAttribute(tag)
                 if (value != null && value.isNotEmpty()) {
@@ -818,19 +800,7 @@ object ExifUtil {
                     gpsTagsApplied++
                 } else {
                     // Метод 2: Применяем отдельные GPS теги
-                    val gpsTagsToApply = arrayOf(
-                        ExifInterface.TAG_GPS_LATITUDE,
-                        ExifInterface.TAG_GPS_LATITUDE_REF,
-                        ExifInterface.TAG_GPS_LONGITUDE,
-                        ExifInterface.TAG_GPS_LONGITUDE_REF,
-                        ExifInterface.TAG_GPS_ALTITUDE,
-                        ExifInterface.TAG_GPS_ALTITUDE_REF,
-                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                        ExifInterface.TAG_GPS_TIMESTAMP,
-                        ExifInterface.TAG_GPS_DATESTAMP
-                    )
-                    
-                    for (tag in gpsTagsToApply) {
+                    for (tag in GPS_TAGS) {
                         if (exifData.containsKey(tag)) {
                             val value = exifData[tag] as String
                             exif.setAttribute(tag, value)
@@ -881,25 +851,13 @@ object ExifUtil {
                     if (!verifyImageIntegrity(context, uri)) {
                         LogUtil.error(uri, "EXIF верификация", "Файл повреждён после saveAttributes(), восстанавливаем из backup")
                         if (backupFile.exists() && backupFile.length() > 0) {
-                            try {
-                                // openOutputStream("wt") не работает надёжно на Android 12+
-                                // Используем ParcelFileDescriptor "rwt" для надёжной перезаписи
-                                context.contentResolver.openFileDescriptor(uri, "rwt")?.use { pfd ->
-                                    FileOutputStream(pfd.fileDescriptor).use { output ->
-                                        backupFile.inputStream().use { input ->
-                                            input.copyTo(output)
-                                        }
-                                        output.flush()
-                                    }
-                                }
+                            if (restoreFileFromBackup(context, uri, backupFile)) {
                                 // Верифицируем что restore прошёл успешно
                                 if (verifyImageIntegrity(context, uri)) {
                                     LogUtil.processInfo("✅ Файл успешно восстановлен из backup после повреждения saveAttributes()")
                                 } else {
                                     LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым даже после восстановления из backup")
                                 }
-                            } catch (restoreError: Exception) {
-                                LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
                             }
                         } else {
                             LogUtil.error(uri, "EXIF restore", "Backup файл отсутствует или пуст, восстановление невозможно")
@@ -909,22 +867,12 @@ object ExifUtil {
                 } catch (e: Exception) {
                     LogUtil.error(uri, "EXIF save", "saveAttributes() упал, восстанавливаем файл из backup", e)
                     if (backupFile.exists() && backupFile.length() > 0) {
-                        try {
-                            context.contentResolver.openFileDescriptor(uri, "rwt")?.use { pfd ->
-                                FileOutputStream(pfd.fileDescriptor).use { output ->
-                                    backupFile.inputStream().use { input ->
-                                        input.copyTo(output)
-                                    }
-                                    output.flush()
-                                }
-                            }
+                        if (restoreFileFromBackup(context, uri, backupFile)) {
                             if (verifyImageIntegrity(context, uri)) {
                                 LogUtil.processInfo("✅ Файл успешно восстановлен из backup после ошибки saveAttributes()")
                             } else {
                                 LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым после restore")
                             }
-                        } catch (restoreError: Exception) {
-                            LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
                         }
                     } else {
                         LogUtil.error(uri, "EXIF restore", "Backup файл отсутствует или пуст")
@@ -938,53 +886,6 @@ object ExifUtil {
                 if (originalLastModified > 0) {
                     MediaStoreDateUtil.restoreModifiedDate(context, uri, originalLastModified)
                 }
-
-                // === ДИАГНОСТИКА GPS ДАННЫХ ПОСЛЕ СОХРАНЕНИЯ ===
-                // LogUtil.processInfo("🔍 ПРОВЕРКА GPS: Верификация сохраненных данных")
-                
-                // Проверяем, что GPS данные действительно записались
-                /* try {
-                    val savedGpsLatLong = exif.latLong
-                    LogUtil.processInfo("🔍 GPS latLong после сохранения: ${if (savedGpsLatLong != null) "lat=${savedGpsLatLong[0]}, lng=${savedGpsLatLong[1]}" else "null"}")
-                    
-                    // Проверяем отдельные GPS теги после сохранения
-                    var savedGpsTags = 0
-                    val savedGpsDetails = StringBuilder("🔍 GPS теги после сохранения:\n")
-                    
-                    for (tag in arrayOf(
-                        ExifInterface.TAG_GPS_LATITUDE,
-                        ExifInterface.TAG_GPS_LATITUDE_REF,
-                        ExifInterface.TAG_GPS_LONGITUDE,
-                        ExifInterface.TAG_GPS_LONGITUDE_REF,
-                        ExifInterface.TAG_GPS_ALTITUDE,
-                        ExifInterface.TAG_GPS_ALTITUDE_REF,
-                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
-                        ExifInterface.TAG_GPS_TIMESTAMP,
-                        ExifInterface.TAG_GPS_DATESTAMP
-                    )) {
-                        val savedValue = exif.getAttribute(tag)
-                        if (savedValue != null && savedValue.isNotEmpty()) {
-                            savedGpsTags++
-                            savedGpsDetails.append("  ✅ $tag = '$savedValue'\n")
-                        } else {
-                            savedGpsDetails.append("  ❌ $tag = ${if (savedValue == null) "null" else "пусто"}\n")
-                        }
-                    }
-                    
-                    LogUtil.processInfo(savedGpsDetails.toString().trimEnd())
-                    LogUtil.processInfo("📊 GPS тегов после сохранения: $savedGpsTags из 9")
-                    
-                    if (savedGpsTags == 0) {
-                        LogUtil.processInfo("❌ GPS данные потеряны при сохранении!")
-                    } else if (gpsTagsApplied > 0 && savedGpsTags != gpsTagsApplied) {
-                        LogUtil.processInfo("⚠️ Количество GPS тегов изменилось: применено $gpsTagsApplied, сохранено $savedGpsTags")
-                    } else {
-                        LogUtil.processInfo("✅ GPS данные успешно сохранены ($savedGpsTags тегов)")
-                    }
-                    
-                } catch (gpsE: Exception) {
-                    LogUtil.processInfo("❌ Ошибка проверки GPS после сохранения: ${gpsE.message}")
-                } */
 
                 // НОВАЯ ПРОВЕРКА: Верифицируем что маркер сжатия сохранен
                 if (quality != null) {
@@ -1022,6 +923,27 @@ object ExifUtil {
             }
 
             return@withContext false
+        }
+    }
+
+    /**
+     * Восстанавливает файл из backup через ParcelFileDescriptor "rwt".
+     * @return true если копирование выполнено без исключений
+     */
+    private fun restoreFileFromBackup(context: Context, uri: Uri, backupFile: File): Boolean {
+        return try {
+            context.contentResolver.openFileDescriptor(uri, "rwt")?.use { pfd ->
+                FileOutputStream(pfd.fileDescriptor).use { output ->
+                    backupFile.inputStream().use { input ->
+                        input.copyTo(output)
+                    }
+                    output.flush()
+                }
+            }
+            true
+        } catch (restoreError: Exception) {
+            LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
+            false
         }
     }
     

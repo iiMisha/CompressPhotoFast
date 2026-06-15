@@ -5,11 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
-import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -50,39 +48,6 @@ sealed class CompressionException(
         override val cause: Throwable
     ) : CompressionException(
         "Файл повреждён: $fileName",
-        cause
-    )
-
-    /**
-     * Неподдерживаемый формат
-     */
-    data class UnsupportedFormat(
-        val mimeType: String?,
-        val fileName: String
-    ) : CompressionException(
-        "Неподдерживаемый формат: $mimeType для файла $fileName"
-    )
-
-    /**
-     * Ошибка прав доступа
-     */
-    data class PermissionDenied(
-        val uri: Uri,
-        override val cause: Throwable
-    ) : CompressionException(
-        "Нет прав доступа: $uri",
-        cause
-    )
-
-    /**
-     * Ошибка I/O
-     */
-    data class IoError(
-        val operation: String,
-        val uri: Uri,
-        override val cause: Throwable
-    ) : CompressionException(
-        "Ошибка I/O при $operation: $uri",
         cause
     )
 }
@@ -464,15 +429,6 @@ object ImageCompressionUtil {
             } catch (e: CompressionException.CorruptedFile) {
                 // Поврежденный файл
                 return@withContext null
-            } catch (e: CompressionException.UnsupportedFormat) {
-                // Неподдерживаемый формат
-                return@withContext null
-            } catch (e: CompressionException.PermissionDenied) {
-                // Нет прав доступа
-                return@withContext null
-            } catch (e: CompressionException.IoError) {
-                // Ошибка I/O
-                return@withContext null
             } catch (e: Exception) {
                 LogUtil.error(uri, "Сжатие в поток", e)
                 return@withContext null
@@ -512,9 +468,7 @@ object ImageCompressionUtil {
             val compressedSize = outputStream.size().toLong()
             
             // Вычисляем процент сокращения размера
-            val sizeReduction = if (originalSize > 0) {
-                ((originalSize - compressedSize).toLong().toFloat() / originalSize) * 100
-            } else 0f
+            val sizeReduction = FileOperationsUtil.computeSizeReductionPercent(originalSize, compressedSize)
             
             LogUtil.compression(uri, originalSize, compressedSize, sizeReduction.toInt())
             
@@ -543,7 +497,7 @@ object ImageCompressionUtil {
     fun isImageProcessingEfficient(originalSize: Long, compressedSize: Long): Boolean {
         if (originalSize <= 0) return false
         
-        val sizeReduction = ((originalSize - compressedSize).toFloat() / originalSize) * 100
+        val sizeReduction = FileOperationsUtil.computeSizeReductionPercent(originalSize, compressedSize)
         val minSaving = Constants.MIN_COMPRESSION_SAVING_PERCENT
         val minBytesSaving = 10 * 1024 // Минимальная экономия 10KB
         
@@ -677,7 +631,7 @@ object ImageCompressionUtil {
             }
             
             // Расчет сокращения размера в процентах
-            val sizeReduction = ((fileSize - compressedSize).toFloat() / fileSize) * 100
+            val sizeReduction = FileOperationsUtil.computeSizeReductionPercent(fileSize, compressedSize)
             
             // Записываем время обработки для статистики
             val processingTime = System.currentTimeMillis() - startTime

@@ -2,10 +2,7 @@ package com.compressphotofast.ui
 
 import android.Manifest
 import android.app.Activity
-import android.app.ActivityManager
 import android.app.AlertDialog
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,22 +12,17 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.Html
 import android.transition.TransitionManager
 import android.view.View
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -47,12 +39,9 @@ import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.PermissionsManager
-import com.compressphotofast.worker.ImageCompressionWorker
-import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.CompressionBatchTracker
-import com.compressphotofast.util.EventObserver
 import com.compressphotofast.util.UriProcessingTracker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -107,20 +96,6 @@ class MainActivity : AppCompatActivity() {
         }
         // Проверяем, есть ли еще отложенные запросы на удаление
         checkPendingDeleteRequests()
-    }
-
-    private val renameRequestLauncher = registerForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            LogUtil.processDebug("Получено разрешение на переименование. Повторяем операцию.")
-            // Здесь нам нужен URI, который мы хотели переименовать.
-            // Мы можем временно сохранить его в ViewModel или SharedPreferences.
-            // Для простоты, пока просто логируем.
-            showToast("Разрешение получено. Повторите операцию сжатия.")
-        } else {
-            LogUtil.processDebug("Пользователь отклонил запрос на переименование файла")
-        }
     }
 
     private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { uris ->
@@ -186,30 +161,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val renamePermissionReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Constants.ACTION_REQUEST_RENAME_PERMISSION) {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
-                }
-                val sender = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Constants.EXTRA_RENAME_INTENT_SENDER, IntentSender::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra<IntentSender>(Constants.EXTRA_RENAME_INTENT_SENDER)
-                }
-
-                if (uri != null && sender != null) {
-                    LogUtil.processDebug("Получен запрос на переименование файла через broadcast: $uri")
-                    viewModel.requestPermission(sender)
-                }
-            }
-        }
-    }
- 
      override fun onStart() {
          super.onStart()
         
@@ -224,10 +175,6 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(deletePermissionReceiver,
             IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
             Context.RECEIVER_NOT_EXPORTED)
-
-       registerReceiver(renamePermissionReceiver,
-           IntentFilter(Constants.ACTION_REQUEST_RENAME_PERMISSION),
-           Context.RECEIVER_NOT_EXPORTED)
         
     }
     
@@ -236,7 +183,6 @@ class MainActivity : AppCompatActivity() {
         // Используем forEach с индивидуальным try-catch для каждого receiver
         listOf(
             deletePermissionReceiver,
-            renamePermissionReceiver,
             compressionCompletedReceiver
         ).forEach { receiver ->
             try {
@@ -601,10 +547,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
-        viewModel.permissionRequest.observe(this, EventObserver { request ->
-            renameRequestLauncher.launch(request)
-        })
     }
 
     /**
@@ -837,10 +779,5 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.btnSelectPhotos.visibility = View.GONE
         }
-    }
-
-    companion object {
-        // Удаляем дублирующиеся константы, т.к. они теперь в PermissionsManager
-        // Оставляем остальные константы
     }
 }

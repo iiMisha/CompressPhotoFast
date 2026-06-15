@@ -28,7 +28,6 @@ import com.compressphotofast.util.OptimizedCacheUtil
 import kotlinx.coroutines.delay
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicReference
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
