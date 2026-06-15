@@ -294,11 +294,6 @@ object ImageProcessingChecker {
     }
     
     /**
-     * Проверка MIME типа на поддержку
-     * @param mimeType MIME тип файла
-     * @return true если MIME тип поддерживается, false в противном случае
-     */
-    /**
      * Класс для хранения результатов проверки необходимости обработки
      */
     data class ProcessingCheckResult(

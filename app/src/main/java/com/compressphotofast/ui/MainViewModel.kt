@@ -9,12 +9,9 @@ import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import java.util.UUID
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageProcessingChecker
@@ -57,9 +54,6 @@ class MainViewModel @Inject constructor(
     // StateFlow для управления видимостью предупреждения
     private val _isWarningExpanded = MutableStateFlow(false)
     val isWarningExpanded = _isWarningExpanded.asStateFlow()
-
-    // Map для хранения WorkInfo observers
-    private val workObservers = mutableMapOf<UUID, Observer<WorkInfo?>>()
 
 
     init {
@@ -267,16 +261,6 @@ class MainViewModel @Inject constructor(
     // Очистка ресурсов при уничтожении ViewModel
     override fun onCleared() {
         super.onCleared()
-
-        // Удаляем всех WorkInfo observers
-        workObservers.forEach { (workId, observer) ->
-            try {
-                workManager.getWorkInfoByIdLiveData(workId).removeObserver(observer)
-            } catch (e: Exception) {
-                LogUtil.errorWithException("MAIN_VIEWMODEL_ON_CLEARED: Failed to remove observer for $workId", e)
-            }
-        }
-        workObservers.clear()
     }
 }
 
