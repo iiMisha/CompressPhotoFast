@@ -1,0 +1,84 @@
+# Code Analyzer Allowlist
+# Список «ok»-срабатываний: идентификаторы и имена, которые НЕ считаются unused.
+# Формат: один токен на строку. Строки, начинающиеся с '#', и пустые — игнорируются.
+# Скрипты find_unused.py / find_duplicates.py и LLM-анализ читают этот файл.
+#
+# Пополнение: добавляйте сюда идентификаторы, которые стабильно детектируются
+# как unused, но фактически используются (Android lifecycle, DI, синтаксис).
+
+# === Однобуквенные / ALL-CAPS импорты, используемые синтаксически ===
+R
+URI
+URL
+UUID
+RGB_565
+RGB_888
+ARGB_8888
+HTTP
+HTTPS
+GPS
+EXIF
+
+# === Android lifecycle / override — вызываются системой ===
+onCreate
+onCreateView
+onCreateWindow
+onStart
+onResume
+onPause
+onStop
+onDestroy
+onDestroyView
+onReceive
+onReceiveValue
+onActivityResult
+onRequestPermissionsResult
+onConfigurationChanged
+onLowMemory
+onTrimMemory
+onSaveInstanceState
+onRestoreInstanceState
+onBackPressed
+onBackPressedDispatcher
+onOptionsItemSelected
+onCreateOptionsMenu
+onPrepareOptionsMenu
+doWork
+getWorkInfo
+
+# === Hilt / DI аннотации и точки входа ===
+@HiltViewModel
+@HiltAndroidApp
+@Inject
+@Provides
+@Binds
+@Module
+@InstallIn
+@AndroidEntryPoint
+@EntryPoint
+
+# === Compose / lifecycle observers (вызываются рефлексивно/фреймворком) ===
+@Composable
+@Preview
+
+# === WorkManager / Service callbacks ===
+onHandleWork
+onHandleIntent
+onStartCommand
+onBind
+onUnbind
+onRebind
+onTaskRemoved
+
+# === Testing — вызываются test-runner'ом ===
+@Test
+@Before
+@After
+@BeforeClass
+@AfterClass
+setUp
+tearDown
+
+# === Имена, детектируемые как приватные, но необходимые для API ===
+Companion
+INSTANCE

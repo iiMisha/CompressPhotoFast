@@ -62,6 +62,25 @@ fun process(uri: Uri, unusedFlag: Boolean) {
 
 ## Исключения (НЕ считать unused)
 
+> **Все перечисленные ниже исключения автоматически учитываются скриптом
+> `find_unused.py`** через `allowlist.txt` + детектор аннотаций/override.
+> Раздел ниже — справочный: что и почему не должно попадать в отчёт.
+
+### ALL-CAPS / однобуквенные импорты
+
+```kotlin
+// ✅ НЕ unused — используется синтаксически (R.string.*, R.drawable.*)
+import com.compressphotofast.R
+
+// ✅ НЕ unused — используется как тип в дженериках/объявлениях
+import java.util.UUID          // mutableMapOf<UUID, ...>()
+import android.net.Uri         // val uri: Uri
+import android.graphics.Bitmap.Config.RGB_565
+```
+
+**Внимание:** эти символы часто ложно детектируются как unused в наивных
+анализаторах (из-за фильтрации по `isupper()`). Скрипт их корректно учитывает.
+
 ### Hilt DI
 
 ```kotlin
@@ -157,9 +176,21 @@ Grep("fun.*parameterName")
 
 | Уровень | Признаки | Действие |
 |---------|----------|----------|
-| **High** | Нет использования, нет аннотаций | Можно удалить |
-| **Medium** | Возможное использование через reflection | Проверить перед удалением |
-| **Low** | Hilt/Android компонент | Не удалять |
+| **High** | Нет использования, нет аннотаций, не override, не в allowlist | Можно удалить |
+| **Medium** | Возможное использование через reflection / public API object | Проверить перед удалением |
+| **Low** | Hilt/Android компонент, override, lifecycle, в allowlist | Не удалять |
+
+## Allowlist
+
+Файл `.agents/skills/code-analyzer/allowlist.txt` содержит явный список токенов,
+которые скрипт НЕ сообщает как unused. Включает:
+- ALL-CAPS импорты (`R`, `UUID`, `URI`, ...)
+- Android lifecycle (`onCreate`, `onDestroy`, `doWork`, `onReceive`, ...)
+- Hilt/DI (`@Inject`, `@Provides`, `@HiltViewModel`, ...)
+- WorkManager/Service callbacks
+- Testing (`setUp`, `tearDown`, `@Test`, ...)
+
+**При стабильных ложных срабатываниях** добавляйте токен в `allowlist.txt`.
 
 ## Алгоритм анализа
 

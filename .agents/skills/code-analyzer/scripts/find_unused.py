@@ -4,324 +4,341 @@ Unused Code Finder
 Находит неиспользуемый код в Kotlin файлах.
 
 Usage:
-    python find_unused.py <directory>
+    python find_unused.py <directory> [--format text|json] [--output FILE]
+                                      [--allowlist FILE] [--no-allowlist]
+
+Учитывает:
+- import ... as (алиасы)
+- allowlist (lifecycle, DI, ALL-CAPS импорты R/UUID/URI и т.п.)
+- точечный фильтр Hilt/override/Android-компонентов (по декларации, не всему файлу)
+- исключение build/, .gradle/, generated/, .idea/
+- идентификаторы из комментариев/строковых литералов НЕ считаются использованием
+
+Выход:
+- text (по умолчанию): читаемый отчёт
+- json: машиночитаемый список кандидатов с confidence
 """
 
-import os
-import sys
-import re
-from pathlib import Path
-from collections import defaultdict
 import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+# Shared scaffolding (см. _common.py) — единый источник правды для обоих скриптов
+try:
+    from _common import find_allowlist, find_kotlin_files, strip_comments_and_strings
+except ImportError:
+    # Fallback при запуске из другой директории
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from _common import find_allowlist, find_kotlin_files, strip_comments_and_strings
 
 
-def extract_imports(content: str) -> set[str]:
-    """Извлекает все импорты из файла."""
-    imports = set()
+# === Ключевые слова Kotlin ===
+KOTLIN_KEYWORDS = {
+    "fun", "val", "var", "class", "interface", "object", "package", "import",
+    "if", "else", "when", "for", "while", "do", "try", "catch", "finally",
+    "return", "break", "continue", "is", "as", "in", "out", "typeof",
+    "null", "true", "false", "this", "super", "it",
+    "also", "let", "run", "with", "apply", "use", "takeIf", "takeUnless",
+    "repeat", "require", "check", "error", "TODO",
+    "suspend", "inline", "noinline", "crossinline", "reified",
+    "abstract", "final", "open", "annotation", "sealed", "data", "enum",
+    "inner", "companion", "override", "private", "protected", "public",
+    "internal", "lateinit", "tailrec", "operator", "infix", "const",
+    "vararg", "dynamic", "field", "property", "delegate", "get", "set",
+    "receiver", "param", "setparam", "where", "by", "init",
+    "value", "constructor",
+}
+
+# Аннотации/признаки «НЕ unused» на уровне декларации
+KEEP_DECLARATION_ANNOTATIONS = frozenset({
+    "@Inject", "@Provides", "@Binds", "@HiltViewModel", "@HiltAndroidApp",
+    "@AndroidEntryPoint", "@EntryPoint", "@Module", "@Composable", "@Preview",
+    "@Test", "@Before", "@After", "@BeforeClass", "@AfterClass",
+    "@JvmStatic", "@JvmField", "@JvmOverloads",
+})
+
+_OVERRIDE_RE = re.compile(r"\boverride\b")
+
+
+def normalize_line(line: str) -> str:
+    """Убирает // комментарии и лишние пробелы."""
+    line = re.sub(r"//.*$", "", line)
+    return line.strip()
+
+
+def extract_imports(content: str) -> list[tuple[str, str]]:
+    """Извлекает импорты. Учитывает 'import x as y'.
+
+    Returns:
+        List of (full_import_path, used_symbol)
+        used_symbol = alias если есть, иначе последний сегмент.
+    """
+    imports = []
     for line in content.split("\n"):
-        match = re.match(r"import\s+([\w.]+)", line.strip())
-        if match:
-            imports.add(match.group(1))
+        stripped = line.strip()
+        m = re.match(r"import\s+([\w.]+)(?:\s+as\s+(\w+))?", stripped)
+        if m:
+            full, alias = m.group(1), m.group(2)
+            used = alias if alias else full.split(".")[-1]
+            imports.append((full, used))
     return imports
 
 
 def extract_used_symbols(content: str) -> set[str]:
-    """Извлекает все используемые символы из файла."""
-    # Простая эвристика: находим все слова, которые могут быть идентификаторами
+    """Собирает идентификаторы из КОДА, исключая комментарии, строковые
+    литералы и строки package/import. R, UUID, URI — легитимные символы и
+    НЕ фильтруются по регистру.
+
+    import/package-строки исключаются, иначе сама декларация импорта
+    маскировала бы неиспользуемый импорт (L5-фикс).
+    """
+    code_only = strip_comments_and_strings(content)
+    code_lines = []
+    for line in code_only.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("import ") or stripped.startswith("package "):
+            continue
+        code_lines.append(line)
+    code_only = "\n".join(code_lines)
+
     symbols = set()
-
-    # Ключевые слова Kotlin, которые не считаются использованными символами
-    keywords = {
-        "fun",
-        "val",
-        "var",
-        "class",
-        "interface",
-        "object",
-        "package",
-        "import",
-        "if",
-        "else",
-        "when",
-        "for",
-        "while",
-        "do",
-        "try",
-        "catch",
-        "finally",
-        "return",
-        "break",
-        "continue",
-        "is",
-        "as",
-        "in",
-        "out",
-        "typeof",
-        "null",
-        "true",
-        "false",
-        "this",
-        "super",
-        "it",
-        "also",
-        "let",
-        "run",
-        "with",
-        "apply",
-        "use",
-        "takeIf",
-        "takeUnless",
-        "repeat",
-        "require",
-        "check",
-        "error",
-        "TODO",
-        "suspend",
-        "inline",
-        "noinline",
-        "crossinline",
-        "reified",
-        "abstract",
-        "final",
-        "open",
-        "annotation",
-        "sealed",
-        "data",
-        "enum",
-        "inner",
-        "companion",
-        "override",
-        "private",
-        "protected",
-        "public",
-        "internal",
-        "lateinit",
-        "tailrec",
-        "operator",
-        "infix",
-        "const",
-        "vararg",
-        "dynamic",
-        "field",
-        "property",
-        "delegate",
-        "get",
-        "set",
-        "receiver",
-        "param",
-        "setparam",
-        "where",
-        "by",
-        "catch",
-        "finally",
-        "out",
-        "in",
-    }
-
-    # Находим все слова
-    words = re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\b", content)
-
-    for word in words:
-        if (
-            word not in keywords and not word.isupper()
-        ):  # Пропускаем ключевые слова и константы
-            symbols.add(word)
-
+    for word in re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\b", code_only):
+        if word in KOTLIN_KEYWORDS:
+            continue
+        symbols.add(word)
     return symbols
 
 
-def extract_private_functions(content: str) -> list[tuple[str, int]]:
-    """Извлекает приватные функции из файла.
+def extract_private_declarations(content: str) -> list[dict]:
+    """Извлекает приватные функции и свойства (включая generics и все модификаторы).
 
     Returns:
-        List of (function_name, line_number)
+        List of dicts: {kind, name, line, is_override, annotations}
     """
-    functions = []
+    decls = []
     lines = content.split("\n")
+    annotations_buffer = []
 
-    for i, line in enumerate(lines, 1):
-        # Ищем private fun
-        match = re.match(r"\s*private\s+(?:suspend\s+)?fun\s+(\w+)", line)
-        if match:
-            functions.append((match.group(1), i))
+    # `private` + произвольная комбинация модификаторов (с пробелами между ними)
+    # + опциональный generic-список `<...>` перед именем fun
+    func_re = re.compile(
+        r"private\s+(?:(?:suspend|inline|operator|override|infix|tailrec|"
+        r"external|reified)\s+)*fun\s+(?:<[^>]*>\s+)?(\w+)"
+    )
+    prop_re = re.compile(
+        r"private\s+(?:(?:const|lateinit)\s+)*(?:val|var)\s+(\w+)"
+    )
 
-    return functions
+    for i, raw_line in enumerate(lines, 1):
+        line = normalize_line(raw_line)
+        line_annotations = re.findall(r"@\w+(?:\.\w+)?", line)
+
+        if not line and not raw_line.strip():
+            annotations_buffer = []
+            continue
+
+        m_func = func_re.search(line)
+        if m_func:
+            decls.append({
+                "kind": "function",
+                "name": m_func.group(1),
+                "line": i,
+                "is_override": _OVERRIDE_RE.search(line) is not None,
+                "annotations": list(annotations_buffer) + line_annotations,
+            })
+            annotations_buffer = []
+            continue
+
+        m_prop = prop_re.search(line)
+        if m_prop:
+            decls.append({
+                "kind": "property",
+                "name": m_prop.group(1),
+                "line": i,
+                "is_override": _OVERRIDE_RE.search(line) is not None,
+                "annotations": list(annotations_buffer) + line_annotations,
+            })
+            annotations_buffer = []
+            continue
+
+        # Накапливаем аннотации (отдельная строка с единственной аннотацией)
+        if line.startswith("@") and len(line_annotations) == 1 and "(" not in line:
+            annotations_buffer.extend(line_annotations)
+        else:
+            if line:
+                annotations_buffer = []
+
+    return decls
 
 
-def extract_private_properties(content: str) -> list[tuple[str, int]]:
-    """Извлекает приватные свойства из файла.
+def confidence_for_decl(decl: dict) -> str:
+    """Определяет уровень уверенности.
 
-    Returns:
-        List of (property_name, line_number)
+    Returns: 'Low' (не трогать), 'High' (можно удалять).
+
+    Проверяет, входит ли хотя бы одна аннотация декларации в keep-список.
     """
-    properties = []
-    lines = content.split("\n")
-
-    for i, line in enumerate(lines, 1):
-        # Ищем private val/var
-        match = re.match(r"\s*private\s+(?:val|var)\s+(\w+)", line)
-        if match:
-            properties.append((match.group(1), i))
-
-    return properties
+    if decl["is_override"]:
+        return "Low"
+    decl_anns = decl.get("annotations", [])
+    if any(ann in KEEP_DECLARATION_ANNOTATIONS for ann in decl_anns):
+        return "Low"
+    return "High"
 
 
-def extract_local_variables(content: str) -> list[tuple[str, int]]:
-    """Извлекает локальные переменные из файла."""
-    variables = []
-    lines = content.split("\n")
-
-    for i, line in enumerate(lines, 1):
-        # Ищем val/var внутри функций (эвристика: наличие отступа)
-        if line.strip() and not line.strip().startswith("//"):
-            match = re.match(r"\s+(?:val|var)\s+(\w+)\s*[:=]", line)
-            if match:
-                variables.append((match.group(1), i))
-
-    return variables
-
-
-def has_hilt_annotations(content: str) -> bool:
-    """Проверяет, есть ли Hilt аннотации в файле."""
-    hilt_annotations = ["@HiltViewModel", "@Inject", "@Provides", "@Binds", "@Module"]
-    return any(ann in content for ann in hilt_annotations)
-
-
-def has_android_component(content: str) -> bool:
-    """Проверяет, есть ли Android компоненты в файле."""
-    components = ["BroadcastReceiver", "Service", "Worker", "Activity"]
-    return any(comp in content for comp in components)
-
-
-def analyze_file(file_path: Path) -> dict:
-    """Анализирует один файл на наличие unused кода."""
+def analyze_file(file_path: Path, allowlist: set[str]) -> dict:
+    """Анализирует файл на unused код."""
     try:
         content = file_path.read_text(encoding="utf-8")
     except Exception as e:
-        print(f"Error reading {file_path}: {e}")
+        print(f"Error reading {file_path}: {e}", file=sys.stderr)
         return {}
 
     result = {
         "file": str(file_path),
         "unused_imports": [],
-        "unused_private_functions": [],
-        "unused_private_properties": [],
-        "is_hilt": has_hilt_annotations(content),
-        "is_android_component": has_android_component(content),
+        "unused_functions": [],
+        "unused_properties": [],
     }
 
-    # Анализ unused imports (упрощённый - проверяем использование последней части импорта)
-    imports = extract_imports(content)
+    # Контент без комментариев/строк — для подсчёта использований (L5-фикс)
+    code_only = strip_comments_and_strings(content)
     used_symbols = extract_used_symbols(content)
 
-    for imp in imports:
-        # Извлекаем имя класса/объекта из импорта
-        symbol = imp.split(".")[-1]
-        if symbol not in used_symbols:
-            result["unused_imports"].append(imp)
+    # === Unused imports ===
+    for full, used_symbol in extract_imports(content):
+        if used_symbol in allowlist:
+            continue
+        if used_symbol not in used_symbols:
+            result["unused_imports"].append({
+                "import": full,
+                "symbol": used_symbol,
+                "confidence": "High",
+            })
 
-    # Анализ unused private functions (упрощённый)
-    private_functions = extract_private_functions(content)
-    for func_name, line in private_functions:
-        # Ищем использование функции (исключая её объявление)
-        pattern = rf"\b{func_name}\s*\("
-        uses = re.findall(pattern, content)
-        if len(uses) <= 1:  # Только объявление
-            result["unused_private_functions"].append((func_name, line))
+    # === Unused private declarations ===
+    for decl in extract_private_declarations(content):
+        name = decl["name"]
+        if name in allowlist:
+            continue
 
-    # Анализ unused private properties
-    private_properties = extract_private_properties(content)
-    for prop_name, line in private_properties:
-        # Ищем использование свойства
-        pattern = rf"\b{prop_name}\b"
-        uses = re.findall(pattern, content)
-        if len(uses) <= 1:  # Только объявление
-            result["unused_private_properties"].append((prop_name, line))
+        # Подсчёт использований по code_only (без комментариев/строк).
+        # Для функций: name( ; для свойств: name как слово.
+        if decl["kind"] == "function":
+            usage_pattern = rf"\b{re.escape(name)}\s*\("
+        else:
+            usage_pattern = rf"\b{re.escape(name)}\b"
+
+        uses = len(re.findall(usage_pattern, code_only))
+
+        if uses <= 1:
+            confidence = confidence_for_decl(decl)
+            if confidence == "Low":
+                continue
+            entry = {"name": name, "line": decl["line"], "confidence": confidence}
+            if decl["kind"] == "function":
+                result["unused_functions"].append(entry)
+            else:
+                result["unused_properties"].append(entry)
 
     return result
 
 
-def find_kotlin_files(directory: Path) -> list[Path]:
-    """Находит все Kotlin файлы в директории."""
-    return list(directory.rglob("*.kt"))
+CONF_ORDER = {"High": 0, "Medium": 1, "Low": 2}
+
+
+def render_text(results: list[dict]) -> str:
+    lines = []
+    total_imports = total_funcs = total_props = 0
+
+    lines.append("=== UNUSED IMPORTS ===")
+    found = False
+    for r in results:
+        for item in r["unused_imports"]:
+            found = True
+            total_imports += 1
+            lines.append(
+                f"  {r['file']}: import {item['import']}  [{item['confidence']}]"
+            )
+    if not found:
+        lines.append("  No unused imports found")
+
+    lines.append("")
+    lines.append("=== UNUSED PRIVATE FUNCTIONS ===")
+    found = False
+    for r in results:
+        for item in sorted(r["unused_functions"],
+                           key=lambda x: CONF_ORDER.get(x["confidence"], 3)):
+            found = True
+            total_funcs += 1
+            lines.append(
+                f"  {r['file']}:{item['line']} - {item['name']}()  [{item['confidence']}]"
+            )
+    if not found:
+        lines.append("  No unused private functions found")
+
+    lines.append("")
+    lines.append("=== UNUSED PRIVATE PROPERTIES ===")
+    found = False
+    for r in results:
+        for item in sorted(r["unused_properties"],
+                           key=lambda x: CONF_ORDER.get(x["confidence"], 3)):
+            found = True
+            total_props += 1
+            lines.append(
+                f"  {r['file']}:{item['line']} - {item['name']}  [{item['confidence']}]"
+            )
+    if not found:
+        lines.append("  No unused private properties found")
+
+    lines.append("")
+    lines.append(
+        f"Summary: {total_imports} unused imports, "
+        f"{total_funcs} unused functions, "
+        f"{total_props} unused properties"
+    )
+    return "\n".join(lines)
+
+
+def render_json(results: list[dict]) -> str:
+    summary = {
+        "unused_imports": sum(len(r["unused_imports"]) for r in results),
+        "unused_functions": sum(len(r["unused_functions"]) for r in results),
+        "unused_properties": sum(len(r["unused_properties"]) for r in results),
+    }
+    return json.dumps({"results": results, "summary": summary}, indent=2,
+                      ensure_ascii=False)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Find unused code")
+    parser = argparse.ArgumentParser(description="Find unused Kotlin code")
     parser.add_argument("directory", help="Directory to scan")
     parser.add_argument("--output", help="Output file for results")
-
+    parser.add_argument("--format", choices=["text", "json"], default="text")
+    parser.add_argument("--allowlist", help="Path to allowlist file")
+    parser.add_argument("--no-allowlist", action="store_true",
+                        help="Disable allowlist loading")
     args = parser.parse_args()
 
     directory = Path(args.directory)
     if not directory.exists():
-        print(f"Directory not found: {directory}")
+        print(f"Directory not found: {directory}", file=sys.stderr)
         sys.exit(1)
 
+    allowlist = set() if args.no_allowlist else find_allowlist(args.allowlist)
     files = find_kotlin_files(directory)
-    print(f"Found {len(files)} Kotlin files\n")
+    print(f"Found {len(files)} Kotlin files (allowlist: {len(allowlist)} tokens)\n",
+          file=sys.stderr)
 
-    results = []
+    results = [r for r in (analyze_file(f, allowlist) for f in files) if r]
 
-    for file_path in files:
-        result = analyze_file(file_path)
-        if result:
-            results.append(result)
-
-    # Выводим результаты
-    output_lines = []
-
-    # Unused imports
-    print("=== UNUSED IMPORTS ===")
-    has_unused = False
-    for result in results:
-        if result["unused_imports"]:
-            has_unused = True
-            for imp in result["unused_imports"]:
-                line = f"  {result['file']}: import {imp}"
-                print(line)
-                output_lines.append(line)
-    if not has_unused:
-        print("  No unused imports found")
-
-    # Unused private functions
-    print("\n=== UNUSED PRIVATE FUNCTIONS ===")
-    has_unused = False
-    for result in results:
-        # Пропускаем Hilt и Android компоненты
-        if result["is_hilt"] or result["is_android_component"]:
-            continue
-
-        if result["unused_private_functions"]:
-            has_unused = True
-            for func_name, line_num in result["unused_private_functions"]:
-                line = f"  {result['file']}:{line_num} - {func_name}()"
-                print(line)
-                output_lines.append(line)
-    if not has_unused:
-        print("  No unused private functions found")
-
-    # Unused private properties
-    print("\n=== UNUSED PRIVATE PROPERTIES ===")
-    has_unused = False
-    for result in results:
-        # Пропускаем Hilt и Android компоненты
-        if result["is_hilt"] or result["is_android_component"]:
-            continue
-
-        if result["unused_private_properties"]:
-            has_unused = True
-            for prop_name, line_num in result["unused_private_properties"]:
-                line = f"  {result['file']}:{line_num} - {prop_name}"
-                print(line)
-                output_lines.append(line)
-    if not has_unused:
-        print("  No unused private properties found")
-
+    output = render_json(results) if args.format == "json" else render_text(results)
+    print(output)
     if args.output:
-        with open(args.output, "w") as f:
-            f.write("\n".join(output_lines))
-        print(f"\nResults saved to {args.output}")
+        Path(args.output).write_text(output, encoding="utf-8")
+        print(f"\nResults saved to {args.output}", file=sys.stderr)
 
 
 if __name__ == "__main__":

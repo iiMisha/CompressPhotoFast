@@ -164,18 +164,15 @@ desktop/build/kotlin/
 desktop/build/libs/
 desktop/build/tmp/
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
 # Python CLI
-compressphotofast-cli/__pycache__/
-compressphotofast-cli/**/__pycache__/
-compressphotofast-cli/*.egg-info/
-compressphotofast-cli/.pytest_cache/
-compressphotofast-cli/.mypy_cache/
-compressphotofast-cli/.ruff_cache/
-compressphotofast-cli/dist/
-compressphotofast-cli/build/
-compressphotofast-cli/*.pyc
-compressphotofast-cli/*.pyo
-compressphotofast-cli/*.pyd
 compressphotofast-cli/venv/
 compressphotofast-cli/env/
 compressphotofast-cli/ENV/
@@ -183,4 +180,3 @@ compressphotofast-cli/.venv/
 compressphotofast-cli/test_images/
 compressphotofast-cli/*.bak
 compressphotofast-cli/test_*.jpg
-compressphotofast-cli/src/__pycache__/.claude/

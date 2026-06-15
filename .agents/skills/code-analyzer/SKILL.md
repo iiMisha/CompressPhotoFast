@@ -16,19 +16,39 @@ description: |
 
 Анализирует Kotlin/Java код на предмет дублирования, мёртвого кода и качества.
 
+## Как вызывать
+
+Скилл загружается через `skill(name="code-analyzer")` или упоминанием в запросе.
+Параметры (scope, файлы, пороги) передаются в свободной форме в тексте запроса.
+
+> Скилл **не регистрирует** slash-команду — `/code-analyzer` не работает.
+> Все инструкции ниже описывают фактический workflow.
+
+## Движок анализа
+
+Анализ использует **два движка** в комбинации:
+
+| Движок | Назначение | Скорость |
+|--------|-----------|----------|
+| **Python-скрипты** (`scripts/`) | Дубликаты + кастомные паттерны + приватные функции/свойства | Секунды |
+| **`./gradlew lintDebug`** | Unused imports/ресурсы, качество (авторитетнее для Kotlin) | ~1-2 мин |
+
+Ключевое правило: **`gradlew lint` первичен для unused/качества**, скрипты — для дубликатов и приватных деклараций, которые линтер может пропустить.
+
 ## Quick Start
 
 ```bash
-# Полный анализ проекта
-/code-analyzer
+# === 1. Python-скрипты (быстро, без сборки) ===
 
-# Анализ конкретной области
-/code-analyzer scope=duplicates
-/code-analyzer scope=unused
-/code-analyzer scope=quality
+# Дубликаты (function-level + sliding-window)
+python3 .agents/skills/code-analyzer/scripts/find_duplicates.py app/src/main --format json
 
-# Анализ конкретных файлов
-/code-analyzer files=ImageCompressionUtil.kt,MediaStoreUtil.kt
+# Unused private функции/свойства/импорты
+python3 .agents/skills/code-analyzer/scripts/find_unused.py app/src/main --format json
+
+# === 2. Gradle Lint (медленнее, но авторитетнее для unused/quality) ===
+./gradlew lintDebug
+# Читать: app/build/reports/lint-results-debug.txt
 ```
 
 ## CompressPhotoFast Специфика
@@ -41,77 +61,108 @@ description: |
 | **Coroutines** | Использовать вместо GlobalScope/Handler |
 | **Bitmap** | Обязательный recycle(), inSampleSize, RGB_565 |
 | **MediaStore** | Пакетные операции, async обработка |
-| **Singletons** | object классы используются для утилит, не считать неиспользуемыми |
+| **Singletons** | `object` классы для утилит — НЕ считать неиспользуемыми |
 | **DI** | Hilt-инжектируемые классы могут не иметь явных вызовов |
+| **Allowlist** | `allowlist.txt` в корне скилла — known-ok срабатывания (R, UUID, lifecycle, DI) |
+| **История** | Недавно проведена масштабная очистка мёртвого кода (см. AGENTS.md) — не сообщать о deliberately удалённых элементах |
 
-**Исключения при поиске unused кода:**
+**Исключения при поиске unused кода (скрипты обрабатывают автоматически):**
 - Методы в `object` классах утилит
-- Hilt-инжектируемые классы
+- Hilt-инжектируемые декларации с аннотациями `@Inject`, `@Provides`, `@Binds`, `@HiltViewModel`
 - BroadcastReceiver, Service, Worker (регистрируются в манифесте)
-- Методы с аннотациями `@Provides`, `@Binds`, `@HiltViewModel`
+- Lifecycle/override методы (onCreate, onDestroy, doWork, onReceive и т.п. — см. allowlist)
+- ALL-CAPS импорты (R, UUID, URI) — используются синтаксически
 
 ## Workflow
 
 ### 1. Сбор файлов
 
 **КРИТИЧЕСКИЕ ПРАВИЛА:**
-- ❌ НЕ используй `Task(Explore, ...)` - вызывает переполнение памяти
-- ✅ Используй Glob/Grep/Read для поиска файлов
+- ❌ НЕ используй `task(subagent_type=explore)` для больших обходов — может вызвать переполнение контекста
+- ✅ Используй `Glob`/`Grep`/`Read` напрямую для поиска файлов
 
 ```bash
 # Собираем файлы через Glob
-Glob("**/src/main/java/**/*.kt")  # Основной код
-Glob("**/src/test/**/*.kt")       # Тесты
+Glob("app/src/main/java/**/*.kt")   # Основной код
+Glob("app/src/test/**/*.kt")        # Тесты
 
-# Фильтруем при необходимости
-Grep("object.*Util")              # Singleton утилиты
-Grep("class.*ViewModel")          # ViewModels
+# При необходимости — фильтруем
+Grep("object.*Util")                # Singleton утилиты
+Grep("class.*ViewModel")            # ViewModels
 ```
 
-### 2. Анализ дубликатов
+> Скрипты автоматически исключают `build/`, `.gradle/`, `generated/`, `.idea/`.
 
-**Искать:**
-- Повторяющиеся блоки кода (>5 строк)
-- Похожие функции с разницей только в именах переменных
-- Копипаст с небольшими изменениями
+### 2. Запуск движков анализа
 
-**Паттерны поиска:**
-```kotlin
-// Частые дубликаты в Android:
-- Повторяющиеся try-catch блоки
-- Похожие RecyclerView adapters
-- Дублирование работы с ContentResolver
-- Повторяющиеся преобразования URI
+**Шаг A — Дубликаты (Python):**
+
+```bash
+python3 .agents/skills/code-analyzer/scripts/find_duplicates.py app/src/main \
+    --format json --output /tmp/kilo/dups.json
 ```
 
-**См. [references/duplicates-patterns.md](references/duplicates-patterns.md)**
+Параметры:
+- `--min-lines 6` — размер sliding-window (дефолт 6)
+- `--threshold 0.85` — порог сходства функций
+- `--no-intrafile` / `--no-crossfile` — отключить intra/cross-file
+- `--allowlist <path>` — свой allowlist (по умолчанию `../allowlist.txt`)
 
-### 3. Анализ мёртвого кода
+**Шаг B — Unused код (Python):**
 
-**Искать:**
-- Unused imports
-- Unused private functions
-- Unused local variables
-- Unused parameters
+```bash
+python3 .agents/skills/code-analyzer/scripts/find_unused.py app/src/main \
+    --format json --output /tmp/kilo/unused.json
+```
 
-**Исключить из отчёта:**
-- Hilt-инжектируемые классы
-- Методы жизненного цикла (onCreate, onDestroy)
-- Переопределённые методы
-- Методы тестов
+Каждый кандидат содержит `confidence`: `High` (можно удалять) / `Medium` (проверить) / `Low` (не трогать — отфильтровано).
 
-**См. [references/unused-patterns.md](references/unused-patterns.md)**
+**Шаг C — Gradle Lint (опционально, но авторитетно для unused/quality):**
 
-### 4. Анализ качества
+```bash
+./gradlew lintDebug
+# Читать: app/build/reports/lint-results-debug.txt
+# Или HTML: app/build/reports/lint-results-debug.html
+```
 
-**Проверить:**
-- Соответствие code style проекта
-- Отсутствие GlobalScope/Handler
+Секции lint-отчёта, релевантные анализу: `UnusedResources`, `UnusedImports`, `IconLauncherShape`, `UnsafeExperimentalUsageError`.
+
+### 3. Верификация кандидатов (LLM)
+
+Скрипты дают **кандидатов**. Перед внесением в отчёт — обязательная верификация:
+
+```bash
+# Для каждого кандидата — проверить реальное использование
+Grep("functionName")  # во всех файлах, не только в исходном
+Read("file.kt", offset=<line>, limit=15)  # контекст декларации
+```
+
+**Проверять:**
+- Использование через reflection (DataStore, аннотации)
+- Косвенные вызовы (через `::funcRef`, `KClass`)
+- Использование в тестах (`app/src/test/`)
+- Lifecycle-вызовы системой
+
+### 4. Анализ качества (LLM по паттернам)
+
+Используй `references/quality-patterns.md` для проверки:
+- Отсутствие `GlobalScope` / `Handler().post`
 - Правильное использование coroutines
 - Корректная обработка Bitmap (recycle)
-- Правильное использование Dispatchers
+- Правильные Dispatchers
+- Resource management (use{})
 
-**См. [references/quality-patterns.md](references/quality-patterns.md)**
+## Allowlist
+
+Файл `.agents/skills/code-analyzer/allowlist.txt` — список «ok»-срабатываний:
+- ALL-CAPS импорты (`R`, `UUID`, `URI`)
+- Android lifecycle методы (`onCreate`, `onDestroy` и т.д.)
+- Hilt/DI аннотации и точки входа
+- WorkManager/Service callbacks
+- Testing callbacks (`setUp`, `tearDown`)
+
+**Пополнение:** при стабильных ложных срабатываниях добавляй токен в `allowlist.txt`.
+Скрипты загружают его автоматически (один токен на строку, `#` — комментарий).
 
 ## Report Format
 
@@ -120,8 +171,8 @@ Grep("class.*ViewModel")          # ViewModels
 
 ## Summary
 - Files Analyzed: X
-- Duplicates Found: X
-- Unused Code Items: X
+- Duplicates Found: X (High: X, Medium: X)
+- Unused Code Items: X (по уровням confidence)
 - Quality Issues: X
 
 ## Duplicates
@@ -131,7 +182,7 @@ Grep("class.*ViewModel")          # ViewModels
 - `path/to/File1.kt:line`
 - `path/to/File2.kt:line`
 
-**Similarity:** 85%
+**Similarity:** 85% (High/Medium/Low)
 
 **Recommendation:** Extract to shared utility
 
@@ -166,32 +217,34 @@ Grep("class.*ViewModel")          # ViewModels
 **Problem:** Description
 
 **Solution:** Recommendation
-
 ```
 
 ## Scope Options
 
-| Scope | Что анализируется |
-|-------|-------------------|
-| `all` | Все категории (default) |
-| `duplicates` | Только дубликаты |
-| `unused` | Только мёртвый код |
-| `quality` | Только качество кода |
+| Scope | Что анализируется | Какие движки |
+|-------|-------------------|-------------|
+| `all` | Все категории (default) | скрипты + lint |
+| `duplicates` | Только дубликаты | `find_duplicates.py` |
+| `unused` | Только мёртвый код | `find_unused.py` + `./gradlew lintDebug` |
+| `quality` | Только качество кода | `./gradlew lintDebug` + LLM-паттерны |
 
 ## Thoroughness Levels
 
 | Level | Описание | Когда использовать |
 |-------|----------|-------------------|
-| **quick** | Быстрый анализ критических проблем | Быстрая проверка |
-| **medium** | Стандартный анализ | Рутинная проверка |
-| **very thorough** | Глубокий анализ всех аспектов | Перед рефакторингом |
+| **quick** | Только Python-скрипты, без lint | Быстрая проверка |
+| **medium** | Скрипты + lint, без ручной верификации каждого | Рутинная проверка |
+| **very thorough** | Скрипты + lint + полная верификация кандидатов | Перед рефакторингом |
 
 ## References
 
 - **[duplicates-patterns.md](references/duplicates-patterns.md)** - Паттерны поиска дубликатов
 - **[unused-patterns.md](references/unused-patterns.md)** - Паттерны поиска мёртвого кода
 - **[quality-patterns.md](references/quality-patterns.md)** - Паттерны качества кода
+- **[allowlist.txt](allowlist.txt)** - Список known-ok срабатываний
 
 ## After Analysis
 
-После завершения анализа обновите AGENTS.md используя `/agents-updater` скилл.
+После завершения анализа:
+1. Если найдены **подтверждённые** проблемы, требующие изменений кода → обнови AGENTS.md через `/agents-updater` (описать найденные проблемы и план устранения).
+2. Если ничего значимого не найдено → НЕ вызывать `/agents-updater`.
