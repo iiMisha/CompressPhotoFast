@@ -511,9 +511,6 @@ class MainActivity : AppCompatActivity() {
         // Установка начального состояния для переключателей качества
         setupCompressionQualityRadioButtons()
 
-        // Переключатель игнорирования фото из мессенджеров (listener'ы регистрируются в attachSwitchListeners())
-        binding.switchIgnoreMessengerPhotos.isChecked = viewModel.shouldIgnoreMessengerPhotos()
-
         binding.btnSelectPhotos.setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
@@ -539,9 +536,6 @@ class MainActivity : AppCompatActivity() {
         binding.switchSaveMode.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setSaveMode(isChecked)
         }
-        binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.setIgnoreMessengerPhotos(isChecked)
-        }
     }
 
     /**
@@ -557,11 +551,9 @@ class MainActivity : AppCompatActivity() {
     private fun syncSwitchesFromPrefs() {
         binding.switchAutoCompression.setOnCheckedChangeListener(null)
         binding.switchSaveMode.setOnCheckedChangeListener(null)
-        binding.switchIgnoreMessengerPhotos.setOnCheckedChangeListener(null)
 
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
         binding.switchSaveMode.isChecked = viewModel.isSaveModeReplace()
-        binding.switchIgnoreMessengerPhotos.isChecked = viewModel.shouldIgnoreMessengerPhotos()
 
         attachSwitchListeners()
     }

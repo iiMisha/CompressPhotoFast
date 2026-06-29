@@ -89,12 +89,16 @@ class FileNameProcessingTest {
 
     /**
      * Тест 4: Проверка создания сжатого имени файла
+     *
+     * HEIC/HEIF всегда конвертируется в JPEG при сжатии, поэтому расширение
+     * заменяется на .jpg (согласовано с MIME-типом в MediaStore и реальным форматом).
      */
     @Test
     fun test_createCompressedFileName() {
         val testCases = mapOf(
             "image.jpg" to "image_compressed.jpg",
-            "photo.heic" to "photo_compressed.heic",
+            "photo.heic" to "photo_compressed.jpg",   // HEIC → JPEG
+            "photo.heif" to "photo_compressed.jpg",   // HEIF → JPEG
             "image.HEIC.jpg" to "image_compressed.jpg", // Должен очистить двойное расширение
             "picture.png" to "picture_compressed.png"
         )
@@ -311,7 +315,11 @@ class FileNameProcessingTest {
 
     private fun createCompressedFileName(originalName: String): String {
         val cleanName = cleanDoubleExtension(originalName)
-        val extension = getLastExtension(originalName)
+        val rawExtension = getLastExtension(originalName)
+        val extension = when (rawExtension.lowercase()) {
+            ".heic", ".heif" -> ".jpg"
+            else -> rawExtension
+        }
         return "${cleanName}_compressed$extension"
     }
 

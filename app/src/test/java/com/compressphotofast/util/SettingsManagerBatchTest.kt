@@ -44,14 +44,12 @@ class SettingsManagerBatchTest {
             setAutoCompression(true)
             setCompressionQuality(85)
             setSaveMode(false)
-            setIgnoreMessengerPhotos(false)
         }
 
         // Then
         verify { mockEditor.putBoolean(Constants.PREF_AUTO_COMPRESSION, true) }
         verify { mockEditor.putInt(Constants.PREF_COMPRESSION_QUALITY, 85) }
         verify { mockEditor.putBoolean(Constants.PREF_SAVE_MODE, false) }
-        verify { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) }
         verify(exactly = 1) { mockEditor.apply() }
     }
 
@@ -98,7 +96,6 @@ class SettingsManagerBatchTest {
             setAutoCompression(true)
             setSaveMode(true)
             setProcessScreenshots(false)
-            setIgnoreMessengerPhotos(true)
             setShowCompressionToast(true)
             setFirstLaunch(false)
             setDeletePermissionRequested(true)
@@ -108,7 +105,6 @@ class SettingsManagerBatchTest {
         verify { mockEditor.putBoolean(Constants.PREF_AUTO_COMPRESSION, true) }
         verify { mockEditor.putBoolean(Constants.PREF_SAVE_MODE, true) }
         verify { mockEditor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, false) }
-        verify { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true) }
         verify { mockEditor.putBoolean(Constants.PREF_SHOW_COMPRESSION_TOAST, true) }
         verify { mockEditor.putBoolean(Constants.PREF_FIRST_LAUNCH, false) }
         verify { mockEditor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true) }
@@ -135,7 +131,6 @@ class SettingsManagerBatchTest {
             setSaveMode(false)
             setCompressionPreset(CompressionPreset.MEDIUM)
             setProcessScreenshots(true)
-            setIgnoreMessengerPhotos(false)
             setShowCompressionToast(false)
             setFirstLaunch(true)
             setDeletePermissionRequested(false)
@@ -149,7 +144,6 @@ class SettingsManagerBatchTest {
         verify(atLeast = 1) { mockEditor.putInt(Constants.PREF_COMPRESSION_QUALITY, any()) }
         verify(exactly = 1) { mockEditor.putBoolean(Constants.PREF_SAVE_MODE, false) }
         verify(exactly = 1) { mockEditor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, true) }
-        verify(exactly = 1) { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) }
         verify(exactly = 1) { mockEditor.putBoolean(Constants.PREF_SHOW_COMPRESSION_TOAST, false) }
         verify(exactly = 1) { mockEditor.putBoolean(Constants.PREF_FIRST_LAUNCH, true) }
         verify(exactly = 1) { mockEditor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false) }

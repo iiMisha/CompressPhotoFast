@@ -24,7 +24,7 @@ object OptimizedCacheUtil {
     private const val PATH_PATTERN_CACHE_TTL = 60 * 60 * 1000L // 1 час
 
     /**
-     * Кэш для результатов проверки директорий (приложение, мессенджеры и т.д.)
+     * Кэш для результатов проверки директорий (принадлежность к директории приложения и т.д.)
      */
     private val directoryCache = object : LruCache<String, CachedDirectoryResult>(DIRECTORY_CACHE_SIZE) {
         override fun sizeOf(key: String, value: CachedDirectoryResult): Int = 1
@@ -50,18 +50,6 @@ object OptimizedCacheUtil {
     private val pathPatternCacheLock = ReentrantReadWriteLock()
 
     /**
-     * Предкомпилированные паттерны для быстрой проверки мессенджеров
-     */
-    private val messengerPatterns = arrayOf(
-        "/whatsapp/",
-        "/telegram/",
-        "/viber/",
-        "/messenger/",
-        "/messages/",
-        "pictures/messages/"
-    )
-
-    /**
      * Предкомпилированные паттерны для проверки скриншотов
      */
     private val screenshotPatterns = arrayOf(
@@ -75,7 +63,6 @@ object OptimizedCacheUtil {
      */
     private data class CachedDirectoryResult(
         val isInAppDirectory: Boolean,
-        val isMessengerImage: Boolean,
         val timestamp: Long = System.currentTimeMillis()
     ) {
         fun isExpired(): Boolean = System.currentTimeMillis() - timestamp > DIRECTORY_CACHE_TTL
@@ -112,60 +99,37 @@ object OptimizedCacheUtil {
     }
 
     /**
-     * Проверяет, находится ли файл в директории приложения или является изображением из мессенджера
+     * Проверяет, находится ли файл в директории приложения
      * Использует кэширование для оптимизации повторных проверок
      */
-    fun checkDirectoryStatus(filePath: String, appDirectory: String): Pair<Boolean, Boolean> {
+    fun checkDirectoryStatus(filePath: String, appDirectory: String): Boolean {
         val cacheKey = filePath
 
         directoryCacheLock.read {
             val cached = directoryCache.get(cacheKey)
             if (cached != null && !cached.isExpired()) {
-                return Pair(cached.isInAppDirectory, cached.isMessengerImage)
+                return cached.isInAppDirectory
             }
         }
 
         // Вычисляем результат
         val isInAppDirectory = checkIsInAppDirectory(filePath, appDirectory)
-        val isMessengerImage = checkIsMessengerImage(filePath)
 
         // Кэшируем результат
         directoryCacheLock.write {
-            directoryCache.put(cacheKey, CachedDirectoryResult(isInAppDirectory, isMessengerImage))
+            directoryCache.put(cacheKey, CachedDirectoryResult(isInAppDirectory))
         }
 
-        return Pair(isInAppDirectory, isMessengerImage)
+        return isInAppDirectory
     }
 
     /**
      * Быстрая проверка на принадлежность к директории приложения
      */
     private fun checkIsInAppDirectory(path: String, appDirectory: String): Boolean {
-        return path.contains("/$appDirectory/") || 
-               (path.contains("content://media/external/images/media") && 
+        return path.contains("/$appDirectory/") ||
+               (path.contains("content://media/external/images/media") &&
                 path.contains(appDirectory))
-    }
-
-    /**
-     * Оптимизированная проверка на изображение из мессенджера
-     * Использует предкомпилированные паттерны для быстрого сравнения
-     */
-    private fun checkIsMessengerImage(path: String): Boolean {
-        val lowercasedPath = path.lowercase()
-        
-        // Исключаем документы, которые могут быть переданы в высоком качестве
-        if (lowercasedPath.contains("/documents/")) {
-            return false
-        }
-        
-        // Быстрая проверка с предкомпилированными паттернами
-        for (pattern in messengerPatterns) {
-            if (lowercasedPath.contains(pattern)) {
-                return true
-            }
-        }
-        
-        return false
     }
 
     /**
@@ -306,11 +270,10 @@ object OptimizedCacheUtil {
         directoryGroups.forEach { (directory, paths) ->
             // Предзагружаем данные для директории
             val isAppDir = checkIsInAppDirectory(directory, appDirectory)
-            val isMessengerDir = checkIsMessengerImage(directory)
-            
+
             paths.forEach { path ->
                 directoryCacheLock.write {
-                    directoryCache.put(path, CachedDirectoryResult(isAppDir, isMessengerDir))
+                    directoryCache.put(path, CachedDirectoryResult(isAppDir))
                 }
             }
         }

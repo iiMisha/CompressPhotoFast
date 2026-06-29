@@ -178,22 +178,6 @@ class SettingsManager @Inject constructor(
     fun setProcessScreenshots(processScreenshots: Boolean) {
         sharedPreferences.edit().putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, processScreenshots).apply()
     }
-    
-    /**
-     * Проверяет, нужно ли игнорировать изображения из мессенджеров
-     * @return true если нужно игнорировать, false в противном случае (по умолчанию false)
-     */
-    fun shouldIgnoreMessengerPhotos(): Boolean {
-        return sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false)
-    }
-    
-    /**
-     * Устанавливает настройку игнорирования изображений из мессенджеров
-     * @param ignore true если нужно игнорировать, false в противном случае
-     */
-    fun setIgnoreMessengerPhotos(ignore: Boolean) {
-        sharedPreferences.edit().putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, ignore).apply()
-    }
 
     /**
      * Проверяет, нужно ли показывать Toast сообщения о результатах сжатия
@@ -312,14 +296,6 @@ class SettingsEditor(private val editor: SharedPreferences.Editor) {
      */
     fun setProcessScreenshots(processScreenshots: Boolean) {
         editor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, processScreenshots)
-    }
-
-    /**
-     * Устанавливает настройку игнорирования изображений из мессенджеров
-     * @param ignore true если нужно игнорировать, false в противном случае
-     */
-    fun setIgnoreMessengerPhotos(ignore: Boolean) {
-        editor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, ignore)
     }
 
     /**

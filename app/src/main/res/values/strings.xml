@@ -11,8 +11,6 @@
 (Нажмите <font color="#FF9800"><b><u>ЗДЕСЬ</u></b></font> для перехода в настройки <font size="16">👆</font>)]]></string>
     <string name="save_mode_toggle">💾 Заменять оригинальные файлы</string>
     <string name="save_mode_description">При включенном переключателе сжатые файлы записываются в исходную папку, а оригиналы удаляются. При выключенном - сохраняются в отдельной папке</string>
-    <string name="ignore_messenger_photos_toggle">💬 Игнорировать фото из мессенджеров</string>
-    <string name="ignore_messenger_photos_description">Не сжимать изображения, сохраненные из WhatsApp, Telegram и других мессенджеров.</string>
     <string name="compression_quality_title">⚙️ Качество сжатия</string>
     <string name="compression_quality_description">Выберите качество сжатия (ниже = меньший размер, выше = лучшее качество)</string>
     <string name="compression_quality_low">🔥 Низкое</string>
@@ -46,7 +44,6 @@
     <string name="notification_skipping_compressed">🖼️ Изображение уже сжато, пропускаем</string>
     <string name="notification_skipping_invalid_size">📏 Размер файла невалидный, пропускаем</string>
     <string name="notification_skipping_inefficient">📉 Сжатие неэффективно, пропускаем</string>
-    <string name="notification_skipping_messenger_photo">📱 Пропущено: фото из мессенджера</string>
     <string name="notification_compression_completed">Сжатие завершено</string>
     <string name="notification_compression_completed_title">✅ Сжатие фото завершено</string>
     <string name="notification_compression_completed_text">🖼️ %1$s: %2$s → %3$s (-%4$s%%)</string>

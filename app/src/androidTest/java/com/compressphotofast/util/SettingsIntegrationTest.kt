@@ -106,35 +106,7 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 4: Проверка сохранения и чтения настройки игнорирования мессенджеров
-     */
-    @Test
-    fun test_ignoreMessengerPhotos_saveAndRead() {
-        // Тестируем сохранение true
-        editor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true)
-        val result = editor.commit()
-
-        org.junit.Assert.assertTrue("Настройка должна сохраниться", result)
-        org.junit.Assert.assertEquals(
-            "Значение должно быть true",
-            true,
-            sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false)
-        )
-
-        // Тестируем сохранение false
-        editor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false)
-        val result2 = editor.commit()
-
-        org.junit.Assert.assertTrue("Настройка должна сохраниться", result2)
-        org.junit.Assert.assertEquals(
-            "Значение должно быть false",
-            false,
-            sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true)
-        )
-    }
-
-    /**
-     * Тест 5: Проверка сохранения и чтения настройки обработки скриншотов
+     * Тест 4: Проверка сохранения и чтения настройки обработки скриншотов
      */
     @Test
     fun test_processScreenshots_saveAndRead() {
@@ -176,7 +148,6 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
         editor.putBoolean(Constants.PREF_AUTO_COMPRESSION, true)
         editor.putInt(Constants.PREF_COMPRESSION_QUALITY, 70)
         editor.putBoolean(Constants.PREF_SAVE_MODE, false)
-        editor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true)
         val result = editor.commit()
 
         org.junit.Assert.assertTrue("Все настройки должны сохраниться", result)
@@ -196,11 +167,6 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
             "SAVE_MODE должно быть false",
             false,
             sharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, true)
-        )
-        org.junit.Assert.assertEquals(
-            "IGNORE_MESSENGER_PHOTOS должно быть true",
-            true,
-            sharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false)
         )
     }
 
@@ -277,7 +243,6 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
         editor.putBoolean(Constants.PREF_AUTO_COMPRESSION, false)
         editor.putInt(Constants.PREF_COMPRESSION_QUALITY, 80)
         editor.putBoolean(Constants.PREF_SAVE_MODE, false)
-        editor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false)
         editor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, false)
         editor.putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
         editor.commit()

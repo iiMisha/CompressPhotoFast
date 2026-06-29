@@ -71,12 +71,6 @@ object ImageProcessingChecker {
         try {
             val result = isProcessingRequired(context, uri, forceProcess)
             if (!result.processingRequired) {
-                // Если причина пропуска - фото из мессенджера, мы все равно должны запустить воркер,
-                // чтобы он мог записать EXIF-теги. Воркер сам пропустит сжатие.
-                if (result.reason == ProcessingSkipReason.MESSENGER_PHOTO) {
-                    LogUtil.processDebug("Изображение из мессенджера, разрешаем запуск воркера для записи EXIF.")
-                    return@withContext true
-                }
                 LogUtil.debug("ImageProcessingChecker", "Изображение не требует обработки: ${result.reason}")
             }
             return@withContext result.processingRequired
@@ -180,17 +174,9 @@ object ImageProcessingChecker {
                 return@withContext result
             }
 
-            val settingsManager = SettingsManager.getInstance(context)
             val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
-            val (isInAppDir, isMessengerImage) = OptimizedCacheUtil.checkDirectoryStatus(path, Constants.APP_DIRECTORY)
-            
-            // Проверяем, не является ли изображение файлом из мессенджера
-            if (settingsManager.shouldIgnoreMessengerPhotos() && isMessengerImage) {
-                result.processingRequired = false // Обработка (сжатие) не требуется
-                result.reason = ProcessingSkipReason.MESSENGER_PHOTO
-                return@withContext result
-            }
-            
+            val isInAppDir = OptimizedCacheUtil.checkDirectoryStatus(path, Constants.APP_DIRECTORY)
+
             // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
             if (isInAppDir) {
                 result.processingRequired = false
@@ -316,6 +302,5 @@ object ImageProcessingChecker {
         COMPRESSED_VERSION_EXISTS, // Существует сжатая версия в директории приложения
         ALREADY_COMPRESSED,      // Файл уже сжат и не модифицирован
         ALREADY_SMALL,           // Файл уже имеет достаточно малый размер
-        MESSENGER_PHOTO,         // Изображение из мессенджера, сжатие пропущено
     }
 } 

@@ -51,17 +51,15 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 2: Проверка создания сжатого имени файла без двойного расширения
+     * Тест 2: Проверка создания сжатого имени файла для HEIC без двойного расширения
+     *
+     * HEIC конвертируется в JPEG при сжатии, поэтому расширение меняется на .jpg.
      */
     @Test
     fun test_createCompressedFileName_shouldNotHaveDoubleExtension() {
         val originalFileName = "photo.HEIC"
 
-        // Имитируем создание сжатого имени
-        val dotIndex = originalFileName.lastIndexOf('.')
-        val baseName = if (dotIndex > 0) originalFileName.substring(0, dotIndex) else originalFileName
-        val extension = if (dotIndex > 0) originalFileName.substring(dotIndex) else ""
-        val compressedName = "${baseName}_compressed$extension"
+        val compressedName = FileOperationsUtil.createCompressedFileName(context, originalFileName)
 
         // Проверяем, что нет двойного расширения
         val extensions = compressedFileNameCountExtensions(compressedName)
@@ -71,10 +69,10 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
             extensions
         )
 
-        // Проверяем, что расширение .heic сохранено
+        // HEIC конвертируется в JPEG → расширение должно стать .jpg
         Assert.assertTrue(
-            "Сжатый файл должен иметь расширение .heic",
-            compressedName.endsWith(".heic", ignoreCase = true)
+            "Сжатый HEIC файл должен иметь расширение .jpg, получено: '$compressedName'",
+            compressedName.endsWith(".jpg", ignoreCase = true)
         )
     }
 
@@ -102,27 +100,32 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 4: Проверка сохранения MIME типа для HEIC файлов
+     * Тест 4: Проверка, что HEIC-источник получает расширение .jpg при конвертации
+     *
+     * HEIC всегда конвертируется в JPEG при сжатии, поэтому имя файла и MIME-тип
+     * в MediaStore должны быть согласованы с реальным форматом байтов (JPEG):
+     * имя файла заканчивается на `.jpg`, MIME-тип — `image/jpeg`.
      */
     @Test
     fun test_heicMimeType_shouldBePreserved() {
-        val originalMimeType = "image/heic"
-        val defaultMimeType = "image/jpeg"
+        val originalName = "photo.heic"
+        val jpegExtension = ".jpg"
+        val outputMimeType = "image/jpeg"
 
-        // В текущей реализации MIME тип игнорируется и заменяется на default
-        // Этот тест документирует текущее поведение
-        val currentBehaviorMimeType = defaultMimeType
+        val result = FileOperationsUtil.createCompressedFileName(context, originalName)
 
-        Assert.assertEquals(
-            "Текущая реализация использует hardcoded MIME тип",
-            defaultMimeType,
-            currentBehaviorMimeType
+        Assert.assertTrue(
+            "Сжатый HEIC файл должен получить расширение .jpg, получено: '$result'",
+            result.endsWith(jpegExtension, ignoreCase = true)
         )
-
-        Assert.assertNotEquals(
-            "Оригинальный MIME тип (image/heic) отличается от используемого (image/jpeg)",
-            originalMimeType,
-            currentBehaviorMimeType
+        Assert.assertFalse(
+            "Имя сжатого файла не должно содержать расширение .heic, получено: '$result'",
+            result.lowercase().endsWith(".heic")
+        )
+        Assert.assertEquals(
+            "MIME-тип для конвертированного HEIC должен быть image/jpeg",
+            outputMimeType,
+            "image/jpeg"
         )
     }
 
@@ -206,21 +209,18 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
 
     /**
      * Тест 8: Проверка обработки HEIC с суффиксом _compressed
+     *
+     * HEIC конвертируется в JPEG при сжатии → расширение меняется на .jpg.
      */
     @Test
     fun test_heicWithCompressedSuffix() {
         val originalFile = "photo.heic"
-        val suffix = "_compressed"
 
-        // Правильное создание имени с суффиксом
-        val dotIndex = originalFile.lastIndexOf('.')
-        val baseName = originalFile.substring(0, dotIndex)
-        val extension = originalFile.substring(dotIndex)
-        val compressedFile = "${baseName}${suffix}${extension}"
+        val compressedFile = FileOperationsUtil.createCompressedFileName(context, originalFile)
 
         Assert.assertEquals(
-            "Сжатый файл должен быть 'photo_compressed.heic'",
-            "photo_compressed.heic",
+            "Сжатый HEIC файл должен быть 'photo_compressed.jpg'",
+            "photo_compressed.jpg",
             compressedFile
         )
 

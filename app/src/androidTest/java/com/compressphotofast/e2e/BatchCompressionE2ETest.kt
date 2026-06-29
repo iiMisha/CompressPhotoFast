@@ -42,7 +42,6 @@ class BatchCompressionE2ETest : BaseE2ETest() {
     private lateinit var context: Context
     private val testUris = mutableListOf<Uri>()
     private val screenshotUris = mutableListOf<Uri>()
-    private val messengerUris = mutableListOf<Uri>()
 
     @Before
     override fun setUp() {
@@ -376,13 +375,6 @@ class BatchCompressionE2ETest : BaseE2ETest() {
                 return@runBlocking
             }
 
-            // Включаем игнорирование скриншотов
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI
-            waitForUI(300)
-
             // Пытаемся сжать скриншот
             val uri = screenshotUris[0]
             val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
@@ -407,14 +399,8 @@ class BatchCompressionE2ETest : BaseE2ETest() {
                 return@runBlocking
             }
 
-            // Выключаем игнорирование скриншотов
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
             // Ждем обновления UI
             waitForUI(300)
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
 
             // Ждем обновления UI
             waitForUI(300)
@@ -435,74 +421,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
     }
 
     /**
-     * Тест 9: Проверка обработки фото из мессенджеров (включено игнорирование)
-     */
-    @Test
-    fun testMessengerPhotosIgnoredWhenEnabled() {
-        runBlocking {
-            if (messengerUris.isEmpty()) {
-                return@runBlocking
-            }
-
-            // Включаем игнорирование фото из мессенджеров
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI
-            waitForUI(300)
-
-            // Пытаемся сжать фото из мессенджера
-            val uri = messengerUris[0]
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-
-            // Проверяем результат (зависит от реализации логики игнорирования)
-            LogUtil.processDebug("Обработка фото из мессенджера: результат=${result.second != null}")
-        }
-    }
-
-    /**
-     * Тест 10: Проверка обработки фото из мессенджеров (выключено игнорирование)
-     */
-    @Test
-    fun testMessengerPhotosProcessedWhenDisabled() {
-        runBlocking {
-            if (messengerUris.isEmpty()) {
-                return@runBlocking
-            }
-
-            // Выключаем игнорирование фото из мессенджеров
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI
-            waitForUI(300)
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI
-            waitForUI(300)
-
-            // Пытаемся сжать фото из мессенджера
-            val uri = messengerUris[0]
-            val result = com.compressphotofast.util.ImageCompressionUtil.processAndSaveImage(
-                context,
-                uri,
-                Constants.COMPRESSION_QUALITY_MEDIUM
-            )
-
-            // Проверяем, что фото обработано
-            assertThat(result.second).isNotNull()
-
-            LogUtil.processDebug("Фото из мессенджера обработано: $result")
-        }
-    }
-
-    /**
-     * Тест 11: Проверка прерывания процесса пакетного сжатия
+     * Тест 9: Проверка прерывания процесса пакетного сжатия
      */
     @Test
     fun testBatchCompressionInterruption() {
@@ -765,11 +684,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         screenshotUris.clear()
         screenshotUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 2))
 
-        // Фото из мессенджеров
-        messengerUris.clear()
-        messengerUris.addAll(E2ETestImageGenerator.createLargeTestImages(context, 2))
-
-        LogUtil.processDebug("Создано ${testUris.size} обычных, ${screenshotUris.size} скриншотов, ${messengerUris.size} фото из мессенджеров")
+        LogUtil.processDebug("Создано ${testUris.size} обычных, ${screenshotUris.size} скриншотов")
     }
 
     /**
@@ -862,7 +777,7 @@ class BatchCompressionE2ETest : BaseE2ETest() {
      * Удаляет тестовые изображения
      */
     private fun cleanupTestImages() {
-        val allUris = testUris + screenshotUris + messengerUris
+        val allUris = testUris + screenshotUris
         for (uri in allUris) {
             try {
                 // На Android 13+ нужно использовать MediaStore.createDeleteRequest()
@@ -882,7 +797,6 @@ class BatchCompressionE2ETest : BaseE2ETest() {
         }
         testUris.clear()
         screenshotUris.clear()
-        messengerUris.clear()
         LogUtil.processDebug("Очистка тестовых изображений завершена")
     }
 }

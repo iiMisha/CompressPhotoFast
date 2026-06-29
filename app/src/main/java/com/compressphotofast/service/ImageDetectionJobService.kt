@@ -400,22 +400,13 @@ class ImageDetectionJobService : JobService() {
             val filePath = UriUtil.getFilePathFromUri(applicationContext, uri) ?: uri.toString()
             
             // Используем оптимизированный кэш для проверки директории
-            val (isInAppDir, isMessengerPhoto) = OptimizedCacheUtil.checkDirectoryStatus(filePath, Constants.APP_DIRECTORY)
-            
+            val isInAppDir = OptimizedCacheUtil.checkDirectoryStatus(filePath, Constants.APP_DIRECTORY)
+
             if (isInAppDir) {
                 LogUtil.processDebug("Файл находится в директории приложения (оптимизированный кэш): $filePath")
                 return@withContext false
             }
-            
-            // Получаем настройки один раз
-            val settingsManager = SettingsManager.getInstance(applicationContext)
-            val shouldIgnoreMessenger = settingsManager.shouldIgnoreMessengerPhotos()
-            
-            if (shouldIgnoreMessenger && isMessengerPhoto) {
-                LogUtil.processDebug("Изображение из мессенджера игнорируется (оптимизированный кэш): $filePath")
-                return@withContext false
-            }
-            
+
             // Проверяем размер файла - если он слишком мал, пропускаем
             if (metadata.size < Constants.OPTIMUM_FILE_SIZE) {
                 LogUtil.processDebug("Файл слишком мал для сжатия: ${metadata.size} байт")

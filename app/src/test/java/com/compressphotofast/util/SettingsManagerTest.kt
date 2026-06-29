@@ -617,73 +617,7 @@ class SettingsManagerTest : BaseUnitTest() {
         verify { mockEditor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, false) }
         verify { mockEditor.apply() }
     }
-    
-    // ==================== Игнорирование фото из мессенджеров ====================
-    
-    @Test
-    fun `shouldIgnoreMessengerPhotos returns false when not set`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns false
-        
-        // Act
-        val result = settingsManager.shouldIgnoreMessengerPhotos()
-        
-        // Assert
-        assertFalse(result)
-    }
-    
-    @Test
-    fun `shouldIgnoreMessengerPhotos returns true when enabled`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns true
-        
-        // Act
-        val result = settingsManager.shouldIgnoreMessengerPhotos()
-        
-        // Assert
-        assertTrue(result)
-    }
-    
-    @Test
-    fun `shouldIgnoreMessengerPhotos returns false when disabled`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns false
-        
-        // Act
-        val result = settingsManager.shouldIgnoreMessengerPhotos()
-        
-        // Assert
-        assertFalse(result)
-    }
-    
-    @Test
-    fun `setIgnoreMessengerPhotos enables ignoring`() {
-        // Arrange
-        every { mockSharedPreferences.edit() } returns mockEditor
-        every { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true) } returns mockEditor
-        
-        // Act
-        settingsManager.setIgnoreMessengerPhotos(true)
-        
-        // Assert
-        verify { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, true) }
-        verify { mockEditor.apply() }
-    }
-    
-    @Test
-    fun `setIgnoreMessengerPhotos disables ignoring`() {
-        // Arrange
-        every { mockSharedPreferences.edit() } returns mockEditor
-        every { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) } returns mockEditor
-        
-        // Act
-        settingsManager.setIgnoreMessengerPhotos(false)
-        
-        // Assert
-        verify { mockEditor.putBoolean(Constants.PREF_IGNORE_MESSENGER_PHOTOS, false) }
-        verify { mockEditor.apply() }
-    }
-    
+
     // ==================== Статический метод getInstance ====================
     
     @Test

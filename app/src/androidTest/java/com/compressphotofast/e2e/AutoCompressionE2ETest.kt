@@ -498,22 +498,8 @@ class AutoCompressionE2ETest : BaseE2ETest() {
     @Test
     fun testAutoCompressionIgnoresScreenshots() {
         runBlocking {
-            // Включаем игнорирование скриншотов
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI (checkbox toggle требует больше времени)
-            waitForUI(1000)
-
             // Ждем обновления UI
             waitForUI(200)
-
-            // Включаем авто-сжатие
-            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI (checkbox toggle требует больше времени)
-            waitForUI(1000)
 
             // Ждем запуска службы
             delay(2000)
@@ -534,48 +520,7 @@ class AutoCompressionE2ETest : BaseE2ETest() {
     }
 
     /**
-     * Тест 13: Проверка игнорирования фото из мессенджеров при авто-сжатии
-     */
-    @Test
-    fun testAutoCompressionIgnoresMessengerPhotos() {
-        runBlocking {
-            // Включаем игнорирование фото из мессенджеров
-            Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI (checkbox toggle требует больше времени)
-            waitForUI(1000)
-
-            // Ждем обновления UI
-            waitForUI(200)
-
-            // Включаем авто-сжатие
-            Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
-                .perform(ViewActions.click())
-
-            // Ждем обновления UI (checkbox toggle требует больше времени)
-            waitForUI(1000)
-
-            // Ждем запуска службы
-            delay(2000)
-
-            // Создаем фото из мессенджера
-            val messengerUri = createTestImage(800, 600)
-            if (messengerUri == null) {
-                return@runBlocking
-            }
-
-            // Ждем обработки
-            delay(5000)
-
-            // Проверяем, что фото из мессенджера пропущено (если логика игнорирования работает)
-            val hasMarker = runBlocking { ExifUtil.getCompressionMarker(context, messengerUri).first }
-            LogUtil.processDebug("Фото из мессенджера обработано при авто-сжатии: $hasMarker")
-        }
-    }
-
-    /**
-     * Тест 14: Проверка обработки нескольких новых изображений
+     * Тест 13: Проверка обработки нескольких новых изображений
      */
     @Test
     fun testMultipleNewImagesProcessed() {

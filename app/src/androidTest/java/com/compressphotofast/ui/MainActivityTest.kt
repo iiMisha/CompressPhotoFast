@@ -103,15 +103,7 @@ class MainActivityTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 5: Проверка отображения переключателя игнорирования фото из мессенджеров
-     */
-    @Test
-    fun test_ignoreMessengerSwitch_isDisplayed() {
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isDisplayed()))
-    }
-
-    /**
-     * Тест 6: Проверка отображения группы радиокнопок качества
+     * Тест 5: Проверка отображения группы радиокнопок качества
      */
     @Test
     fun test_qualityRadioGroup_isDisplayed() {
@@ -196,16 +188,7 @@ class MainActivityTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 15: Проверка переключения игнорирования фото из мессенджеров
-     */
-    @Test
-    fun test_ignoreMessengerToggle_canBeClicked() {
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isDisplayed()))
-    }
-
-    /**
-     * Тест 16: Проверка переключения нескольких переключателей последовательно
+     * Тест 15: Проверка переключения нескольких переключателей последовательно
      * Проверяет, что переключатели работают независимо друг от друга
      */
     @Test
@@ -215,9 +198,6 @@ class MainActivityTest : BaseInstrumentedTest() {
 
         onView(withId(R.id.switchSaveMode)).perform(click())
         onView(withId(R.id.switchSaveMode)).check(matches(isDisplayed()))
-
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isDisplayed()))
     }
 
     /**
@@ -246,7 +226,6 @@ class MainActivityTest : BaseInstrumentedTest() {
     fun test_switches_areEnabled_onLaunch() {
         onView(withId(R.id.switchAutoCompression)).check(matches(isEnabled()))
         onView(withId(R.id.switchSaveMode)).check(matches(isEnabled()))
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isEnabled()))
     }
 
     /**
@@ -290,7 +269,6 @@ class MainActivityTest : BaseInstrumentedTest() {
     fun test_allSwitchesSequential() {
         onView(withId(R.id.switchAutoCompression)).perform(click())
         onView(withId(R.id.switchSaveMode)).perform(click())
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
     }
 
     /**
@@ -413,12 +391,10 @@ class MainActivityTest : BaseInstrumentedTest() {
         repeat(3) {
             onView(withId(R.id.switchAutoCompression)).perform(click())
             onView(withId(R.id.switchSaveMode)).perform(click())
-            onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
         }
 
         onView(withId(R.id.switchAutoCompression)).check(matches(isDisplayed()))
         onView(withId(R.id.switchSaveMode)).check(matches(isDisplayed()))
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isDisplayed()))
     }
 
     /**
@@ -432,8 +408,6 @@ class MainActivityTest : BaseInstrumentedTest() {
 
         onView(withId(R.id.rbQualityHigh)).perform(click())
         onView(withId(R.id.rbQualityHigh)).check(matches(isChecked()))
-
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
 
         onView(withId(R.id.rbQualityHigh)).check(matches(isChecked()))
     }
@@ -461,7 +435,6 @@ class MainActivityTest : BaseInstrumentedTest() {
         onView(withId(R.id.switchAutoCompression)).perform(click())
         onView(withId(R.id.rbQualityHigh)).perform(click())
         onView(withId(R.id.switchSaveMode)).perform(click())
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
         onView(withId(R.id.rbQualityMedium)).perform(click())
 
         onView(withId(R.id.rbQualityMedium)).check(matches(isChecked()))
@@ -488,15 +461,12 @@ class MainActivityTest : BaseInstrumentedTest() {
     fun test_switches_differentOrder() {
         onView(withId(R.id.switchAutoCompression)).perform(click())
         onView(withId(R.id.switchSaveMode)).perform(click())
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
 
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
         onView(withId(R.id.switchSaveMode)).perform(click())
         onView(withId(R.id.switchAutoCompression)).perform(click())
 
         onView(withId(R.id.switchAutoCompression)).check(matches(isDisplayed()))
         onView(withId(R.id.switchSaveMode)).check(matches(isDisplayed()))
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isDisplayed()))
     }
 
     /**
@@ -510,7 +480,6 @@ class MainActivityTest : BaseInstrumentedTest() {
             onView(withId(R.id.rbQualityMedium)).perform(click())
             onView(withId(R.id.switchSaveMode)).perform(click())
             onView(withId(R.id.rbQualityHigh)).perform(click())
-            onView(withId(R.id.switchIgnoreMessengerPhotos)).perform(click())
         }
 
         onView(withId(R.id.mainContainer)).check(matches(isDisplayed()))
@@ -547,7 +516,6 @@ class MainActivityTest : BaseInstrumentedTest() {
         onView(withId(R.id.mainContainer)).check(matches(isDisplayed()))
         onView(withId(R.id.switchAutoCompression)).check(matches(isDisplayed()))
         onView(withId(R.id.switchSaveMode)).check(matches(isDisplayed()))
-        onView(withId(R.id.switchIgnoreMessengerPhotos)).check(matches(isDisplayed()))
         onView(withId(R.id.radioGroupQuality)).check(matches(isDisplayed()))
         onView(withId(R.id.btnSelectPhotos)).check(matches(isEnabled()))
         onView(withId(R.id.progressBar)).check(matches(not(isDisplayed())))

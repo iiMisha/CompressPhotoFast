@@ -233,10 +233,9 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.imageCompression(imageUri, "${sourceSizeKB}KB → ${compressedSizeKB}KB (-${compressionSavingPercent}%)")
 
             // Определяем, нужно ли пропускать сжатие
-            val shouldSkipCompression = !testResult.isEfficient() ||
-                    processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO
+            val shouldSkipCompression = !testResult.isEfficient()
 
-            // Если сжатие эффективно и это не фото из мессенджера, продолжаем
+            // Если сжатие эффективно, продолжаем
             if (!shouldSkipCompression) {
                 // Получаем имя файла
                 val fileName = UriUtil.getFileNameFromUri(appContext, imageUri)
@@ -415,16 +414,12 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 return@withContext Result.success()
             } else {
-                // Если сжатие неэффективно или это фото из мессенджера, пропускаем сжатие, но обновляем EXIF
-                var qualityForMarker: Int? = null
-                val skipReason = if (processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.MESSENGER_PHOTO) {
-                    appContext.getString(R.string.notification_skipping_messenger_photo)
-                } else {
-                    qualityForMarker = 99 // Устанавливаем маркер для неэффективного сжатия
-                    null
-                }
-                
-                // Сохраняем обновленные EXIF-данные и, если нужно, маркер сжатия
+                // Если сжатие неэффективно, пропускаем сжатие, но обновляем EXIF с маркером
+                // Устанавливаем маркер для неэффективного сжатия
+                val qualityForMarker = 99
+                val skipReason: String? = null
+
+                // Сохраняем обновленные EXIF-данные и маркер сжатия
                 ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, qualityForMarker)
                 
                 if (batchId.isNullOrEmpty()) {

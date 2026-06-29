@@ -250,71 +250,7 @@ class SettingsE2ETest : BaseE2ETest() {
     }
 
     /**
-     * Тест 8: Включение игнорирования фото из мессенджеров
-     */
-    @Test
-    fun testEnableIgnoreMessengerPhotos() {
-        // Проверяем, что переключатель игнорирования фото из мессенджеров отображается
-        assertViewDisplayed(R.id.switchIgnoreMessengerPhotos)
-        
-        // Проверяем, что переключатель выключен
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-        
-        // Включаем игнорирование фото из мессенджеров
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Проверяем, что переключатель включен
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
-        // Проверяем, что настройка сохранена
-        val ignoreMessengerPhotos = settingsManager.shouldIgnoreMessengerPhotos()
-        assertThat(ignoreMessengerPhotos).isTrue()
-        
-        LogUtil.processDebug("Игнорирование фото из мессенджеров включено")
-    }
-
-    /**
-     * Тест 9: Выключение игнорирования фото из мессенджеров
-     */
-    @Test
-    fun testDisableIgnoreMessengerPhotos() {
-        // Включаем игнорирование фото из мессенджеров
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Проверяем, что переключатель включен
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
-        // Выключаем игнорирование фото из мессенджеров
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
-
-        // Ждем обновления UI
-        waitForUI(300)
-        
-        // Проверяем, что переключатель выключен
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .check(ViewAssertions.matches(ViewMatchers.isNotChecked()))
-        
-        // Проверяем, что настройка сохранена
-        val ignoreMessengerPhotos = settingsManager.shouldIgnoreMessengerPhotos()
-        assertThat(ignoreMessengerPhotos).isFalse()
-        
-        LogUtil.processDebug("Игнорирование фото из мессенджеров выключено")
-    }
-
-    /**
-     * Тест 10: Проверка сохранения настроек
+     * Тест 8: Проверка сохранения настроек
      */
     @Test
     fun testSettingsPersisted() {
@@ -336,25 +272,17 @@ class SettingsE2ETest : BaseE2ETest() {
 
         // Ждем обновления UI
         waitForUI(300)
-        
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
-        
         // Проверяем, что настройки сохранены
         val quality = settingsManager.getCompressionQuality()
         val saveMode = settingsManager.getSaveMode()
         val autoCompressionEnabled = settingsManager.isAutoCompressionEnabled()
-        val ignoreMessengerPhotos = settingsManager.shouldIgnoreMessengerPhotos()
-        
+
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_HIGH)
         assertThat(saveMode).isEqualTo(Constants.SAVE_MODE_REPLACE)
         assertThat(autoCompressionEnabled).isTrue()
-        assertThat(ignoreMessengerPhotos).isTrue()
-        
-        LogUtil.processDebug("Настройки сохранены: качество=$quality, режим=$saveMode, авто=$autoCompressionEnabled, игнор=$ignoreMessengerPhotos")
+
+        LogUtil.processDebug("Настройки сохранены: качество=$quality, режим=$saveMode, авто=$autoCompressionEnabled")
     }
 
     /**
@@ -430,31 +358,23 @@ class SettingsE2ETest : BaseE2ETest() {
 
         // Ждем обновления UI
         waitForUI(300)
-        
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
-        
         // Сбрасываем настройки
         resetSettings()
-        
+
         // Перезапускаем Activity
         mainActivityScenario.close()
         mainActivityScenario = ActivityScenario.launch(MainActivity::class.java)
-        
+
         // Проверяем, что настройки сброшены
         val quality = settingsManager.getCompressionQuality()
         val saveMode = settingsManager.getSaveMode()
         val autoCompressionEnabled = settingsManager.isAutoCompressionEnabled()
-        val ignoreMessengerPhotos = settingsManager.shouldIgnoreMessengerPhotos()
-        
+
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_MEDIUM) // Значение по умолчанию
         assertThat(saveMode).isEqualTo(Constants.SAVE_MODE_SEPARATE) // Значение по умолчанию
         assertThat(autoCompressionEnabled).isFalse() // Значение по умолчанию
-        assertThat(ignoreMessengerPhotos).isFalse() // Значение по умолчанию
-        
+
         LogUtil.processDebug("Настройки сброшены")
     }
 
@@ -560,37 +480,26 @@ class SettingsE2ETest : BaseE2ETest() {
 
         // Ждем обновления UI
         waitForUI(300)
-        
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .perform(ViewActions.click())
 
-        // Ждем обновления UI
-        waitForUI(300)
-        
         // Проверяем все настройки
         val quality = settingsManager.getCompressionQuality()
         val saveMode = settingsManager.getSaveMode()
         val autoCompressionEnabled = settingsManager.isAutoCompressionEnabled()
-        val ignoreMessengerPhotos = settingsManager.shouldIgnoreMessengerPhotos()
-        
+
         assertThat(quality).isEqualTo(Constants.COMPRESSION_QUALITY_LOW)
         assertThat(saveMode).isEqualTo(Constants.SAVE_MODE_REPLACE)
         assertThat(autoCompressionEnabled).isTrue()
-        assertThat(ignoreMessengerPhotos).isTrue()
-        
+
         // Проверяем UI
         Espresso.onView(ViewMatchers.withId(R.id.rbQualityLow))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
+
         Espresso.onView(ViewMatchers.withId(R.id.switchSaveMode))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
+
         Espresso.onView(ViewMatchers.withId(R.id.switchAutoCompression))
             .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
-        Espresso.onView(ViewMatchers.withId(R.id.switchIgnoreMessengerPhotos))
-            .check(ViewAssertions.matches(ViewMatchers.isChecked()))
-        
+
         LogUtil.processDebug("Все настройки работают корректно")
     }
 
@@ -606,7 +515,6 @@ class SettingsE2ETest : BaseE2ETest() {
                     setCompressionQuality(Constants.COMPRESSION_QUALITY_MEDIUM)
                     setSaveMode(false) // false = SAVE_MODE_SEPARATE
                     setAutoCompression(false)
-                    setIgnoreMessengerPhotos(false)
                 }
             }
             LogUtil.processDebug("Настройки сброшены к значениям по умолчанию")

@@ -40,14 +40,14 @@ object FileOperationsUtil {
             LogUtil.processInfo("[FileOperationsUtil] Режим замены включён, используем оригинальное имя: $originalName")
             // Очищаем двойные расширения даже в режиме замены, но сохраняем последнее расширение
             val cleanName = cleanDoubleExtensions(originalName)
-            val extension = getLastExtension(originalName)
+            val extension = toOutputExtension(getLastExtension(originalName))
             return if (extension.isNotEmpty()) "$cleanName$extension" else cleanName
         }
 
         // В режиме отдельного сохранения добавляем суффикс
         // Сначала очищаем двойные расширения
         val cleanName = cleanDoubleExtensions(originalName)
-        val extension = getLastExtension(originalName)
+        val extension = toOutputExtension(getLastExtension(originalName))
 
         val compressedName = if (extension.isNotEmpty()) {
             "${cleanName}${Constants.COMPRESSED_FILE_SUFFIX}$extension"
@@ -57,6 +57,20 @@ object FileOperationsUtil {
 
         LogUtil.processInfo("[FileOperationsUtil] Режим отдельного сохранения: $originalName → $compressedName")
         return compressedName
+    }
+
+    /**
+     * Преобразует расширение исходного файла в расширение выходного файла.
+     *
+     * HEIC/HEIF исходники всегда конвертируются в JPEG при сжатии, поэтому
+     * их расширение заменяется на `.jpg`, чтобы имя файла, MIME-тип в MediaStore
+     * и реальный формат байтов оставались согласованными.
+     */
+    private fun toOutputExtension(extension: String): String {
+        return when (extension.lowercase()) {
+            ".heic", ".heif" -> ".jpg"
+            else -> extension
+        }
     }
 
     /**
