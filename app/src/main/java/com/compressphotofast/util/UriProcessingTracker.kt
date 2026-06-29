@@ -62,17 +62,50 @@ class UriProcessingTracker private constructor(
     // Максимальное количество URI в обработке
     private val MAX_PROCESSING_URIS = 50
 
-    // Время после которого URI считается stale (30 минут)
-    // Увеличено для предотвращения race condition при длительном ожидании в очереди WorkManager
-    private val STALE_URI_THRESHOLD = 30 * 60 * 1000L
+    // Время после которого URI считается stale (30 минут).
+    // Блокировка, висящая дольше этого порога, считается залипшей (Worker не доработал
+    // и не снял её в finally) и принудительно снимается/перевыдаётся при следующей попытке.
+    // Увеличено для предотвращения race condition при длительном ожидании в очереди WorkManager.
+    // internal + var — для unit-тестов (позволяет задать малый порог без @VisibleForTesting).
+    @Volatile
+    internal var staleUriThresholdMs = 30 * 60 * 1000L
+
+    // Время последней фоновой очистки processingUris от stale-записей
+    @Volatile
+    private var lastStaleCleanupTime = 0L
+
+    // Минимальный интервал между запусками очистки (троттлинг)
+    private val STALE_CLEANUP_INTERVAL = 60_000L
 
     // Карта для Mutex'ов на каждый URI - заменяет busy wait на эффективную блокировку
     private val uriLocks = ConcurrentHashMap<String, Mutex>()
 
     /**
+     * Периодически (не чаще раза в [STALE_CLEANUP_INTERVAL]) очищает processingUris от
+     * stale-записей. Покрывает query-шлюзы (isProcessing/isImageBeingProcessed), где URI
+     * не проходит через addProcessingUriSafe.
+     */
+    private fun maybeCleanupStaleUris() {
+        val now = System.currentTimeMillis()
+        if (now - lastStaleCleanupTime > STALE_CLEANUP_INTERVAL) {
+            lastStaleCleanupTime = now
+            cleanupStaleUris()
+        }
+    }
+
+    /**
+     * Только для unit-тестов: сбрасывает троттлинг очистки, чтобы следующая проверка
+     * query-шлюза гарантированно вызвала cleanup без ожидания [STALE_CLEANUP_INTERVAL].
+     */
+    internal fun resetStaleCleanupThrottleForTest() {
+        lastStaleCleanupTime = 0L
+    }
+
+    /**
      * Проверяет, находится ли URI в списке обрабатываемых
      */
     fun isProcessing(uri: Uri): Boolean {
+        maybeCleanupStaleUris()
         return processingUris.contains(uri.toString())
     }
 
@@ -87,8 +120,10 @@ class UriProcessingTracker private constructor(
     }
 
     /**
-     * Удаляет URIs которые находятся в обработке слишком долго (stale)
-     * Вызывается автоматически при достижении лимита MAX_PROCESSING_URIS
+     * Удаляет URIs которые находятся в обработке слишком долго (stale).
+     * Запускается периодически через [maybeCleanupStaleUris] из query-шлюзов
+     * (isProcessing/isImageBeingProcessed), а также служит опорой для точечного
+     * самоисцеления в [addProcessingUriSafe].
      */
     private fun cleanupStaleUris() {
         val currentTime = System.currentTimeMillis()
@@ -96,7 +131,7 @@ class UriProcessingTracker private constructor(
 
         processingUris.forEach { uri ->
             val addedTime = uriProcessingTime[uri]
-            if (addedTime != null && (currentTime - addedTime) > STALE_URI_THRESHOLD) {
+            if (addedTime != null && (currentTime - addedTime) > staleUriThresholdMs) {
                 toRemove.add(uri)
             }
         }
@@ -108,7 +143,7 @@ class UriProcessingTracker private constructor(
         }
 
         if (toRemove.isNotEmpty()) {
-            LogUtil.processDebug("Очистка ${toRemove.size} stale URIs")
+            LogUtil.processInfo("Очистка ${toRemove.size} stale URIs из processingUris")
         }
     }
 
@@ -237,15 +272,36 @@ class UriProcessingTracker private constructor(
     }
 
     /**
-     * Безопасно добавляет URI в список обрабатываемых с блокировкой
+     * Безопасно добавляет URI в список обрабатываемых с блокировкой.
+     *
+     * Самоисцеление: если URI числится обрабатываемым дольше [staleUriThresholdMs],
+     * блокировка считается залипшей (Worker не доработал и не снял её в finally) и
+     * принудительно снимается/перевыдаётся — это устраняет бесконечный пропуск фото.
      */
     suspend fun addProcessingUriSafe(uri: Uri, source: String = "unknown"): Boolean {
         val uriString = uri.toString()
+        maybeCleanupStaleUris()
         val mutex = uriLocks.getOrPut(uriString) { Mutex() }
         return mutex.withLock {
             if (processingUris.contains(uriString)) {
-                LogUtil.processDebug("URI уже обрабатывается: $uriString")
-                false
+                val addedTime = uriProcessingTime[uriString]
+                if (addedTime != null &&
+                    System.currentTimeMillis() - addedTime > staleUriThresholdMs) {
+                    // Stale-блокировка: Worker предыдущего запуска не снял её в finally.
+                    // Снимаем и перевыдаём текущему вызывающему.
+                    processingUris.remove(uriString)
+                    uriProcessingTime.remove(uriString)
+                    processingUris.add(uriString)
+                    uriProcessingTime[uriString] = System.currentTimeMillis()
+                    LogUtil.processInfo(
+                        "Снята залипшая блокировка (stale,>${staleUriThresholdMs}мс) для URI: " +
+                            "$uriString, перевыдана из $source"
+                    )
+                    true
+                } else {
+                    LogUtil.processDebug("URI уже обрабатывается: $uriString")
+                    false
+                }
             } else {
                 processingUris.add(uriString)
                 uriProcessingTime[uriString] = System.currentTimeMillis()
@@ -273,6 +329,7 @@ class UriProcessingTracker private constructor(
      * Расширенная проверка с учетом времени модификации файла
      */
     suspend fun isImageBeingProcessed(uri: Uri, fileModifiedDate: Long = 0): Boolean {
+        maybeCleanupStaleUris()
         val uriString = uri.toString()
         val isProcessing = processingUris.contains(uriString)
         val isIgnored = shouldIgnoreUri(uriString)
