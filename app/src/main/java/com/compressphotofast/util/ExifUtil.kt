@@ -834,6 +834,11 @@ object ExifUtil {
                         }
                     }
                     backupCreated = backupFile.exists() && backupFile.length() > 0
+                    if (backupCreated) {
+                        // Регистрируем backup в персистентном реестре для восстановления
+                        // при непредвиденном закрытии приложения посреди saveAttributes().
+                        BackupRegistry.registerBackup(context, uri, backupFile)
+                    }
                 } catch (e: Exception) {
                     LogUtil.warning(uri, "EXIF backup", "Не удалось создать backup: ${e.message}")
                     backupFile.delete()
@@ -879,6 +884,10 @@ object ExifUtil {
                     }
                     throw e
                 } finally {
+                    // saveAttributes() завершён — backup больше не нужен в реестре
+                    if (backupCreated) {
+                        BackupRegistry.clearBackup(context, uri)
+                    }
                     backupFile.delete()
                 }
                 
@@ -928,6 +937,7 @@ object ExifUtil {
 
     /**
      * Восстанавливает файл из backup через ParcelFileDescriptor "rwt".
+     * После копирования вызывает [ParcelFileDescriptor.getFileDescriptor.sync] для durability.
      * @return true если копирование выполнено без исключений
      */
     private fun restoreFileFromBackup(context: Context, uri: Uri, backupFile: File): Boolean {
@@ -938,6 +948,12 @@ object ExifUtil {
                         input.copyTo(output)
                     }
                     output.flush()
+                    // fsync: гарантируем сброс восстановленных данных на носитель
+                    try {
+                        pfd.fileDescriptor.sync()
+                    } catch (e: Exception) {
+                        LogUtil.warning(uri, "EXIF restore", "sync() после restore не удался: ${e.message}")
+                    }
                 }
             }
             true

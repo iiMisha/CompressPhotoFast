@@ -719,10 +719,10 @@ class MainActivity : AppCompatActivity() {
         // Получаем список URI, ожидающих удаления
         val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         val pendingDeleteUris = prefs?.getStringSet(Constants.PREF_PENDING_DELETE_URIS, null)
-        
+
         if (!pendingDeleteUris.isNullOrEmpty()) {
             LogUtil.processDebug("Найдено ${pendingDeleteUris.size} отложенных запросов на удаление файлов")
-            
+
             // Обрабатываем первый URI в списке
             val uriString = pendingDeleteUris.firstOrNull()
             if (uriString != null) {
@@ -734,9 +734,27 @@ class MainActivity : AppCompatActivity() {
                     prefs?.edit()
                         ?.putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
                         ?.apply()
-                    
-                    // Запрашиваем удаление файла
-                    requestFileDelete(uri)
+
+                    // Проверяем существование URI перед запросом удаления:
+                    // после краша/ребута файл мог быть уже удалён другим путём,
+                    // стать недоступным или принадлежать другой записи MediaStore.
+                    // В таком случае запрашивать IntentSender бессмысленно и опасно
+                    // (может показать системный диалог для несуществующего файла).
+                    lifecycleScope.launch {
+                        val exists = try {
+                            UriUtil.isUriExistsSuspend(this@MainActivity, uri)
+                        } catch (e: Exception) {
+                            false
+                        }
+                        if (!exists) {
+                            LogUtil.warning(uri, "PENDING_DELETE", "URI больше не существует, пропускаем запрос на удаление")
+                            // URI уже удалён — проверяем, есть ли ещё отложенные запросы
+                            checkPendingDeleteRequests()
+                        } else {
+                            // Запрашиваем удаление файла
+                            requestFileDelete(uri)
+                        }
+                    }
                 } catch (e: Exception) {
                     LogUtil.errorWithMessageAndException("PENDING_DELETE", "Ошибка при обработке отложенного запроса на удаление", e)
                 }

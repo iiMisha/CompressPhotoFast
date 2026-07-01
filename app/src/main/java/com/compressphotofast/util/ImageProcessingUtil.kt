@@ -2,7 +2,10 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -89,8 +92,20 @@ object ImageProcessingUtil {
                 val perUriTag = "compress_${uri.hashCode()}"
                 inputData["is_handled_by_ipu"] = true
 
+                // Constraints: не запускать при критическом заряде батареи,
+                // где система с высокой вероятностью убьёт процесс посреди сжатия.
+                // Сеть не требуется, место не требует много (перезапись in-place).
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+
                 val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
                     .setInputData(workDataOf(*inputData.toList().toTypedArray()))
+                    .setConstraints(constraints)
+                    // Экспоненциальный backoff для transient-ошибок (IOException, PendingItemException),
+                    // по которым Worker возвращает Result.retry(). Начало — 30с.
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS)
                     .addTag(perUriTag)
                     .build()
 

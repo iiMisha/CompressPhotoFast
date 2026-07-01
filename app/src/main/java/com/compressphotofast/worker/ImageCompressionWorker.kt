@@ -1,6 +1,7 @@
 package com.compressphotofast.worker
 
 import android.app.PendingIntent
+import android.app.RecoverableSecurityException
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
@@ -116,9 +117,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                     return@withContext Result.failure()
                 }
             } catch (e: PendingItemException) {
-                // Если файл pending, возвращаем failure но НЕ помечаем как unavailable
-                // это позволит GalleryScan или MediaStoreObserver попробовать позже еще раз
-                return@withContext Result.failure()
+                // Если файл pending — это временное состояние, планируем retry.
+                // Файл всё ещё пишется другим процессом/приложением; повторная попытка позже
+                // позволит корректно обработать его после завершения записи.
+                LogUtil.warning(imageUri, "Ранняя проверка", "Файл в pending-состоянии, планирую retry")
+                return@withContext Result.retry()
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
                 return@withContext Result.failure()
@@ -172,8 +175,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             
             // Проверка на временный файл
             if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
-                LogUtil.skipImage(imageUri, "Файл находится в процессе записи")
-                return@withContext Result.failure()
+                LogUtil.skipImage(imageUri, "Файл находится в процессе записи, планирую retry")
+                return@withContext Result.retry()
             }
             
             // Начинаем отслеживание сжатия
@@ -456,8 +459,30 @@ class ImageCompressionWorker @AssistedInject constructor(
 
                 return@withContext Result.success()
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Отмена корутины (WorkManager отменил задачу / таймаут / shutdown).
+            // Пробрасываем, чтобы структурированная конкуренция корректно завершила корутину.
+            // WorkManager интерпретирует это как отмену, а не как failure.
+            LogUtil.processDebug("Сжатие отменено (CancellationException) для $globalImageUri")
+            throw e
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие", "Ошибка при сжатии изображения", e)
+
+            // Для временных (transient) ошибок планируем retry вместо необратимого
+            // пропуска фото. ExistingWorkPolicy.APPEND_OR_REPLACE выбрасывает провалившуюся
+            // задачу из очереди, поэтому без retry фото будет потеряно навсегда.
+            val isTransient = e is java.io.IOException ||
+                e is PendingItemException ||
+                e is RecoverableSecurityException
+            if (isTransient) {
+                LogUtil.warning(
+                    globalImageUri,
+                    "Сжатие",
+                    "Временная ошибка (${e.javaClass.simpleName}), планирую retry: ${e.message}"
+                )
+                return@withContext Result.retry()
+            }
+
             if (batchId.isNullOrEmpty()) {
                 setForeground(createForegroundInfo("❌ ${appContext.getString(R.string.notification_compression_failed)}"))
             } else {
@@ -466,13 +491,13 @@ class ImageCompressionWorker @AssistedInject constructor(
                     Constants.NOTIFICATION_ID_COMPRESSION
                 ))
             }
-            
+
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString != null) {
                 val uri = Uri.parse(uriString)
                 StatsTracker.updateStatus(uri, StatsTracker.COMPRESSION_STATUS_FAILED)
             }
-            
+
             return@withContext Result.failure()
         } finally {
             if (isLockOwner && globalImageUri != null) {

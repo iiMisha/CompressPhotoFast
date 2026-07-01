@@ -33,6 +33,7 @@ object TempFilesCleaner {
                                     name.startsWith("input_") ||
                                     name.startsWith("stream_cache") ||
                                     name.startsWith("exif_backup_") ||
+                                    name.startsWith("replace_backup_") ||
                                     name.startsWith("compressed_")
                     
                     // Проверяем, что файл достаточно старый
