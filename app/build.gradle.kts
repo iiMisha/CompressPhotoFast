@@ -25,7 +25,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["coverage"] = "true"
-        testInstrumentationRunnerArguments["useTestStorageService"] = "true"
     }
 
     testOptions {
@@ -34,10 +33,6 @@ android {
             isReturnDefaultValues = true
         }
         animationsDisabled = true
-
-        // Таймаут для instrumentation тестов (15 минут)
-        // Предотвращает прерывание тестов агентом при длительном выполнении
-        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     buildTypes {
@@ -176,10 +171,6 @@ dependencies {
     androidTestImplementation("io.mockk:mockk-android:1.13.10")
     androidTestImplementation("androidx.work:work-testing:2.10.3")
     androidTestImplementation("com.google.truth:truth:1.4.4")
-
-    // Android Test Orchestrator
-    androidTestUtil("androidx.test:orchestrator:1.5.0")
-    androidTestUtil("androidx.test.services:test-services:1.5.0")
 
     // Hilt Testing
     testImplementation("com.google.dagger:hilt-android-testing:2.57.1")
@@ -396,15 +387,14 @@ tasks.withType<Test> {
     jvmArgs("-XX:MaxMetaspaceSize=512m")
 
     // Определение режима через переменную окружения GRADLE_MODE
-    // Возможные значения: "eco" (по умолчанию) или "fast"
-    val gradleMode = System.getenv("GRADLE_MODE") ?: "eco"
+    // Возможные значения: "eco", "balanced" (по умолчанию), "fast"
+    val gradleMode = System.getenv("GRADLE_MODE") ?: "balanced"
 
     maxParallelForks = when (gradleMode) {
         "fast" -> (Runtime.getRuntime().availableProcessors() / 2).coerceAtMost(4)  // Параллельное выполнение для быстрой сборки
-        else -> 1  // Последовательное выполнение для экономии CPU (по умолчанию)
+        "balanced" -> 2  // 2 параллельных fork — хороший баланс скорости и нагрузки
+        else -> 1        // eco — последовательное выполнение
     }
-
-    systemProperty("junit.jupiter.execution.parallel.enabled", gradleMode == "fast")
 }
 
 // Полная проверка всех тестов

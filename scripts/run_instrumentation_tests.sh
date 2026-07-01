@@ -55,10 +55,16 @@ check_device() {
 run_instrumentation_tests() {
     log_info "Запуск instrumentation тестов..."
 
-    # Запускаем instrumentation тесты с включенным coverage
-    ./gradlew connectedDebugAndroidTest \
-        -Pandroid.testInstrumentationRunnerArguments.coverage=true \
-        -Pandroid.testInstrumentationRunnerArguments.jacoco.enabled=true
+    # Формируем аргументы
+    TEST_ARGS=""
+
+    if [ "$GENERATE_COVERAGE" = true ]; then
+        TEST_ARGS="$TEST_ARGS -Pandroid.testInstrumentationRunnerArguments.coverage=true"
+        TEST_ARGS="$TEST_ARGS -Pandroid.testInstrumentationRunnerArguments.jacoco.enabled=true"
+    fi
+
+    # Запускаем instrumentation тесты
+    ./gradlew connectedDebugAndroidTest $TEST_ARGS
 
     if [ $? -eq 0 ]; then
         log_info "Instrumentation тесты выполнены успешно!"
@@ -95,7 +101,7 @@ main() {
 # Обработка аргументов командной строки
 SKIP_DEVICE_CHECK=false
 SKIP_TESTS=false
-GENERATE_COVERAGE=true
+GENERATE_COVERAGE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -107,8 +113,8 @@ while [[ $# -gt 0 ]]; do
             SKIP_TESTS=true
             shift
             ;;
-        --no-coverage)
-            GENERATE_COVERAGE=false
+        --coverage)
+            GENERATE_COVERAGE=true
             shift
             ;;
         --help)
@@ -117,7 +123,7 @@ while [[ $# -gt 0 ]]; do
             echo "Опции:"
             echo "  --skip-device-check    Пропустить проверку устройства"
             echo "  --skip-tests           Пропустить запуск тестов"
-            echo "  --no-coverage          Не генерировать отчет о покрытии"
+            echo "  --coverage             Включить сбор данных покрытия и генерацию отчёта"
             echo "  --help                 Показать эту справку"
             exit 0
             ;;

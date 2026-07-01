@@ -2,6 +2,7 @@
 
 # Скрипт быстрого запуска только Unit тестов
 # Используется для быстрой проверки во время разработки
+# Использование: ./scripts/run_unit_tests.sh [-c|--continuous] [-v|--verbose] [--eco|--fast]
 
 set -e
 
@@ -13,7 +14,7 @@ echo ""
 # Перейти в директорию проекта
 cd "$(dirname "$0")/.."
 
-# Проверка флагов
+# Перейти в директорию проекта
 CONTINUOUS_MODE=false
 VERBOSE=false
 
@@ -27,14 +28,34 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --eco)
+            export GRADLE_MODE=eco
+            shift
+            ;;
+        --fast)
+            export GRADLE_MODE=fast
+            shift
+            ;;
         *)
-            echo "Использование: $0 [-c|--continuous] [-v|--verbose]"
+            echo "Использование: $0 [-c|--continuous] [-v|--verbose] [--eco|--fast]"
+            echo ""
             echo "  -c, --continuous  Непрерывный режим (автозапуск при изменениях)"
             echo "  -v, --verbose     Подробный вывод"
+            echo "  --eco             Экономичный режим (минимальная нагрузка на CPU)"
+            echo "  --fast            Быстрый режим (максимальная производительность)"
             exit 1
             ;;
     esac
 done
+
+# Показать текущий режим
+MODE="${GRADLE_MODE:-balanced}"
+case $MODE in
+    balanced) echo "⚡ Сбалансированный режим (параллельное выполнение)";;
+    eco)      echo "🌱 Экономичный режим (последовательное выполнение)";;
+    fast)     echo "🚀 Быстрый режим (максимальная параллельность)";;
+esac
+echo ""
 
 # Формирование команды Gradle
 GRADLE_CMD="./gradlew testDebugUnitTest"
@@ -61,7 +82,7 @@ if $GRADLE_CMD; then
 
     # Показать статистику если не continuous режим
     if [ "$CONTINUOUS_MODE" = false ]; then
-        echo "📊 Для просмотра coverage отчета:"
+        echo "📊 Для просмотра coverage отчёта:"
         echo "   ./gradlew jacocoTestReport"
         echo "   xdg-open app/build/reports/jacoco/jacocoTestReport/html/index.html"
         echo ""
