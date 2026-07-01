@@ -36,9 +36,11 @@ object MediaStoreDateUtil {
      * Восстановить DATE_MODIFIED с многоуровневым fallback
      *
      * Последовательность попыток:
-     * 1. MediaStore.update() - работает на большинстве устройств
-     * 2. DocumentFile.setLastModified() - fallback для некоторых устройств
-     * 3. Warning - DATE_ADDED уже установлен, этого достаточно для работы приложения
+     * 1. DocumentFile.setLastModified() - восстановление через файловый путь
+     * 2. Warning - DATE_ADDED уже установлен, этого достаточно для работы приложения
+     *
+     * Примечание: MediaStore.update() для DATE_MODIFIED не используется, т.к. на
+     * Android 10+ это поле доступно только для чтения и update() всегда возвращает 0.
      *
      * @param context Контекст приложения
      * @param uri URI файла в MediaStore
@@ -50,24 +52,7 @@ object MediaStoreDateUtil {
         uri: Uri,
         timestampMillis: Long
     ): Boolean = withContext(Dispatchers.IO) {
-        val timestampInSeconds = timestampMillis / 1000
-
-        // Метод 1: MediaStore.update()
-        try {
-            val values = ContentValues()
-            values.put(MediaStore.MediaColumns.DATE_MODIFIED, timestampInSeconds)
-            val updatedRows = context.contentResolver.update(uri, values, null, null)
-
-            if (updatedRows > 0) {
-                LogUtil.processInfo("DATE_MODIFIED восстановлен через MediaStore.update(): $timestampInSeconds")
-                return@withContext true
-            }
-            LogUtil.processWarning("MediaStore.update() вернул 0 строк, пробуем fallback")
-        } catch (e: Exception) {
-            LogUtil.error(uri, "MediaStore.update() для DATE_MODIFIED", e)
-        }
-
-        // Метод 2: DocumentFile.setLastModified()
+        // Метод 1: File.setLastModified() через файловый путь, полученный из URI
         try {
             val documentFile = DocumentFile.fromSingleUri(context, uri)
             if (documentFile != null && documentFile.exists()) {
@@ -94,7 +79,7 @@ object MediaStoreDateUtil {
             LogUtil.error(uri, "DocumentFile / File.setLastModified()", e)
         }
 
-        // Метод 3: Логируем warning и продолжаем
+        // Метод 2: Логируем warning и продолжаем
         // DATE_ADDED уже установлен при создании, это достаточно для работы приложения
         LogUtil.processWarning(
             "Не удалось восстановить DATE_MODIFIED для $uri. " +
