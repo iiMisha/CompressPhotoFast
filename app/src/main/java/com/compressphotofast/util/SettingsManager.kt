@@ -60,6 +60,23 @@ class SettingsManager @Inject constructor(
             .putBoolean(Constants.PREF_SAVE_MODE, replace)
             .apply()
     }
+
+    /**
+     * Проверка, был ли уже показан системный запрос на исключение из оптимизации батареи.
+     * Используется, чтобы не показывать диалог повторно после отказа.
+     */
+    fun isBatteryExemptionRequested(): Boolean {
+        return sharedPreferences.getBoolean(Constants.PREF_BATTERY_EXEMPTION_REQUESTED, false)
+    }
+
+    /**
+     * Отметка, что системный запрос на исключение из оптимизации батареи был показан.
+     */
+    fun setBatteryExemptionRequested(requested: Boolean) {
+        sharedPreferences.edit()
+            .putBoolean(Constants.PREF_BATTERY_EXEMPTION_REQUESTED, requested)
+            .apply()
+    }
     
     /**
      * Получение текущего уровня сжатия

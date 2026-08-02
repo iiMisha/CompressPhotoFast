@@ -105,6 +105,16 @@ class ImageDetectionJobService : JobService() {
                 LogUtil.errorSimple("JOB_SCHEDULE", "ImageDetectionJobService: ошибка планирования задания: $result")
             }
         }
+
+        /**
+         * Отмена зарезервированного задания обнаружения новых изображений.
+         * Используется при выключении автосжатия, чтобы JobScheduler больше не запускал обработку.
+         */
+        fun cancelJob(context: Context) {
+            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            jobScheduler.cancel(JOB_ID)
+            LogUtil.processDebug("ImageDetectionJobService: задание отменено (JOB_ID=$JOB_ID)")
+        }
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {

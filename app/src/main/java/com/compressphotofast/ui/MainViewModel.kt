@@ -2,17 +2,16 @@ package com.compressphotofast.ui
 
 import android.content.ContentUris
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.provider.MediaStore
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkManager
 import com.compressphotofast.service.BackgroundMonitoringService
+import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.ImageProcessingUtil
@@ -113,19 +112,18 @@ class MainViewModel @Inject constructor(
      */
     fun setAutoCompression(enabled: Boolean) {
         settingsManager.setAutoCompression(enabled)
-        
+
         if (enabled) {
             // Запускаем проверку пропущенных изображений при включении
             viewModelScope.launch {
                 processUncompressedImages()
             }
         } else {
-            // Останавливаем фоновый сервис при выключении
-            val intent = Intent(context, BackgroundMonitoringService::class.java)
-            intent.action = Constants.ACTION_STOP_SERVICE
-            ContextCompat.startForegroundService(context, intent)
+            // Останавливаем фоновый сервис и резервный Job при выключении.
+            // Единая точка остановки: отключает настройку, отменяет Job, останавливает службу.
+            MonitoringController.stopMonitoring(context, disableAutoCompression = false)
         }
-        
+
         LogUtil.processDebug("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
     }
     

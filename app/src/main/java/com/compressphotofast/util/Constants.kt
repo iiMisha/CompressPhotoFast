@@ -20,6 +20,7 @@ object Constants {
     const val PREF_SHOW_COMPRESSION_TOAST = "show_compression_toast"
     const val PREF_LAST_SCAN_TIMESTAMP = "last_scan_timestamp"
     const val PREF_PENDING_BACKUPS = "pending_backups"
+    const val PREF_BATTERY_EXEMPTION_REQUESTED = "battery_exemption_requested"
     
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1

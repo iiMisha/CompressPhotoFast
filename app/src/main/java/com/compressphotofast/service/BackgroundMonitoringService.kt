@@ -57,6 +57,16 @@ class BackgroundMonitoringService : Service() {
         @JvmStatic
         var isRunning: Boolean = false
             private set
+
+        /**
+         * Флаг явной остановки пользователем (переключатель / кнопка в уведомлении).
+         *
+         * Предотвращает восстановление мониторинга в рамках текущего процесса после
+         * осознанного выключения автосжатия. Сбрасывается при новом [startMonitoring].
+         */
+        @Volatile
+        @JvmStatic
+        var isUserStopped: Boolean = false
     }
 
     // Service-scoped корутины для привязки к lifecycle сервиса
@@ -165,7 +175,8 @@ class BackgroundMonitoringService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning = true
-         
+        isUserStopped = false
+
         
         // Создаем канал уведомлений
         NotificationUtil.createDefaultNotificationChannel(applicationContext)
@@ -207,37 +218,63 @@ class BackgroundMonitoringService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Проверяем, не является ли это запросом на остановку сервиса
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
-            // Отключаем автоматическое сжатие в настройках
+            // Явная остановка пользователем: отключаем автосжатие, отменяем резервный Job
+            // и помечаем флаг, чтобы не восстанавливать мониторинг в этом процессе.
+            isUserStopped = true
             SettingsManager.getInstance(applicationContext).setAutoCompression(false)
-            
-            // Останавливаем сервис
+            ImageDetectionJobService.cancelJob(applicationContext)
+
             stopSelf()
             return START_NOT_STICKY
         }
-        
-        // Выполняем первоначальное сканирование при запуске сервиса
+
+        // Если система пересоздала службу (START_STICKY, intent == null), а пользователь
+        // уже явно её остановил в текущем процессе — завершаемся без восстановления.
+        if (isUserStopped) {
+            LogUtil.processDebug("BackgroundMonitoringService: восстановление отменено — пользователь остановил мониторинг")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // Выполняем первоначальное сканирование при запуске сервиса.
+        // При системном восстановлении (intent == null) ContentObserver уже перерегистрирован в onCreate.
         scanForNewImages()
-        
+
         return START_STICKY
     }
 
     /**
-     * Запуск сервиса в режиме переднего плана с уведомлением
+     * Вызывается, когда пользователь смахивает приложение из списка недавних.
+     *
+     * Постоянная foreground-служба при этом обычно остаётся работать, но на некоторых
+     * OEM-сборках процесс может быть завершён. Подстраховываемся: гарантируем, что
+     * резервный JobScheduler-триггер запланирован, чтобы новые фото не потерялись.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (!isUserStopped && SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+            LogUtil.processDebug("BackgroundMonitoringService: task removed — перепланируем резервный Job")
+            ImageDetectionJobService.scheduleJob(applicationContext)
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * Запуск сервиса в режиме переднего плана с уведомлением.
+     *
+     * На Android 14+ используется тип `FOREGROUND_SERVICE_TYPE_SPECIAL_USE`, который
+     * не имеет лимита времени работы (в отличие от `dataSync`, ограниченного ~6 часами
+     * в сутки). Это позволяет постоянной службе мониторинга работать круглосуточно при
+     * включенном автосжатии. На Android 10–13 тип не критичен — временные лимиты
+     * появились только в Android 14.
      */
     private fun startForegroundWithNotification() {
         val notification = NotificationUtil.createBackgroundServiceNotification(applicationContext)
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 Constants.NOTIFICATION_ID_BACKGROUND_SERVICE,
-                notification, 
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            )
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                Constants.NOTIFICATION_ID_BACKGROUND_SERVICE,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             )
         } else {
             startForeground(

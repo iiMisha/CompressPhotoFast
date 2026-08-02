@@ -3,40 +3,31 @@ package com.compressphotofast.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
 
 /**
- * BroadcastReceiver для запуска сервиса при загрузке системы
+ * BroadcastReceiver для автоматического восстановления мониторинга новых фото
+ * после загрузки системы ([Intent.ACTION_BOOT_COMPLETED]) и после обновления пакета
+ * ([Intent.ACTION_MY_PACKAGE_REPLACED]).
+ *
+ * Восстановление происходит только при включенном автосжатии — запуск и проверки
+ * делегируются в [MonitoringController.startMonitoring], который атомарно проверяет
+ * настройку, планирует резервный JobScheduler-триггер и поднимает постоянную
+ * foreground-службу.
  */
 class BootCompletedReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            LogUtil.processDebug("Получен BOOT_COMPLETED, запускаем сервисы")
-            
-            // Проверяем, включено ли автоматическое сжатие
-            val prefs = context.getSharedPreferences(
-                Constants.PREF_FILE_NAME,
-                Context.MODE_PRIVATE
-            )
-            val isAutoCompressionEnabled = prefs.getBoolean(Constants.PREF_AUTO_COMPRESSION, false)
-            
-            if (isAutoCompressionEnabled) {
-                // Запускаем JobService
-                ImageDetectionJobService.scheduleJob(context)
-                
-                // Запускаем фоновый сервис
-                val serviceIntent = Intent(context, BackgroundMonitoringService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
-                }
-                
-                LogUtil.processDebug("Фоновые сервисы запущены после загрузки системы")
-            }
+        val action = intent.action
+        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) {
+            return
         }
+
+        LogUtil.processDebug("BootCompletedReceiver: получен $action, восстанавливаем мониторинг")
+
+        // Единая точка запуска: проверяет флаг автосжатия и поднимает оба механизма.
+        // Если автосжатие выключено — controller ничего не запустит.
+        val result = MonitoringController.startMonitoring(context)
+        LogUtil.processDebug("BootCompletedReceiver: результат восстановления мониторинга: $result")
     }
-} 
+}

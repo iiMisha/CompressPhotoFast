@@ -193,11 +193,7 @@ object NotificationUtil {
             ongoing = true
         )
         
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            ForegroundInfo(notificationId, notification)
-        }
+        return ForegroundInfo(notificationId, notification, workerForegroundType())
     }
     
     /**
@@ -222,10 +218,23 @@ object NotificationUtil {
             ongoing = true
         )
         
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        return ForegroundInfo(notificationId, notification, workerForegroundType())
+    }
+
+    /**
+     * Тип foreground-сервиса для фоновой работы сжатия (WorkManager).
+     *
+     * На Android 14+ используется семантически корректный `mediaProcessing`
+     * (обработка медиа), на Android 10–13 — `dataSync`. Соответствует объединённому
+     * типу `mediaProcessing|dataSync`, объявленному для SystemForegroundService в манифесте.
+     */
+    private fun workerForegroundType(): Int {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         } else {
-            ForegroundInfo(notificationId, notification)
+            0
         }
     }
     
