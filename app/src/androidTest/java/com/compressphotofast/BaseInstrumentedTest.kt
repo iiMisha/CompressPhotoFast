@@ -20,13 +20,13 @@ import org.junit.Before
  *
  * Использование:
  * ```kotlin
- * class MainActivityTest : BaseInstrumentedTest() {
+ * class ExampleInstrumentedTest : BaseInstrumentedTest() {
  *
  *     @Before
  *     override fun setUp() {
  *         super.setUp()
  *         // Инициализируем nullable activityScenario
- *         activityScenario = ActivityScenario.launch(MainActivity::class.java)
+ *         activityScenario = ActivityScenario.launch(ExampleActivity::class.java)
  *     }
  *
  *     @Test
