@@ -39,10 +39,7 @@ class NotificationUtilTest : BaseUnitTest() {
 
         val first = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY)
         requireNotNull(first)
-        assertEquals(
-            context.getString(com.compressphotofast.R.string.notification_daily_stats_title, 1),
-            first.extras.getCharSequence(Notification.EXTRA_TITLE)
-        )
+        assertEquals("Сжато: 1", first.extras.getCharSequence(Notification.EXTRA_TITLE))
         assertTrue(first.extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("400"))
         assertTrue((first.flags and Notification.FLAG_ONLY_ALERT_ONCE) != 0)
         assertEquals(NotificationCompat.PRIORITY_LOW, first.priority)
@@ -57,9 +54,6 @@ class NotificationUtilTest : BaseUnitTest() {
 
         val updated = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY)
         requireNotNull(updated)
-        assertEquals(
-            context.getString(com.compressphotofast.R.string.notification_daily_stats_title, 2),
-            updated.extras.getCharSequence(Notification.EXTRA_TITLE)
-        )
+        assertEquals("Сжато: 2", updated.extras.getCharSequence(Notification.EXTRA_TITLE))
     }
 }
