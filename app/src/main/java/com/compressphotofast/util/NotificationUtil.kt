@@ -31,6 +31,8 @@ import com.compressphotofast.util.FileOperationsUtil
  * Централизованная точка для всех операций с уведомлениями
  */
 object NotificationUtil {
+    private const val LEGACY_DAILY_STATS_NOTIFICATION_ID = 10
+
     // Singleton coroutine scope для Toast и UI обновлений (требует Main thread)
     private val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -284,17 +286,6 @@ object NotificationUtil {
                 enableVibration = false
             )
 
-            createNotificationChannel(
-                context,
-                Constants.NOTIFICATION_CHANNEL_DAILY_STATS,
-                context.getString(R.string.notification_daily_stats_channel_name),
-                context.getString(R.string.notification_daily_stats_channel_description),
-                NotificationManager.IMPORTANCE_LOW,
-                showBadge = false,
-                enableLights = false,
-                enableVibration = false
-            )
-
             // Создаем канал для ошибок сжатия (OOM и др.)
             createNotificationChannel(
                 context,
@@ -306,6 +297,9 @@ object NotificationUtil {
                 enableLights = true,
                 enableVibration = true
             )
+
+            // Удаляем уведомление статистики, созданное версиями до объединения.
+            getNotificationManager(context).cancel(LEGACY_DAILY_STATS_NOTIFICATION_ID)
             
             // LogUtil.notification("Уведомления: каналы уведомлений созданы")
         }
@@ -498,14 +492,92 @@ object NotificationUtil {
     }
 
     /**
-     * Создание уведомления для фонового сервиса мониторинга
+     * Создание уведомления для фонового сервиса мониторинга.
+     * При наличии статистики она показывается в том же постоянном уведомлении.
      */
     fun createBackgroundServiceNotification(context: Context): Notification {
-        return createForegroundNotification(
+        return createMonitoringNotification(
             context,
-            context.getString(R.string.background_service_notification_title),
-            context.getString(R.string.background_service_notification_text)
+            StatsTracker.getDailyCompressionStats(context)
         )
+    }
+
+    private fun createMonitoringNotification(
+        context: Context,
+        stats: DailyCompressionStats?
+    ): Notification {
+        val title = context.getString(R.string.background_service_notification_title)
+        val defaultContent = context.getString(R.string.background_service_notification_text)
+        val content = stats?.let { formatDailyStats(context, it).first } ?: defaultContent
+        val expandedContent = stats?.let { formatDailyStats(context, it).second }
+
+        val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
+            action = Constants.ACTION_STOP_SERVICE
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            context,
+            0,
+            stopIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(context, context.getString(R.string.notification_channel_id))
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(createMainActivityPendingIntent(context))
+            .apply {
+                expandedContent?.let {
+                    setStyle(NotificationCompat.BigTextStyle().bigText(it))
+                }
+                addAction(
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    context.getString(R.string.notification_stop),
+                    stopPendingIntent
+                )
+            }
+            .build()
+    }
+
+    private fun formatDailyStats(
+        context: Context,
+        stats: DailyCompressionStats
+    ): Pair<String, String> {
+        val originalSize = FileOperationsUtil.formatFileSize(stats.totalOriginalBytes)
+        val compressedSize = FileOperationsUtil.formatFileSize(stats.totalCompressedBytes)
+        val savedSize = FileOperationsUtil.formatFileSize(stats.savedBytes)
+        val reduction = String.format("%.1f", stats.reductionPercent)
+        val title = context.getString(R.string.notification_daily_stats_title, stats.successfulCount)
+        val sizes = context.getString(R.string.notification_daily_stats_sizes, originalSize, compressedSize)
+        val saved = context.getString(R.string.notification_daily_stats_saved, savedSize, reduction)
+        return "$title: $saved" to "$title\n$sizes\n$saved"
+    }
+
+    /** Обновляет постоянное уведомление мониторинга после успешного сжатия. */
+    fun updateBackgroundServiceNotification(context: Context, stats: DailyCompressionStats) {
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Статистика не добавлена в уведомление: уведомления недоступны")
+            return
+        }
+
+        try {
+            getNotificationManager(context).cancel(LEGACY_DAILY_STATS_NOTIFICATION_ID)
+            getNotificationManager(context).notify(
+                Constants.NOTIFICATION_ID_BACKGROUND_SERVICE,
+                createMonitoringNotification(context, stats)
+            )
+            LogUtil.debug("NotificationUtil", "Обновлено уведомление автосжатия: ${stats.successfulCount} фото")
+        } catch (e: SecurityException) {
+            LogUtil.error(Uri.EMPTY, "Notification", "SecurityException при обновлении уведомления автосжатия", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
     }
 
     /**
@@ -552,45 +624,6 @@ object NotificationUtil {
         showCompletionNotification(context, title, message, notificationId)
     }
 
-    /**
-     * Показывает бесшумное обновляемое уведомление с итогами успешных сжатий за сегодня.
-     */
-    fun showDailyCompressionNotification(context: Context, stats: DailyCompressionStats) {
-        if (!canShowNotifications(context)) {
-            LogUtil.debug("NotificationUtil", "Суточная статистика не показана: уведомления недоступны")
-            return
-        }
-
-        try {
-            val originalSize = FileOperationsUtil.formatFileSize(stats.totalOriginalBytes)
-            val compressedSize = FileOperationsUtil.formatFileSize(stats.totalCompressedBytes)
-            val savedSize = FileOperationsUtil.formatFileSize(stats.savedBytes)
-            val reduction = String.format("%.1f", stats.reductionPercent)
-            val title = context.getString(R.string.notification_daily_stats_title, stats.successfulCount)
-            val sizes = context.getString(R.string.notification_daily_stats_sizes, originalSize, compressedSize)
-            val saved = context.getString(R.string.notification_daily_stats_saved, savedSize, reduction)
-            val content = "$sizes\n$saved"
-            val notification = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_DAILY_STATS)
-                .setContentTitle(title)
-                .setContentText(saved)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setSilent(true)
-                .setOnlyAlertOnce(true)
-                .setAutoCancel(true)
-                .setContentIntent(createMainActivityPendingIntent(context))
-                .build()
-
-            getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, notification)
-            LogUtil.debug("NotificationUtil", "Обновлена суточная статистика: ${stats.successfulCount} фото")
-        } catch (e: SecurityException) {
-            LogUtil.error(Uri.EMPTY, "Notification", "SecurityException при показе суточной статистики", e)
-        } catch (e: Exception) {
-            LogUtil.errorWithException("NotificationUtil", e)
-        }
-    }
-    
     /**
      * Проверяет, разрешены ли уведомления
      */

@@ -92,8 +92,6 @@
     
     <string name="notification_completion_channel_name">Результаты сжатия</string>
     <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
-    <string name="notification_daily_stats_channel_name">Суточная статистика сжатия</string>
-    <string name="notification_daily_stats_channel_description">Текущая статистика успешного сжатия фотографий</string>
     <string name="notification_daily_stats_title">Сжато: %1$d</string>
     <string name="notification_daily_stats_sizes">%1$s → %2$s</string>
     <string name="notification_daily_stats_saved">Сэкономлено %1$s (%2$s%%)</string>

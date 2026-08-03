@@ -45,13 +45,9 @@ object Constants {
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
-    const val NOTIFICATION_CHANNEL_DAILY_STATS = "daily_compression_stats_channel"
     const val NOTIFICATION_ID_COMPRESSION = 1
     const val NOTIFICATION_ID_BACKGROUND_SERVICE = 2
     const val NOTIFICATION_ID_COMPRESSION_RESULT = 4
-    
-    // Уведомление суточной статистики сжатия
-    const val NOTIFICATION_ID_COMPRESSION_SUMMARY = 10
 
     // Директории
     const val APP_DIRECTORY = "CompressPhotoFast"

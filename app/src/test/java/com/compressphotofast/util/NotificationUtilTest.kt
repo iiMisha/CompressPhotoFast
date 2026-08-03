@@ -28,32 +28,35 @@ class NotificationUtilTest : BaseUnitTest() {
     }
 
     @Test
-    fun `Суточная статистика публикуется бесшумно и заменяется по постоянному ID`() {
+    fun `Статистика обновляет единое постоянное уведомление автосжатия`() {
         val manager = context.getSystemService(NotificationManager::class.java)
         NotificationUtil.createDefaultNotificationChannel(context)
+        manager.notify(10, Notification.Builder(context).setSmallIcon(android.R.drawable.ic_menu_info_details).build())
 
-        NotificationUtil.showDailyCompressionNotification(
+        NotificationUtil.updateBackgroundServiceNotification(
             context,
             DailyCompressionStats(20_000L, 1, 1_000L, 600L)
         )
 
-        val first = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY)
+        val first = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE)
         requireNotNull(first)
-        assertEquals("Сжато: 1", first.extras.getCharSequence(Notification.EXTRA_TITLE))
+        assertEquals("Автоматическое сжатие фотографий", first.extras.getCharSequence(Notification.EXTRA_TITLE))
         assertTrue(first.extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("400"))
+        assertTrue((first.flags and Notification.FLAG_ONGOING_EVENT) != 0)
         assertTrue((first.flags and Notification.FLAG_ONLY_ALERT_ONCE) != 0)
         assertEquals(NotificationCompat.PRIORITY_LOW, first.priority)
-        val dailyStatsChannel = manager.getNotificationChannel(Constants.NOTIFICATION_CHANNEL_DAILY_STATS)
-        requireNotNull(dailyStatsChannel)
-        assertEquals(NotificationManager.IMPORTANCE_LOW, dailyStatsChannel.importance)
+        assertEquals(null, shadowOf(manager).getNotification(10))
+        val mainChannel = manager.getNotificationChannel(Constants.NOTIFICATION_CHANNEL_ID)
+        requireNotNull(mainChannel)
 
-        NotificationUtil.showDailyCompressionNotification(
+        NotificationUtil.updateBackgroundServiceNotification(
             context,
             DailyCompressionStats(20_000L, 2, 3_000L, 1_600L)
         )
 
-        val updated = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY)
+        val updated = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE)
         requireNotNull(updated)
-        assertEquals("Сжато: 2", updated.extras.getCharSequence(Notification.EXTRA_TITLE))
+        assertTrue(updated.extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("Сэкономлено"))
+        assertTrue(updated.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString().contains("Сжато: 2"))
     }
 }

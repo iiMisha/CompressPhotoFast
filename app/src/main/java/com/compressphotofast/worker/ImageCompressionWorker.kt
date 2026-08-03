@@ -384,7 +384,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         // Учитываем только сохранённый и проверенный файл, независимо от удаления оригинала.
         val compressedSize = UriUtil.getFileSize(appContext, savedUri) ?: testCompressionResult.compressedSize
         StatsTracker.recordSuccessfulCompression(appContext, sourceSize, compressedSize)?.let {
-            NotificationUtil.showDailyCompressionNotification(appContext, it)
+            NotificationUtil.updateBackgroundServiceNotification(appContext, it)
         }
 
         // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
