@@ -21,6 +21,13 @@ object Constants {
     const val PREF_LAST_SCAN_TIMESTAMP = "last_scan_timestamp"
     const val PREF_PENDING_BACKUPS = "pending_backups"
     const val PREF_BATTERY_EXEMPTION_REQUESTED = "battery_exemption_requested"
+
+    // Локальная суточная статистика сжатия (не является пользовательской настройкой)
+    const val DAILY_COMPRESSION_STATS_PREF_FILE = "daily_compression_stats"
+    const val PREF_DAILY_STATS_EPOCH_DAY = "daily_stats_epoch_day"
+    const val PREF_DAILY_STATS_SUCCESSFUL_COUNT = "daily_stats_successful_count"
+    const val PREF_DAILY_STATS_ORIGINAL_BYTES = "daily_stats_original_bytes"
+    const val PREF_DAILY_STATS_COMPRESSED_BYTES = "daily_stats_compressed_bytes"
     
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1
@@ -38,11 +45,12 @@ object Constants {
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
+    const val NOTIFICATION_CHANNEL_DAILY_STATS = "daily_compression_stats_channel"
     const val NOTIFICATION_ID_COMPRESSION = 1
     const val NOTIFICATION_ID_BACKGROUND_SERVICE = 2
     const val NOTIFICATION_ID_COMPRESSION_RESULT = 4
     
-    // Групповые уведомления
+    // Уведомление суточной статистики сжатия
     const val NOTIFICATION_ID_COMPRESSION_SUMMARY = 10
 
     // Директории
@@ -108,4 +116,4 @@ object Constants {
     // Параметры декодирования изображений для оптимизации памяти
     const val MAX_IMAGE_WIDTH = 4096  // Максимальная ширина изображения при декодировании
     const val MAX_IMAGE_HEIGHT = 4096 // Максимальная высота изображения при декодировании
-} 
+}

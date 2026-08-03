@@ -2,6 +2,7 @@
 <full-backup-content>
     <!-- Сохраняем настройки приложения, но не сжатые изображения -->
     <include domain="sharedpref" path="."/>
+    <exclude domain="sharedpref" path="daily_compression_stats.xml"/>
     <include domain="external" path="Pictures"/>
     <exclude domain="external" path="Pictures/CompressPhotoFast"/>
-</full-backup-content> 
+</full-backup-content>

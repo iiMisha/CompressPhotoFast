@@ -30,8 +30,6 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         mockkObject(NotificationUtil)
         every { NotificationUtil.showCompressionResultToast(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>()) } just Runs
         every { NotificationUtil.showToast(any<android.content.Context>(), any<String>(), any<Int>()) } just Runs
-        every { NotificationUtil.showBatchCompressionNotification(any<android.content.Context>(), any<Int>(), any<Int>(), any<Long>(), any<Long>(), any<Float>(), any()) } just Runs
-        every { NotificationUtil.showCompressionResultNotification(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>(), any<Boolean>(), any()) } just Runs
 
         CompressionBatchTracker.clearAllBatchesCompat()
     }

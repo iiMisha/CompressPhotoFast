@@ -284,6 +284,17 @@ object NotificationUtil {
                 enableVibration = false
             )
 
+            createNotificationChannel(
+                context,
+                Constants.NOTIFICATION_CHANNEL_DAILY_STATS,
+                context.getString(R.string.notification_daily_stats_channel_name),
+                context.getString(R.string.notification_daily_stats_channel_description),
+                NotificationManager.IMPORTANCE_LOW,
+                showBadge = false,
+                enableLights = false,
+                enableVibration = false
+            )
+
             // Создаем канал для ошибок сжатия (OOM и др.)
             createNotificationChannel(
                 context,
@@ -540,6 +551,45 @@ object NotificationUtil {
         // Показываем уведомление
         showCompletionNotification(context, title, message, notificationId)
     }
+
+    /**
+     * Показывает бесшумное обновляемое уведомление с итогами успешных сжатий за сегодня.
+     */
+    fun showDailyCompressionNotification(context: Context, stats: DailyCompressionStats) {
+        if (!canShowNotifications(context)) {
+            LogUtil.debug("NotificationUtil", "Суточная статистика не показана: уведомления недоступны")
+            return
+        }
+
+        try {
+            val originalSize = FileOperationsUtil.formatFileSize(stats.totalOriginalBytes)
+            val compressedSize = FileOperationsUtil.formatFileSize(stats.totalCompressedBytes)
+            val savedSize = FileOperationsUtil.formatFileSize(stats.savedBytes)
+            val reduction = String.format("%.1f", stats.reductionPercent)
+            val title = context.getString(R.string.notification_daily_stats_title, stats.successfulCount)
+            val sizes = context.getString(R.string.notification_daily_stats_sizes, originalSize, compressedSize)
+            val saved = context.getString(R.string.notification_daily_stats_saved, savedSize, reduction)
+            val content = "$sizes\n$saved"
+            val notification = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_DAILY_STATS)
+                .setContentTitle(title)
+                .setContentText(saved)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(content))
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true)
+                .setOnlyAlertOnce(true)
+                .setAutoCancel(true)
+                .setContentIntent(createMainActivityPendingIntent(context))
+                .build()
+
+            getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, notification)
+            LogUtil.debug("NotificationUtil", "Обновлена суточная статистика: ${stats.successfulCount} фото")
+        } catch (e: SecurityException) {
+            LogUtil.error(Uri.EMPTY, "Notification", "SecurityException при показе суточной статистики", e)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("NotificationUtil", e)
+        }
+    }
     
     /**
      * Проверяет, разрешены ли уведомления
@@ -587,104 +637,6 @@ object NotificationUtil {
             PendingIntent.FLAG_IMMUTABLE
         )
     }
-    
-    /**
-     * Показывает групповое уведомление для нескольких результатов сжатия
-     */
-    fun showBatchCompressionNotification(
-        context: Context,
-        successfulCount: Int,
-        skippedCount: Int,
-        totalOriginalSize: Long,
-        totalCompressedSize: Long,
-        totalSizeReduction: Float,
-        individualResults: List<BatchNotificationItem>
-    ) {
-        // Показываем только итоговое уведомление (без индивидуальных)
-        showSummaryNotification(
-            context = context,
-            successfulCount = successfulCount,
-            skippedCount = skippedCount,
-            totalOriginalSize = totalOriginalSize,
-            totalCompressedSize = totalCompressedSize,
-            totalSizeReduction = totalSizeReduction,
-            totalCount = individualResults.size
-        )
-    }
-    
-    /**
-     * Показывает summary уведомление для группы
-     */
-    private fun showSummaryNotification(
-        context: Context,
-        successfulCount: Int,
-        skippedCount: Int,
-        totalOriginalSize: Long,
-        totalCompressedSize: Long,
-        totalSizeReduction: Float,
-        totalCount: Int
-    ) {
-        // Проверяем разрешения перед показом уведомления
-        if (!canShowNotifications(context)) {
-            LogUtil.debug("NotificationUtil", "Summary notification пропущен - отсутствуют разрешения")
-            return
-        }
-        
-        try {
-            val pendingIntent = createMainActivityPendingIntent(context)
-            
-            // Формируем заголовок
-            val title = if (successfulCount > 0) {
-                "📦 Сжато $successfulCount фото"
-            } else {
-                "⏭️ Обработано $totalCount фото"
-            }
-            
-            // Формируем текст
-            val message = buildString {
-                if (successfulCount > 0) {
-                    val originalSizeStr = FileOperationsUtil.formatFileSize(totalOriginalSize)
-                    val compressedSizeStr = FileOperationsUtil.formatFileSize(totalCompressedSize)
-                    val reductionStr = String.format("%.1f", totalSizeReduction)
-                    append("$originalSizeStr → $compressedSizeStr (-$reductionStr%)")
-                    
-                    if (skippedCount > 0) {
-                        append("\nПропущено: $skippedCount фото")
-                    }
-                } else {
-                    append("Все файлы пропущены (уже сжаты или малый размер)")
-                }
-            }
-            
-            // Создаем обычное уведомление без группировки
-            val builder = NotificationCompat.Builder(context, "compression_completion_channel")
-                .setContentTitle(title)
-                .setContentText(message)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-            
-            getNotificationManager(context).notify(Constants.NOTIFICATION_ID_COMPRESSION_SUMMARY, builder.build())
-            LogUtil.debug("NotificationUtil", "Показано summary notification: $title")
-        } catch (e: SecurityException) {
-            LogUtil.error(android.net.Uri.EMPTY, "Notification", "SecurityException при показе summary notification - отсутствует разрешение POST_NOTIFICATIONS", e)
-        } catch (e: Exception) {
-            LogUtil.errorWithException("NotificationUtil", e)
-        }
-    }
-    
-    /**
-     * Данные для индивидуального уведомления в батче
-     */
-    data class BatchNotificationItem(
-        val fileName: String,
-        val originalSize: Long,
-        val compressedSize: Long,
-        val sizeReduction: Float,
-        val skipped: Boolean,
-        val skipReason: String? = null
-    )
     
     /**
      * Отправляет Broadcast о результате сжатия
@@ -831,4 +783,4 @@ object NotificationUtil {
             LogUtil.errorWithException("NotificationUtil", e)
         }
     }
-} 
+}
