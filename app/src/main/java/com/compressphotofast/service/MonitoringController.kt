@@ -50,11 +50,21 @@ object MonitoringController {
             return MonitoringStartResult.DISABLED
         }
 
-        // Резервный механизм обнаружения — работает, даже если foreground-служба убита.
-        ImageDetectionJobService.scheduleJob(context)
+        // Резервный механизм обеспечивается первым и независимо от результата
+        // попытки foreground-start (Android 12+ может его запретить).
+        ensureDetectionJob(context)
 
         // Постоянная foreground-служба — real-time обнаружение через ContentObserver.
         return startForegroundService(context)
+    }
+
+    /** Идемпотентно оставляет один content-trigger Job в JobScheduler. */
+    fun ensureDetectionJob(context: Context) {
+        try {
+            ImageDetectionJobService.scheduleJob(context)
+        } catch (e: Exception) {
+            LogUtil.error(null, "MonitoringController", "Не удалось обеспечить recovery Job", e)
+        }
     }
 
     /**

@@ -103,7 +103,7 @@ class ImageCompressionUtilBitmapTest {
         // inSampleSize = 1: 3000 >= 2048 (можно увеличить)
         // inSampleSize = 2: 3000/2 = 1500 < 2048 (нельзя увеличить)
         // Функция вернет 2
-        assertEquals("inSampleSize должен быть 2 для изображения 8000x6000", 2, result)
+        assertEquals("Full-resolution decode должен использовать inSampleSize=1", 1, result)
     }
 
     /**
@@ -136,7 +136,7 @@ class ImageCompressionUtilBitmapTest {
         // inSampleSize = 2: 6144/2 = 3072 >= 2048 (можно увеличить)
         // inSampleSize = 4: 6144/4 = 1536 < 2048 (нельзя увеличить)
         // Функция вернет 4
-        assertEquals("inSampleSize должен быть 4 для изображения 16384x12288", 4, result)
+        assertEquals("Full-resolution decode должен использовать inSampleSize=1", 1, result)
     }
 
     /**
@@ -213,7 +213,7 @@ class ImageCompressionUtilBitmapTest {
 
         val result = method.invoke(ImageCompressionUtil, width, height, reqSize, reqSize) as Int
 
-        assertEquals("inSampleSize должен быть 2 для 9000x9000 при лимите 4096", 2, result)
+        assertEquals("Full-resolution decode должен использовать inSampleSize=1", 1, result)
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.compressphotofast
 
 import android.app.Application
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -14,6 +15,9 @@ import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.BackupRecoveryHelper
+import com.compressphotofast.util.OptimizedCacheUtil
+import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.service.MonitoringController
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +72,14 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             Timber.w("WorkManager already initialized, skipping initialization")
         }
 
+        logPreviousExitForDebug()
+
+        // Холодный старт может быть вызван WorkManager/JobScheduler после LMK.
+        // Сначала обеспечиваем Job, затем best-effort пробуем вернуть FGS.
+        if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+            MonitoringController.startMonitoring(applicationContext)
+        }
+
         // Очистка и восстановление после непредвиденного закрытия приложения
         // (kill, OOM, crash, перезагрузка). Запускается при каждом холодном старте,
         // независимо от того, включено ли автосжатие (foreground-сервис может не работать).
@@ -113,6 +125,29 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         CompressionBatchTracker.destroyStatic()
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_RUNNING_LOW) {
+            OptimizedCacheUtil.evictAll()
+        }
+    }
+
+    /** Диагностика последнего завершения процесса только в debug-сборке. */
+    private fun logPreviousExitForDebug() {
+        if (!BuildConfig.DEBUG || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        try {
+            val activityManager = getSystemService(ActivityManager::class.java)
+            val exit = activityManager.getHistoricalProcessExitReasons(packageName, 0, 1)
+                .firstOrNull() ?: return
+            LogUtil.processDebug(
+                "ApplicationExitInfo: reason=${exit.reason}, timestamp=${exit.timestamp}, " +
+                    "pss=${exit.pss}KB, rss=${exit.rss}KB"
+            )
+        } catch (e: Exception) {
+            LogUtil.warning(null, "CompressPhotoApp", "Не удалось прочитать ApplicationExitInfo: ${e.message}")
+        }
+    }
+
     /**
      * Конфигурация для WorkManager с поддержкой Hilt
      */
@@ -133,4 +168,4 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             // Пустая реализация - не логируем ничего в релизе
         }
     }
-} 
+}

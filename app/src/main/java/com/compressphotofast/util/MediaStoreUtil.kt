@@ -12,8 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+import java.io.FileInputStream
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -464,11 +463,16 @@ object MediaStoreUtil {
         exifDataMemory: Map<String, Any>? = null,
         mimeType: String = "image/jpeg"
     ): Uri? = withContext(Dispatchers.IO) {
+        var streamCacheFile: File? = null
         try {
-            val bytes = ByteArrayOutputStream().use { buf ->
-                inputStream.copyTo(buf)
-                buf.toByteArray()
-            }
+            // Не материализуем JPEG в ByteArray. Дисковый spool нужен только
+            // потому, что replace-mode может потребовать fallback-повтор записи.
+            streamCacheFile = File(
+                context.cacheDir,
+                "stream_cache_${originalUri.hashCode()}_${System.currentTimeMillis()}.jpg"
+            )
+            FileOutputStream(streamCacheFile!!).use { output -> inputStream.copyTo(output) }
+            fun openCachedInput() = FileInputStream(streamCacheFile!!)
 
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
@@ -510,7 +514,9 @@ object MediaStoreUtil {
                         clearIsPendingFlag(context, uri)
 
                         // Перезаписываем файл напрямую
-                        val updateSuccess = safeUpdateExistingFile(context, uri, ByteArrayInputStream(bytes))
+                        val updateSuccess = openCachedInput().use { cachedInput ->
+                            safeUpdateExistingFile(context, uri, cachedInput)
+                        }
 
                         if (!updateSuccess) {
                             // Запись провалилась — восстанавливаем оригинал из backup, если он есть
@@ -523,7 +529,7 @@ object MediaStoreUtil {
                             if (fallbackResult != null) {
                                 try {
                                     context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                        ByteArrayInputStream(bytes).use { dataStream ->
+                                        openCachedInput().use { dataStream ->
                                             dataStream.copyTo(outputStream, bufferSize = 8192)
                                         }
                                     }
@@ -554,7 +560,7 @@ object MediaStoreUtil {
                 } else {
                     // Режим создания: записываем в новый файл
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        ByteArrayInputStream(bytes).copyTo(outputStream)
+                        openCachedInput().use { cachedInput -> cachedInput.copyTo(outputStream) }
                         outputStream.flush()
                     } ?: throw IOException("Не удалось открыть OutputStream")
                 }
@@ -617,6 +623,8 @@ object MediaStoreUtil {
         } catch (e: Exception) {
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
             return@withContext null
+        } finally {
+            streamCacheFile?.delete()
         }
     }
 

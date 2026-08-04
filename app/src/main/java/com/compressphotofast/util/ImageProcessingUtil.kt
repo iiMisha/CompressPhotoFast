@@ -12,8 +12,7 @@ import androidx.work.workDataOf
 import com.compressphotofast.worker.ImageCompressionWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.UriUtil
+import java.util.concurrent.TimeUnit
 
 /**
  * Утилитарный класс для логики обработки изображений
@@ -71,13 +70,6 @@ object ImageProcessingUtil {
                 val fileName = UriUtil.getFileNameFromUri(context, uri)
                 val originalSize = UriUtil.getFileSize(context, uri)
 
-                // Создаем данные для работы
-                val inputData = mutableMapOf<String, Any?>(
-                    Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
-                    Constants.WORK_COMPRESSION_QUALITY to quality,
-                    "original_size" to originalSize
-                )
-
                 // Добавляем batch ID если он предоставлен, или создаем автобатч
                 val finalBatchId = batchId ?: if (forceProcess) {
                     null
@@ -85,29 +77,13 @@ object ImageProcessingUtil {
                     CompressionBatchTracker.getOrCreateAutoBatchCompat(context)
                 }
 
-                if (finalBatchId != null) {
-                    inputData[Constants.WORK_BATCH_ID] = finalBatchId
-                }
-
-                val perUriTag = "compress_${uri.hashCode()}"
-                inputData["is_handled_by_ipu"] = true
-
-                // Constraints: не запускать при критическом заряде батареи,
-                // где система с высокой вероятностью убьёт процесс посреди сжатия.
-                // Сеть не требуется, место не требует много (перезапись in-place).
-                val constraints = Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
-                    .setRequiresBatteryNotLow(true)
-                    .build()
-
-                val compressionWorkRequest = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
-                    .setInputData(workDataOf(*inputData.toList().toTypedArray()))
-                    .setConstraints(constraints)
-                    // Экспоненциальный backoff для transient-ошибок (IOException, PendingItemException),
-                    // по которым Worker возвращает Result.retry(). Начало — 30с.
-                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, java.util.concurrent.TimeUnit.SECONDS)
-                    .addTag(perUriTag)
-                    .build()
+                val compressionWorkRequest = buildCompressionWorkRequest(
+                    uri = uri,
+                    quality = quality,
+                    originalSize = originalSize,
+                    forceProcess = forceProcess,
+                    batchId = finalBatchId
+                )
 
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(
@@ -132,6 +108,42 @@ object ImageProcessingUtil {
     }
 
     /**
+     * Строит WorkRequest отдельно от discovery. Discovery не декодирует Bitmap,
+     * а WorkManager сохраняет URI в durable sequential chain.
+     */
+    internal fun buildCompressionWorkRequest(
+        uri: Uri,
+        quality: Int,
+        originalSize: Long,
+        forceProcess: Boolean,
+        batchId: String?
+    ) = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+        .setInputData(
+            workDataOf(
+                *buildMap {
+                    put(Constants.WORK_INPUT_IMAGE_URI, uri.toString())
+                    put(Constants.WORK_COMPRESSION_QUALITY, quality)
+                    put("original_size", originalSize)
+                    put("is_handled_by_ipu", true)
+                    if (batchId != null) put(Constants.WORK_BATCH_ID, batchId)
+                }.toList().toTypedArray()
+            )
+        )
+        .setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .setRequiresBatteryNotLow(true)
+                .build()
+        )
+        .setInitialDelay(
+            if (forceProcess) 0L else Constants.AUTO_COMPRESSION_INITIAL_DELAY_SECONDS,
+            TimeUnit.SECONDS
+        )
+        .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+        .addTag("compress_${uri.hashCode()}")
+        .build()
+
+    /**
      * Обертка вокруг handleImage для обратной совместимости
      * Возвращает true, если обработка была успешно запущена
      */
@@ -153,4 +165,4 @@ object ImageProcessingUtil {
         // Делегируем проверку классу ImageProcessingChecker
         return@withContext ImageProcessingChecker.shouldProcessImage(context, uri, forceProcess)
     }
-} 
+}

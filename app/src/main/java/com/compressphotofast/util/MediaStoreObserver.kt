@@ -30,13 +30,7 @@ class MediaStoreObserver @Inject constructor(
     private val uriProcessingTracker: UriProcessingTracker,
     private var imageChangeListener: ((Uri) -> Unit)? = null
 ) {
-    // Shared CoroutineScope для всех экземпляров
-    companion object {
-        private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    }
-
-    private val handlerScope = mainScope
-    // CoroutineScope для асинхронных операций
+    // Все задачи принадлежат конкретному observer и отменяются в unregister().
     private val observerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     // Система для предотвращения дублирования событий от ContentObserver
     private val recentlyObservedUris = ConcurrentHashMap<String, Long>()
@@ -56,95 +50,48 @@ class MediaStoreObserver @Inject constructor(
     private val contentObserver: ContentObserver = object : ContentObserver(contentObserverHandler) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             super.onChange(selfChange, uri)
-
-            uri?.let {
-                // Игнорируем URI, если он был недавно оптимизирован
-                if (uriProcessingTracker.shouldIgnore(it)) {
-                    LogUtil.processDebug("MediaStoreObserver: URI $it пропущен, так как недавно обработан.")
-                    return
-                }
-
-                // Пропускаем URI, которые сейчас обрабатываются приложением
-                if (uriProcessingTracker.isProcessing(it)) {
-                    LogUtil.processDebug("MediaStoreObserver: URI $it пропущен, так как сейчас обрабатывается приложением.")
-                    return
-                }
-
-                // Проверяем, что это новое изображение с базовой фильтрацией
-                if (it.toString().contains("media") && it.toString().contains("image")) {
-                    // Проверяем, не является ли файл переименованным оригиналом (с суффиксом _original)
-                    val fileName = UriUtil.getFileNameFromUri(context, it) ?: ""
-                    if (fileName.contains("_original.")) {
-                        // Это переименованный оригинал, пропускаем его
-                        LogUtil.processDebug("MediaStoreObserver: пропускаем обработку переименованного оригинала: $fileName")
-                        return
-                    }
-                    
-                    // Предотвращаем дублирование событий для одного URI за короткий период времени
-                    val uriString = it.toString()
-                    val currentTime = System.currentTimeMillis()
-                    val lastObservedTime = recentlyObservedUris[uriString]
-                    
-                    if (lastObservedTime != null && (currentTime - lastObservedTime < contentObserverDebounceTime)) {
-                        // Если URI был недавно обработан, пропускаем его
-                        return
-                    }
-                    
-                    // Обновляем время последнего наблюдения
-                    recentlyObservedUris[uriString] = currentTime
-                    
-                    // Удаляем старые записи (старше 15 секунд, чтобы соответствовать новому debounce времени)
-                    val urisToRemove = recentlyObservedUris.entries
-                        .filter { (currentTime - it.value) > 15000L }
-                        .map { it.key }
-                    
-                    urisToRemove.forEach { key -> recentlyObservedUris.remove(key) }
-                    
-                    // Логируем событие
-                    LogUtil.processDebug("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
-
-                    // Отменяем предыдущую отложенную задачу для этого URI, если она существует
-                    pendingTasks[uriString]?.cancel()
-                    LogUtil.processDebug("MediaStoreObserver: предыдущая задача для $uriString отменена")
-
-                    // Создаем новую задачу с задержкой
-                    val delayJob = handlerScope.launch {
-                        delay(Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000L)
-
-                        // Early exit: если URI уже обработан или обрабатывается — не трогаем диск
-                        if (uriProcessingTracker.shouldIgnore(it)) {
-                            LogUtil.processDebug("MediaStoreObserver: URI $it уже в периоде игнорирования после задержки, пропускаем")
-                            pendingTasks.remove(uriString)
-                            return@launch
-                        }
-                        if (uriProcessingTracker.isProcessing(it)) {
-                            LogUtil.processDebug("MediaStoreObserver: URI $it обрабатывается другим механизмом, пропускаем")
-                            pendingTasks.remove(uriString)
-                            return@launch
-                        }
-
-                        if (UriUtil.isFilePending(context, it)) {
-                            LogUtil.processDebug("MediaStoreObserver: файл ещё в процессе записи (pending), планируем повтор: $it")
-                            processUriWithRetry(it, uriString)
-                            return@launch
-                        }
-
-                        val (isAlreadyCompressed, _, compressionTimestamp) = withContext(Dispatchers.IO) {
-                            ExifUtil.getCompressionMarker(context, it)
-                        }
-                        if (isAlreadyCompressed && (System.currentTimeMillis() - compressionTimestamp) < 60_000L) {
-                            LogUtil.processDebug("MediaStoreObserver: URI $it имеет свежий маркер сжатия (< 60 сек), пропускаем")
-                            pendingTasks.remove(uriString)
-                            return@launch
-                        }
-                        processUriWithRetry(it, uriString)
-                    }
-
-                    // Сохраняем задачу
-                    pendingTasks[uriString] = delayJob
-                }
-            }
+            // ContentObserver обычно вызывает onChange на main. Здесь только
+            // захватываем URI и передаём весь provider/EXIF I/O в owned IO scope.
+            uri?.let { capturedUri -> observerScope.launch { handleChange(capturedUri) } }
         }
+    }
+
+    private suspend fun handleChange(uri: Uri) {
+        if (uriProcessingTracker.shouldIgnore(uri) || uriProcessingTracker.isProcessing(uri)) return
+        if (!uri.toString().contains("media") || !uri.toString().contains("image")) return
+
+        val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
+        if (fileName.contains("_original.")) return
+
+        val uriString = uri.toString()
+        val currentTime = System.currentTimeMillis()
+        val lastObservedTime = recentlyObservedUris[uriString]
+        if (lastObservedTime != null && currentTime - lastObservedTime < contentObserverDebounceTime) return
+        recentlyObservedUris[uriString] = currentTime
+        recentlyObservedUris.entries
+            .filter { currentTime - it.value > 15000L }
+            .forEach { recentlyObservedUris.remove(it.key) }
+
+        LogUtil.processDebug("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
+        pendingTasks[uriString]?.cancel()
+        val delayJob = observerScope.launch {
+            delay(Constants.CONTENT_OBSERVER_DELAY_SECONDS * 1000L)
+            if (uriProcessingTracker.shouldIgnore(uri) || uriProcessingTracker.isProcessing(uri)) {
+                pendingTasks.remove(uriString)
+                return@launch
+            }
+            if (UriUtil.isFilePending(context, uri)) {
+                processUriWithRetry(uri, uriString)
+                return@launch
+            }
+            val (isAlreadyCompressed, _, compressionTimestamp) = ExifUtil.getCompressionMarker(context, uri)
+            if (isAlreadyCompressed && System.currentTimeMillis() - compressionTimestamp < 60_000L) {
+                pendingTasks.remove(uriString)
+                return@launch
+            }
+            processUriWithRetry(uri, uriString)
+        }
+        pendingTasks[uriString] = delayJob
     }
 
     /**
@@ -170,7 +117,7 @@ class MediaStoreObserver @Inject constructor(
                 LogUtil.processDebug("MediaStoreObserver: файл имеет is_pending=1, планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
 
                 // Перепланируем задачу с экспоненциальной задержкой
-                val retryJob = handlerScope.launch {
+                val retryJob = observerScope.launch {
                     delay(delayMs)
                     processUriWithRetry(uri, uriString)
                 }
@@ -202,7 +149,7 @@ class MediaStoreObserver @Inject constructor(
                     val delayMs = baseRetryDelayMs * (1 shl nextRetry)
                     LogUtil.processDebug("MediaStoreObserver: обнаружен PendingItemException (Only owner), планируем повтор #$nextRetry через ${delayMs/1000} сек (эксп. backoff): $uriString")
 
-                    val retryJob = handlerScope.launch {
+                    val retryJob = observerScope.launch {
                         delay(delayMs)
                         processUriWithRetry(uri, uriString)
                     }
@@ -216,6 +163,8 @@ class MediaStoreObserver @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 LogUtil.error(uri, "MediaStoreObserver", "Ошибка при первичной проверке существования", e)
+                scheduleRetry(uri, uriString)
+                return@launch
             }
             // Удаляем только если задача не была перезаписана новым onChange
             val job = pendingTasks[uriString]
@@ -223,6 +172,22 @@ class MediaStoreObserver @Inject constructor(
                 pendingTasks.remove(uriString)
             }
         }
+    }
+
+    private fun scheduleRetry(uri: Uri, uriString: String) {
+        val nextRetry = retryCounts.compute(uriString) { _, current -> (current ?: 0) + 1 } ?: 1
+        if (nextRetry > maxRetries) {
+            retryCounts.remove(uriString)
+            pendingTasks.remove(uriString)
+            LogUtil.processDebug("MediaStoreObserver: временная ошибка для $uriString, retry исчерпан")
+            return
+        }
+        val delayMs = baseRetryDelayMs * (1 shl nextRetry)
+        val retryJob = observerScope.launch {
+            delay(delayMs)
+            processUriWithRetry(uri, uriString)
+        }
+        pendingTasks[uriString] = retryJob
     }
     
     fun setImageChangeListener(listener: (Uri) -> Unit) {
@@ -249,7 +214,11 @@ class MediaStoreObserver @Inject constructor(
      * Отменяет регистрацию ContentObserver
      */
     fun unregister() {
-        context.contentResolver.unregisterContentObserver(contentObserver)
+        try {
+            context.contentResolver.unregisterContentObserver(contentObserver)
+        } catch (_: Exception) {
+            // Observer мог не успеть зарегистрироваться.
+        }
 
         // Очищаем все отложенные задачи
         pendingTasks.forEach { (uri, job) ->
@@ -266,4 +235,4 @@ class MediaStoreObserver @Inject constructor(
 
         LogUtil.processDebug("MediaStoreObserver: ContentObserver отменен")
     }
-} 
+}

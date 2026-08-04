@@ -297,4 +297,11 @@ object OptimizedCacheUtil {
         
         return "Кэши: $dirStats, $exifStats, $pathStats"
     }
+
+    /** Освобождает только необязательные in-memory кэши при memory pressure. */
+    fun evictAll() {
+        directoryCacheLock.write { directoryCache.evictAll() }
+        exifCacheLock.write { exifCache.evictAll() }
+        pathPatternCacheLock.write { pathPatternCache.evictAll() }
+    }
 }

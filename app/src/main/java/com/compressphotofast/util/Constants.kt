@@ -68,6 +68,7 @@ object Constants {
     const val HISTORY_SCAN_WINDOW_SECONDS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60L
     const val HISTORY_SCAN_WINDOW_MILLIS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60 * 1000L
     const val CONTENT_OBSERVER_DELAY_SECONDS = 10L // 10 секунд задержки при обнаружении файла
+    const val AUTO_COMPRESSION_INITIAL_DELAY_SECONDS = 30L
     
     // Коды запросов
     const val REQUEST_CODE_DELETE_FILE = 12345
@@ -109,7 +110,10 @@ object Constants {
     // Обычно мы хотим сжать изображение как минимум на 20% от исходного размера
     const val MIN_COMPRESSION_RATIO = 0.8f
 
-    // Параметры декодирования изображений для оптимизации памяти
-    const val MAX_IMAGE_WIDTH = 4096  // Максимальная ширина изображения при декодировании
-    const val MAX_IMAGE_HEIGHT = 4096 // Максимальная высота изображения при декодировании
+    // Совместимые имена без фактического ограничения разрешения. Декодирование
+    // всегда сохраняет исходные pixel dimensions; admission контролирует память.
+    @Deprecated("Разрешение больше не ограничивается, используйте memory admission")
+    const val MAX_IMAGE_WIDTH = Int.MAX_VALUE
+    @Deprecated("Разрешение больше не ограничивается, используйте memory admission")
+    const val MAX_IMAGE_HEIGHT = Int.MAX_VALUE
 }

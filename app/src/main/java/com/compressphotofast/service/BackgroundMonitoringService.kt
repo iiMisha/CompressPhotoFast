@@ -58,6 +58,12 @@ class BackgroundMonitoringService : Service() {
         var isRunning: Boolean = false
             private set
 
+        /** Становится true только после успешного FGS startForeground и observer setup. */
+        @Volatile
+        @JvmStatic
+        var isReady: Boolean = false
+            private set
+
         /**
          * Флаг явной остановки пользователем (переключатель / кнопка в уведомлении).
          *
@@ -174,45 +180,47 @@ class BackgroundMonitoringService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        isRunning = true
+        isRunning = false
+        isReady = false
         isUserStopped = false
 
-        
-        // Создаем канал уведомлений
-        NotificationUtil.createDefaultNotificationChannel(applicationContext)
-        
-        // Создаем уведомление и запускаем сервис как Foreground Service
-        startForegroundWithNotification()
-        
-        // Настраиваем ContentObserver для отслеживания изменений в MediaStore
-        setupContentObserver()
-        
-        // Регистрируем BroadcastReceiver для обработки запросов на сжатие
-        registerProcessImageReceiver()
-        
-        // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
-        registerReceiver(
-            compressionCompletedReceiver, 
-            IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        
-        // Проверяем состояние автоматического сжатия при создании сервиса
-        val isEnabled = SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
-        
-        if (!isEnabled) {
+        try {
+            // Сначала гарантируем foreground promotion. Любая ошибка старта не
+            // оставляет ложный isRunning=true и позволяет Job продолжить recovery.
+            NotificationUtil.createDefaultNotificationChannel(applicationContext)
+            startForegroundWithNotification()
+
+            if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+                stopSelf()
+                return
+            }
+
+            setupContentObserver()
+            registerProcessImageReceiver()
+            registerReceiver(
+                compressionCompletedReceiver,
+                IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+
+            isRunning = true
+            isReady = true
+            startPeriodicScanning()
+            startPeriodicCleanup()
+            serviceScope.launch { MediaStoreUtil.cleanupStalePendingEntries(applicationContext) }
+        } catch (e: Exception) {
+            isReady = false
+            isRunning = false
+            LogUtil.error(null, "BackgroundMonitoringService", "Не удалось подготовить monitoring FGS", e)
+            try {
+                mediaStoreObserver?.unregister()
+                unregisterReceiver(imageProcessingReceiver)
+                unregisterReceiver(compressionCompletedReceiver)
+            } catch (_: Exception) {
+                // Ресурсы могли не успеть зарегистрироваться.
+            }
             stopSelf()
-            return
         }
-        
-        // Запускаем периодическое сканирование для обеспечения обработки всех изображений
-        startPeriodicScanning()
-
-        // Запускаем периодическую очистку временных файлов
-        startPeriodicCleanup()
-
-        // Очищаем stale IS_PENDING записи от предыдущих сессий
-        serviceScope.launch { MediaStoreUtil.cleanupStalePendingEntries(applicationContext) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -289,9 +297,21 @@ class BackgroundMonitoringService : Service() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        val shouldKeepRecoveryJob = !isUserStopped &&
+            SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
         isRunning = false
+        isReady = false
         isServiceDestroyed.set(true)
+
+        if (shouldKeepRecoveryJob) {
+            try {
+                ImageDetectionJobService.scheduleJob(applicationContext)
+            } catch (e: Exception) {
+                LogUtil.error(null, "BackgroundMonitoringService", "Не удалось оставить recovery Job", e)
+            }
+        }
+
+        super.onDestroy()
 
         // Неблокирующее завершение корутин сервиса
         serviceScope.launch {
@@ -373,15 +393,18 @@ class BackgroundMonitoringService : Service() {
                     timeWindowSeconds = timeWindowSeconds
                 )
 
-                // Сохраняем время начала сканирования после успеха
-                SettingsManager.getInstance(applicationContext).setLastScanTimestamp(currentTimeMs)
-
                 // Обрабатываем найденные изображения
-                scanResult.foundUris.forEach { uri ->
+                val allQueued = scanResult.foundUris.all { uri ->
                     // Проверяем состояние автоматического сжатия еще раз перед началом обработки
                     if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
                         processNewImage(uri)
-                    }
+                    } else false
+                }
+
+                // Продвигаем watermark только после того, как все найденные URI
+                // переданы в долговечную WorkManager-очередь.
+                if (allQueued) {
+                    SettingsManager.getInstance(applicationContext).setLastScanTimestamp(currentTimeMs)
                 }
 
                 // Выводим автоматический отчет о производительности
@@ -395,20 +418,20 @@ class BackgroundMonitoringService : Service() {
     /**
      * Обработка нового изображения
      */
-    private suspend fun processNewImage(uri: Uri) {
+    private suspend fun processNewImage(uri: Uri): Boolean {
         try {
             if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
-                return
+                return false
             }
 
             val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
-                return
+                return false
             }
 
             // isImageBeingProcessed включает проверку shouldIgnore + processingUris + recentlyProcessed
             if (uriProcessingTracker.isImageBeingProcessed(uri)) {
-                return
+                return false
             }
 
             val result = ImageProcessingUtil.handleImage(applicationContext, uri)
@@ -416,12 +439,14 @@ class BackgroundMonitoringService : Service() {
             if (!result.first) {
                 uriProcessingTracker.removeProcessingUriSafe(uri)
             }
+            return result.first && result.second
         } catch (e: kotlinx.coroutines.CancellationException) {
             uriProcessingTracker.removeProcessingUri(uri)
             throw e
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
             uriProcessingTracker.removeProcessingUriSafe(uri)
+            return false
         }
     }
     
@@ -438,13 +463,13 @@ class BackgroundMonitoringService : Service() {
             val scanResult = GalleryScanUtil.scanHistoryImages(applicationContext)
             
             // Обрабатываем найденные изображения
-            scanResult.foundUris.forEach { uri ->
-                processNewImage(uri)
-            }
+            val allQueued = scanResult.foundUris.all { uri -> processNewImage(uri) }
             
-            // Обновляем временную метку после первоначального сканирования истории,
-            // чтобы последующие периодические сканирования не дублировали уже найденные файлы
-            SettingsManager.getInstance(applicationContext).setLastScanTimestamp(System.currentTimeMillis())
+            // Watermark обновляется только после постановки всех найденных URI в
+            // WorkManager; kill между scan и enqueue не создаёт окно потери.
+            if (allQueued) {
+                SettingsManager.getInstance(applicationContext).setLastScanTimestamp(System.currentTimeMillis())
+            }
             
             // Выводим автоматический отчет о производительности
             PerformanceMonitor.autoReportIfNeeded(applicationContext)
@@ -500,4 +525,4 @@ class BackgroundMonitoringService : Service() {
             }
         }
     }
-} 
+}

@@ -25,9 +25,11 @@ import com.compressphotofast.util.Constants
 import com.compressphotofast.util.BatchMediaStoreUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.OptimizedCacheUtil
+import com.compressphotofast.util.GalleryScanUtil
 import kotlinx.coroutines.delay
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
+import java.util.concurrent.atomic.AtomicBoolean
 
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
@@ -35,15 +37,15 @@ class ImageDetectionJobService : JobService() {
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
 
-    // Scope для корутин JobService с SupervisorJob для изоляции ошибок
-    // Используем var для возможности пересоздания после отмены
-    private var jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private data class RunState(
+        val params: JobParameters?,
+        val scope: CoroutineScope,
+        val terminal: AtomicBoolean = AtomicBoolean(false),
+        var stopped: Boolean = false
+    )
 
-    // Потокобезопасное множество для накапливающегося батча
-    private val pendingBatch = Collections.newSetFromMap(ConcurrentHashMap<Uri, Boolean>())
-    // Ссылка на текущую корутину дебаунсинга для возможности отмены
     @Volatile
-    private var debounceJob: Job? = null
+    private var activeRun: RunState? = null
     
     companion object {
         private const val JOB_ID = 1000
@@ -73,7 +75,8 @@ class ImageDetectionJobService : JobService() {
             
             val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             
-            // Проверяем, не запланировано ли уже задание
+            // Проверяем, не запланировано ли уже задание. Повторный schedule
+            // допускается только после terminal completion текущего запуска.
             val existingJob = jobScheduler.allPendingJobs.find { it.id == JOB_ID }
             if (existingJob != null) {
                 LogUtil.processDebug("ImageDetectionJobService: задание уже запланировано, пропускаем")
@@ -110,7 +113,7 @@ class ImageDetectionJobService : JobService() {
          * Отмена зарезервированного задания обнаружения новых изображений.
          * Используется при выключении автосжатия, чтобы JobScheduler больше не запускал обработку.
          */
-        fun cancelJob(context: Context) {
+    fun cancelJob(context: Context) {
             val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             jobScheduler.cancel(JOB_ID)
             LogUtil.processDebug("ImageDetectionJobService: задание отменено (JOB_ID=$JOB_ID)")
@@ -120,50 +123,42 @@ class ImageDetectionJobService : JobService() {
     override fun onStartJob(params: JobParameters?): Boolean {
         LogUtil.processDebug("ImageDetectionJobService: onStartJob вызван")
 
-        // Если Foreground Service активен, его ContentObserver уже обеспечивает
-        // real-time обнаружение — пропускаем обработку для экономии ресурсов
-        if (BackgroundMonitoringService.isRunning) {
-            LogUtil.processDebug("ImageDetectionJobService: Foreground Service активен, пропускаем обработку")
-            scheduleJob(applicationContext)
-            jobFinished(params, false)
-            return false
-        }
-
-        // Пересоздаём scope если был отменён
-        if (jobScope.coroutineContext[Job]?.isActive != true) {
-            LogUtil.processDebug("ImageDetectionJobService: пересоздаём jobScope после отмены")
-            jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        }
-
         // Проверяем, включено ли автоматическое сжатие
         if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
             LogUtil.processDebug("ImageDetectionJobService: автоматическое сжатие отключено, завершаем Job")
-            jobFinished(params, false)
+            // При возврате false система считает синхронный запуск завершенным;
+            // дополнительный jobFinished здесь создавал двойной terminal path.
             return false
         }
 
+        // Job всегда доводит событие до WorkManager. ContentObserver и URI-lock
+        // устраняют дубли, поэтому работающий FGS не является причиной пропуска.
+        if (!BackgroundMonitoringService.isReady) {
+            MonitoringController.startForegroundService(applicationContext)
+        }
+
+        val runScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        val run = RunState(params, runScope)
+        activeRun = run
         val triggerUris = params?.triggeredContentUris
         LogUtil.processDebug("ImageDetectionJobService: получено ${triggerUris?.size ?: 0} URI для обработки")
 
-        if (triggerUris.isNullOrEmpty()) {
-            // Нет URI для обработки, завершаем задание
-            scheduleJob(applicationContext)
-            jobFinished(params, false)
-            return false
-        }
-
-        // Запускаем оптимизированную асинхронную обработку URI с дебаундингом
-        jobScope.launch {
+        runScope.launch {
             try {
-                processUrisWithDebouncing(triggerUris.toList(), params)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                // Игнорируем исключение отмены корутины, это нормальное поведение
-                LogUtil.debug("JOB_CANCELLATION", "Корутина была отменена: ${e.message}")
+                if (triggerUris.isNullOrEmpty()) {
+                    // Android может сообщить overflow без конкретных URI.
+                    processOverflowScan()
+                } else {
+                    processUrisWithDebouncing(triggerUris.toList())
+                }
+                completeRun(run)
+            } catch (e: CancellationException) {
+                // onStopJob отменяет scope и сам отвечает за reschedule. Не
+                // вызываем поздний jobFinished из отменённой корутины.
+                if (!run.stopped) throw e
             } catch (e: Exception) {
                 LogUtil.error(null, "JOB_PROCESSING", "Критическая ошибка при обработке URI в JobService", e)
-                // В случае критической ошибки все равно завершаем задание
-                scheduleJob(applicationContext)
-                jobFinished(params, false)
+                completeRun(run)
             }
         }
 
@@ -175,58 +170,18 @@ class ImageDetectionJobService : JobService() {
      * Оптимизированная обработка URI с дебаундингом и пакетными запросами
      * Группирует события для избежания избыточной обработки промежуточных состояний
      */
-    private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>, params: JobParameters?) {
-        try {
-            // Добавляем URI к накапливающемуся батчу атомарно с drain-операцией
-            synchronized(pendingBatch) {
-                pendingBatch.addAll(triggerUris)
-            }
-            
-            LogUtil.processDebug("ImageDetectionJobService: добавлены ${triggerUris.size} URI к батчу, общий размер: ${pendingBatch.size}")
-            
-            // Отменяем предыдущую задачу дебаунса, если она еще активна
-            // Это реализует "trailing" debounce - обработка начнется только через DEBOUNCE_DELAY_MS 
-            // после ПОСЛЕДНЕГО добавления URI
-            debounceJob?.cancel()
-            
-            // Запускаем новую задачу ожидания
-            debounceJob = jobScope.launch {
-                try {
-                    // Ждем дебаунс-период
-                    delay(DEBOUNCE_DELAY_MS)
-                    
-                    // Атомарно извлекаем накопленный батч и очищаем хранилище внутри синхронизации
-                    val batchToProcess = mutableSetOf<Uri>()
-                    synchronized(pendingBatch) {
-                        batchToProcess.addAll(pendingBatch)
-                        pendingBatch.clear()
-                    }
-                    
-                    if (batchToProcess.isNotEmpty()) {
-                        LogUtil.processDebug("ImageDetectionJobService: начинаем обработку дебаунсного батча из ${batchToProcess.size} URI")
-                        PerformanceMonitor.recordDebouncedBatch(batchToProcess.size)
-                        processOptimizedBatch(batchToProcess.toList(), params)
-                    } else {
-                        LogUtil.processDebug("ImageDetectionJobService: дебаунсный батч пустой, пропускаем обработку")
-                    }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    // Нормальное поведение при дебаунсе
-                } catch (e: Exception) {
-                    LogUtil.error(null, "DEBOUNCING_TASK", "Ошибка в задаче дебаунса", e)
-                }
-            }
-        } catch (e: Exception) {
-            LogUtil.error(null, "DEBOUNCING_ENTRY", "Ошибка при входе в дебаунс", e)
-            // Fallback к немедленной обработке
-            PerformanceMonitor.recordImmediateProcessing()
-            processOptimizedBatch(triggerUris, params)
-        }
+    private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>) {
+        // Debounce ожидается непосредственно текущим запуском JobService.
+        // Вложенная coroutine раньше могла завершиться без jobFinished().
+        delay(DEBOUNCE_DELAY_MS)
+        PerformanceMonitor.recordDebouncedBatch(triggerUris.size)
+        processOptimizedBatch(triggerUris)
     }
 
     /**
      * Оптимизированная пакетная обработка URI с использованием новых утилит
      */
-    private suspend fun processOptimizedBatch(uriList: List<Uri>, params: JobParameters?) = withContext(Dispatchers.IO) {
+    private suspend fun processOptimizedBatch(uriList: List<Uri>) = withContext(Dispatchers.IO) {
         try {
             var processedCount = 0
             var skippedCount = 0
@@ -282,6 +237,8 @@ class ImageDetectionJobService : JobService() {
                 val metadata = batchMetadata[uri]
                 val result = try {
                     processUriWithOptimizations(uri, metadata)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     LogUtil.error(uri, "BATCH_ITEM", "Ошибка при обработке URI в батче", e)
                     ProcessingResult(skipped = true)
@@ -295,16 +252,44 @@ class ImageDetectionJobService : JobService() {
             
             LogUtil.processDebug("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
             
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            // Игнорируем исключение отмены корутины, это нормальное поведение
-            LogUtil.debug("BATCH_PROCESSING", "Корутина пакетной обработки была отменена: ${e.message}")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LogUtil.error(null, "BATCH_PROCESSING", "Ошибка при батчевой обработке URI", e)
-        } finally {
-            // Всегда перепланируем задание и завершаем текущее
-            scheduleJob(applicationContext)
-            jobFinished(params, false)
         }
+    }
+
+    /** Ограниченный fallback scan для overflow/incomplete JobScheduler events. */
+    private suspend fun processOverflowScan() = withContext(Dispatchers.IO) {
+        val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
+        val allQueued = scanResult.foundUris.all { uri ->
+            ImageProcessingUtil.processImage(applicationContext, uri)
+        }
+        if (scanResult.foundUris.isNotEmpty() && allQueued) {
+            SettingsManager.getInstance(applicationContext)
+                .setLastScanTimestamp(System.currentTimeMillis())
+        }
+    }
+
+    private fun completeRun(run: RunState) {
+        synchronized(run) {
+            if (run.stopped || !run.terminal.compareAndSet(false, true)) return
+            try {
+                jobFinished(run.params, false)
+            } catch (e: Exception) {
+                LogUtil.error(null, "JOB_FINISH", "Не удалось завершить Job", e)
+            }
+        }
+
+        // Rearm выполняется только после terminal completion текущего запуска.
+        if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+            try {
+                scheduleJob(applicationContext)
+            } catch (e: Exception) {
+                LogUtil.error(null, "JOB_REARM", "Не удалось перевооружить content-trigger Job", e)
+            }
+        }
+        if (activeRun === run) activeRun = null
     }
 
     /**
@@ -391,10 +376,8 @@ class ImageDetectionJobService : JobService() {
                 return@withContext ProcessingResult(skipped = true)
             }
             
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            // Игнорируем исключение отмены корутины, это нормальное поведение
-            LogUtil.debug("URI_PROCESSING", "Корутина обработки URI была отменена: ${e.message}")
-            return@withContext ProcessingResult(skipped = true)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LogUtil.error(uri, "URI_PROCESSING", "Ошибка при обработке URI", e)
             return@withContext ProcessingResult(skipped = true)
@@ -448,11 +431,14 @@ class ImageDetectionJobService : JobService() {
     override fun onStopJob(params: JobParameters?): Boolean {
         LogUtil.processDebug("onStopJob: задание остановлено, отменяем корутины")
 
-        // Отменяем все запущенные корутины
-        jobScope.coroutineContext[Job]?.cancel()
-
-        synchronized(pendingBatch) {
-            pendingBatch.clear()
+        val run = activeRun
+        if (run != null) {
+            synchronized(run) {
+                run.stopped = true
+                run.terminal.set(true)
+            }
+            run.scope.cancel()
+            if (activeRun === run) activeRun = null
         }
 
         // Возвращаем true, чтобы перепланировать задание
@@ -461,7 +447,6 @@ class ImageDetectionJobService : JobService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Очищаем scope при уничтожении сервиса
-        jobScope.coroutineContext[Job]?.cancel()
+        activeRun?.scope?.cancel()
     }
-} 
+}
