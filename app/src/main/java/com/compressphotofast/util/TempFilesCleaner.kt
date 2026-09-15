@@ -26,30 +26,39 @@ object TempFilesCleaner {
             
             // Синхронизируем доступ к файловой системе
             synchronized(this) {
-                // Получаем все временные файлы в кэше
-                val files = cacheDir.listFiles { file ->
-                    val name = file.name
-                    val isTempFile = name.startsWith("temp_image_") ||
-                                    name.startsWith("input_") ||
-                                    name.startsWith("stream_cache") ||
-                                    name.startsWith("exif_backup_") ||
-                                    name.startsWith("replace_backup_") ||
-                                    name.startsWith("compressed_")
-                    
-                    // Проверяем, что файл достаточно старый
-                    val isOld = (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
-                    
-                    // Не удаляем файл, если он используется в текущем процессе
-                    val isCurrentlyInUse = currentTempFile != null && 
-                                         file.name.contains(currentTempFile as CharSequence)
-                    
-                    isTempFile && isOld && !isCurrentlyInUse
+                // Временные файлы живут в cacheDir, backup-файлы оригиналов —
+                // в noBackupFilesDir (см. BackupRegistry.getBackupDir)
+                val scanDirs = listOfNotNull(
+                    cacheDir,
+                    BackupRegistry.getBackupDir(context).takeIf { it != cacheDir }
+                )
+
+                // Получаем все временные файлы
+                val files = scanDirs.flatMap { dir ->
+                    dir.listFiles { file ->
+                        val name = file.name
+                        val isTempFile = name.startsWith("temp_image_") ||
+                                        name.startsWith("input_") ||
+                                        name.startsWith("stream_cache") ||
+                                        name.startsWith("exif_backup_") ||
+                                        name.startsWith("replace_backup_") ||
+                                        name.startsWith("compressed_")
+
+                        // Проверяем, что файл достаточно старый
+                        val isOld = (currentTime - file.lastModified() > Constants.TEMP_FILE_MAX_AGE)
+
+                        // Не удаляем файл, если он используется в текущем процессе
+                        val isCurrentlyInUse = currentTempFile != null &&
+                                             file.name.contains(currentTempFile as CharSequence)
+
+                        isTempFile && isOld && !isCurrentlyInUse
+                    }?.toList() ?: emptyList()
                 }
                 
                 var deletedCount = 0
                 var totalSize = 0L
                 
-                files?.forEach { file ->
+                files.forEach { file ->
                     // Дополнительная проверка перед удалением
                     if (file.exists()) {
                         val fileSize = file.length()

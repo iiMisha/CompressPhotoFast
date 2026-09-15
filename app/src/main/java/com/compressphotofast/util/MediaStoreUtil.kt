@@ -268,20 +268,12 @@ object MediaStoreUtil {
             // Проверяем нужно ли обрабатывать конфликты имен файлов
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 try {
-                    // Если включен режим замены, удаляем существующий файл
+                    // ИНВАРИАНТ БЕЗОПАСНОСТИ: не удаляем существующий файл до того,
+                    // как новые данные успешно записаны. Delete-then-insert оставлял
+                    // окно потери данных при неудачном insert. Вместо удаления
+                    // генерируем уникальное имя — существующий файл остаётся нетронутым.
                     val existingFiles = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)
-                    val existingUri = existingFiles[fileName]
-
-                    if (existingUri != null && isReplaceMode) {
-                        try {
-                            context.contentResolver.delete(existingUri, null, null)
-                        } catch (e: Exception) {
-                            LogUtil.error(existingUri, "MediaStore", "Ошибка при удалении существующего файла в режиме замены", e)
-                            LogUtil.processWarning("[MediaStore] ВНИМАНИЕ: Не удалось удалить существующий файл, будет создан дубликат!")
-                            StatsTracker.recordDeleteFailure(existingUri)
-                        }
-                    } else if (existingUri != null) {
-                        // Если файл существует, но режим замены выключен, обрабатываем конфликт
+                    if (existingFiles[fileName] != null) {
                         handleFileNameConflict(context, fileName, contentValues, targetRelativePath)
                     }
                 } catch (e: Exception) {
@@ -482,15 +474,16 @@ object MediaStoreUtil {
                 return@withContext null
             }
 
+            var wroteToExistingUri = false
             try {
                 if (isUpdateMode) {
                     // Режим замены: перезаписываем существующий файл напрямую.
-                    // КРИТИЧЕСКО: перед перезаписью создаём backup оригинала в cacheDir,
+                    // КРИТИЧЕСКО: перед перезаписью создаём backup оригинала в noBackupFilesDir,
                     // чтобы иметь возможность восстановить его при ошибке/прерывании записи.
                     // safeUpdateExistingFile открывает "rwt" (truncate-write) — без backup
                     // kill посередине привёл бы к необратимой потере оригинала.
                     val replaceBackupFile = File(
-                        context.cacheDir,
+                        BackupRegistry.getBackupDir(context),
                         "replace_backup_${uri.hashCode()}_${System.currentTimeMillis()}.jpg"
                     )
                     var replaceBackupCreated = false
@@ -509,54 +502,81 @@ object MediaStoreUtil {
                         replaceBackupFile.delete()
                     }
 
+                    if (!replaceBackupCreated) {
+                        // ИНВАРИАНТ БЕЗОПАСНОСТИ: без backup оригинал не перезаписываем.
+                        // Truncate-write без страховки при сбое уничтожил бы оригинал.
+                        // Сохраняем сжатую версию в новый файл — оригинал остаётся нетронутым.
+                        LogUtil.warning(uri, "Replace", "Backup оригинала не создан — перезапись отменена, сохраняем в новый файл")
+                        val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
+                        if (fallbackResult != null) {
+                            try {
+                                context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
+                                    openCachedInput().use { dataStream ->
+                                        dataStream.copyTo(outputStream, bufferSize = 8192)
+                                    }
+                                }
+                                clearIsPendingFlag(context, fallbackResult)
+                                return@withContext fallbackResult
+                            } catch (e: Exception) {
+                                LogUtil.error(originalUri, "Сохранение через fallback", "❌ Критическая ошибка при сохранении через fallback: ${e.message}", e)
+                                NotificationUtil.showErrorNotification(
+                                    context = context,
+                                    title = "Ошибка сохранения",
+                                    message = "Не удалось сохранить сжатое изображение через fallback. Попробуйте ещё раз."
+                                )
+                                return@withContext null
+                            }
+                        }
+                        return@withContext null
+                    }
+
+                    var updateSuccess = false
                     try {
                         // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
                         clearIsPendingFlag(context, uri)
 
                         // Перезаписываем файл напрямую
-                        val updateSuccess = openCachedInput().use { cachedInput ->
+                        updateSuccess = openCachedInput().use { cachedInput ->
                             safeUpdateExistingFile(context, uri, cachedInput)
                         }
 
                         if (!updateSuccess) {
-                            // Запись провалилась — восстанавливаем оригинал из backup, если он есть
-                            if (replaceBackupCreated) {
-                                LogUtil.warning(uri, "Replace", "Перезапись не удалась, восстанавливаем оригинал из backup")
-                                restoreFromBackup(context, uri, replaceBackupFile)
-                            }
-                            // Fallback: пытаемся создать новый файл
-                            val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
-                            if (fallbackResult != null) {
-                                try {
-                                    context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                        openCachedInput().use { dataStream ->
-                                            dataStream.copyTo(outputStream, bufferSize = 8192)
-                                        }
-                                    }
-                                    clearIsPendingFlag(context, fallbackResult)
-                                    return@withContext fallbackResult
-                                } catch (e: Exception) {
-                                    LogUtil.error(originalUri, "Сохранение через fallback", "❌ Критическая ошибка при сохранении через fallback: ${e.message}", e)
-                                    NotificationUtil.showErrorNotification(
-                                        context = context,
-                                        title = "Ошибка сохранения",
-                                        message = "Не удалось сохранить сжатое изображение через fallback. Попробуйте ещё раз."
-                                    )
-                                    return@withContext null
-                                }
-                            }
-                            return@withContext null
+                            // Запись провалилась — восстанавливаем оригинал из backup
+                            LogUtil.warning(uri, "Replace", "Перезапись не удалась, восстанавливаем оригинал из backup")
+                            restoreFromBackup(context, uri, replaceBackupFile)
                         }
                     } finally {
                         // Запись завершена (успешно или нет) — backup больше не нужен в реестре
-                        if (replaceBackupCreated) {
-                            BackupRegistry.clearBackup(context, uri)
-                            replaceBackupFile.delete()
-                        } else {
-                            replaceBackupFile.delete()
-                        }
+                        BackupRegistry.clearBackup(context, uri)
+                        replaceBackupFile.delete()
                     }
 
+                    if (!updateSuccess) {
+                        // Fallback: пытаемся создать новый файл
+                        val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
+                        if (fallbackResult != null) {
+                            try {
+                                context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
+                                    openCachedInput().use { dataStream ->
+                                        dataStream.copyTo(outputStream, bufferSize = 8192)
+                                    }
+                                }
+                                clearIsPendingFlag(context, fallbackResult)
+                                return@withContext fallbackResult
+                            } catch (e: Exception) {
+                                LogUtil.error(originalUri, "Сохранение через fallback", "❌ Критическая ошибка при сохранении через fallback: ${e.message}", e)
+                                NotificationUtil.showErrorNotification(
+                                    context = context,
+                                    title = "Ошибка сохранения",
+                                    message = "Не удалось сохранить сжатое изображение через fallback. Попробуйте ещё раз."
+                                )
+                                return@withContext null
+                            }
+                        }
+                        return@withContext null
+                    }
+
+                    wroteToExistingUri = true
                 } else {
                     // Режим создания: записываем в новый файл
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -610,12 +630,16 @@ object MediaStoreUtil {
                 return@withContext uri
             } catch (e: Exception) {
                 LogUtil.errorWithException("Запись данных изображения", e)
-                // При ошибке записи удаляем незавершённую запись из MediaStore
-                try {
-                    context.contentResolver.delete(uri, null, null)
-                    LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
-                } catch (deleteEx: Exception) {
-                    LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
+                // При ошибке записи удаляем незавершённую запись из MediaStore.
+                // ВАЖНО: если в этот URI была перезаписана существующая версия
+                // (replace-режим), удалять его нельзя — это файл пользователя.
+                if (!wroteToExistingUri) {
+                    try {
+                        context.contentResolver.delete(uri, null, null)
+                        LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
+                    } catch (deleteEx: Exception) {
+                        LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
+                    }
                 }
                 return@withContext null
             }
@@ -695,10 +719,13 @@ object MediaStoreUtil {
                     outputStream.flush()
                     // fsync: гарантируем, что данные сброшены из page cache на носитель.
                     // flush() сбрасывает только буферы JVM/OS; sync() форсирует запись на диск.
+                    // ИНВАРИАНТ БЕЗОПАСНОСТИ: провал sync() трактуем как неудачу записи —
+                    // caller восстановит оригинал из backup, а не оставит усечённый файл.
                     try {
                         pfd.fileDescriptor.sync()
                     } catch (e: Exception) {
-                        LogUtil.warning(existingUri, "MediaStore", "sync() после записи не удался: ${e.message}")
+                        LogUtil.error(existingUri, "MediaStore", "sync() после записи не удался — трактуем как ошибку записи: ${e.message}")
+                        return@withContext false
                     }
                 }
             } ?: throw IOException("Не удалось открыть FileDescriptor для URI: $existingUri")

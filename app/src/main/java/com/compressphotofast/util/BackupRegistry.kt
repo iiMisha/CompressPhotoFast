@@ -15,10 +15,27 @@ import java.io.File
  * При старте приложения [BackupRecoveryHelper.recoverPendingBackups] проверяет
  * целостность URI и восстанавливает файл из backup при повреждении.
  *
- * Все backup-файлы хранятся в [Context.cacheDir] и дополнительно вычищаются
- * [TempFilesCleaner] по истечении [Constants.TEMP_FILE_MAX_AGE].
+ * Все backup-файлы хранятся в [getBackupDir] (noBackupFilesDir — защищено от
+ * очистки системой под дисковым давлением, в отличие от cacheDir) и дополнительно
+ * вычищаются [TempFilesCleaner] по истечении [Constants.TEMP_FILE_MAX_AGE].
  */
 object BackupRegistry {
+
+    /**
+     * Каталог для backup-файлов оригиналов.
+     *
+     * ИНВАРИАНТ БЕЗОПАСНОСТИ: backup оригинала не должен храниться в cacheDir —
+     * система может очистить кэш под дисковым давлением именно в тот момент,
+     * когда backup нужен для восстановления. Используется noBackupFilesDir:
+     * не выгружается в облачный backup и не очищается автоматически.
+     */
+    fun getBackupDir(context: Context): File {
+        val dir = context.noBackupFilesDir
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
 
     /**
      * Регистрирует backup-файл для URI.
