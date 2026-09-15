@@ -25,7 +25,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.TempFilesCleaner
-import com.compressphotofast.util.ImageProcessingUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.GalleryScanUtil
@@ -35,6 +34,8 @@ import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.CompressionWorkScheduler
+import com.compressphotofast.util.CompressionEnqueueResult
 import javax.inject.Inject
 
 /**
@@ -82,6 +83,9 @@ class BackgroundMonitoringService : Service() {
 
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
+
+    @Inject
+    lateinit var compressionWorkScheduler: CompressionWorkScheduler
 
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
@@ -383,7 +387,7 @@ class BackgroundMonitoringService : Service() {
                 // Вычисляем динамическое окно сканирования на основе lastScanTimestamp
                 val currentTimeMs = System.currentTimeMillis()
                 val lastScanMs = SettingsManager.getInstance(applicationContext).getLastScanTimestamp()
-                val timeWindowSeconds = ((currentTimeMs - lastScanMs) / 1000L)
+                val timeWindowSeconds = ((currentTimeMs - lastScanMs) / 1000L + Constants.RECENT_SCAN_WINDOW_SECONDS)
                     .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS)
                     .toInt()
 
@@ -394,11 +398,13 @@ class BackgroundMonitoringService : Service() {
                 )
 
                 // Обрабатываем найденные изображения
-                val allQueued = scanResult.foundUris.all { uri ->
-                    // Проверяем состояние автоматического сжатия еще раз перед началом обработки
+                var allQueued = scanResult.completedSuccessfully
+                scanResult.foundUris.forEach { uri ->
                     if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
-                        processNewImage(uri)
-                    } else false
+                        if (!processNewImage(uri)) allQueued = false
+                    } else {
+                        allQueued = false
+                    }
                 }
 
                 // Продвигаем watermark только после того, как все найденные URI
@@ -420,32 +426,19 @@ class BackgroundMonitoringService : Service() {
      */
     private suspend fun processNewImage(uri: Uri): Boolean {
         try {
-            if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
-                return false
-            }
-
             val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
                 return false
             }
 
-            // isImageBeingProcessed включает проверку shouldIgnore + processingUris + recentlyProcessed
-            if (uriProcessingTracker.isImageBeingProcessed(uri)) {
-                return false
+            return compressionWorkScheduler.enqueue(uri).let {
+                it == CompressionEnqueueResult.DURABLY_ACCEPTED ||
+                    it == CompressionEnqueueResult.NOT_REQUIRED
             }
-
-            val result = ImageProcessingUtil.handleImage(applicationContext, uri)
-
-            if (!result.first) {
-                uriProcessingTracker.removeProcessingUriSafe(uri)
-            }
-            return result.first && result.second
         } catch (e: kotlinx.coroutines.CancellationException) {
-            uriProcessingTracker.removeProcessingUri(uri)
             throw e
         } catch (e: Exception) {
             LogUtil.error(uri, "Обработка нового изображения", "Ошибка при обработке нового изображения", e)
-            uriProcessingTracker.removeProcessingUriSafe(uri)
             return false
         }
     }
@@ -463,7 +456,10 @@ class BackgroundMonitoringService : Service() {
             val scanResult = GalleryScanUtil.scanHistoryImages(applicationContext)
             
             // Обрабатываем найденные изображения
-            val allQueued = scanResult.foundUris.all { uri -> processNewImage(uri) }
+            var allQueued = scanResult.completedSuccessfully
+            scanResult.foundUris.forEach { uri ->
+                if (!processNewImage(uri)) allQueued = false
+            }
             
             // Watermark обновляется только после постановки всех найденных URI в
             // WorkManager; kill между scan и enqueue не создаёт окно потери.

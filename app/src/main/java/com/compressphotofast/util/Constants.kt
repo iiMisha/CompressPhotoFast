@@ -42,6 +42,10 @@ object Constants {
     const val WORK_INPUT_IMAGE_URI = "image_uri"
     const val WORK_COMPRESSION_QUALITY = "compression_quality"
     const val WORK_BATCH_ID = "batch_id"
+    const val WORK_ORIGIN = "work_origin"
+    const val WORK_DISCOVERED_AT = "work_discovered_at"
+    const val WORK_ENQUEUED_AT = "work_enqueued_at"
+    const val WORK_UNIQUE_DIGEST = "work_unique_digest"
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"

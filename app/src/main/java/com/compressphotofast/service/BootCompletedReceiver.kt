@@ -25,6 +25,8 @@ class BootCompletedReceiver : BroadcastReceiver() {
 
         LogUtil.processDebug("BootCompletedReceiver: получен $action, восстанавливаем мониторинг")
 
+        com.compressphotofast.worker.GalleryReconciliationWorker.schedule(context, catchUp = true)
+
         // Единая точка запуска: проверяет флаг автосжатия и поднимает оба механизма.
         // Если автосжатие выключено — controller ничего не запустит.
         val result = MonitoringController.startMonitoring(context)

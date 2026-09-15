@@ -25,14 +25,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.work.WorkInfo
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.CompressionEnqueueResult
+import com.compressphotofast.util.CompressionOrigin
+import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.BatteryOptimizationHelper
@@ -42,6 +43,7 @@ import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.worker.GalleryReconciliationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +64,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var compressionBatchTracker: CompressionBatchTracker
+
+    @Inject
+    lateinit var compressionWorkScheduler: CompressionWorkScheduler
 
     // Запуск запроса разрешений
 
@@ -218,6 +223,8 @@ class MainActivity : AppCompatActivity() {
         
         // Инициализация менеджера разрешений
         permissionsManager = PermissionsManager(this)
+
+        GalleryReconciliationWorker.schedule(this, catchUp = true)
         
         // Обрабатываем действие остановки
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
@@ -236,9 +243,6 @@ class MainActivity : AppCompatActivity() {
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
         
-        // Очистка застрявших works от предыдущей сессии
-        cleanupStuckWorkManagerChain()
-        
         // Запрашиваем разрешения только если это не Share интент
         if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_SEND_MULTIPLE) {
             checkAndRequestPermissions()
@@ -253,30 +257,6 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
     
-    /**
-     * Очищает застрявшие works из цепочки sequential_image_compression
-     * при запуске приложения. Защищает от блокировки цепочки из-за
-     * killed-сессии (work остаётся в RUNNING/ENQUEUED).
-     */
-    private fun cleanupStuckWorkManagerChain() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val workManager = androidx.work.WorkManager.getInstance(this@MainActivity)
-                val workInfos = workManager.getWorkInfosForUniqueWork("sequential_image_compression").get()
-                val stuckCount = workInfos.count {
-                    it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
-                }
-                if (stuckCount > 50) {
-                    LogUtil.processDebug("Очистка $stuckCount застрявших works при запуске (из ${workInfos.size} всего)")
-                    workManager.cancelUniqueWork("sequential_image_compression")
-                } else if (stuckCount > 0) {
-                    LogUtil.processDebug("WorkManager: $stuckCount активных works (норма)")
-                }
-            } catch (e: Exception) {
-                LogUtil.processDebug("WorkManager: ошибка при очистке: ${e.message}")
-            }
-        }
-    }
     
     /**
      * Извлекает URI из Intent в зависимости от его типа
@@ -390,19 +370,31 @@ class MainActivity : AppCompatActivity() {
             var processedCount = 0
 
             for (uri in validUris) {
+                try {
+                    val flags = intent.flags and
+                        (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    if (flags != 0) contentResolver.takePersistableUriPermission(uri, flags)
+                } catch (_: Exception) {
+                    // Provider may not support persistable grants.
+                }
                 LogUtil.processDebug("handleIntent: Обработка валидного URI: $uri")
                 logFileDetails(uri)
 
                 try {
                     // Принудительно обрабатываем изображения, полученные через Share, передаем batch ID
-                    val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true, batchId = batchId)
+                    val result = compressionWorkScheduler.enqueue(
+                        uri,
+                        forceProcess = true,
+                        batchId = batchId,
+                        origin = CompressionOrigin.MANUAL
+                    )
 
                     // Считаем обработанные изображения
-                    if (result.first && result.second) {
+                    if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) {
                         processedCount++
                     } else {
                         // Ошибки или уже обработанные изображения
-                        LogUtil.processDebug("handleIntent: URI $uri пропущен: ${result.third}")
+                        LogUtil.processDebug("handleIntent: URI $uri пропущен: $result")
                     }
                 } catch (e: Exception) {
                     LogUtil.error(uri, "Intent обработка", "Критическая ошибка при обработке: ${e.message}")

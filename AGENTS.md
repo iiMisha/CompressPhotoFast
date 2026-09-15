@@ -18,7 +18,7 @@
 ## Архитектура Android
 
 - UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt`.
-- Сжатие: `worker/ImageCompressionWorker.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
+- Сжатие: `worker/ImageCompressionWorker.kt`, `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `util/CompressionWorkScheduler.kt`, `util/CompressionExecutionGate.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
 - Настройки и данные: `util/SettingsManager.kt`, `MediaStore`.
 - Инфраструктура: `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.
 - Мониторинг: `service/BackgroundMonitoringService.kt`, `service/ImageDetectionJobService.kt`, `service/MonitoringController.kt`, `service/BootCompletedReceiver.kt`.
@@ -40,9 +40,11 @@
 - Игнорирование фото из мессенджеров удалено: защита от повторного сжатия основана на проверке эффективности.
 - Реализованы резервное копирование и восстановление исходного файла при неудаче файловых операций.
 - UI/E2E instrumentation-тесты удалены как неактуальные; сохранены интеграционные тесты утилит и сервисов.
-- Recovery после LMK/OEM kill: cold-start и JobScheduler best-effort восстанавливают FGS, content-trigger всегда rearm после terminal path, URI ставятся в последовательную WorkManager-очередь.
+- Recovery после LMK/OEM kill: cold-start и JobScheduler best-effort восстанавливают FGS, reconciliation независимо от FGS восстанавливает MediaStore URI, content-trigger использует два чередующихся job ID.
+- Новые URI ставятся в per-URI unique WorkManager works через SHA-256 identity: auto settle задержан на 30 секунд, manual final-work expedited без delay; legacy `sequential_image_compression` не отменяется и дренируется bounded Worker.
+- Тяжёлая Bitmap/MediaStore-фаза сериализуется `CompressionExecutionGate`; transient retry ограничен пятью попытками с линейным backoff, проблемный URI не блокирует соседние.
 - Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
-- Последнее изменение: observer I/O вынесен с main thread, добавлены trim-memory cache eviction и debug `ApplicationExitInfo`.
+- Gallery scan возвращает `completedSuccessfully`, использует overlap watermark и не продвигает его после ошибки/null cursor; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
 ## Проверка и релиз
 

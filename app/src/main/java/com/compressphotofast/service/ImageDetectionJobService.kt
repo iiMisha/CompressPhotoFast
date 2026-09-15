@@ -8,445 +8,158 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
-import com.compressphotofast.util.LogUtil
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.SupervisorJob
-import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.ImageProcessingUtil
-import com.compressphotofast.util.UriProcessingTracker
-import com.compressphotofast.util.UriUtil
+import com.compressphotofast.util.CompressionEnqueueResult
+import com.compressphotofast.util.CompressionOrigin
+import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.BatchMediaStoreUtil
-import com.compressphotofast.util.PerformanceMonitor
-import com.compressphotofast.util.OptimizedCacheUtil
 import com.compressphotofast.util.GalleryScanUtil
-import kotlinx.coroutines.delay
+import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.SettingsManager
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.Inject
 
+enum class DetectionJobScheduleResult { SCHEDULED, ALREADY_ARMED, FAILED }
+
+/** Content-trigger с двумя слотами, чтобы новый trigger был armed до завершения текущего. */
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
-
-    @Inject
-    lateinit var uriProcessingTracker: UriProcessingTracker
+    @Inject lateinit var scheduler: CompressionWorkScheduler
 
     private data class RunState(
         val params: JobParameters?,
         val scope: CoroutineScope,
+        val alternateArmed: Boolean,
         val terminal: AtomicBoolean = AtomicBoolean(false),
-        var stopped: Boolean = false
+        @Volatile var stopped: Boolean = false
     )
 
-    @Volatile
-    private var activeRun: RunState? = null
-    
-    companion object {
-        private const val JOB_ID = 1000
-        private const val MIN_LATENCY_MILLIS = 0L // Минимальная задержка перед запуском
-        private const val OVERRIDE_DEADLINE_MILLIS = 15000L // Максимальная задержка
-        
-        // Дебаундинг параметры для группировки событий
-        private const val DEBOUNCE_DELAY_MS = 2000L // 2 секунды для группировки событий
-        private const val MAX_BATCH_WAIT_TIME_MS = 10000L // Максимальное время ожидания батча
+    @Volatile private var activeRun: RunState? = null
 
-        /**
-         * Настройка и планирование задания для отслеживания новых изображений
-         */
-        fun scheduleJob(context: Context) {
-            LogUtil.processDebug("ImageDetectionJobService: начало планирования задания")
-            
-            // Проверяем, включено ли автоматическое сжатие
-            val isAutoCompressionEnabled = SettingsManager.getInstance(context).isAutoCompressionEnabled()
-            LogUtil.processDebug("ImageDetectionJobService: состояние автоматического сжатия: ${if (isAutoCompressionEnabled) "включено" else "выключено"}")
-            
-            if (!isAutoCompressionEnabled) {
-                LogUtil.processDebug("ImageDetectionJobService: автоматическое сжатие отключено, отменяем планирование Job")
-                val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-                jobScheduler.cancel(JOB_ID)
-                return
+    companion object {
+        const val JOB_ID_PRIMARY = 1000
+        const val JOB_ID_ALTERNATE = 1001
+        private const val MAX_DELAY_MS = 15_000L
+
+        fun scheduleJob(context: Context): DetectionJobScheduleResult {
+            if (!SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
+                cancelJob(context)
+                return DetectionJobScheduleResult.FAILED
             }
-            
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            
-            // Проверяем, не запланировано ли уже задание. Повторный schedule
-            // допускается только после terminal completion текущего запуска.
-            val existingJob = jobScheduler.allPendingJobs.find { it.id == JOB_ID }
-            if (existingJob != null) {
-                LogUtil.processDebug("ImageDetectionJobService: задание уже запланировано, пропускаем")
-                return
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            if (scheduler.allPendingJobs.any { it.id == JOB_ID_PRIMARY || it.id == JOB_ID_ALTERNATE }) {
+                return DetectionJobScheduleResult.ALREADY_ARMED
             }
-            
-            // Создаем триггер для отслеживания изменений в MediaStore
-            val mediaStoreUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            val triggerContentUri = JobInfo.TriggerContentUri(
-                mediaStoreUri,
+            return arm(context, scheduler, JOB_ID_PRIMARY)
+        }
+
+        fun cancelJob(context: Context) {
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            scheduler.cancel(JOB_ID_PRIMARY)
+            scheduler.cancel(JOB_ID_ALTERNATE)
+            LogUtil.processDebug("ImageDetectionJobService: отменены оба content-trigger slot")
+        }
+
+        private fun arm(context: Context, scheduler: JobScheduler, id: Int): DetectionJobScheduleResult {
+            val trigger = JobInfo.TriggerContentUri(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 JobInfo.TriggerContentUri.FLAG_NOTIFY_FOR_DESCENDANTS
             )
-            LogUtil.processDebug("ImageDetectionJobService: создан триггер для MediaStore")
-
-            // Настраиваем JobInfo
-            val componentName = ComponentName(context, ImageDetectionJobService::class.java)
-            val jobInfo = JobInfo.Builder(JOB_ID, componentName)
-                .addTriggerContentUri(triggerContentUri)
-                .setTriggerContentMaxDelay(OVERRIDE_DEADLINE_MILLIS)
-                .setTriggerContentUpdateDelay(MIN_LATENCY_MILLIS)
+            val info = JobInfo.Builder(id, ComponentName(context, ImageDetectionJobService::class.java))
+                .addTriggerContentUri(trigger)
+                .setTriggerContentMaxDelay(MAX_DELAY_MS)
+                .setTriggerContentUpdateDelay(0L)
                 .build()
-            LogUtil.processDebug("ImageDetectionJobService: создан JobInfo с параметрами: maxDelay=$OVERRIDE_DEADLINE_MILLIS, updateDelay=$MIN_LATENCY_MILLIS")
-
-            // Планируем задание
-            val result = jobScheduler.schedule(jobInfo)
-            if (result == JobScheduler.RESULT_SUCCESS) {
-                LogUtil.processDebug("ImageDetectionJobService: задание успешно запланировано")
+            return if (scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS) {
+                DetectionJobScheduleResult.SCHEDULED
             } else {
-                LogUtil.errorSimple("JOB_SCHEDULE", "ImageDetectionJobService: ошибка планирования задания: $result")
+                DetectionJobScheduleResult.FAILED
             }
         }
 
-        /**
-         * Отмена зарезервированного задания обнаружения новых изображений.
-         * Используется при выключении автосжатия, чтобы JobScheduler больше не запускал обработку.
-         */
-    fun cancelJob(context: Context) {
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            jobScheduler.cancel(JOB_ID)
-            LogUtil.processDebug("ImageDetectionJobService: задание отменено (JOB_ID=$JOB_ID)")
+        private fun armAlternate(context: Context, currentId: Int): Boolean {
+            val alternateId = if (currentId == JOB_ID_PRIMARY) JOB_ID_ALTERNATE else JOB_ID_PRIMARY
+            val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            if (scheduler.allPendingJobs.any { it.id == alternateId }) return true
+            return arm(context, scheduler, alternateId) == DetectionJobScheduleResult.SCHEDULED
         }
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        LogUtil.processDebug("ImageDetectionJobService: onStartJob вызван")
-
-        // Проверяем, включено ли автоматическое сжатие
-        if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
-            LogUtil.processDebug("ImageDetectionJobService: автоматическое сжатие отключено, завершаем Job")
-            // При возврате false система считает синхронный запуск завершенным;
-            // дополнительный jobFinished здесь создавал двойной terminal path.
-            return false
-        }
-
-        // Job всегда доводит событие до WorkManager. ContentObserver и URI-lock
-        // устраняют дубли, поэтому работающий FGS не является причиной пропуска.
-        if (!BackgroundMonitoringService.isReady) {
-            MonitoringController.startForegroundService(applicationContext)
-        }
-
-        val runScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        val run = RunState(params, runScope)
+        if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) return false
+        runCatching { MonitoringController.startForegroundService(applicationContext) }
+        val currentId = params?.jobId ?: JOB_ID_PRIMARY
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        val run = RunState(params, scope, armAlternate(applicationContext, currentId))
         activeRun = run
-        val triggerUris = params?.triggeredContentUris
-        LogUtil.processDebug("ImageDetectionJobService: получено ${triggerUris?.size ?: 0} URI для обработки")
-
-        runScope.launch {
+        scope.launch {
             try {
-                if (triggerUris.isNullOrEmpty()) {
-                    // Android может сообщить overflow без конкретных URI.
-                    processOverflowScan()
-                } else {
-                    processUrisWithDebouncing(triggerUris.toList())
-                }
-                completeRun(run)
-            } catch (e: CancellationException) {
-                // onStopJob отменяет scope и сам отвечает за reschedule. Не
-                // вызываем поздний jobFinished из отменённой корутины.
-                if (!run.stopped) throw e
+                delay(2_000L)
+                val uris = params?.triggeredContentUris?.toList() ?: emptyList()
+                if (uris.isEmpty()) processOverflowScan() else processUris(uris)
+                finishRun(run, reschedule = !run.alternateArmed)
+            } catch (_: CancellationException) {
+                if (!run.stopped) finishRun(run, reschedule = !run.alternateArmed)
             } catch (e: Exception) {
-                LogUtil.error(null, "JOB_PROCESSING", "Критическая ошибка при обработке URI в JobService", e)
-                completeRun(run)
+                LogUtil.error(null, "JOB_PROCESSING", "Ошибка content-trigger", e)
+                finishRun(run, reschedule = !run.alternateArmed)
             }
         }
-
-        // Возвращаем true, так как обработка продолжается в фоне
         return true
-    }
-
-    /**
-     * Оптимизированная обработка URI с дебаундингом и пакетными запросами
-     * Группирует события для избежания избыточной обработки промежуточных состояний
-     */
-    private suspend fun processUrisWithDebouncing(triggerUris: List<Uri>) {
-        // Debounce ожидается непосредственно текущим запуском JobService.
-        // Вложенная coroutine раньше могла завершиться без jobFinished().
-        delay(DEBOUNCE_DELAY_MS)
-        PerformanceMonitor.recordDebouncedBatch(triggerUris.size)
-        processOptimizedBatch(triggerUris)
-    }
-
-    /**
-     * Оптимизированная пакетная обработка URI с использованием новых утилит
-     */
-    private suspend fun processOptimizedBatch(uriList: List<Uri>) = withContext(Dispatchers.IO) {
-        try {
-            var processedCount = 0
-            var skippedCount = 0
-            
-            // Сначала проверяем существование всех URI и фильтруем недоступные
-            val existingUris = mutableListOf<Uri>()
-            for (uri in uriList) {
-                if (UriUtil.isUriExistsSuspend(applicationContext, uri)) {
-                    existingUris.add(uri)
-                } else {
-                    LogUtil.processDebug("ImageDetectionJobService: URI не существует, пропускаем: $uri")
-                    skippedCount++
-                }
-            }
-            
-            if (existingUris.isEmpty()) {
-                LogUtil.processDebug("ImageDetectionJobService: все URI в батче недоступны, завершаем обработку")
-                return@withContext
-            }
-            
-            // Получаем пакетные метаданные для всех существующих URI для оптимизации
-            val batchMetadata = PerformanceMonitor.measureBatchMetadata {
-                BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, existingUris)
-            }
-            
-            PerformanceMonitor.recordOptimizedBatchProcessing()
-            LogUtil.processDebug("ImageDetectionJobService: оптимизированная пакетная обработка ${existingUris.size} URI (из ${uriList.size} изначально)")
-            
-            // Предзагружаем кэш директорий для быстрых проверок
-            val filePaths = batchMetadata.mapNotNull { entry ->
-                UriUtil.getFilePathFromUri(applicationContext, entry.key)
-            }
-            OptimizedCacheUtil.preloadDirectoryCache(filePaths, Constants.APP_DIRECTORY)
-            
-            // Фильтруем URI, оставляя только те, которые требуют обработки
-            // Включаем файлы с isPending для возможности их краткосрочного ожидания внутри процесса
-            val validUris = batchMetadata.filter { entry ->
-                val metadata = entry.value
-                metadata != null &&
-                (metadata.size > 0 || metadata.isPending) &&
-                OptimizedCacheUtil.isProcessableMimeType(metadata.mimeType)
-            }.keys.toList()
-            
-            LogUtil.processDebug("ImageDetectionJobService: после быстрой фильтрации осталось ${validUris.size} из ${existingUris.size} URI")
-            
-            for (uri in validUris) {
-                if (uriProcessingTracker.isImageBeingProcessed(uri)) {
-                    LogUtil.processDebug("ImageDetectionJobService: URI уже обрабатывается другим механизмом, пропуск: $uri")
-                    skippedCount++
-                    continue
-                }
-
-                val metadata = batchMetadata[uri]
-                val result = try {
-                    processUriWithOptimizations(uri, metadata)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    LogUtil.error(uri, "BATCH_ITEM", "Ошибка при обработке URI в батче", e)
-                    ProcessingResult(skipped = true)
-                }
-                if (result.processed) processedCount++
-                if (result.skipped) skippedCount++
-            }
-            
-            // Добавляем пропущенные URI (невалидные по метаданным)
-            skippedCount += (existingUris.size - validUris.size)
-            
-            LogUtil.processDebug("ImageDetectionJobService: обработка завершена. Обработано: $processedCount, Пропущено: $skippedCount")
-            
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            LogUtil.error(null, "BATCH_PROCESSING", "Ошибка при батчевой обработке URI", e)
-        }
-    }
-
-    /** Ограниченный fallback scan для overflow/incomplete JobScheduler events. */
-    private suspend fun processOverflowScan() = withContext(Dispatchers.IO) {
-        val scanResult = GalleryScanUtil.scanRecentImages(applicationContext)
-        val allQueued = scanResult.foundUris.all { uri ->
-            ImageProcessingUtil.processImage(applicationContext, uri)
-        }
-        if (scanResult.foundUris.isNotEmpty() && allQueued) {
-            SettingsManager.getInstance(applicationContext)
-                .setLastScanTimestamp(System.currentTimeMillis())
-        }
-    }
-
-    private fun completeRun(run: RunState) {
-        synchronized(run) {
-            if (run.stopped || !run.terminal.compareAndSet(false, true)) return
-            try {
-                jobFinished(run.params, false)
-            } catch (e: Exception) {
-                LogUtil.error(null, "JOB_FINISH", "Не удалось завершить Job", e)
-            }
-        }
-
-        // Rearm выполняется только после terminal completion текущего запуска.
-        if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
-            try {
-                scheduleJob(applicationContext)
-            } catch (e: Exception) {
-                LogUtil.error(null, "JOB_REARM", "Не удалось перевооружить content-trigger Job", e)
-            }
-        }
-        if (activeRun === run) activeRun = null
-    }
-
-    /**
-     * Класс для хранения результата обработки URI
-     */
-    private data class ProcessingResult(
-        val processed: Boolean = false,
-        val skipped: Boolean = false
-    )
-
-    /**
-     * Оптимизированная обработка одного URI с использованием предварительно полученных метаданных
-     */
-    private suspend fun processUriWithOptimizations(uri: Uri, metadata: BatchMediaStoreUtil.FileMetadata?): ProcessingResult = withContext(Dispatchers.IO) {
-        try {
-            LogUtil.processDebug("ImageDetectionJobService: обработка URI: $uri")
-            
-            // Проверяем существование URI перед обработкой
-            if (!UriUtil.isUriExistsSuspend(applicationContext, uri)) {
-                LogUtil.processDebug("ImageDetectionJobService: URI не существует: $uri")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-            // Проверяем предварительно полученные метаданные
-            if (metadata == null) {
-                LogUtil.processDebug("ImageDetectionJobService: метаданные недоступны для URI: $uri")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-            // Обработка isPending с ожиданием
-            var currentMetadata = metadata
-            if (currentMetadata?.isPending == true) {
-                LogUtil.processDebug("ImageDetectionJobService: файл в процессе создания, ожидание с backoff: $uri")
-                val backoffDelays = listOf(3000L, 6000L, 12000L)
-                for ((attempt, delayMs) in backoffDelays.withIndex()) {
-                    delay(delayMs)
-                    val refreshedMetadata = BatchMediaStoreUtil.getBatchFileMetadata(applicationContext, listOf(uri))
-                    currentMetadata = refreshedMetadata[uri]
-                    if (currentMetadata?.isPending != true) {
-                        LogUtil.processDebug("ImageDetectionJobService: файл готов после попытки ${attempt + 1}: $uri")
-                        break
-                    }
-                    if (attempt == backoffDelays.lastIndex) {
-                        LogUtil.processDebug("ImageDetectionJobService: файл все еще в процессе создания после ${backoffDelays.size} попыток, пропускаем: $uri")
-                        return@withContext ProcessingResult(skipped = true)
-                    }
-                    LogUtil.processDebug("ImageDetectionJobService: попытка ${attempt + 1} — файл все еще pending, ждём: $uri")
-                }
-            }
-            
-            if (currentMetadata == null) {
-                LogUtil.processDebug("ImageDetectionJobService: метаданные недоступны для URI: $uri")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-            if (currentMetadata.size <= 0) {
-                LogUtil.processDebug("ImageDetectionJobService: файл пуст или недоступен: $uri")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-            // Проверяем MIME тип используя оптимизированный кэш
-            if (!OptimizedCacheUtil.isProcessableMimeType(metadata.mimeType)) {
-                LogUtil.processDebug("ImageDetectionJobService: неподдерживаемый MIME тип: ${metadata.mimeType}")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-            // Проверяем, не должен ли URI игнорироваться
-            if (uriProcessingTracker.shouldIgnore(uri)) {
-                LogUtil.processDebug("ImageDetectionJobService: игнорируем изменение для недавно обработанного URI: $uri")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-            // Проверяем необходимость обработки с оптимизированным кэшированием
-            if (shouldProcessImageOptimized(uri, currentMetadata)) {
-                if (ImageProcessingUtil.processImage(applicationContext, uri)) {
-                    LogUtil.processDebug("ImageDetectionJobService: запрос на обработку изображения отправлен: $uri")
-                    return@withContext ProcessingResult(processed = true)
-                } else {
-                    LogUtil.processDebug("ImageDetectionJobService: не удалось запустить обработку изображения: $uri")
-                    return@withContext ProcessingResult(skipped = true)
-                }
-            } else {
-                LogUtil.processDebug("ImageDetectionJobService: URI пропущен: $uri")
-                return@withContext ProcessingResult(skipped = true)
-            }
-            
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            LogUtil.error(uri, "URI_PROCESSING", "Ошибка при обработке URI", e)
-            return@withContext ProcessingResult(skipped = true)
-        }
-    }
-
-    /**
-     * Оптимизированная проверка необходимости обработки с использованием новых кэшей
-     */
-    private suspend fun shouldProcessImageOptimized(uri: Uri, metadata: BatchMediaStoreUtil.FileMetadata): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Получаем путь к файлу
-            val filePath = UriUtil.getFilePathFromUri(applicationContext, uri) ?: uri.toString()
-            
-            // Используем оптимизированный кэш для проверки директории
-            val isInAppDir = OptimizedCacheUtil.checkDirectoryStatus(filePath, Constants.APP_DIRECTORY)
-
-            if (isInAppDir) {
-                LogUtil.processDebug("Файл находится в директории приложения (оптимизированный кэш): $filePath")
-                return@withContext false
-            }
-
-            // Проверяем размер файла - если он слишком мал, пропускаем
-            if (metadata.size < Constants.OPTIMUM_FILE_SIZE) {
-                LogUtil.processDebug("Файл слишком мал для сжатия: ${metadata.size} байт")
-                return@withContext false
-            }
-            
-            // Проверяем EXIF-маркеры сжатия с оптимизированным кэшем
-            val cachedExif = OptimizedCacheUtil.getCachedExifData(uri, metadata.lastModified)
-            if (cachedExif != null) {
-                if (cachedExif.isCompressed) {
-                    // Проверяем, был ли файл изменен после сжатия
-                    val timeDiff = metadata.lastModified - cachedExif.compressionTimestamp
-                    if (timeDiff <= 20000) { // 20 секунд допустимая погрешность
-                        LogUtil.processDebug("Файл уже сжат согласно кэшированным EXIF-данным")
-                        return@withContext false
-                    }
-                }
-            }
-            
-            // Для более сложных проверок используем основную логику
-            return@withContext ImageProcessingUtil.shouldProcessImage(applicationContext, uri)
-            
-        } catch (e: Exception) {
-            LogUtil.error(uri, "OPTIMIZED_CHECK", "Ошибка при оптимизированной проверке", e)
-            return@withContext false
-        }
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
-        LogUtil.processDebug("onStopJob: задание остановлено, отменяем корутины")
-
-        val run = activeRun
-        if (run != null) {
-            synchronized(run) {
-                run.stopped = true
-                run.terminal.set(true)
-            }
-            run.scope.cancel()
-            if (activeRun === run) activeRun = null
-        }
-
-        // Возвращаем true, чтобы перепланировать задание
-        return true
+        val run = activeRun ?: return true
+        run.stopped = true
+        run.scope.cancel()
+        finishRun(run, reschedule = !run.alternateArmed)
+        return !run.alternateArmed
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        activeRun?.scope?.cancel()
+    private suspend fun processUris(uris: List<Uri>) = withContext(Dispatchers.IO) {
+        var durable = true
+        uris.forEach { uri ->
+            when (scheduler.enqueue(uri, origin = CompressionOrigin.AUTO)) {
+                CompressionEnqueueResult.RETRYABLE_FAILURE -> durable = false
+                else -> Unit
+            }
+        }
+        if (durable) SettingsManager.getInstance(applicationContext)
+            .setLastScanTimestamp(System.currentTimeMillis())
+    }
+
+    private suspend fun processOverflowScan() = withContext(Dispatchers.IO) {
+        val scan = GalleryScanUtil.scanRecentImages(applicationContext)
+        if (!scan.completedSuccessfully) return@withContext
+        var durable = true
+        scan.foundUris.forEach { uri ->
+            if (scheduler.enqueue(uri, origin = CompressionOrigin.AUTO) == CompressionEnqueueResult.RETRYABLE_FAILURE) {
+                durable = false
+            }
+        }
+        if (durable) SettingsManager.getInstance(applicationContext)
+            .setLastScanTimestamp(System.currentTimeMillis())
+    }
+
+    private fun finishRun(run: RunState, reschedule: Boolean) {
+        if (!run.terminal.compareAndSet(false, true)) return
+        try {
+            jobFinished(run.params, reschedule)
+        } catch (e: Exception) {
+            LogUtil.error(null, "JOB_FINISH", "Не удалось завершить Job", e)
+        }
+        if (activeRun === run) activeRun = null
+        if (reschedule && SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+            runCatching { scheduleJob(applicationContext) }
+        }
     }
 }
