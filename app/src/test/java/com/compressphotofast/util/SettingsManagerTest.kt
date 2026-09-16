@@ -176,7 +176,37 @@ class SettingsManagerTest : BaseUnitTest() {
         // Assert
         assertEquals(Constants.SAVE_MODE_SEPARATE, result)
     }
-    
+
+    // ==================== Исключение из оптимизации батареи ====================
+
+    @Test
+    fun `isBatteryExemptionRequested returns false when not set`() {
+        every { mockSharedPreferences.getBoolean(Constants.PREF_BATTERY_EXEMPTION_REQUESTED, false) } returns false
+
+        assertFalse(settingsManager.isBatteryExemptionRequested())
+    }
+
+    @Test
+    fun `isBatteryExemptionRequested returns true when previously requested`() {
+        every { mockSharedPreferences.getBoolean(Constants.PREF_BATTERY_EXEMPTION_REQUESTED, false) } returns true
+
+        assertTrue(settingsManager.isBatteryExemptionRequested())
+    }
+
+    @Test
+    fun `setBatteryExemptionRequested stores the value`() {
+        // Arrange
+        every { mockSharedPreferences.edit() } returns mockEditor
+        every { mockEditor.putBoolean(Constants.PREF_BATTERY_EXEMPTION_REQUESTED, true) } returns mockEditor
+
+        // Act
+        settingsManager.setBatteryExemptionRequested(true)
+
+        // Assert
+        verify { mockEditor.putBoolean(Constants.PREF_BATTERY_EXEMPTION_REQUESTED, true) }
+        verify { mockEditor.apply() }
+    }
+
     // ==================== Качество сжатия ====================
     
     @Test

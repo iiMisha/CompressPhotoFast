@@ -123,13 +123,13 @@ class ConstantsTest : BaseUnitTest() {
     @Test
     fun `проверка максимальной ширины изображения`() {
         // Arrange & Act & Assert
-        assertEquals(4096, Constants.MAX_IMAGE_WIDTH)
+        assertEquals(Int.MAX_VALUE, Constants.MAX_IMAGE_WIDTH)
     }
 
     @Test
     fun `проверка максимальной высоты изображения`() {
         // Arrange & Act & Assert
-        assertEquals(4096, Constants.MAX_IMAGE_HEIGHT)
+        assertEquals(Int.MAX_VALUE, Constants.MAX_IMAGE_HEIGHT)
     }
 
     // ========== Тесты экономии при сжатии ==========

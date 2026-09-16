@@ -92,8 +92,11 @@
     
     <string name="notification_completion_channel_name">Результаты сжатия</string>
     <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
+    <string name="notification_daily_stats_title">Сжато: %1$d</string>
+    <string name="notification_daily_stats_sizes">%1$s → %2$s</string>
+    <string name="notification_daily_stats_saved">Сэкономлено %1$s (%2$s%%)</string>
     
     <!-- Статусные сообщения -->
     <string name="compression_started">Сжатие изображения запущено</string>
     <string name="batch_compression_started">Запущено сжатие %1$d изображений</string>
-</resources> 
+</resources>

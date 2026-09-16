@@ -825,7 +825,7 @@ object ExifUtil {
                 }
                 
                 // 2. Сохраняем изменения в EXIF (с backup для защиты от повреждения)
-                val backupFile = File(context.cacheDir, "exif_backup_${System.currentTimeMillis()}.jpg")
+                val backupFile = File(BackupRegistry.getBackupDir(context), "exif_backup_${System.currentTimeMillis()}.jpg")
                 var backupCreated = false
                 try {
                     context.contentResolver.openInputStream(uri)?.use { input ->
@@ -846,7 +846,12 @@ object ExifUtil {
                 }
 
                 if (!backupCreated) {
-                    LogUtil.warning(uri, "EXIF backup", "Backup не создан — выполняем saveAttributes() без страховки")
+                    // ИНВАРИАНТ БЕЗОПАСНОСТИ: saveAttributes() перезаписывает файл
+                    // на месте. Без backup его выполнение может необратимо повредить
+                    // изображение при сбое — пропускаем запись EXIF, файл остаётся
+                    // целым (без маркера/тегов, но валидным).
+                    LogUtil.warning(uri, "EXIF backup", "Backup не создан — saveAttributes() отменён для защиты файла от повреждения")
+                    return@withContext false
                 }
 
                 try {

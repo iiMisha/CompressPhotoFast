@@ -20,6 +20,14 @@ object Constants {
     const val PREF_SHOW_COMPRESSION_TOAST = "show_compression_toast"
     const val PREF_LAST_SCAN_TIMESTAMP = "last_scan_timestamp"
     const val PREF_PENDING_BACKUPS = "pending_backups"
+    const val PREF_BATTERY_EXEMPTION_REQUESTED = "battery_exemption_requested"
+
+    // Локальная суточная статистика сжатия (не является пользовательской настройкой)
+    const val DAILY_COMPRESSION_STATS_PREF_FILE = "daily_compression_stats"
+    const val PREF_DAILY_STATS_EPOCH_DAY = "daily_stats_epoch_day"
+    const val PREF_DAILY_STATS_SUCCESSFUL_COUNT = "daily_stats_successful_count"
+    const val PREF_DAILY_STATS_ORIGINAL_BYTES = "daily_stats_original_bytes"
+    const val PREF_DAILY_STATS_COMPRESSED_BYTES = "daily_stats_compressed_bytes"
     
     // Режимы сохранения
     const val SAVE_MODE_REPLACE = 1
@@ -34,15 +42,16 @@ object Constants {
     const val WORK_INPUT_IMAGE_URI = "image_uri"
     const val WORK_COMPRESSION_QUALITY = "compression_quality"
     const val WORK_BATCH_ID = "batch_id"
+    const val WORK_ORIGIN = "work_origin"
+    const val WORK_DISCOVERED_AT = "work_discovered_at"
+    const val WORK_ENQUEUED_AT = "work_enqueued_at"
+    const val WORK_UNIQUE_DIGEST = "work_unique_digest"
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
     const val NOTIFICATION_ID_COMPRESSION = 1
     const val NOTIFICATION_ID_BACKGROUND_SERVICE = 2
     const val NOTIFICATION_ID_COMPRESSION_RESULT = 4
-    
-    // Групповые уведомления
-    const val NOTIFICATION_ID_COMPRESSION_SUMMARY = 10
 
     // Директории
     const val APP_DIRECTORY = "CompressPhotoFast"
@@ -63,6 +72,7 @@ object Constants {
     const val HISTORY_SCAN_WINDOW_SECONDS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60L
     const val HISTORY_SCAN_WINDOW_MILLIS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60 * 1000L
     const val CONTENT_OBSERVER_DELAY_SECONDS = 10L // 10 секунд задержки при обнаружении файла
+    const val AUTO_COMPRESSION_INITIAL_DELAY_SECONDS = 30L
     
     // Коды запросов
     const val REQUEST_CODE_DELETE_FILE = 12345
@@ -104,7 +114,10 @@ object Constants {
     // Обычно мы хотим сжать изображение как минимум на 20% от исходного размера
     const val MIN_COMPRESSION_RATIO = 0.8f
 
-    // Параметры декодирования изображений для оптимизации памяти
-    const val MAX_IMAGE_WIDTH = 4096  // Максимальная ширина изображения при декодировании
-    const val MAX_IMAGE_HEIGHT = 4096 // Максимальная высота изображения при декодировании
-} 
+    // Совместимые имена без фактического ограничения разрешения. Декодирование
+    // всегда сохраняет исходные pixel dimensions; admission контролирует память.
+    @Deprecated("Разрешение больше не ограничивается, используйте memory admission")
+    const val MAX_IMAGE_WIDTH = Int.MAX_VALUE
+    @Deprecated("Разрешение больше не ограничивается, используйте memory admission")
+    const val MAX_IMAGE_HEIGHT = Int.MAX_VALUE
+}

@@ -1,6 +1,7 @@
 package com.compressphotofast.worker
 
 import android.app.RecoverableSecurityException
+import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
@@ -15,6 +16,7 @@ import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.PendingItemException
 import com.compressphotofast.util.ImageCompressionUtil
+import com.compressphotofast.util.CompressionException
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.ImageProcessingChecker
@@ -23,11 +25,13 @@ import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.CompressionBatchTracker
-import com.compressphotofast.util.toInputStream
+import com.compressphotofast.util.CompressionExecutionGate
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.TimeoutCancellationException
+import java.io.FileInputStream
 
 /**
  * Worker для сжатия изображений в фоновом режиме
@@ -37,8 +41,13 @@ class ImageCompressionWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val uriProcessingTracker: UriProcessingTracker,
-    private val compressionBatchTracker: CompressionBatchTracker
+    private val compressionBatchTracker: CompressionBatchTracker,
+    private val executionGate: CompressionExecutionGate
 ) : CoroutineWorker(context, workerParams) {
+
+    companion object {
+        private const val MAX_TRANSIENT_ATTEMPTS = 5
+    }
 
     // Переопределяем поле applicationContext для удобного доступа
     private val appContext: Context
@@ -49,11 +58,19 @@ class ImageCompressionWorker @AssistedInject constructor(
     
     // ID батча для группировки результатов (может быть null для старых задач)
     private val batchId = inputData.getString(Constants.WORK_BATCH_ID)
+    private val workOrigin = inputData.getString(Constants.WORK_ORIGIN)
+        ?: if (batchId.isNullOrEmpty()) "AUTO" else "MANUAL"
+    private var markRecentlyProcessed = false
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        LogUtil.processDebug("ImageCompressionWorker.doWork() НАЧАЛО: ${inputData.getString(Constants.WORK_INPUT_IMAGE_URI)}")
+        LogUtil.processDebug(
+            "ImageCompressionWorker.doWork() НАЧАЛО: uri=${inputData.getString(Constants.WORK_INPUT_IMAGE_URI)}, " +
+                "origin=$workOrigin, discoveredAt=${inputData.getLong(Constants.WORK_DISCOVERED_AT, 0L)}, " +
+                "enqueuedAt=${inputData.getLong(Constants.WORK_ENQUEUED_AT, 0L)}, attempt=$runAttemptCount"
+        )
         var testResult: ImageCompressionUtil.CompressionTestResult? = null
         var isLockOwner = false
+        var isExecutionGateOwner = false
         val uriStringInput = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
         val globalImageUri = if (uriStringInput != null) Uri.parse(uriStringInput) else null
         try {
@@ -66,17 +83,9 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             val imageUri = Uri.parse(uriString)
 
-            // ЗАХВАТ БЛОКИРОВКИ (в самом начале, до чтения EXIF)
-            val isHandledByIpu = inputData.getBoolean("is_handled_by_ipu", false)
-            val addedToProcessing = if (isHandledByIpu) {
-                // IPU добавил URI в трекер и не снял — Worker наследует владение.
-                // addProcessingUriSafe — перестраховка: если cleanup уже удалил URI, добавим заново.
-                // Результат игнорируем: IPU гарантирует эксклюзивность через per-URI WorkManager tag
-                uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker_Takeover")
-                true
-            } else {
-                uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
-            }
+            // Durable enqueue не владеет process-local lock. Владелец определяется
+            // только фактическим Worker, включая legacy WorkSpec.
+            val addedToProcessing = uriProcessingTracker.addProcessingUriSafe(imageUri, "ImageCompressionWorker")
             
             isLockOwner = addedToProcessing
             if (!addedToProcessing) {
@@ -113,10 +122,33 @@ class ImageCompressionWorker @AssistedInject constructor(
                 // Файл всё ещё пишется другим процессом/приложением; повторная попытка позже
                 // позволит корректно обработать его после завершения записи.
                 LogUtil.warning(imageUri, "Ранняя проверка", "Файл в pending-состоянии, планирую retry")
-                return@withContext Result.retry()
+                return@withContext retryOrFinish(imageUri, "early pending", e)
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
                 return@withContext Result.failure()
+            }
+
+            // Дешёвую проверку pending выполняем до gate, чтобы один пишущийся
+            // файл не удерживал тяжёлую фазу соседних URI.
+            if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
+                LogUtil.skipImage(imageUri, "Файл находится в процессе записи, планирую retry")
+                return@withContext retryOrFinish(imageUri, "pending before execution gate", null)
+            }
+
+            // Один permit на тяжёлую фазу. Не меняем глобальный executor WorkManager.
+            executionGate.acquire()
+            isExecutionGateOwner = true
+
+            // Повторная проверка после входа в gate закрывает race legacy/v2
+            // и изменения EXIF между discovery и фактическим запуском.
+            val gatedProcessingCheck = ImageProcessingChecker.isProcessingRequired(
+                appContext, imageUri, forceProcess = true
+            )
+            if (!gatedProcessingCheck.processingRequired &&
+                gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
+            ) {
+                markRecentlyProcessed = true
+                return@withContext Result.success()
             }
 
             // Обновляем уведомление
@@ -146,17 +178,10 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (!processingCheckResult.processingRequired &&
                 processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED) {
                 updateForegroundForMode("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}")
+                markRecentlyProcessed = true
                 return@withContext Result.success()
             }
 
-            // Блокировка URI теперь захватывается в самом начале doWork()
-            
-            // Проверка на временный файл
-            if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
-                LogUtil.skipImage(imageUri, "Файл находится в процессе записи, планирую retry")
-                return@withContext Result.retry()
-            }
-            
             // Начинаем отслеживание сжатия
             StatsTracker.startTracking(imageUri)
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
@@ -173,6 +198,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (!FileOperationsUtil.isFileSizeValid(sourceSize)) {
                 LogUtil.uriInfo(imageUri, "Размер файла невалидный: $sourceSize, пропускаем")
                 updateForegroundForMode("📏 ${appContext.getString(R.string.notification_skipping_invalid_size)}")
+                markRecentlyProcessed = true
                 return@withContext Result.success()
             }
             
@@ -221,6 +247,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                     sourceSize = sourceSize
                 )
             }
+        } catch (e: TimeoutCancellationException) {
+            LogUtil.warning(globalImageUri, "Сжатие", "Превышен лимит времени, планирую retry")
+            return@withContext retryOrFinish(globalImageUri, "timeout", e)
         } catch (e: kotlinx.coroutines.CancellationException) {
             // Отмена корутины (WorkManager отменил задачу / таймаут / shutdown).
             // Пробрасываем, чтобы структурированная конкуренция корректно завершила корутину.
@@ -230,19 +259,21 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие", "Ошибка при сжатии изображения", e)
 
-            // Для временных (transient) ошибок планируем retry вместо необратимого
-            // пропуска фото. ExistingWorkPolicy.APPEND_OR_REPLACE выбрасывает провалившуюся
-            // задачу из очереди, поэтому без retry фото будет потеряно навсегда.
+            // Все transient-ветки используют единый bounded retry.
             val isTransient = e is java.io.IOException ||
                 e is PendingItemException ||
-                e is RecoverableSecurityException
+                e is RecoverableSecurityException ||
+                e is CompressionException.InsufficientMemory ||
+                e is CompressionException.OutOfMemory ||
+                e is ForegroundServiceStartNotAllowedException ||
+                e is SecurityException ||
+                (e is IllegalStateException && e.message?.contains("foreground", ignoreCase = true) == true)
             if (isTransient) {
-                LogUtil.warning(
+                return@withContext retryOrFinish(
                     globalImageUri,
-                    "Сжатие",
-                    "Временная ошибка (${e.javaClass.simpleName}), планирую retry: ${e.message}"
+                    "${e.javaClass.simpleName}: ${e.message}",
+                    e
                 )
-                return@withContext Result.retry()
             }
 
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
@@ -255,11 +286,27 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             return@withContext Result.failure()
         } finally {
+            testResult?.deleteArtifact()
+            if (isExecutionGateOwner) executionGate.release()
             if (isLockOwner && globalImageUri != null) {
                 uriProcessingTracker.removeProcessingUriSafe(globalImageUri)
-                uriProcessingTracker.addRecentlyProcessedUri(globalImageUri)
+                if (markRecentlyProcessed) {
+                    uriProcessingTracker.addRecentlyProcessedUri(globalImageUri)
+                }
             }
         }
+    }
+
+    private fun retryOrFinish(uri: Uri?, reason: String, error: Throwable?): Result {
+        val attempt = runAttemptCount + 1
+        if (attempt < MAX_TRANSIENT_ATTEMPTS) {
+            LogUtil.warning(uri, "Сжатие", "Transient attempt $attempt/$MAX_TRANSIENT_ATTEMPTS: $reason")
+            if (error != null) LogUtil.error(uri, "Сжатие", "Transient detail", error)
+            return Result.retry()
+        }
+        LogUtil.warning(uri, "Сжатие", "Transient retry исчерпан ($attempt): $reason")
+        if (error != null) LogUtil.error(uri, "Сжатие", "Transient detail", error)
+        return Result.failure()
     }
 
     /**
@@ -281,7 +328,7 @@ class ImageCompressionWorker @AssistedInject constructor(
      * сжатии множества фото.
      */
     private suspend fun updateForegroundForMode(singleModeText: String) {
-        if (batchId.isNullOrEmpty()) {
+        if (workOrigin == "MANUAL") {
             setForeground(createForegroundInfo(singleModeText))
         } else {
             setForeground(NotificationUtil.createSilentForegroundInfo(
@@ -331,20 +378,20 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
 
         // Используем уже сжатый поток из параметров теста
-        val compressedImageStream = testResult.compressedStream
+        val compressedImageFile = testResult.compressedFile
 
-        if (compressedImageStream == null) {
-            LogUtil.error(imageUri, "Сжатие", "Сжатый поток утерян (null)")
+        if (compressedImageFile == null || !compressedImageFile.exists()) {
+            LogUtil.error(imageUri, "Сжатие", "Сжатый artifact утерян (null или удалён)")
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
         }
 
         // Сохраняем сжатое изображение с гарантированным закрытием потока
-        val savedUri = compressedImageStream.use { stream ->
+        val savedUri = FileInputStream(compressedImageFile).use { stream ->
             MediaStoreUtil.saveCompressedImageFromStream(
                 context = appContext,
-                inputStream = stream.toInputStream(),
+                inputStream = stream,
                 fileName = finalFileName,
                 directory = directory,
                 originalUri = imageUri,
@@ -379,6 +426,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
+        }
+
+        // Учитываем только сохранённый и проверенный файл, независимо от удаления оригинала.
+        val compressedSize = UriUtil.getFileSize(appContext, savedUri) ?: testCompressionResult.compressedSize
+        StatsTracker.recordSuccessfulCompression(appContext, sourceSize, compressedSize)?.let {
+            NotificationUtil.updateBackgroundServiceNotification(appContext, it)
         }
 
         // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
@@ -422,11 +475,10 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             updateForegroundForMode("⚠️ Ошибка удаления оригинала")
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+            markRecentlyProcessed = true
             return Result.success()
         }
 
-        // Получаем размер сжатого файла для уведомления
-        val compressedSize = UriUtil.getFileSize(appContext, savedUri) ?: testCompressionResult.compressedSize
         val sizeReduction = if (sourceSize > 0 && compressedSize > 0) {
             FileOperationsUtil.computeSizeReductionPercent(sourceSize, compressedSize)
         } else testCompressionResult.sizeReduction
@@ -443,6 +495,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         updateForegroundForMode("✅ ${appContext.getString(R.string.notification_compression_completed)}")
 
         StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
+        markRecentlyProcessed = true
         return Result.success()
     }
 
@@ -489,6 +542,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         )
 
         StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
+        markRecentlyProcessed = true
         return Result.success()
     }
 

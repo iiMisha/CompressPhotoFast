@@ -205,23 +205,45 @@ object FileOperationsUtil {
      * @param estimatedBytes Оценочный размер в байтах
      * @return true если достаточно памяти, иначе false
      */
-    fun hasEnoughMemory(context: Context, estimatedBytes: Long): Boolean {
+    fun availableMemoryBytes(context: Context): Long {
+        val runtime = Runtime.getRuntime()
+        val heapAvailable = (runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())).coerceAtLeast(0L)
         return try {
             val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            if (activityManager == null) return heapAvailable
             val memoryInfo = ActivityManager.MemoryInfo()
-            activityManager?.getMemoryInfo(memoryInfo)
+            activityManager.getMemoryInfo(memoryInfo)
+            minOf(heapAvailable, memoryInfo.availMem)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Проверка доступной памяти", e)
+            heapAvailable
+        }
+    }
 
-            val availableMem = memoryInfo.availMem
-            // Оставляем запас 100MB для системы
-            val minRequired = estimatedBytes + (100 * 1024 * 1024)
-            val hasMemory = availableMem >= minRequired
+    fun hasEnoughMemory(context: Context, estimatedBytes: Long): Boolean {
+        return try {
+            val runtime = Runtime.getRuntime()
+            val heapAvailable = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())
+            // Учитываем одновременно process heap и системный low-memory signal.
+            val reserve = 32L * 1024 * 1024
+            val minRequired = estimatedBytes + reserve
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            val memoryInfo = ActivityManager.MemoryInfo()
+            val availableMem = if (activityManager != null) {
+                activityManager.getMemoryInfo(memoryInfo)
+                memoryInfo.availMem
+            } else {
+                Long.MAX_VALUE
+            }
+            val hasMemory = !memoryInfo.lowMemory &&
+                availableMem >= minRequired && heapAvailable >= minRequired
 
             if (!hasMemory) {
                 LogUtil.error(
                     null,
                     "Проверка памяти",
                     "Недостаточно памяти: требуется ${minRequired / 1024 / 1024}MB, " +
-                            "доступно ${availableMem / 1024 / 1024}MB"
+                            "доступно system=${availableMem / 1024 / 1024}MB, heap=${heapAvailable / 1024 / 1024}MB"
                 )
             }
 
@@ -345,4 +367,4 @@ object FileOperationsUtil {
         val end = fileName.substring(fileName.length - maxLength / 2 + 1)
         return "$start...$end"
     }
-} 
+}

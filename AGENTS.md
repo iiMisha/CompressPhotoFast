@@ -1,130 +1,63 @@
-# CompressPhotoFast — Проектная документация
+# CompressPhotoFast
 
-**Версия:** 2.2.10 | **ОС:** Linux Mint | **Язык проекта:** Русский
+Кроссплатформенная утилита сжатия фото с сохранением EXIF: Android (API 29+) и Python CLI (3.10+). Язык проекта: русский. Версия: `2.2.10`.
 
----
+## Быстрые правила
 
-## ⚡️ Шпаргалка разработчика
+- Для сборки или передачи APK обязательно использовать навык `apk`.
+- Android-тесты запускать через навык `android-test-suite`; по умолчанию только unit-тесты.
+- Не обходить ограничения Android для force stop, отозванных разрешений и ручных ограничений батареи.
+- Не удалять код, используемый в `test` или `androidTest`, без одновременного обновления тестов.
 
-```bash
-# Чтение текущего контекста и статуса
-# Статус: [AGENTS.md: Active]
+## Стек
 
-# Сборка проекта
-./gradlew assembleDebug
+- Android: Kotlin 2.2.10, Coroutines, Hilt, WorkManager, DataStore, Coil, ExifInterface; minSdk 29, targetSdk 36.
+- Тесты: JUnit, MockK, Robolectric, Espresso, JaCoCo.
+- CLI: Pillow, pillow-heif, piexif, Click, Rich, tqdm, `ProcessPoolExecutor`.
 
-# Запуск тестов
-./scripts/run_unit_tests.sh
-./scripts/run_instrumentation_tests.sh
-./scripts/run_all_tests.sh
-```
+## Архитектура Android
 
----
+- UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt`.
+- Сжатие: `worker/ImageCompressionWorker.kt`, `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `util/CompressionWorkScheduler.kt`, `util/CompressionExecutionGate.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
+- Настройки и данные: `util/SettingsManager.kt`, `MediaStore`.
+- Инфраструктура: `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.
+- Мониторинг: `service/BackgroundMonitoringService.kt`, `service/ImageDetectionJobService.kt`, `service/MonitoringController.kt`, `service/BootCompletedReceiver.kt`.
+- CLI: `compressphotofast-cli/src/cli.py`, `compressphotofast-cli/src/compression.py`.
 
-## 📋 Обзор проекта
+## Инварианты сжатия
 
-Кроссплатформенная утилита сжатия фото с сохранением EXIF (Android API 29+ и CLI Python 3.10+).
+- Не сжимать файлы меньше 100 КБ.
+- Сохранять результат, только если экономия не меньше 30% и 10 КБ.
+- Маркировать сжатые файлы EXIF-тегом `CompressPhotoFast_Compressed:quality:timestamp`.
+- Сохранять исходное разрешение; память контролировать admission-проверкой, software/low-RAM decode и `RGB_565` для JPEG, пакетно работать с MediaStore.
+- Python-логика должна сохранять семантическое соответствие Android-реализации.
 
-- **Проблема:** Большой размер фото, неудобство ручного сжатия перед отправкой.
-- **Решение:** Фоновое автообнаружение новых фото + ручной/пакетный режимы сжатия с гибкими настройками качества.
-- **Синхронизация AI:** Симлинки `.agents/` → `.claude/`, `.gemini/`, `.opencode/`, `.qwen/` для синхронизации агентов и скиллов.
+## Актуальный контекст
 
----
+- Мониторинг фото работает как `specialUse` foreground service на API 34+; `MonitoringController` централизует запуск и остановку.
+- Сервис использует `START_STICKY`, корректно отменяет резервный Job при ручной остановке и восстанавливается после перезагрузки или обновления приложения.
+- При первом включении автосжатия однократно запрашивается исключение из оптимизации батареи; флаг хранится в `SettingsManager`.
+- Игнорирование фото из мессенджеров удалено: защита от повторного сжатия основана на проверке эффективности.
+- Реализованы резервное копирование и восстановление исходного файла при неудаче файловых операций.
+- UI/E2E instrumentation-тесты удалены как неактуальные; сохранены интеграционные тесты утилит и сервисов.
+- Recovery после LMK/OEM kill: cold-start и JobScheduler best-effort восстанавливают FGS, reconciliation независимо от FGS восстанавливает MediaStore URI, content-trigger использует два чередующихся job ID.
+- Новые URI ставятся в per-URI unique WorkManager works через SHA-256 identity: auto settle задержан на 30 секунд, manual final-work expedited без delay; legacy `sequential_image_compression` не отменяется и дренируется bounded Worker.
+- Тяжёлая Bitmap/MediaStore-фаза сериализуется `CompressionExecutionGate`; transient retry ограничен пятью попытками с линейным backoff, проблемный URI не блокирует соседние.
+- Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
+- Gallery scan возвращает `completedSuccessfully`, использует overlap watermark и не продвигает его после ошибки/null cursor; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
-## 🛠 Технологический стек
+## Проверка и релиз
 
-### Android
-- Kotlin 2.2.10, Coroutines 1.10.2, Hilt 2.57.1 (DI), WorkManager 2.10.3
-- Compressor 3.0.1, Coil 3.3.0, DataStore 1.1.7, ExifInterface 1.4.1
-- JUnit, MockK, Espresso, JaCoCo, Test Orchestrator 1.5.0
-- SDK: minSdk 29, targetSdk 36
+- Сборка: `./gradlew assembleDebug`.
+- Unit-тесты: `./gradlew testDebugUnitTest` через навык `android-test-suite`.
+- Instrumentation-тесты: `./scripts/run_instrumentation_tests.sh`; нужен эмулятор `Small_Phone`.
+- Перед релизом: `./scripts/run_all_tests.sh`, затем `./gradlew assembleDebug` и `./gradlew assembleRelease`.
+- Версию обновлять в `gradle.properties` (`VERSION_NAME_BASE`) и `app/build.gradle.kts` (`versionCode`).
 
-### CLI (Python 3.10+)
-- Pillow, pillow-heif, piexif, Click, Rich, tqdm, ProcessPoolExecutor
+## Рабочий процесс
 
----
-
-## 🏛 Архитектура приложения
-
-### Android-слои
-- **UI:** [MainActivity.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/ui/MainActivity.kt), [MainViewModel.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/ui/MainViewModel.kt)
-- **Domain (Бизнес-логика):** [ImageCompressionUtil.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/ImageCompressionUtil.kt), [ImageCompressionWorker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/worker/ImageCompressionWorker.kt), [SettingsManager.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/SettingsManager.kt)
-- **Data:** MediaStore, SettingsManager
-- **DI & Singletons:** [AppModule.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/di/AppModule.kt), [UriProcessingTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/UriProcessingTracker.kt), [PerformanceMonitor.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/PerformanceMonitor.kt), [CompressionBatchTracker.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/util/CompressionBatchTracker.kt)
-
-### Фоновая обработка
-- [BackgroundMonitoringService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BackgroundMonitoringService.kt) — отслеживание новых изображений
-- [ImageDetectionJobService.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/ImageDetectionJobService.kt) — периодический поиск
-- [BootCompletedReceiver.kt](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/src/main/java/com/compressphotofast/service/BootCompletedReceiver.kt) — автозапуск после перезагрузки
-
-### CLI (Python)
-- [cli.py](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/compressphotofast-cli/src/cli.py) — точка входа, [compression.py](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/compressphotofast-cli/src/compression.py) — логика сжатия
-
----
-
-## ⚙️ Бизнес-логика сжатия
-
-- **Минимальный размер:** 100 КБ (меньшие файлы не сжимаются)
-- **Эффективность:** экономия от 30% + 10 КБ (иначе сжатие отменяется)
-- **Маркер сжатого файла:** EXIF-тэг `CompressPhotoFast_Compressed:quality:timestamp`
-
----
-
-## 💎 Стиль кода и гайдлайны
-
-- **Kotlin:** MVVM, DI (Hilt), Coroutines (без Handler/GlobalScope), обязательные методы `destroy()` для очистки, `inSampleSize` и `RGB_565` для экономии памяти, пакетные операции MediaStore.
-- **Python:** Идентичная Android-части логика сжатия, пул процессов `ProcessPoolExecutor`.
-
----
-
-## 🎯 Текущий фокус (Июнь 2026)
-
-### В работе (незакоммиченные изменения)
-- 📌 **Удаление фичи «игнорирование фото из мессенджеров»** (Android) — корень бага: при `ignore_messenger_photos=true` эффективное HEIC-сжатие (-51%) пропускалось через `MESSENGER_PHOTO`, затем `writeExifDataFromMemory` пытался записать маркер в оригинальный HEIC → ExifInterface падал → backup восстанавливал оригинал → HEIC-fallback переименовывал несжатый файл в `*_compressed.heic` (ложный маркер сжатия). Полностью убрана фича: удалены настройка `PREF_IGNORE_MESSENGER_PHOTOS` + геттер/сеттеры в `SettingsManager`, значение `MESSENGER_PHOTO` в enum `ProcessingSkipReason`, блоки проверки мессенджер-фото в `ImageProcessingChecker`/`ImageDetectionJobService`, упрощён `shouldSkipCompression` в `ImageCompressionWorker` до проверки только эффективности (≥30% + 10KB), удалена messenger-инфраструктура в `OptimizedCacheUtil` (`messengerPatterns`, `checkIsMessengerImage`, поле `isMessengerImage`), UI-переключатель в `activity_main.xml`/`MainActivity`/`MainViewModel`/`strings.xml`. Защита от пережимания остаётся через проверку эффективности сжатия. CLI (Python) не затронут. Верификация: `assembleDebug` зелёная, unit-тесты проходят, `compileDebugAndroidTestKotlin` зелёная.
-- 📌 **Очистка мёртвого кода v3 (Tier 1)** (Android) — по плану `.kilo/plans/dead-code-cleanup-v3.md`. Реально Tier 1 (используется только в main, не в test/androidTest): `MainViewModel.workObservers` поле + блок очистки в `onCleared()` + 3 импорта (`Observer`, `WorkInfo`, `UUID`); orphaned KDoc в `ImageProcessingChecker.kt` над `ProcessingCheckResult`. Сборка зелёная, 330 unit-тестов проходят.
-- 📌 **Очистка мёртвого кода v3 (Tier 1)** (Android) — по плану `.kilo/plans/dead-code-cleanup-v3.md`. Реально Tier 1 (используется только в main, не в test/androidTest): `MainViewModel.workObservers` поле + блок очистки в `onCleared()` + 3 импорта (`Observer`, `WorkInfo`, `UUID`); orphaned KDoc в `ImageProcessingChecker.kt` над `ProcessingCheckResult`. Сборка зелёная, 330 unit-тестов проходят.
-- ⚠️ **Скорректированные пункты плана (Test-only / Tier 2)** — 3 из 5 пунктов плана v3 оказались test-only и НЕ удалены (план неверно оценил «0 references», не проверив `test`/`androidTest`): `Constants.PREF_COMPRESSION_PRESET` (исп. в `SettingsIntegrationTest.kt:238,245`), `StatsTracker.COMPRESSION_STATUS_NONE` (исп. в `StatsTrackerTest.kt:25`), 5 `*Compat`-методов + instance `getActiveBatchCount()`/`clearAllBatches()` в `CompressionBatchTracker.kt` (~80 вызовов в `CompressionBatchTrackerTest.kt`). Удаление требует правки тестов (Tier 2, отклонено пользователем).
-- 📌 **Очистка мёртвого и дублирующегося кода v2** (Android, -654 строки) — удалены: мёртвые функции (`createTempImageFile`, `insertImageIntoMediaStore`, `showProgressNotification`, `cancelNotification`, 3× `destroy()`, `withUriLock`, `safelyProcessAfterRemoval`, `cleanupExpiredEntries`, `addPendingRenameRequest`, каскадно `addProcessingUri`/`cleanupUnusedMutexes`/`MAX_MUTEX_COUNT`), мёртвые подклассы исключений (`UnsupportedFormat`, `PermissionDenied`, `IoError` + catch-блоки), мёртвый broadcast-канал RENAME целиком (`renamePermissionReceiver`, `renameRequestLauncher`, `permissionRequest`, `requestPermission`, константы), неиспользуемые импорты (~35, включая всю цепочку `id.zelory.compressor`), закомментированный код; устранены дубликаты (verifyImageIntegrity, GPS-массив ×3, backup-restore ×2, хелперы `computeSizeReductionPercent`/`splitNameAndExtension`, HEIC-проверка); исправлен баг: канал `compression_errors` теперь создаётся. Сборка зелёная, 330 unit-тестов проходят.
-
-### Недавние изменения (закоммиченные)
-- ✅ **Оптимизация архитектуры UI** (`f463068`) — удалены `SequentialImageProcessor`, BroadcastReceiver'ы пропуска/готовности, избыточные наблюдатели в MainViewModel/MainActivity (-626 строк)
-- ✅ **Удаление избыточного кода** (`87478cb`) — консолидация AppModule, MediaStoreObserver, OptimizedCacheUtil, UriProcessingTracker (-472 строки)
-- ✅ **Удаление избыточных утилит** (`7186907`) — удалены `FileInfoUtil`, `Result`, `SettingsDataStore`; убран дублирующий `processingUris` в StatsTracker
-- ✅ **Надежность работы с файлами и сервисами** (`f46f571`) — CancellationException cleanup, очистка ресурсов в unregister/onStopJob
-- ✅ **Надежность файловых операций** (`ce844d1`) — `read() != -1` вместо `available()`, `rwt` для Android 12+
-- ✅ **Race conditions в обнаружении** (`395b895`) — убран TOCTOU, synchronized batch, STALE_URI_THRESHOLD 30 мин
-- ✅ **Отслеживание времени сканирования** (`67b1543`) — динамическое окно сканирования на основе timestamp
-
-### Метрики
-- Исходный код: 34 Kotlin-файла, 9 Python-файлов
-- Покрытие тестами: 330 Unit-тестов (проходят), 248 Instrumentation-тестов (проходят)
-- Версия: 2.2.10
-
-### Известные проблемы
-- 🚫 Активных известных проблем не обнаружено. Дубликаты при серийной съемке (burst) и дробление батчей успешно решены.
-
----
-
-## 🧪 Тестирование и релиз
-
-### Команды
-- **Unit-тесты:** `./gradlew testDebugUnitTest` (или через [run_unit_tests.sh](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/scripts/run_unit_tests.sh))
-- **Instrumentation-тесты:** [run_instrumentation_tests.sh](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/scripts/run_instrumentation_tests.sh) (требуется запущенный эмулятор `Small_Phone`)
-- **Все тесты:** [run_all_tests.sh](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/scripts/run_all_tests.sh) (запуск перед релизом)
-
-### Обновление версии (в [gradle.properties](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/gradle.properties) и [build.gradle.kts](file:///home/misha/Документы/1 Проекты/CompressPhotoFast/app/build.gradle.kts))
-1. Обновить `VERSION_NAME_BASE`
-2. Инкрементировать `versionCode`
-3. Собрать сборки: `./gradlew assembleDebug` и `./gradlew assembleRelease`
-
----
-
-## 🔄 Шаблоны рабочих процессов (Workflows)
-
-### Рефакторинг кода (code-analyzer)
-**Когда:** Оптимизация, устранение дублирования, мёртвого кода.
-**Шаги:**
-1. Запустить `/code-analyzer` для анализа.
-2. Использовать `voltagent-lang:kotlin-specialist` для рефакторинга.
-3. Выполнить сборку: `./gradlew assembleDebug`.
-4. Зафиксировать изменения в Git и запустить `/agents-updater`.
+1. Внести изменения в код.
+2. Проверить сборку Android командой `./gradlew assembleDebug`.
+3. Запустить unit-тесты `./gradlew testDebugUnitTest` через навык `android-test-suite`.
+4. Обновить этот файл навыком `agents-updater`, сохраняя его кратким и актуальным.
+5. Собрать и расшарить debug-APK через навык `apk`.

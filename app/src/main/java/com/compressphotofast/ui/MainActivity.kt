@@ -13,7 +13,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.provider.Settings
 import android.text.Html
 import android.transition.TransitionManager
 import android.view.View
@@ -26,23 +25,25 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.work.WorkInfo
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
-import com.compressphotofast.service.BackgroundMonitoringService
-import com.compressphotofast.service.ImageDetectionJobService
+import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.ui.CompressionPreset
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.CompressionEnqueueResult
+import com.compressphotofast.util.CompressionOrigin
+import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
+import com.compressphotofast.util.BatteryOptimizationHelper
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.worker.GalleryReconciliationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var compressionBatchTracker: CompressionBatchTracker
+
+    @Inject
+    lateinit var compressionWorkScheduler: CompressionWorkScheduler
 
     // Запуск запроса разрешений
 
@@ -219,6 +223,8 @@ class MainActivity : AppCompatActivity() {
         
         // Инициализация менеджера разрешений
         permissionsManager = PermissionsManager(this)
+
+        GalleryReconciliationWorker.schedule(this, catchUp = true)
         
         // Обрабатываем действие остановки
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {
@@ -237,9 +243,6 @@ class MainActivity : AppCompatActivity() {
         // Проверяем, есть ли отложенные запросы на удаление файлов
         checkPendingDeleteRequests()
         
-        // Очистка застрявших works от предыдущей сессии
-        cleanupStuckWorkManagerChain()
-        
         // Запрашиваем разрешения только если это не Share интент
         if (intent?.action != Intent.ACTION_SEND && intent?.action != Intent.ACTION_SEND_MULTIPLE) {
             checkAndRequestPermissions()
@@ -254,30 +257,6 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
     
-    /**
-     * Очищает застрявшие works из цепочки sequential_image_compression
-     * при запуске приложения. Защищает от блокировки цепочки из-за
-     * killed-сессии (work остаётся в RUNNING/ENQUEUED).
-     */
-    private fun cleanupStuckWorkManagerChain() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val workManager = androidx.work.WorkManager.getInstance(this@MainActivity)
-                val workInfos = workManager.getWorkInfosForUniqueWork("sequential_image_compression").get()
-                val stuckCount = workInfos.count {
-                    it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
-                }
-                if (stuckCount > 50) {
-                    LogUtil.processDebug("Очистка $stuckCount застрявших works при запуске (из ${workInfos.size} всего)")
-                    workManager.cancelUniqueWork("sequential_image_compression")
-                } else if (stuckCount > 0) {
-                    LogUtil.processDebug("WorkManager: $stuckCount активных works (норма)")
-                }
-            } catch (e: Exception) {
-                LogUtil.processDebug("WorkManager: ошибка при очистке: ${e.message}")
-            }
-        }
-    }
     
     /**
      * Извлекает URI из Intent в зависимости от его типа
@@ -391,19 +370,31 @@ class MainActivity : AppCompatActivity() {
             var processedCount = 0
 
             for (uri in validUris) {
+                try {
+                    val flags = intent.flags and
+                        (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    if (flags != 0) contentResolver.takePersistableUriPermission(uri, flags)
+                } catch (_: Exception) {
+                    // Provider may not support persistable grants.
+                }
                 LogUtil.processDebug("handleIntent: Обработка валидного URI: $uri")
                 logFileDetails(uri)
 
                 try {
                     // Принудительно обрабатываем изображения, полученные через Share, передаем batch ID
-                    val result = ImageProcessingUtil.handleImage(this@MainActivity, uri, forceProcess = true, batchId = batchId)
+                    val result = compressionWorkScheduler.enqueue(
+                        uri,
+                        forceProcess = true,
+                        batchId = batchId,
+                        origin = CompressionOrigin.MANUAL
+                    )
 
                     // Считаем обработанные изображения
-                    if (result.first && result.second) {
+                    if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) {
                         processedCount++
                     } else {
                         // Ошибки или уже обработанные изображения
-                        LogUtil.processDebug("handleIntent: URI $uri пропущен: ${result.third}")
+                        LogUtil.processDebug("handleIntent: URI $uri пропущен: $result")
                     }
                 } catch (e: Exception) {
                     LogUtil.error(uri, "Intent обработка", "Критическая ошибка при обработке: ${e.message}")
@@ -487,21 +478,12 @@ class MainActivity : AppCompatActivity() {
         
         // Добавляем обработчик нажатия на предупреждение для перехода в настройки
         binding.tvBackgroundModeWarning.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                val uri = Uri.fromParts("package", packageName, null)
-                intent.data = uri
-                startActivity(intent)
+            // Открываем экран исключения из оптимизации батареи (с fallback на настройки приложения).
+            val started = BatteryOptimizationHelper.openBatterySettings(this)
+            if (started) {
                 showToast(getString(R.string.notification_toast_battery_settings))
-            } catch (e: Exception) {
-                LogUtil.errorWithMessageAndException("APP_SETTINGS", "Ошибка при открытии настроек приложения", e)
-                try {
-                    val intent = Intent(Settings.ACTION_APPLICATION_SETTINGS)
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    LogUtil.errorWithMessageAndException("APP_SETTINGS", "Ошибка при открытии общих настроек приложений", e)
-                    showToast("Пожалуйста, откройте настройки вручную")
-                }
+            } else {
+                showToast("Пожалуйста, откройте настройки вручную")
             }
         }
         
@@ -530,11 +512,37 @@ class MainActivity : AppCompatActivity() {
         binding.switchAutoCompression.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setAutoCompression(isChecked)
             if (isChecked) {
+                // При первом включении запрашиваем исключение из оптимизации батареи (Doze),
+                // чтобы фоновая служба работала максимально надёжно.
+                requestBatteryExemptionIfNeeded()
                 setupBackgroundService()
             }
         }
         binding.switchSaveMode.setOnCheckedChangeListener { _, isChecked ->
             viewModel.setSaveMode(isChecked)
+        }
+    }
+
+    /**
+     * Запрашивает исключение приложения из оптимизации батареи при первом включении
+     * автосжатия. Флаг [SettingsManager.isBatteryExemptionRequested] предотвращает
+     * повторные навязчивые системные диалоги при отказе. Отказ не отключает автосжатие.
+     */
+    private fun requestBatteryExemptionIfNeeded() {
+        val settingsManager = SettingsManager.getInstance(this)
+        if (settingsManager.isBatteryExemptionRequested()) return
+
+        // Если система уже исключила приложение — просто отмечаем флаг.
+        if (BatteryOptimizationHelper.isExempted(this)) {
+            settingsManager.setBatteryExemptionRequested(true)
+            return
+        }
+
+        // Отмечаем ДО показа диалога, чтобы при отказе не показывать его повторно.
+        settingsManager.setBatteryExemptionRequested(true)
+        val started = BatteryOptimizationHelper.requestExemption(this)
+        if (!started) {
+            showToast(getString(R.string.notification_toast_battery_settings))
         }
     }
 
@@ -562,6 +570,12 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Ре-синхронизируем UI с актуальными значениями prefs (защита от рассинхрона)
         syncSwitchesFromPrefs()
+        // Если система уже исключила приложение из оптимизации батареи — отмечаем флаг,
+        // чтобы не запрашивать повторно при следующем включении автосжатия.
+        val settingsManager = SettingsManager.getInstance(this)
+        if (!settingsManager.isBatteryExemptionRequested() && BatteryOptimizationHelper.isExempted(this)) {
+            settingsManager.setBatteryExemptionRequested(true)
+        }
     }
 
     /**
@@ -643,31 +657,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Настройка фоновой службы
+     * Настройка фоновой службы через единый контроллер мониторинга.
      */
     private fun setupBackgroundService() {
         val isEnabled = viewModel.isAutoCompressionEnabled()
         LogUtil.processDebug("setupBackgroundService: автоматическое сжатие ${if (isEnabled) "включено" else "выключено"}")
-        
+
         if (isEnabled) {
-            // Запускаем JobService для отслеживания новых изображений
-            ImageDetectionJobService.scheduleJob(this)
-            LogUtil.processDebug("setupBackgroundService: JobService запланирован")
-            
-            // Запускаем фоновый сервис
-            val serviceIntent = Intent(this, BackgroundMonitoringService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                LogUtil.processDebug("setupBackgroundService: запуск как foreground сервис (Android O+)")
-                startForegroundService(serviceIntent)
-            } else {
-                LogUtil.processDebug("setupBackgroundService: запуск как обычный сервис")
-                startService(serviceIntent)
-            }
-            LogUtil.processDebug("Фоновые сервисы запущены успешно")
+            // Единая точка запуска: планирует резервный Job и поднимает постоянный foreground-сервис.
+            MonitoringController.startMonitoring(this)
+            LogUtil.processDebug("setupBackgroundService: мониторинг запущен через контроллер")
         } else {
-            // Останавливаем фоновый сервис при выключении автоматического сжатия
-            stopService(Intent(this, BackgroundMonitoringService::class.java))
-            LogUtil.processDebug("Фоновые сервисы остановлены")
+            // Останавливаем службу и резервный Job, не меняя настройку (уже сохранена в ViewModel).
+            MonitoringController.stopMonitoring(this, disableAutoCompression = false)
+            LogUtil.processDebug("setupBackgroundService: мониторинг остановлен через контроллер")
         }
     }
 
@@ -791,15 +794,14 @@ class MainActivity : AppCompatActivity() {
     private fun startBackgroundProcessing(uri: Uri) {
         try {
             // Запускаем фоновый сервис, если он еще не запущен
-            val serviceIntent = Intent(this, BackgroundMonitoringService::class.java)
-            ContextCompat.startForegroundService(this, serviceIntent)
-            
+            MonitoringController.startForegroundService(this)
+
             // Создаем интент для обработки конкретного изображения
             val processIntent = Intent(Constants.ACTION_PROCESS_IMAGE)
             processIntent.setPackage(packageName)
             processIntent.putExtra(Constants.EXTRA_URI, uri)
             sendBroadcast(processIntent)
-            
+
             LogUtil.processDebug("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
         } catch (e: Exception) {
             LogUtil.errorWithMessageAndException(uri, "BACKGROUND_PROCESS", "Ошибка при запуске фонового сервиса", e)

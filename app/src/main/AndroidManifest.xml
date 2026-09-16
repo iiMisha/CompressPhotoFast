@@ -16,6 +16,9 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Запрос исключения приложения из оптимизации батареи (Doze) для надёжной фоновой работы -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
@@ -30,6 +33,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CompressPhotoFast"
         tools:targetApi="31">
+
+        <!-- Обоснование использования foreground service типа specialUse для постоянной
+             службы мониторинга (BackgroundMonitoringService) — обязательно для API 34+ -->
+        <property
+            android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+            android:value="Непрерывное фоновое наблюдение за новыми изображениями в MediaStore и автоматическая постановка фотографий пользователя в очередь сжатия по запросу" />
 
         <!-- Главная активность -->
         <activity
@@ -53,7 +62,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Receiver для запуска при загрузке системы -->
+        <!-- Receiver для запуска при загрузке системы и после обновления пакета -->
         <receiver
             android:name=".service.BootCompletedReceiver"
             android:enabled="true"
@@ -61,6 +70,7 @@
             android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
@@ -90,11 +100,13 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- Сервис для фонового мониторинга -->
+        <!-- Постоянная служба фонового мониторинга новых изображений.
+             Тип specialUse не имеет лимита времени (Android 14+), в отличие от dataSync,
+             что позволяет службе работать круглосуточно при включенном автосжатии. -->
         <service
             android:name=".service.BackgroundMonitoringService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse" />
     </application>
 </manifest> 

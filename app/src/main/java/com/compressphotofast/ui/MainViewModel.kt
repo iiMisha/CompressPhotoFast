@@ -2,20 +2,20 @@ package com.compressphotofast.ui
 
 import android.content.ContentUris
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.provider.MediaStore
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkManager
 import com.compressphotofast.service.BackgroundMonitoringService
+import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageProcessingChecker
-import com.compressphotofast.util.ImageProcessingUtil
+import com.compressphotofast.util.CompressionEnqueueResult
+import com.compressphotofast.util.CompressionOrigin
+import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,10 +37,10 @@ import kotlinx.coroutines.flow.asStateFlow
 class MainViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val sharedPreferences: SharedPreferences,
-    private val workManager: WorkManager,
     private val settingsManager: SettingsManager,
     private val uriProcessingTracker: UriProcessingTracker,
-    private val compressionBatchTracker: CompressionBatchTracker
+    private val compressionBatchTracker: CompressionBatchTracker,
+    private val compressionWorkScheduler: CompressionWorkScheduler
 ) : ViewModel() {
 
     // LiveData для URI выбранного изображения
@@ -72,7 +72,7 @@ class MainViewModel @Inject constructor(
      * Сжатие списка изображений
      *
      * Консолидировано с ручным путём (handleIntent): создаётся batchId, каждое
-     * изображение ставится в очередь через ImageProcessingUtil.handleImage
+     * изображение ставится в очередь через CompressionWorkScheduler
      * (WorkManager). Результаты группируются CompressionBatchTracker в единый
      * Toast/уведомление по достижении expectedCount.
      */
@@ -86,10 +86,10 @@ class MainViewModel @Inject constructor(
             var enqueued = 0
             for (uri in uris) {
                 try {
-                    val result = ImageProcessingUtil.handleImage(
-                        context, uri, forceProcess = true, batchId = batchId
+                    val result = compressionWorkScheduler.enqueue(
+                        uri, forceProcess = true, batchId = batchId, origin = CompressionOrigin.MANUAL
                     )
-                    if (result.first && result.second) enqueued++
+                    if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) enqueued++
                 } catch (e: Exception) {
                     LogUtil.error(uri, "Автосжатие", "Ошибка запуска обработки", e)
                 }
@@ -113,19 +113,18 @@ class MainViewModel @Inject constructor(
      */
     fun setAutoCompression(enabled: Boolean) {
         settingsManager.setAutoCompression(enabled)
-        
+
         if (enabled) {
             // Запускаем проверку пропущенных изображений при включении
             viewModelScope.launch {
                 processUncompressedImages()
             }
         } else {
-            // Останавливаем фоновый сервис при выключении
-            val intent = Intent(context, BackgroundMonitoringService::class.java)
-            intent.action = Constants.ACTION_STOP_SERVICE
-            ContextCompat.startForegroundService(context, intent)
+            // Останавливаем фоновый сервис и резервный Job при выключении.
+            // Единая точка остановки: отключает настройку, отменяет Job, останавливает службу.
+            MonitoringController.stopMonitoring(context, disableAutoCompression = false)
         }
-        
+
         LogUtil.processDebug("Автоматическое сжатие: ${if (enabled) "включено" else "выключено"}")
     }
     
@@ -233,8 +232,9 @@ class MainViewModel @Inject constructor(
      * Останавливает текущую обработку изображений
      */
     fun stopBatchProcessing() {
-        // Отменяем очередь воркеров сжатия (имя работы совпадает с handleImage)
-        workManager.cancelUniqueWork("sequential_image_compression")
+        // Durable per-URI works и legacy chain не очищаются при старте UI:
+        // это предотвращает потерю внешних share URI и гонку с manual enqueue.
+        LogUtil.processDebug("Остановка UI не отменяет durable очередь обработки")
     }
 
     /**

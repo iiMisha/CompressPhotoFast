@@ -21,7 +21,8 @@ object GalleryScanUtil {
     data class ScanResult(
         val processedCount: Int = 0,
         val skippedCount: Int = 0,
-        val foundUris: List<Uri> = emptyList()
+        val foundUris: List<Uri> = emptyList(),
+        val completedSuccessfully: Boolean = false
     )
     
     /**
@@ -46,7 +47,7 @@ object GalleryScanUtil {
             // Проверяем состояние автоматического сжатия
             if (checkProcessable && !SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
                 LogUtil.processDebug("Автосжатие выключено, сканирование отменено")
-                return@withContext ScanResult(0, 0, emptyList())
+                return@withContext ScanResult(0, 0, emptyList(), completedSuccessfully = false)
             }
             
             // Запрашиваем последние изображения из MediaStore
@@ -58,7 +59,7 @@ object GalleryScanUtil {
             )
             
             // Ищем фотографии, созданные за последнее заданное время
-            val selection = "${MediaStore.Images.Media.DATE_ADDED} > ?"
+            val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
             val currentTimeInSeconds = System.currentTimeMillis() / 1000
             val timeAgo = currentTimeInSeconds - timeWindowSeconds
             val selectionArgs = arrayOf(timeAgo.toString())
@@ -66,13 +67,16 @@ object GalleryScanUtil {
             // Сортируем по времени создания (сначала новые)
             val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
             
-            context.contentResolver.query(
+            val cursor = context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
                 selection,
                 selectionArgs,
                 sortOrder
-            )?.use { cursor ->
+            ) ?: return@withContext ScanResult(
+                processedCount, skippedCount, foundUris, completedSuccessfully = false
+            )
+            cursor.use {
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
                 val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
@@ -143,11 +147,13 @@ object GalleryScanUtil {
                 if (smallFilesCount > 0) LogUtil.processDebug("Пропущено $smallFilesCount маленьких файлов")
                 if (largeFilesCount > 0) LogUtil.processDebug("Пропущено $largeFilesCount слишком больших файлов")
             }
+            return@withContext ScanResult(
+                processedCount, skippedCount, foundUris, completedSuccessfully = true
+            )
         } catch (e: Exception) {
             LogUtil.errorWithException("SCAN_GALLERY", e)
+            return@withContext ScanResult(processedCount, skippedCount, foundUris, completedSuccessfully = false)
         }
-        
-        ScanResult(processedCount, skippedCount, foundUris)
     }
     
     /**
@@ -159,4 +165,4 @@ object GalleryScanUtil {
         // Вызываем сканирование с окном из констант (по умолчанию 48 часов)
         scanRecentImages(context, Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt())
     }
-} 
+}
