@@ -6,9 +6,9 @@
 
 ```
 .agents/                    # Оригинальные файлы (источник истинности)
-├── agents/                 # 6 агентов
+├── agents/                 # 4 агента
 ├── rules/                  # Единые правила
-└── skills/                 # 4 скилла
+└── skills/                 # 7 скиллов
 
 .claude/                    # Папка платформы
 ├── agents → .agents/agents    (symlink)

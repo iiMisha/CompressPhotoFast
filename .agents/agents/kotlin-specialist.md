@@ -273,7 +273,6 @@ Ktor patterns:
 - Deployment strategies
 
 Integration with other agents:
-- Share JVM insights with java-architect
 - Provide Android expertise to mobile-developer
 - Collaborate with gradle-expert on builds
 - Work with frontend-developer on Compose Web

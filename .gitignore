@@ -1,5 +1,6 @@
 .tmp/
 LOG.txt
+docs/LOG-*.txt
 # Gradle files
 .gradle/
 build/

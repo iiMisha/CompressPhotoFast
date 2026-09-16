@@ -50,7 +50,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # --- Константы путей ---------------------------------------------------------
-PROJECT_DIR = Path("/home/misha/CompressPhotoFast")
+PROJECT_DIR = Path("/home/misha/Документы/1 Проекты/CompressPhotoFast")
 APK_OUTPUT_DIR = PROJECT_DIR / "app/build/outputs/apk/debug"
 
 # Всё в домашнем каталоге — не требует root.
