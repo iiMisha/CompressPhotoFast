@@ -52,7 +52,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # --- Константы путей ---------------------------------------------------------
-PROJECT_DIR = Path("/home/misha/Документы/1 Проекты/CompressPhotoFast")
+PROJECT_DIR = Path("/home/misha/CompressPhotoFast")
 
 
 def apk_output_dir(variant):
