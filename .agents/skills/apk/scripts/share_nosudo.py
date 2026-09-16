@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-share_nosudo.py — Собрать debug-APK CompressPhotoFast и опубликовать временную
-ссылку на скачивание БЕЗ root/nginx/systemd.
+share_nosudo.py — Собрать APK CompressPhotoFast (по умолчанию debug, --release —
+release-вариант) и опубликовать временную ссылку на скачивание БЕЗ
+root/nginx/systemd.
 
 Режим поднимает встроенный Python HTTP-сервер на непривилегированном порту
 (8080 по умолчанию), БЕЗ root/nginx/systemd. APK отдаётся по неугадываемому
@@ -24,7 +25,8 @@ CompressPhotoFast — чистое Kotlin/Java приложение без на�
   * Публичный IPv4 определяется автоматически (VPS без NAT) или задаётся --host.
 
 Примеры:
-    ./share_nosudo.py                  # собрать + опубликовать, TTL 1ч
+    ./share_nosudo.py                  # собрать + опубликовать debug, TTL 1ч
+    ./share_nosudo.py --release        # release-вариант вместо debug
     ./share_nosudo.py --no-build       # переиспользовать свежий APK
     ./share_nosudo.py --ttl 6h         # ссылка живёт 6 часов
     ./share_nosudo.py --port 9000      # другой порт
@@ -51,7 +53,10 @@ from pathlib import Path
 
 # --- Константы путей ---------------------------------------------------------
 PROJECT_DIR = Path("/home/misha/Документы/1 Проекты/CompressPhotoFast")
-APK_OUTPUT_DIR = PROJECT_DIR / "app/build/outputs/apk/debug"
+
+
+def apk_output_dir(variant):
+    return PROJECT_DIR / f"app/build/outputs/apk/{variant}"
 
 # Всё в домашнем каталоге — не требует root.
 # Имена суффиксированы проектом, чтобы не конфликтовать с одноимённым скиллом
@@ -64,7 +69,6 @@ DEFAULT_PORT = 8080
 DEFAULT_TTL = "1h"
 TOKEN_BYTES = 16  # 32 hex-символа
 APK_FILENAME = "app-debug.apk"          # имя в URL (как в sudo-режиме)
-DOWNLOAD_NAME = "CompressPhotoFast-debug.apk"  # имя при скачивании
 
 
 # --- Базовые утилиты ---------------------------------------------------------
@@ -87,28 +91,30 @@ def info(msg):
 
 
 # --- Сборка и поиск APK ------------------------------------------------------
-def build_apk():
-    info("🔨 Сборка :app:assembleDebug ...")
-    run(["./gradlew", ":app:assembleDebug"],
+def build_apk(variant):
+    task = f":app:assemble{'Debug' if variant == 'debug' else 'Release'}"
+    info(f"🔨 Сборка {task} ...")
+    run(["./gradlew", task],
         cwd=str(PROJECT_DIR), capture=False)
     info("✅ Сборка завершена")
 
 
-def find_apk():
-    apks = sorted(APK_OUTPUT_DIR.glob("*.apk"), key=lambda p: p.stat().st_mtime, reverse=True)
+def find_apk(variant):
+    out_dir = apk_output_dir(variant)
+    apks = sorted(out_dir.glob("*.apk"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not apks:
-        die(f"APK не найден в {APK_OUTPUT_DIR}. Запустите без --no-build.")
+        die(f"APK не найден в {out_dir}. Запустите без --no-build.")
     return apks[0]
 
 
-def cleanup_old_apks(keep_path):
+def cleanup_old_apks(keep_path, variant):
     """Удалить все APK в каталоге вывода, КРОМЕ keep_path (самого свежего).
 
     Gradle обычно перезаписывает тот же файл, но при смене versionName/timestamp
     имени старые APK могут накапливаться и засорять каталог вывода — чистим их."""
     removed = []
     keep = keep_path.resolve() if keep_path else None
-    for p in APK_OUTPUT_DIR.glob("*.apk"):
+    for p in apk_output_dir(variant).glob("*.apk"):
         try:
             if keep is not None and p.resolve() == keep:
                 continue
@@ -167,7 +173,7 @@ def fmt_ttl(seconds):
     return f"{seconds}с"
 
 
-def make_download_name(apk_path):
+def make_download_name(apk_path, variant):
     """Имя скачиваемого файла с датой/временем сборки APK (по mtime файла).
 
     Берётся mtime самого APK — соответствует моменту сборки, а не публикации:
@@ -178,7 +184,7 @@ def make_download_name(apk_path):
     except OSError:
         ts = time.time()
     stamp = datetime.fromtimestamp(ts).strftime("%Y%m%d-%H%M%S")
-    return f"CompressPhotoFast-debug-{stamp}.apk"
+    return f"CompressPhotoFast-{variant}-{stamp}.apk"
 
 
 # --- Метаданные --------------------------------------------------------------
@@ -219,13 +225,13 @@ def pid_alive(pid):
 
 
 # --- Публикация --------------------------------------------------------------
-def publish(apk_path, ttl_seconds, host, port, no_build, keep_old):
+def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debug"):
     if not no_build:
-        build_apk()
-        apk_path = find_apk()
+        build_apk(variant)
+        apk_path = find_apk(variant)
     else:
         if apk_path is None:
-            apk_path = find_apk()
+            apk_path = find_apk(variant)
 
     # По умолчанию при новом запуске убиваем все старые ссылки (одна активная
     # за раз — чтобы не плодить дубли/мёртвые ссылки на тот же билд) и чистим
@@ -236,7 +242,7 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old):
         n = purge_all_links()
         if n:
             info(f"🧹 Удалено старых ссылок: {n}")
-        removed = cleanup_old_apks(apk_path)
+        removed = cleanup_old_apks(apk_path, variant)
         if removed:
             info(f"🧹 Удалено старых APK: {len(removed)}")
             for name in removed:
@@ -254,7 +260,7 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old):
         link.unlink()
     link.symlink_to(apk_path.resolve())
 
-    download_name = make_download_name(apk_path)
+    download_name = make_download_name(apk_path, variant)
     url = f"http://{host}:{port}/{token}/{APK_FILENAME}"
     meta = {
         "token": token,
@@ -405,7 +411,7 @@ def kill_pid(pid):
 class ApkHandler(http.server.SimpleHTTPRequestHandler):
     """Отдаёт APK с корректным MIME и force-download; без листинга директорий."""
 
-    def __init__(self, *a, directory, download_name=DOWNLOAD_NAME, **kw):
+    def __init__(self, *a, directory, download_name="CompressPhotoFast-debug.apk", **kw):
         self.download_name = download_name
         super().__init__(*a, directory=str(directory), **kw)
 
@@ -434,8 +440,8 @@ def serve(token, port, ttl_seconds, download_name=None):
         die(f"[serve] каталог {token_dir} не существует")
     meta = load_meta(token) or {}
     # Имя файла приходит из publish через CLI (гарантированно, без гонки с
-    # чтением meta-файла); fallback на meta/константу — для надёжности.
-    download_name = download_name or meta.get("download_name") or DOWNLOAD_NAME
+    # чтением meta-файла); fallback на meta — для надёжности.
+    download_name = download_name or meta.get("download_name") or "CompressPhotoFast-debug.apk"
 
     class ReusableTCPServer(socketserver.TCPServer):
         allow_reuse_address = True
@@ -468,10 +474,12 @@ def serve(token, port, ttl_seconds, download_name=None):
 # --- CLI ---------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(
-        description="Опубликовать debug-APK CompressPhotoFast без sudo (HTTP на неприв. порту).",
+        description="Опубликовать APK CompressPhotoFast (debug по умолчанию, --release) без sudo (HTTP на неприв. порту).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("--no-build", action="store_true", help="не собирать, взять свежий APK")
+    ap.add_argument("--release", action="store_true",
+                    help="собрать/опубликовать release-вариант (assembleRelease, apk/release/); по умолчанию debug")
+    ap.add_argument("--no-build", action="store_true", help="не собирать, взять свежий APK выбранного варианта")
     ap.add_argument("--keep", action="store_true",
                     help="сохранить старые ссылки и старые APK (по умолчанию удаляются)")
     ap.add_argument("--ttl", default=DEFAULT_TTL, help="срок жизни (напр. 30m, 6h, 2d). По умолчанию 1h")
@@ -497,7 +505,8 @@ def main():
 
     host = args.host or public_ip()
     ttl_seconds = parse_ttl(args.ttl)
-    publish(None, ttl_seconds, host, args.port, args.no_build, args.keep)
+    variant = "release" if args.release else "debug"
+    publish(None, ttl_seconds, host, args.port, args.no_build, args.keep, variant)
 
 
 if __name__ == "__main__":
