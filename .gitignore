@@ -46,10 +46,6 @@ render.experimental.xml
 navEditor.xml
 
 # Keystore files
-*.jks
-*.keystore
-keystore.properties
-upload-keystore.jks
 secure-keys/
 
 # Google Services (e.g. APIs or Firebase)

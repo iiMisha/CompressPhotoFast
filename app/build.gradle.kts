@@ -35,11 +35,24 @@ android {
         animationsDisabled = true
     }
 
+    signingConfigs {
+        // Единый общий debug-keystore в корне проекта (привязан и к debug, и к
+        // release): release-APK устанавливается поверх debug-сборки без удаления,
+        // а сборки на разных машинах подписаны одинаковым ключом.
+        create("shared") {
+            storeFile = file("${project.rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
             buildConfigField("boolean", "DEBUG_LOGGING", "true")
+            signingConfig = signingConfigs.getByName("shared")
         }
         release {
             isMinifyEnabled = true
@@ -48,6 +61,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("boolean", "DEBUG_LOGGING", "false")
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
     compileOptions {
