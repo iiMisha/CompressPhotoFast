@@ -535,10 +535,18 @@ object MediaStoreUtil {
                         // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
                         clearIsPendingFlag(context, uri)
 
-                        // Перезаписываем файл напрямую
+                        // Перезаписываем файл напрямую.
+                        // ВНИМАНИЕ: всё время до завершения fsync файл на диске усечён
+                        // и виден галереям. Логируем длительность окна для диагностики.
+                        val writeStartMs = System.currentTimeMillis()
                         updateSuccess = openCachedInput().use { cachedInput ->
                             safeUpdateExistingFile(context, uri, cachedInput)
                         }
+                        val writeWindowMs = System.currentTimeMillis() - writeStartMs
+                        LogUtil.processInfo(
+                            "[Replace] Окно частичной записи (truncate→fsync): ${writeWindowMs}мс, " +
+                                "успех=$updateSuccess"
+                        )
 
                         if (!updateSuccess) {
                             // Запись провалилась — восстанавливаем оригинал из backup
@@ -605,6 +613,14 @@ object MediaStoreUtil {
 
                 // Файл верифицирован — снимаем IS_PENDING, делая его видимым
                 clearIsPendingFlag(context, uri)
+
+                if (wroteToExistingUri) {
+                    // Replace-режим: файл перезаписан на месте. Принудительно
+                    // синхронизируем запись MediaStore (размер, DATE_MODIFIED),
+                    // чтобы галереи инвалидаировали кэш миниатюр и не показывали
+                    // миниатюру, случайно снятую из частично перезаписанного файла.
+                    refreshMediaStoreEntry(context, uri, mimeType)
+                }
 
                 // Ждем, чтобы файл стал доступен в системе
                 val maxWaitTime = 2000L
@@ -692,6 +708,34 @@ object MediaStoreUtil {
 
         return@withContext isAvailable
     }
+
+    /**
+     * Синхронизирует запись MediaStore с фактическим содержимым файла после
+     * перезаписи на месте (replace-режим). Запрос scan обновляет _size и
+     * DATE_MODIFIED в MediaProvider, что заставляет галереи перегенерировать
+     * миниатюры и исключает показ миниатюр, снятых из частично записанного файла.
+     */
+    private suspend fun refreshMediaStoreEntry(context: Context, uri: Uri, mimeType: String) =
+        withContext(Dispatchers.IO) {
+            try {
+                val filePath = UriUtil.getFilePathFromUri(context, uri)
+                if (filePath != null) {
+                    android.media.MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(filePath),
+                        arrayOf(mimeType),
+                        null
+                    )
+                    LogUtil.processInfo("[Replace] MediaScannerConnection.scanFile выполнен для $uri")
+                } else {
+                    LogUtil.warning(uri, "Replace", "Не удалось получить путь для scan после перезаписи")
+                }
+            } catch (e: Exception) {
+                // Некритично: MediaProvider обычно обновляет метаданные сам при
+                // закрытии дескриптора. Ошибка скана не должна валить сохранение.
+                LogUtil.warning(uri, "Replace", "Не удалось выполнить scan после перезаписи: ${e.message}")
+            }
+        }
 
     /**
      * Безопасно обновляет существующий файл, перезаписывая его данными из входного потока

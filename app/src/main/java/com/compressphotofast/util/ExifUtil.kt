@@ -729,9 +729,19 @@ object ExifUtil {
             }
             // LogUtil.processInfo("Применение ${exifData.size} EXIF-тегов к $uri")
  
-             // 1. Сохраняем исходную дату модификации
-             val originalLastModified = UriUtil.getFileLastModified(context, uri)
-            LogUtil.processInfo("Сохранена исходная дата модификации: $originalLastModified")
+             // 1. Сохраняем исходную дату модификации только для режима отдельной папки.
+             // В режиме замены восстановление старой date_modified запрещено:
+             // кэши миниатюр галерей ключуются на (id, date_modified), и совпадение
+             // даты с оригиналом оставляет навсегда закэшированной миниатюру,
+             // случайно снятую галереей из частично перезаписанного файла.
+             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+             val originalLastModified = if (!isReplaceMode) {
+                 val lastModified = UriUtil.getFileLastModified(context, uri)
+                 LogUtil.processInfo("Сохранена исходная дата модификации: $lastModified")
+                 lastModified
+             } else {
+                 0L
+             }
             
             context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 val exif = ExifInterface(pfd.fileDescriptor)
@@ -896,8 +906,10 @@ object ExifUtil {
                     backupFile.delete()
                 }
                 
-                // 3. Восстанавливаем исходную дату модификации
-                if (originalLastModified > 0) {
+                // 3. Восстанавливаем исходную дату модификации только вне режима замены.
+                // В replace-режиме оставляем актуальную дату, чтобы MediaStore и
+                // галереи перегенерировали миниатюры после перезаписи файла.
+                if (!isReplaceMode && originalLastModified > 0) {
                     MediaStoreDateUtil.restoreModifiedDate(context, uri, originalLastModified)
                 }
 
