@@ -98,6 +98,23 @@ class SettingsManager @Inject constructor(
     }
     
     /**
+     * Получение максимального разрешения (по большей стороне).
+     * @return 0 для исходного разрешения, либо 1920/1280
+     */
+    fun getMaxResolution(): Int {
+        return sharedPreferences.getInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+    }
+
+    /**
+     * Установка максимального разрешения (по большей стороне)
+     */
+    fun setMaxResolution(maxDimension: Int) {
+        sharedPreferences.edit()
+            .putInt(Constants.PREF_MAX_RESOLUTION, maxDimension)
+            .apply()
+    }
+
+    /**
      * Установка уровня сжатия по предустановке (низкий, средний, высокий)
      */
     fun setCompressionPreset(preset: CompressionPreset) {
@@ -108,7 +125,7 @@ class SettingsManager @Inject constructor(
         }
         setCompressionQuality(quality)
     }
-    
+
     /**
      * Сохранение отложенных запросов на удаление
      */
@@ -335,6 +352,13 @@ class SettingsEditor(private val editor: SharedPreferences.Editor) {
      */
     fun setDeletePermissionRequested(requested: Boolean) {
         editor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, requested)
+    }
+
+    /**
+     * Установка максимального разрешения (по большей стороне)
+     */
+    fun setMaxResolution(maxDimension: Int) {
+        editor.putInt(Constants.PREF_MAX_RESOLUTION, maxDimension)
     }
 
     fun setLastScanTimestamp(timestamp: Long) {

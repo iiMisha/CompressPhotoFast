@@ -229,6 +229,34 @@ object ImageCompressionUtil {
     }
 
     /**
+     * План масштабирования: степень двойки для первичного сэмплинга декодера
+     * и точные целевые размеры по большей стороне.
+     */
+    data class ScalePlan(
+        val inSampleSize: Int,
+        val targetWidth: Int,
+        val targetHeight: Int
+    )
+
+    /**
+     * Вычисляет план масштабирования для ограничения разрешения по большей стороне.
+     * @return null если масштабирование не требуется (maxDimension <= 0 или изображение уже меньше)
+     */
+    fun computeScalePlan(width: Int, height: Int, maxDimension: Int): ScalePlan? {
+        if (maxDimension <= 0) return null
+        val longest = maxOf(width, height)
+        if (longest <= maxDimension) return null
+        val scale = maxDimension.toDouble() / longest
+        val targetWidth = (width * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (height * scale).toInt().coerceAtLeast(1)
+        var sample = 1
+        while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) {
+            sample *= 2
+        }
+        return ScalePlan(sample, targetWidth, targetHeight)
+    }
+
+    /**
      * Декодирует изображение с поддержкой HEIC/HEIF
      * Для HEIC/HEIF использует ImageDecoder, для остальных - BitmapFactory
      */
@@ -236,7 +264,9 @@ object ImageCompressionUtil {
         context: Context,
         uri: Uri,
         mimeType: String?,
-        inSampleSize: Int
+        inSampleSize: Int,
+        targetWidth: Int = 0,
+        targetHeight: Int = 0
     ): Bitmap? = withContext(Dispatchers.IO) {
         var bitmap: Bitmap? = null
         try {
@@ -246,10 +276,12 @@ object ImageCompressionUtil {
                 val source = ImageDecoder.createSource(context.contentResolver, uri)
 
                 bitmap = ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
-                    if (inSampleSize > 1) {
-                        val targetWidth = info.size.width / inSampleSize
-                        val targetHeight = info.size.height / inSampleSize
+                    if (targetWidth > 0 && targetHeight > 0) {
                         decoder.setTargetSize(targetWidth, targetHeight)
+                    } else if (inSampleSize > 1) {
+                        val scaledWidth = info.size.width / inSampleSize
+                        val scaledHeight = info.size.height / inSampleSize
+                        decoder.setTargetSize(scaledWidth, scaledHeight)
                     }
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                     decoder.setMemorySizePolicy(ImageDecoder.MEMORY_POLICY_LOW_RAM)
@@ -309,7 +341,12 @@ object ImageCompressionUtil {
      * Сжимает JPEG напрямую в cacheDir. Файл является disposable artifact и
      * удаляется вызывающим кодом после сохранения или в любом terminal path.
      */
-    suspend fun compressImageToFile(context: Context, uri: Uri, quality: Int): File? =
+    suspend fun compressImageToFile(
+        context: Context,
+        uri: Uri,
+        quality: Int,
+        maxDimension: Int = Constants.RESOLUTION_ORIGINAL
+    ): File? =
         withTimeout(120_000L) {
             withContext(Dispatchers.IO) {
                 var inputBitmap: Bitmap? = null
@@ -324,6 +361,9 @@ object ImageCompressionUtil {
                         ?: return@withContext null
                     width = bounds.first
                     height = bounds.second
+                    // Масштабирование применяется только при явном выборе пресета;
+                    // по умолчанию (RESOLUTION_ORIGINAL) разрешение сохраняется.
+                    val scalePlan = computeScalePlan(width, height, maxDimension)
                     val transform = if (isHeicFormat(mimeType)) OrientationTransform() else getOrientationTransform(context, uri)
                     val requiresSecondBitmap = transform.rotationDegrees != 0 ||
                         transform.flipHorizontal || transform.flipVertical
@@ -333,9 +373,17 @@ object ImageCompressionUtil {
                         throw CompressionException.InsufficientMemory(requiredBytes, availableBytes)
                     }
 
-                    // Full-resolution decode is intentional. Memory admission above
+                    // Full-resolution decode is the default. Memory admission above
                     // defers work instead of silently changing image dimensions.
-                    inputBitmap = decodeImageBitmap(context, uri, mimeType, 1)
+                    // Даунскейл (если выбран пресет) дополнительно снижает память.
+                    inputBitmap = decodeImageBitmap(
+                        context,
+                        uri,
+                        mimeType,
+                        scalePlan?.inSampleSize ?: 1,
+                        scalePlan?.targetWidth ?: 0,
+                        scalePlan?.targetHeight ?: 0
+                    )
                         ?: return@withContext null
                     if (requiresSecondBitmap) {
                         transformedBitmap = applyOrientationTransform(inputBitmap!!, transform)
@@ -343,6 +391,20 @@ object ImageCompressionUtil {
                             inputBitmap.recycle()
                             inputBitmap = transformedBitmap
                             transformedBitmap = null
+                        }
+                    }
+                    if (scalePlan != null &&
+                        (inputBitmap!!.width > scalePlan.targetWidth || inputBitmap!!.height > scalePlan.targetHeight)
+                    ) {
+                        val scaled = Bitmap.createScaledBitmap(
+                            inputBitmap!!,
+                            scalePlan.targetWidth,
+                            scalePlan.targetHeight,
+                            true
+                        )
+                        if (scaled !== inputBitmap) {
+                            inputBitmap.recycle()
+                            inputBitmap = scaled
                         }
                     }
 
@@ -429,12 +491,13 @@ object ImageCompressionUtil {
         uri: Uri,
         originalSize: Long,
         quality: Int,
-        keepStream: Boolean = false
+        keepStream: Boolean = false,
+        maxDimension: Int = Constants.RESOLUTION_ORIGINAL
     ): CompressionTestResult? = withContext(Dispatchers.IO) {
         var artifact: File? = null
         try {
             artifact = try {
-                compressImageToFile(context, uri, quality)
+                compressImageToFile(context, uri, quality, maxDimension)
             } catch (e: CompressionException) {
                 throw e
             } catch (e: IOException) {
@@ -501,7 +564,8 @@ object ImageCompressionUtil {
     suspend fun processAndSaveImage(
         context: Context,
         uri: Uri,
-        quality: Int
+        quality: Int,
+        maxDimension: Int = Constants.RESOLUTION_ORIGINAL
     ): Triple<Boolean, Uri?, String> = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
         try {
@@ -545,7 +609,7 @@ object ImageCompressionUtil {
             // JPEG пишется в disposable artifact, чтобы не держать две полные
             // копии сжатого файла в heap.
             val compressedFile = try {
-                compressImageToFile(context, uri, quality)
+                compressImageToFile(context, uri, quality, maxDimension)
                     ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
             } catch (e: java.io.FileNotFoundException) {
                 LogUtil.error(uri, "Сжатие изображения", "Файл не найден при сжатии: ${e.message}")

@@ -51,6 +51,10 @@ class MainViewModel @Inject constructor(
     private val _compressionQuality = MutableLiveData<Int>()
     val compressionQuality: LiveData<Int> = _compressionQuality
 
+    // LiveData для максимального разрешения
+    private val _maxResolution = MutableLiveData<Int>()
+    val maxResolution: LiveData<Int> = _maxResolution
+
     // StateFlow для управления видимостью предупреждения
     private val _isWarningExpanded = MutableStateFlow(false)
     val isWarningExpanded = _isWarningExpanded.asStateFlow()
@@ -59,6 +63,7 @@ class MainViewModel @Inject constructor(
     init {
         // Загрузить сохраненный уровень сжатия
         _compressionQuality.value = getCompressionQuality()
+        _maxResolution.value = getMaxResolution()
     }
 
     /**
@@ -149,6 +154,21 @@ class MainViewModel @Inject constructor(
     fun setCompressionPreset(preset: CompressionPreset) {
         settingsManager.setCompressionPreset(preset)
         _compressionQuality.value = settingsManager.getCompressionQuality()
+    }
+
+    /**
+     * Получение максимального разрешения (0 — исходное)
+     */
+    fun getMaxResolution(): Int {
+        return settingsManager.getMaxResolution()
+    }
+
+    /**
+     * Установка максимального разрешения (0 — исходное)
+     */
+    fun setMaxResolution(maxDimension: Int) {
+        settingsManager.setMaxResolution(maxDimension)
+        _maxResolution.value = maxDimension
     }
 
     /**

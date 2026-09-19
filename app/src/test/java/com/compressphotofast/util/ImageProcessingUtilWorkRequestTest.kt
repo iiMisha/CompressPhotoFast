@@ -56,4 +56,35 @@ class ImageProcessingUtilWorkRequestTest {
             CompressionWorkScheduler.digest(second)
         )
     }
+
+    @Test
+    fun `max resolution is threaded through input data`() {
+        val scheduler = CompressionWorkScheduler(
+            org.robolectric.RuntimeEnvironment.getApplication(),
+            mockk(relaxed = true)
+        )
+        val data = scheduler.buildInputData(
+            uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L,
+            maxResolution = Constants.RESOLUTION_1920
+        )
+
+        assertEquals(
+            Constants.RESOLUTION_1920,
+            data.getInt(Constants.WORK_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+        )
+    }
+
+    @Test
+    fun `max resolution defaults to original when not specified`() {
+        val scheduler = CompressionWorkScheduler(
+            org.robolectric.RuntimeEnvironment.getApplication(),
+            mockk(relaxed = true)
+        )
+        val data = scheduler.buildInputData(uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L)
+
+        assertEquals(
+            Constants.DEFAULT_MAX_RESOLUTION,
+            data.getInt(Constants.WORK_MAX_RESOLUTION, -1)
+        )
+    }
 }

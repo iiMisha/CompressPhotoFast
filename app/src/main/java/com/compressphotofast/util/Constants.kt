@@ -9,6 +9,7 @@ object Constants {
     const val PREF_AUTO_COMPRESSION = "auto_compression"
     const val PREF_COMPRESSION_QUALITY = "compression_quality"
     const val PREF_COMPRESSION_PRESET = "compression_preset"
+    const val PREF_MAX_RESOLUTION = "max_resolution"
     const val PREF_SAVE_MODE = "save_mode"
     const val PREF_PENDING_DELETE_URIS = "pending_delete_uris"
     const val PREF_FIRST_LAUNCH = "first_launch"
@@ -46,6 +47,7 @@ object Constants {
     const val WORK_DISCOVERED_AT = "work_discovered_at"
     const val WORK_ENQUEUED_AT = "work_enqueued_at"
     const val WORK_UNIQUE_DIGEST = "work_unique_digest"
+    const val WORK_MAX_RESOLUTION = "max_resolution"
     
     // Уведомления
     const val NOTIFICATION_CHANNEL_ID = "compression_channel"
@@ -113,6 +115,12 @@ object Constants {
     
     // Обычно мы хотим сжать изображение как минимум на 20% от исходного размера
     const val MIN_COMPRESSION_RATIO = 0.8f
+
+    // Пресеты максимального разрешения (по большей стороне). 0 — сохранить исходное разрешение
+    const val RESOLUTION_ORIGINAL = 0
+    const val RESOLUTION_1920 = 1920
+    const val RESOLUTION_1280 = 1280
+    const val DEFAULT_MAX_RESOLUTION = RESOLUTION_ORIGINAL
 
     // Совместимые имена без фактического ограничения разрешения. Декодирование
     // всегда сохраняет исходные pixel dimensions; admission контролирует память.

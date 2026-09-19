@@ -216,6 +216,71 @@
                 tools:text="💎 Высокое (85%)" />
         </RadioGroup>
 
+        <!-- Заголовок для разрешения -->
+        <TextView
+            android:id="@+id/tvResolutionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/resolution_title"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="12dp"
+            app:layout_constraintTop_toBottomOf="@id/radioGroupQuality"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Описание разрешения -->
+        <TextView
+            android:id="@+id/tvResolutionDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/resolution_description"
+            android:textSize="14sp"
+            android:textColor="@color/secondary_text"
+            android:layout_marginTop="2dp"
+            app:layout_constraintTop_toBottomOf="@id/tvResolutionTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Контейнер для кнопок выбора разрешения -->
+        <RadioGroup
+            android:id="@+id/radioGroupResolution"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/tvResolutionDescription"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <com.google.android.material.radiobutton.MaterialRadioButton
+                android:id="@+id/rbResolutionOriginal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:paddingStart="4dp"
+                android:text="@string/resolution_original" />
+
+            <com.google.android.material.radiobutton.MaterialRadioButton
+                android:id="@+id/rbResolution1920"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:paddingStart="4dp"
+                android:text="@string/resolution_1920" />
+
+            <com.google.android.material.radiobutton.MaterialRadioButton
+                android:id="@+id/rbResolution1280"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:paddingStart="4dp"
+                android:text="@string/resolution_1280" />
+        </RadioGroup>
+
         <!-- Кнопка для выбора фото через Photo Picker -->
         <Button
             android:id="@+id/btnSelectPhotos"
@@ -224,7 +289,7 @@
             android:text="@string/select_photos_button"
             android:layout_marginTop="16dp"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/radioGroupQuality"
+            app:layout_constraintTop_toBottomOf="@id/radioGroupResolution"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             tools:visibility="visible"/>

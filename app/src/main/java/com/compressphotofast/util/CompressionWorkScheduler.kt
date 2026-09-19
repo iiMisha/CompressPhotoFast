@@ -45,8 +45,9 @@ class CompressionWorkScheduler @Inject constructor(
 
         return try {
             val quality = SettingsManager.getInstance(context).getCompressionQuality()
+            val maxResolution = SettingsManager.getInstance(context).getMaxResolution()
             val originalSize = runCatching { UriUtil.getFileSize(context, uri) ?: 0L }.getOrDefault(0L)
-            val data = buildInputData(uri, quality, originalSize, forceProcess, batchId, origin, discoveredAt)
+            val data = buildInputData(uri, quality, originalSize, forceProcess, batchId, origin, discoveredAt, maxResolution)
             if (forceProcess) {
                 workManager.cancelUniqueWork(settleName(uri)).await()
                 enqueueFinal(uri, data, expedited = true)
@@ -101,10 +102,12 @@ class CompressionWorkScheduler @Inject constructor(
         forceProcess: Boolean,
         batchId: String?,
         origin: CompressionOrigin,
-        discoveredAt: Long
+        discoveredAt: Long,
+        maxResolution: Int = Constants.DEFAULT_MAX_RESOLUTION
     ) = workDataOf(
         Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
         Constants.WORK_COMPRESSION_QUALITY to quality,
+        Constants.WORK_MAX_RESOLUTION to maxResolution,
         "original_size" to originalSize,
         Constants.WORK_ORIGIN to origin.name,
         Constants.WORK_DISCOVERED_AT to discoveredAt,

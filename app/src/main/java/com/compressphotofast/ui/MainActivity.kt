@@ -492,6 +492,7 @@ class MainActivity : AppCompatActivity() {
         
         // Установка начального состояния для переключателей качества
         setupCompressionQualityRadioButtons()
+        setupResolutionRadioButtons()
 
         binding.btnSelectPhotos.setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -713,6 +714,38 @@ class MainActivity : AppCompatActivity() {
         binding.rbQualityLow.text = getString(R.string.compression_quality_low_with_value, Constants.COMPRESSION_QUALITY_LOW)
         binding.rbQualityMedium.text = getString(R.string.compression_quality_medium_with_value, Constants.COMPRESSION_QUALITY_MEDIUM)
         binding.rbQualityHigh.text = getString(R.string.compression_quality_high_with_value, Constants.COMPRESSION_QUALITY_HIGH)
+    }
+
+    /**
+     * Настройка переключателей максимального разрешения
+     */
+    private fun setupResolutionRadioButtons() {
+        when (viewModel.getMaxResolution()) {
+            Constants.RESOLUTION_1920 -> binding.rbResolution1920.isChecked = true
+            Constants.RESOLUTION_1280 -> binding.rbResolution1280.isChecked = true
+            else -> binding.rbResolutionOriginal.isChecked = true
+        }
+
+        binding.rbResolutionOriginal.setOnClickListener {
+            viewModel.setMaxResolution(Constants.RESOLUTION_ORIGINAL)
+        }
+
+        binding.rbResolution1920.setOnClickListener {
+            viewModel.setMaxResolution(Constants.RESOLUTION_1920)
+        }
+
+        binding.rbResolution1280.setOnClickListener {
+            viewModel.setMaxResolution(Constants.RESOLUTION_1280)
+        }
+
+        viewModel.maxResolution.observe(this) { maxDimension ->
+            LogUtil.processDebug("Установлено максимальное разрешение: $maxDimension")
+            when (maxDimension) {
+                Constants.RESOLUTION_1920 -> binding.rbResolution1920.isChecked = true
+                Constants.RESOLUTION_1280 -> binding.rbResolution1280.isChecked = true
+                else -> binding.rbResolutionOriginal.isChecked = true
+            }
+        }
     }
 
     /**

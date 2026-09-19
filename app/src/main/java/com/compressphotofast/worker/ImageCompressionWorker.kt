@@ -55,6 +55,9 @@ class ImageCompressionWorker @AssistedInject constructor(
 
     // Качество сжатия (получаем из входных данных)
     private val compressionQuality = inputData.getInt(Constants.WORK_COMPRESSION_QUALITY, Constants.COMPRESSION_QUALITY_MEDIUM)
+
+    // Максимальное разрешение по большей стороне (0 — исходное разрешение)
+    private val maxResolution = inputData.getInt(Constants.WORK_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
     
     // ID батча для группировки результатов (может быть null для старых задач)
     private val batchId = inputData.getString(Constants.WORK_BATCH_ID)
@@ -208,7 +211,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 imageUri, 
                 sourceSize,
                 compressionQuality,
-                keepStream = true // Сохраняем поток для повторного использования
+                keepStream = true, // Сохраняем поток для повторного использования
+                maxDimension = maxResolution
             )
             
             if (testResult == null) {

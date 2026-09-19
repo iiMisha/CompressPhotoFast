@@ -19,6 +19,11 @@
     <string name="compression_quality_low_with_value">🔥 Низкое (%d%%)</string>
     <string name="compression_quality_medium_with_value">⚖️ Среднее (%d%%)</string>
     <string name="compression_quality_high_with_value">💎 Высокое (%d%%)</string>
+    <string name="resolution_title">📐 Разрешение</string>
+    <string name="resolution_description">Максимальная сторона фото после сжатия (Оригинал — без изменения размеров)</string>
+    <string name="resolution_original">🖼️ Оригинал</string>
+    <string name="resolution_1920">🖥️ 1920px</string>
+    <string name="resolution_1280">📱 1280px</string>
     <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->
