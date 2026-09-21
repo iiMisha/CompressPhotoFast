@@ -38,6 +38,11 @@ object Constants {
     const val MIN_FILE_SIZE = 50 * 1024L // 50 KB
     const val MAX_FILE_SIZE = 100 * 1024 * 1024L // 100 MB
     const val OPTIMUM_FILE_SIZE = 0.1 * 1024 * 1024L // 0.1 MB - файлы меньше этого размера считаются уже оптимизированными
+
+    // Допуск сравнения фактического размера файла с размером в EXIF-маркере.
+    // saveAttributes() пересобирает EXIF-сегменты и меняет размер файла в пределах
+    // ~1 КБ — такие расхождения не считаются редактированием (4-кратный запас)
+    const val MARKER_SIZE_TOLERANCE_BYTES = 4096L
     
     // Теги для WorkManager
     const val WORK_INPUT_IMAGE_URI = "image_uri"

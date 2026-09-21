@@ -2,6 +2,7 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
+import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.LogUtil
@@ -223,13 +224,16 @@ object ImageProcessingChecker {
 
             // Файл с маркером сжатия повторно обрабатывается ТОЛЬКО при реальном
             // изменении содержимого, определяемом по размеру файла: если текущий
-            // размер отличается от размера, записанного в маркере, файл был
-            // пережат/отредактирован после сжатия. Если размер совпадает или
-            // неизвестен (старый формат маркера, HEIC-маркер, незавершённая
-            // двухфазная запись) — доверяем маркеру и пропускаем файл.
+            // размер расходится с записанным в маркере сверх допуска
+            // [Constants.MARKER_SIZE_TOLERANCE_BYTES], файл был пережат/отредактирован
+            // после сжатия. Дрейф в пределах допуска — нормальное следствие
+            // saveAttributes() при записи маркера и правок не означает. Если размер
+            // совпадает или неизвестен (старый формат маркера, HEIC-маркер) —
+            // доверяем маркеру и пропускаем файл.
             if (isCompressed) {
                 val markerFileSize = exifData?.markerFileSize
-                val contentModified = markerFileSize != null && fileSize > 0L && fileSize != markerFileSize
+                val contentModified = markerFileSize != null && fileSize > 0L &&
+                    isMarkerSizeMismatch(fileSize, markerFileSize)
 
                 if (contentModified) {
                     LogUtil.processDebug("Файл изменён после сжатия: размер $fileSize != $markerFileSize, требуется повторная обработка")
@@ -265,6 +269,15 @@ object ImageProcessingChecker {
         }
     }
     
+    /**
+     * Сравнение фактического размера файла с размером из маркера с допуском
+     * [Constants.MARKER_SIZE_TOLERANCE_BYTES]: дрейф saveAttributes() при записи
+     * маркера (до ~1 КБ) правкой не считается, большее расхождение — признак
+     * редактирования или внешнего пережатия файла
+     */
+    fun isMarkerSizeMismatch(fileSize: Long, markerFileSize: Long): Boolean =
+        abs(fileSize - markerFileSize) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+
     /**
      * Класс для хранения результатов проверки необходимости обработки
      */

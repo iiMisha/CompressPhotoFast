@@ -22,8 +22,8 @@ import java.io.File
  * - Парсинг нового формата маркера с размером
  * - Обратную совместимость со старым форматом (без размера)
  * - Обработку заглушки размера (двухфазная запись) и некорректных значений
- * - Двухфазную запись маркера: размер в маркере совпадает с фактическим размером файла
  * - getActualFileSizeOnDisk: фактический размер с диска в обход кэша MediaStore
+ * - Допуск сравнения размера маркера (ImageProcessingChecker.isMarkerSizeMismatch)
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
@@ -209,5 +209,45 @@ class CompressionMarkerSizeTest : BaseUnitTest() {
 
         assertTrue("Degraded marker must still mark file as compressed", marker.isCompressed)
         assertNull("Degraded marker must not carry a size", marker.fileSize)
+    }
+
+    /**
+     * Допуск сравнения: дрейф saveAttributes() в пределах
+     * MARKER_SIZE_TOLERANCE_BYTES (до ~1 КБ) правкой не считается
+     */
+    @Test
+    fun `marker size mismatch within tolerance is not a modification`() {
+        val tolerance = Constants.MARKER_SIZE_TOLERANCE_BYTES
+
+        assertFalse("Exact match must pass", ImageProcessingChecker.isMarkerSizeMismatch(1_000_000L, 1_000_000L))
+        assertFalse(
+            "Drift below tolerance must pass",
+            ImageProcessingChecker.isMarkerSizeMismatch(1_000_000L, 1_000_000L + tolerance - 1)
+        )
+        assertFalse(
+            "Drift exactly at tolerance must pass",
+            ImageProcessingChecker.isMarkerSizeMismatch(1_000_000L + tolerance, 1_000_000L)
+        )
+    }
+
+    /**
+     * Расхождение сверх допуска — признак редактирования/пережатия файла
+     */
+    @Test
+    fun `marker size mismatch beyond tolerance requires reprocessing`() {
+        val tolerance = Constants.MARKER_SIZE_TOLERANCE_BYTES
+
+        assertTrue(
+            "Drift above tolerance must fail",
+            ImageProcessingChecker.isMarkerSizeMismatch(1_000_000L, 1_000_000L + tolerance + 1)
+        )
+        assertTrue(
+            "Negative drift above tolerance must fail",
+            ImageProcessingChecker.isMarkerSizeMismatch(1_000_000L - tolerance - 1, 1_000_000L)
+        )
+        assertTrue(
+            "Typical edit (hundreds of KB) must fail",
+            ImageProcessingChecker.isMarkerSizeMismatch(3_849_058L, 1_369_737L)
+        )
     }
 }

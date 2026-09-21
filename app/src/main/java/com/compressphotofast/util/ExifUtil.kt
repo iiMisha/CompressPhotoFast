@@ -37,13 +37,6 @@ object ExifUtil {
     // размера всегда укладываются в одно поле фиксированной ширины.
     private const val MARKER_SIZE_FIELD_WIDTH = 15
 
-    // Максимальное число попыток записи фактического размера в маркер.
-    // ExifInterface.saveAttributes() пересобирает EXIF-сегменты и может изменить
-    // размер файла даже при записи строки той же длины, поэтому после каждой
-    // записи размер перепроверяется напрямую с диска (fstat) и при расхождении
-    // повторяется с новым значением.
-    private const val MARKER_SIZE_WRITE_ATTEMPTS = 3
-
     /**
      * Информация о маркере сжатия из EXIF UserComment.
      * Формат: CompressPhotoFast_Compressed:quality:timestamp:size
@@ -951,11 +944,11 @@ object ExifUtil {
                 }
 
                 // Фаза 2: заменяем нулевую заглушку размера в маркере на фактический
-                // размер файла. saveAttributes() может изменить размер файла, поэтому
-                // размер после записи перепроверяется итеративно — см.
-                // [rewriteMarkerWithActualSize].
+                // размер файла. Размер записывается одной записью: возможный дрейф
+                // saveAttributes() (до ~1 КБ) покрывается допуском
+                // [Constants.MARKER_SIZE_TOLERANCE_BYTES] в проверке повторной обработки.
                 if (quality != null && markerTimestamp > 0L) {
-                    rewriteMarkerWithActualSize(context, uri, quality, markerTimestamp)
+                    writeActualSizeMarker(context, uri, quality, markerTimestamp)
                 }
                 
                 // 3. Восстанавливаем исходную дату модификации только вне режима замены.
@@ -972,14 +965,16 @@ object ExifUtil {
                         LogUtil.error(uri, "Запись EXIF", "EXIF маркер не был сохранен")
                         return@withContext false
                     }
-                    // Диагностика внешних изменений: если фактический размер на диске
-                    // отличается от записанного в маркер, файл был модифицирован после
+                    // Диагностика внешних изменений: расхождение фактического размера
+                    // с записанным сверх допуска означает модификацию файла после
                     // фазы 2 (внешним процессом или ресканом) — фиксируем для отладки.
                     val actualSize = getActualFileSizeOnDisk(context, uri)
-                    if (marker.fileSize != null && actualSize != null && actualSize != marker.fileSize) {
+                    if (marker.fileSize != null && actualSize != null &&
+                        kotlin.math.abs(actualSize - marker.fileSize) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+                    ) {
                         LogUtil.error(
                             uri, "Запись EXIF",
-                            "Размер в маркере (${marker.fileSize}) не совпадает с фактическим ($actualSize) — файл изменён после записи маркера"
+                            "Размер в маркере (${marker.fileSize}) расходится с фактическим ($actualSize) сверх допуска — файл изменён после записи маркера"
                         )
                     }
                     LogUtil.processInfo("✅ EXIF маркер успешно сохранен и верифицирован")
@@ -1025,19 +1020,7 @@ object ExifUtil {
      *
      * @return размер в байтах или null, если размер определить не удалось
      */
-    private fun getActualFileSizeOnDisk(context: Context, uri: Uri): Long? =
-        readFileSizeFromDisk(context, uri)?.size
-
-    /**
-     * Результат измерения фактического размера файла на диске.
-     * @param size размер в байтах
-     * @param stable true, если размер получен надёжным способом (fstat/statSize);
-     * false — потоковым подсчётом: измерение дорогое и не подтверждает
-     * стабильность размеров для итеративной записи маркера
-     */
-    private data class FileSizeReading(val size: Long, val stable: Boolean)
-
-    private fun readFileSizeFromDisk(context: Context, uri: Uri): FileSizeReading? {
+    private fun getActualFileSizeOnDisk(context: Context, uri: Uri): Long? {
         val fromDescriptor = try {
             context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                 try {
@@ -1045,7 +1028,7 @@ object ExifUtil {
                 } catch (t: Throwable) {
                     null
                 } ?: pfd.statSize.takeIf { it > 0L }
-            }?.let { FileSizeReading(it, stable = true) }
+            }
         } catch (e: Exception) {
             LogUtil.warning(uri, "Маркер сжатия", "Не удалось открыть дескриптор для определения размера: ${e.message}")
             null
@@ -1065,7 +1048,7 @@ object ExifUtil {
                     total += read
                 }
             }
-            total.takeIf { it > 0L }?.let { FileSizeReading(it, stable = false) }
+            total.takeIf { it > 0L }
         } catch (e: Exception) {
             LogUtil.warning(uri, "Маркер сжатия", "Не удалось определить фактический размер файла: ${e.message}")
             null
@@ -1074,99 +1057,64 @@ object ExifUtil {
 
     /**
      * Фаза 2 записи маркера: заменяет нулевую заглушку размера в уже записанном
-     * маркере на фактический размер файла.
+     * маркере на фактический размер файла — одной записью.
      *
      * ExifInterface.saveAttributes() пересобирает EXIF-сегменты и может изменить
      * размер файла даже при записи строки маркера той же длины (эмпирически
-     * наблюдается рост на сотни байт), поэтому запись выполняется итеративно:
-     * записали размер → измерили фактический размер напрямую с диска (fstat) →
-     * при расхождении повторили с новым значением, не более
-     * [MARKER_SIZE_WRITE_ATTEMPTS] попыток. Строка маркера сохраняет длину,
-     * записанную на фазе 1, поэтому итерации сходятся.
+     * наблюдается дрейф в пределах ~1 КБ). Точное совпадение не требуется:
+     * расхождение в пределах [Constants.MARKER_SIZE_TOLERANCE_BYTES] при проверке
+     * повторной обработки игнорируется, поэтому итеративная запись не нужна.
      *
-     * I/O-оптимизация: backup файла создаётся один раз на весь цикл попыток
-     * (копия нужна только для restore при сбое saveAttributes()), а верификация
-     * целостности выполняется только для финальной записи — промежуточные
-     * попытки всё равно будут перезаписаны следующей итерацией, а их сбой
-     * ловится restore-ом из backup.
+     * После записи выполняется контрольная сверка: если расхождение всё же
+     * превышает допуск (экзотический EXIF), выполняется одна корректирующая
+     * перезапись с фактическим размером — строка маркера фиксированной ширины,
+     * поэтому вторая запись стабилизирована. Дальнейших попыток нет: остаточное
+     * расхождение фиксируется в логе, а разрешение ситуации берёт на себя
+     * допуск чекера (файл с превышающим допуск маркером будет однократно
+     * пересжат, после чего маркер запишется заново).
      *
-     * Если размер не стабилизировался, маркер сбрасывается на заглушку — парсер
-     * трактует её как «размер неизвестен», что безопасно: файл с маркером без
-     * размера пропускается, цикл ложных «повторных сжатий» исключён.
+     * I/O: backup файла создаётся один раз — копия нужна только для restore
+     * при сбое saveAttributes() или повреждении файла; верификация целостности
+     * выполняется после каждой записи (их максимум две).
      */
-    private suspend fun rewriteMarkerWithActualSize(
+    private suspend fun writeActualSizeMarker(
         context: Context,
         uri: Uri,
         quality: Int,
         markerTimestamp: Long
     ): Boolean = withContext(Dispatchers.IO) {
-        var lastWrittenSize: Long? = null
-
         val backupFile = createMarkerBackup(context, uri)
         if (backupFile == null) {
             return@withContext false
         }
 
         try {
-            for (attempt in 1..MARKER_SIZE_WRITE_ATTEMPTS) {
-                val reading = readFileSizeFromDisk(context, uri)
-                if (reading == null || reading.size <= 0L) {
-                    LogUtil.warning(uri, "Маркер сжатия", "Не удалось получить размер файла, маркер остаётся без размера")
-                    return@withContext false
-                }
-
-                val writeOk = writeMarkerWithSize(
-                    context, uri, quality, markerTimestamp, reading.size, backupFile, verify = false
-                )
-                if (!writeOk) {
-                    return@withContext false
-                }
-                lastWrittenSize = reading.size
-
-                val actualAfterWrite = readFileSizeFromDisk(context, uri)
-                if (actualAfterWrite != null && actualAfterWrite.size == reading.size) {
-                    // Финальная запись: верифицируем целостность только здесь —
-                    // промежуточные попытки пропускают verify, т.к. перезаписываются
-                    if (!verifyImageIntegrity(context, uri)) {
-                        LogUtil.error(uri, "Маркер сжатия", "Файл повреждён после записи размера маркера, восстанавливаем из backup")
-                        if (restoreFileFromBackup(context, uri, backupFile) &&
-                            verifyImageIntegrity(context, uri)
-                        ) {
-                            LogUtil.processInfo("✅ Файл восстановлен из backup после сбоя записи размера маркера")
-                        }
-                        return@withContext false
-                    }
-                    LogUtil.processInfo("✅ Размер файла ${reading.size} записан в маркер сжатия (попытка $attempt/$MARKER_SIZE_WRITE_ATTEMPTS)")
-                    return@withContext true
-                }
-
-                // Размер доступен только через дорогое потоковое чтение (fstat и
-                // statSize недоступны): итерации бессмысленны и чрезмерно дороги,
-                // деградируем на заглушку сразу после первой попытки
-                if (actualAfterWrite != null && !actualAfterWrite.stable) {
-                    LogUtil.warning(
-                        uri, "Маркер сжатия",
-                        "Размер измеряется только потоковым чтением, итеративная запись отменена, маркер сброшен на заглушку"
-                    )
-                    break
-                }
-
-                LogUtil.processInfo(
-                    "Маркер сжатия: saveAttributes() изменил размер файла: записано=${reading.size}, " +
-                        "фактически=${actualAfterWrite?.size}, повтор (попытка $attempt/$MARKER_SIZE_WRITE_ATTEMPTS)"
-                )
+            val sizeBeforeWrite = getActualFileSizeOnDisk(context, uri)
+            if (sizeBeforeWrite == null || sizeBeforeWrite <= 0L) {
+                LogUtil.warning(uri, "Маркер сжатия", "Не удалось получить размер файла, маркер остаётся без размера")
+                return@withContext false
             }
 
-            // Размер не стабилизировался — сбрасываем поле размера на заглушку,
-            // чтобы следующий скан не трактовал файл как «изменённый после сжатия»
-            // и не запускал бесконечное тестовое пересжатие. Финальная запись —
-            // с верификацией целостности.
-            LogUtil.warning(
-                uri, "Маркер сжатия",
-                "Размер не стабилизировался за $MARKER_SIZE_WRITE_ATTEMPTS попыток (последний: $lastWrittenSize), маркер сброшен на заглушку"
-            )
-            writeMarkerWithSize(context, uri, quality, markerTimestamp, null, backupFile, verify = true)
-            return@withContext false
+            val writeOk = writeMarkerWithSize(context, uri, quality, markerTimestamp, sizeBeforeWrite, backupFile)
+            if (!writeOk) {
+                return@withContext false
+            }
+
+            val actualAfterWrite = getActualFileSizeOnDisk(context, uri)
+            if (actualAfterWrite != null &&
+                kotlin.math.abs(actualAfterWrite - sizeBeforeWrite) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+            ) {
+                // Дрейф saveAttributes() оказался больше допуска: одна корректирующая
+                // запись с фактическим размером. Фиксированная ширина строки маркера
+                // гарантирует, что длина записи не изменится и файл стабилизируется
+                LogUtil.processInfo(
+                    "Маркер сжатия: дрейф saveAttributes() ${sizeBeforeWrite} → $actualAfterWrite сверх допуска, корректирующая запись"
+                )
+                writeMarkerWithSize(context, uri, quality, markerTimestamp, actualAfterWrite, backupFile)
+            } else {
+                LogUtil.processInfo("✅ Размер файла $sizeBeforeWrite записан в маркер сжатия")
+            }
+            return@withContext true
         } finally {
             BackupRegistry.clearBackup(context, uri)
             backupFile.delete()
@@ -1204,12 +1152,11 @@ object ExifUtil {
     }
 
     /**
-     * Одна запись маркера с заданным значением поля размера (null — заглушка).
-     * Backup создаётся вызывающей стороной ([rewriteMarkerWithActualSize] — один
-     * на весь цикл попыток) и используется для восстановления при сбое записи.
+     * Одна запись маркера с заданным значением поля размера. Backup создаётся
+     * вызывающей стороной ([writeActualSizeMarker] — один на фазу 2) и используется
+     * для восстановления при сбое записи. После записи всегда выполняется
+     * верификация целостности.
      *
-     * @param verify выполнять ли верификацию целостности после записи
-     *   (промежуточные попытки цикла её пропускают, т.к. файл будет перезаписан)
      * @return true если маркер записан и файл цел
      */
     private suspend fun writeMarkerWithSize(
@@ -1217,9 +1164,8 @@ object ExifUtil {
         uri: Uri,
         quality: Int,
         markerTimestamp: Long,
-        size: Long?,
-        backupFile: File,
-        verify: Boolean
+        size: Long,
+        backupFile: File
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val markerWithSize = buildCompressionMarker(quality, markerTimestamp, size)
@@ -1239,7 +1185,7 @@ object ExifUtil {
                     exif.saveAttributes()
                 }
 
-                if (verify && !verifyImageIntegrity(context, uri)) {
+                if (!verifyImageIntegrity(context, uri)) {
                     LogUtil.error(uri, "Маркер сжатия", "Файл повреждён после записи размера маркера, восстанавливаем из backup")
                     if (restoreFileFromBackup(context, uri, backupFile) &&
                         verifyImageIntegrity(context, uri)
@@ -1317,9 +1263,9 @@ object ExifUtil {
                 return@withContext false
             }
 
-            // Фаза 2: запись фактического размера файла в маркер (итеративно,
-            // с перепроверкой после saveAttributes)
-            rewriteMarkerWithActualSize(context, uri, quality, markerTimestamp)
+            // Фаза 2: запись фактического размера файла в маркер одной записью
+            // (дрейф saveAttributes() покрывается допуском в чекере)
+            writeActualSizeMarker(context, uri, quality, markerTimestamp)
 
             return@withContext true
         } catch (e: Exception) {
