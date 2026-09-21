@@ -23,6 +23,7 @@ import java.io.File
  * - Обратную совместимость со старым форматом (без размера)
  * - Обработку заглушки размера (двухфазная запись) и некорректных значений
  * - Двухфазную запись маркера: размер в маркере совпадает с фактическим размером файла
+ * - getActualFileSizeOnDisk: фактический размер с диска в обход кэша MediaStore
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
@@ -152,5 +153,61 @@ class CompressionMarkerSizeTest : BaseUnitTest() {
         assertTrue("Placeholder size field must be all zeros", placeholder.endsWith("0".repeat(15)))
         assertTrue("Sized marker must contain padded size", withSize.endsWith("000000012345678"))
         assertFalse("Placeholder must not parse as known size", placeholder.substringAfterLast(":").toLong() > 0)
+    }
+
+    private fun invokeGetActualFileSizeOnDisk(uri: Uri): Long? {
+        val method = ExifUtil.javaClass.getDeclaredMethod(
+            "getActualFileSizeOnDisk", android.content.Context::class.java, Uri::class.java
+        )
+        method.isAccessible = true
+        return method.invoke(ExifUtil, context, uri) as Long?
+    }
+
+    /**
+     * getActualFileSizeOnDisk возвращает фактический размер файла на диске,
+     * а не значение из кэша MediaStore
+     */
+    @Test
+    fun `getActualFileSizeOnDisk returns real file size`() {
+        val file = createTestJpeg()
+        val uri = Uri.fromFile(file)
+
+        val sizeOnDisk = invokeGetActualFileSizeOnDisk(uri)
+
+        assertEquals("Size from disk must match file length", file.length(), sizeOnDisk)
+    }
+
+    /**
+     * getActualFileSizeOnDisk возвращает null для недоступного файла —
+     * маркер остаётся с заглушкой (безопасная деградация, файл пропускается)
+     */
+    @Test
+    fun `getActualFileSizeOnDisk returns null for missing file`() {
+        val missing = File.createTempFile("missing_marker_", ".jpg").apply { delete() }
+        val uri = Uri.fromFile(missing)
+
+        val sizeOnDisk = invokeGetActualFileSizeOnDisk(uri)
+
+        assertNull("Missing file must yield null size", sizeOnDisk)
+    }
+
+    /**
+     * Деградационный маркер (заглушка) парсится как «размер неизвестен»:
+     * ImageProcessingChecker трактует null как отсутствие признака изменения,
+     * поэтому файл не попадает в цикл повторного пересжатия
+     */
+    @Test
+    fun `degraded placeholder marker is treated as unknown size`() {
+        val file = createTestJpeg()
+        val uri = Uri.fromFile(file)
+        val degradedMarker = "CompressPhotoFast_Compressed:99:1704067200000:000000000000000"
+        writeMarkerComment(file, degradedMarker)
+
+        val marker = kotlinx.coroutines.runBlocking {
+            ExifUtil.getCompressionMarker(context, uri)
+        }
+
+        assertTrue("Degraded marker must still mark file as compressed", marker.isCompressed)
+        assertNull("Degraded marker must not carry a size", marker.fileSize)
     }
 }
