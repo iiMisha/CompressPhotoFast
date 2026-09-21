@@ -8,6 +8,7 @@ import android.graphics.Color
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.compressphotofast.util.UriUtil
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -177,9 +178,14 @@ class ExifUtilInstrumentedTest {
             assertThat(markResult).isTrue()
 
             // Verify - проверяем, что маркер действительно добавлен
-            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionMarker(context, testImage)
-            assertThat(isCompressed).isTrue()
-            assertThat(markedQuality).isEqualTo(quality)
+            val marker = ExifUtil.getCompressionMarker(context, testImage)
+            assertThat(marker.isCompressed).isTrue()
+            assertThat(marker.quality).isEqualTo(quality)
+
+            // Verify - двухфазная запись: размер в маркере совпадает с фактическим
+            val actualSize = UriUtil.getFileSize(context, testImage)
+            assertThat(marker.fileSize).isNotNull()
+            assertThat(marker.fileSize).isEqualTo(actualSize)
         }
     }
 
@@ -194,7 +200,7 @@ class ExifUtilInstrumentedTest {
             ExifUtil.markCompressedImage(context, testImage, 80)
 
             // Act
-            val isCompressed = ExifUtil.getCompressionMarker(context, testImage).first
+            val isCompressed = ExifUtil.getCompressionMarker(context, testImage).isCompressed
 
             // Assert
             assertThat(isCompressed).isTrue()
@@ -211,7 +217,7 @@ class ExifUtilInstrumentedTest {
             val testImage = createTestImageInMediaStore()
 
             // Act
-            val isCompressed = ExifUtil.getCompressionMarker(context, testImage).first
+            val isCompressed = ExifUtil.getCompressionMarker(context, testImage).isCompressed
 
             // Assert
             assertThat(isCompressed).isFalse()

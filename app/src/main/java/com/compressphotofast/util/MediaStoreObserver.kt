@@ -84,8 +84,8 @@ class MediaStoreObserver @Inject constructor(
                 processUriWithRetry(uri, uriString)
                 return@launch
             }
-            val (isAlreadyCompressed, _, compressionTimestamp) = ExifUtil.getCompressionMarker(context, uri)
-            if (isAlreadyCompressed && System.currentTimeMillis() - compressionTimestamp < 60_000L) {
+            val marker = ExifUtil.getCompressionMarker(context, uri)
+            if (marker.isCompressed && System.currentTimeMillis() - marker.timestamp < 60_000L) {
                 pendingTasks.remove(uriString)
                 return@launch
             }

@@ -70,21 +70,27 @@ object OptimizedCacheUtil {
 
     /**
      * Класс для кэширования EXIF-данных
+     *
+     * @param markerFileSize размер файла из маркера сжатия (null — неизвестен)
+     * @param cachedFileSize размер файла, при котором вычислены EXIF-данные;
+     *                       служит ключом валидности кэша вместо даты модификации:
+     *                       копирование/перенос файла не инвалидирует кэш
      */
     data class CachedExifData(
         val isCompressed: Boolean,
         val quality: Int,
         val compressionTimestamp: Long,
-        val fileModificationTime: Long,
+        val markerFileSize: Long?,
+        val cachedFileSize: Long,
         val cacheTimestamp: Long = System.currentTimeMillis()
     ) {
         fun isExpired(): Boolean = System.currentTimeMillis() - cacheTimestamp > EXIF_CACHE_TTL
-        
+
         /**
-         * Проверяет актуальность EXIF-данных на основе времени модификации файла
+         * Проверяет актуальность EXIF-данных на основе размера файла
          */
-        fun isStaleFor(currentModificationTime: Long): Boolean {
-            return currentModificationTime > fileModificationTime
+        fun isStaleFor(currentFileSize: Long): Boolean {
+            return currentFileSize > 0L && cachedFileSize > 0L && currentFileSize != cachedFileSize
         }
     }
 
@@ -139,7 +145,7 @@ object OptimizedCacheUtil {
      */
     suspend fun getOrComputeExifData(
         uri: Uri,
-        currentModificationTime: Long,
+        currentFileSize: Long,
         compute: suspend () -> CachedExifData
     ): CachedExifData? {
         val cacheKey = uri.toString()
@@ -148,7 +154,7 @@ object OptimizedCacheUtil {
         exifCacheLock.read {
             val cached = exifCache.get(cacheKey)
             if (cached != null && !cached.isExpired()) {
-                if (currentModificationTime == 0L || !cached.isStaleFor(currentModificationTime)) {
+                if (currentFileSize == 0L || !cached.isStaleFor(currentFileSize)) {
                     return cached
                 }
             }
@@ -166,7 +172,7 @@ object OptimizedCacheUtil {
         exifCacheLock.write {
             val cached = exifCache.get(cacheKey)
             if (cached != null && !cached.isExpired()) {
-                if (currentModificationTime == 0L || !cached.isStaleFor(currentModificationTime)) {
+                if (currentFileSize == 0L || !cached.isStaleFor(currentFileSize)) {
                     return cached
                 }
             }
@@ -178,15 +184,15 @@ object OptimizedCacheUtil {
 
     /**
      * Получает кэшированные EXIF-данные
-     * Улучшенная версия с инвалидацией при изменении файла
+     * Улучшенная версия с инвалидацией при изменении размера файла
      */
-    fun getCachedExifData(uri: Uri, currentModificationTime: Long): CachedExifData? {
+    fun getCachedExifData(uri: Uri, currentFileSize: Long): CachedExifData? {
         val cacheKey = uri.toString()
 
         exifCacheLock.read {
             val cached = exifCache.get(cacheKey)
             if (cached != null) {
-                if (cached.isExpired() || (currentModificationTime > 0L && cached.isStaleFor(currentModificationTime))) {
+                if (cached.isExpired() || (currentFileSize > 0L && cached.isStaleFor(currentFileSize))) {
                     // Stale — не возвращаем, но и не удаляем (cleanupExpiredEntries() почистит)
                     return@read null
                 }

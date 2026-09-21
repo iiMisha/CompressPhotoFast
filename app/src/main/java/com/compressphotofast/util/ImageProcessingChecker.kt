@@ -196,14 +196,18 @@ object ImageProcessingChecker {
             
             // Получаем размер файла для проверок
             val fileSize = UriUtil.getFileSize(context, uri)
-            val modificationTimestamp = UriUtil.getFileLastModified(context, uri)
-            
-            // Атомарное чтение/вычисление EXIF-данных с double-check locking
-            val exifData = OptimizedCacheUtil.getOrComputeExifData(uri, modificationTimestamp) {
+
+            // Атомарное чтение/вычисление EXIF-данных с double-check locking.
+            // Кэш валидируется по размеру файла: копирование/перенос (обновляющие
+            // только дату модификации) не инвалидируют кэш, реальное изменение
+            // содержимого — инвалидирует.
+            val exifData = OptimizedCacheUtil.getOrComputeExifData(uri, fileSize) {
                 PerformanceMonitor.recordCacheMiss("EXIF")
                 PerformanceMonitor.measureExifCheck {
-                    val exifResult = ExifUtil.getCompressionMarker(context, uri)
-                    OptimizedCacheUtil.CachedExifData(exifResult.first, exifResult.second, exifResult.third, modificationTimestamp)
+                    val marker = ExifUtil.getCompressionMarker(context, uri)
+                    OptimizedCacheUtil.CachedExifData(
+                        marker.isCompressed, marker.quality, marker.timestamp, marker.fileSize, fileSize
+                    )
                 }
             }
             if (exifData != null) {
@@ -212,48 +216,30 @@ object ImageProcessingChecker {
             val isCompressed = exifData?.isCompressed ?: false
             val quality = exifData?.quality ?: -1
             val compressionTimestamp = exifData?.compressionTimestamp ?: 0L
-            
-            // Дополнительная проверка: если файл был изменен после кэширования EXIF, используем свежие данные
+
             result.hasCompressionMarker = isCompressed
             result.compressionQuality = quality
             result.compressionTimestamp = compressionTimestamp
-            
-            // Если файл имеет маркер сжатия, проверяем, не был ли он модифицирован после сжатия
+
+            // Файл с маркером сжатия повторно обрабатывается ТОЛЬКО при реальном
+            // изменении содержимого, определяемом по размеру файла: если текущий
+            // размер отличается от размера, записанного в маркере, файл был
+            // пережат/отредактирован после сжатия. Если размер совпадает или
+            // неизвестен (старый формат маркера, HEIC-маркер, незавершённая
+            // двухфазная запись) — доверяем маркеру и пропускаем файл.
             if (isCompressed) {
-                result.fileModificationTimestamp = modificationTimestamp
-                
-                // Если мы не можем получить дату модификации, считаем что файл не был изменен
-                if (modificationTimestamp == 0L) {
-                    result.processingRequired = false
-                    result.reason = ProcessingSkipReason.ALREADY_COMPRESSED
-                    return@withContext result
-                }
-                
-                // Проверяем, был ли файл модифицирован после сжатия
-                if (modificationTimestamp > compressionTimestamp) {
-                    // Файл был модифицирован после сжатия, требуется повторная обработка
-                    val diffSeconds = (modificationTimestamp - compressionTimestamp) / 1000
-                    // Допустимая погрешность в секундах для учета задержки между записью EXIF и обновлением времени модификации
-                    val allowedTimeDifferenceSeconds = 20
-                    
-                    // Если разница меньше или равна допустимой, считаем, что файл не был модифицирован
-                    if (diffSeconds <= allowedTimeDifferenceSeconds) {
-                        // Файл не был модифицирован после сжатия (или отличается в пределах допустимой погрешности)
-                        LogUtil.processDebug("Файл не был модифицирован после сжатия (разница $diffSeconds сек в пределах допустимой погрешности $allowedTimeDifferenceSeconds сек)")
-                        result.processingRequired = false
-                        result.reason = ProcessingSkipReason.ALREADY_COMPRESSED
-                        return@withContext result
-                    }
-                    
-                    LogUtil.processDebug("Файл был модифицирован после сжатия (разница $diffSeconds сек), требуется повторная обработка")
+                val markerFileSize = exifData?.markerFileSize
+                val contentModified = markerFileSize != null && fileSize > 0L && fileSize != markerFileSize
+
+                if (contentModified) {
+                    LogUtil.processDebug("Файл изменён после сжатия: размер $fileSize != $markerFileSize, требуется повторная обработка")
                     result.processingRequired = true
                     result.reason = ProcessingSkipReason.NONE
                 } else {
-                    // Файл не был модифицирован после сжатия
                     result.processingRequired = false
                     result.reason = ProcessingSkipReason.ALREADY_COMPRESSED
-                    return@withContext result
                 }
+                return@withContext result
             }
             
             // Если файл достаточно мал, пропускаем его
@@ -288,7 +274,6 @@ object ImageProcessingChecker {
         var hasCompressionMarker: Boolean = false,
         var compressionQuality: Int = -1,
         var compressionTimestamp: Long = 0L,
-        var fileModificationTimestamp: Long? = null,
         var error: Exception? = null
     )
     

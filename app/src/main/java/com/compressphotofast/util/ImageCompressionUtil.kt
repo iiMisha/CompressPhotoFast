@@ -575,8 +575,8 @@ object ImageCompressionUtil {
             }
 
             // Пропускаем уже сжатые файлы
-            val (hasMarker, _, _) = ExifUtil.getCompressionMarker(context, uri)
-            if (hasMarker) {
+            val marker = ExifUtil.getCompressionMarker(context, uri)
+            if (marker.isCompressed) {
                 LogUtil.processDebug("Файл уже сжат, пропускаем: $uri")
                 return@withContext Triple(false, uri, "Файл уже сжат")
             }
