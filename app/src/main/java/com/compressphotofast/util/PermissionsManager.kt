@@ -28,7 +28,6 @@ class PermissionsManager(
     // Константы
     companion object {
         private const val PREF_PERMISSION_SKIPPED = Constants.PREF_PERMISSION_SKIPPED
-        private const val PREF_PERMISSION_REQUEST_COUNT = Constants.PREF_PERMISSION_REQUEST_COUNT
         private const val PREF_NOTIFICATION_PERMISSION_SKIPPED = Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED
     }
 
@@ -67,15 +66,6 @@ class PermissionsManager(
             return true
         }
 
-        val permissionSkipped = prefs.getBoolean(PREF_PERMISSION_SKIPPED, false)
-        val permissionRequestCount = prefs.getInt(PREF_PERMISSION_REQUEST_COUNT, 0)
-        
-        if (permissionSkipped || permissionRequestCount >= 3) {
-            LogUtil.processDebug("Запрос разрешений был пропущен или превышено количество попыток, не запрашиваем снова")
-            onPermissionsGranted()
-            return true
-        }
-        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 showStoragePermissionDialog(onPermissionsGranted)
@@ -84,6 +74,42 @@ class PermissionsManager(
         }
 
         return requestOtherPermissions(onPermissionsGranted)
+    }
+
+    /**
+     * Запрашивает все отсутствующие runtime-разрешения одним системным диалогом
+     * при запуске приложения (медиа, уведомления, геолокация EXIF).
+     *
+     * В отличие от [checkAndRequestAllPermissions] не требует «Доступа ко всем файлам»
+     * (MANAGE_EXTERNAL_STORAGE не имеет runtime-диалога и запрашивается вызывающей
+     * стороной отдельным шагом) и не подавляется счётчиками попыток — запрос
+     * выполняется при каждом запуске, пока разрешения не выданы, как в системном
+     * поведении «don't ask again».
+     */
+    override fun requestStartupPermissions(onComplete: () -> Unit) {
+        this.onPermissionsGrantedCallback = onComplete
+
+        val permissions = mutableListOf<String>()
+        permissions.addAll(getRequiredStoragePermissions())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasMediaLocationPermission()) {
+            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+            LogUtil.processDebug("Запрашиваем разрешение ACCESS_MEDIA_LOCATION для GPS данных в EXIF")
+        }
+
+        if (permissions.isEmpty()) {
+            LogUtil.processDebug("Все runtime-разрешения уже предоставлены")
+            onComplete()
+            return
+        }
+
+        LogUtil.processDebug("Запрашиваем runtime-разрешения при запуске: ${permissions.joinToString()}")
+        requestPermissionLauncher.launch(permissions.toTypedArray())
     }
 
     /**
@@ -101,7 +127,6 @@ class PermissionsManager(
         }
 
         LogUtil.processDebug("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
-        incrementPermissionRequestCount()
         requestPermissionLauncher.launch(permissions.toTypedArray())
         return false
     }
@@ -178,17 +203,8 @@ class PermissionsManager(
         }
 
         LogUtil.processDebug("Запрашиваем разрешения: ${permissions.joinToString()}")
-        incrementPermissionRequestCount()
         requestPermissionLauncher.launch(permissions.toTypedArray())
         return false
-    }
-
-    /**
-     * Увеличивает счетчик попыток запроса разрешений
-     */
-    private fun incrementPermissionRequestCount() {
-        val permissionRequestCount = prefs.getInt(PREF_PERMISSION_REQUEST_COUNT, 0)
-        prefs.edit().putInt(PREF_PERMISSION_REQUEST_COUNT, permissionRequestCount + 1).apply()
     }
 
     /**

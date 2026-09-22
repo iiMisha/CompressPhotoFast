@@ -20,6 +20,14 @@ interface IPermissionsManager {
      * @return true если все разрешения уже предоставлены
      */
     fun checkAndRequestAllPermissions(onPermissionsGranted: () -> Unit): Boolean
+
+    /**
+     * Запрашивает все отсутствующие runtime-разрешения (медиа, уведомления,
+     * геолокация EXIF) одним системным диалогом при запуске приложения.
+     * Вызывает [onComplete] после завершения цепочки запросов и обработки отказов
+     * (в том числе при отказе пользователя) — не блокирует продолжение запуска.
+     */
+    fun requestStartupPermissions(onComplete: () -> Unit)
     
     /**
      * Запрашивает разрешения для доступа к хранилищу

@@ -2,7 +2,6 @@ package com.compressphotofast.ui
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -611,63 +610,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Проверка необходимых разрешений
+     * Проверка необходимых разрешений: при запуске подряд запрашиваются все
+     * отсутствующие разрешения (runtime-диалоги, затем «Доступ ко всем файлам»,
+     * затем исключение из оптимизации батареи), как в эталонном flow RogaineHelper.
      */
     private fun checkAndRequestPermissions() {
-        permissionsManager?.checkAndRequestAllPermissions {
-            checkMediaLocationPermission()
-            updatePhotoPickerButtonVisibility()
+        permissionsManager?.requestStartupPermissions {
+            requestAllFilesAccessIfNeeded {
+                requestBatteryExemptionIfNeeded()
+                updatePhotoPickerButtonVisibility()
+                initializeBackgroundServices()
+            }
         }
     }
-    
+
     /**
-     * Проверка разрешения ACCESS_MEDIA_LOCATION для GPS данных
+     * Запрашивает «Доступ ко всем файлам» (MANAGE_EXTERNAL_STORAGE) при его
+     * отсутствии. Системного диалога для этого разрешения не существует, поэтому
+     * показывается краткое in-app объяснение и открывается системный экран настроек.
+     * Требуется для перезаписи оригиналов на месте в режиме Replace.
      */
-    private fun checkMediaLocationPermission() {
-        if (!permissionsManager?.hasMediaLocationPermission()!! && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            showMediaLocationPermissionDialog()
+    private fun requestAllFilesAccessIfNeeded(onDone: () -> Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !android.os.Environment.isExternalStorageManager()) {
+            permissionsManager?.showStoragePermissionDialog(onSkip = onDone)
         } else {
-            initializeBackgroundServices()
+            onDone()
         }
-    }
-    
-    /**
-     * Показать диалог с объяснением разрешения ACCESS_MEDIA_LOCATION
-     */
-    private fun showMediaLocationPermissionDialog() {
-        AlertDialog.Builder(this, R.style.Theme_CompressPhotoFast_AlertDialog)
-            .setTitle(R.string.dialog_media_location_title)
-            .setMessage(R.string.dialog_media_location_message)
-            .setPositiveButton(R.string.dialog_media_location_grant) { _, _ ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    permissionsManager?.requestOtherPermissions { initializeBackgroundServices() }
-                }
-            }
-            .setNegativeButton(R.string.dialog_media_location_skip) { _, _ ->
-                showToast(getString(R.string.toast_media_location_skipped))
-                initializeBackgroundServices()
-            }
-            .setCancelable(false)
-            .show()
-    }
-
-    /**
-     * Обработка результата запроса разрешений
-     */
-
-    /**
-     * Показать диалог с объяснением необходимости разрешений
-     */
-    private fun showPermissionExplanationDialog() {
-        permissionsManager?.showPermissionExplanationDialog(
-            IPermissionsManager.PermissionType.ALL,
-            onRetry = { checkAndRequestPermissions() },
-            onSkip = {
-                initializeBackgroundServices()
-                // Показываем toast о том, что функциональность может быть ограничена
-                showToast(getString(R.string.toast_functionality_limited))
-            }
-        )
     }
 
     /**

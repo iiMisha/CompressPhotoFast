@@ -45,6 +45,7 @@
 - Новые URI ставятся в per-URI unique WorkManager works через SHA-256 identity: auto settle задержан на 30 секунд, manual final-work expedited без delay; legacy `sequential_image_compression` не отменяется и дренируется bounded Worker.
 - Тяжёлая Bitmap/MediaStore-фаза сериализуется `CompressionExecutionGate`; transient retry ограничен пятью попытками с линейным backoff, проблемный URI не блокирует соседние.
 - Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
+- Разрешения запрашиваются все при первом запуске: один runtime-диалог (медиа/уведомления/гео EXIF) через `PermissionsManager.requestStartupPermissions`, затем All-Files-Access (`requestAllFilesAccessIfNeeded` в `MainActivity`), затем battery exemption; счётчик попыток запросов убран.
 - Gallery scan возвращает `completedSuccessfully`, использует overlap watermark и не продвигает его после ошибки/null cursor; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
 ## Проверка и релиз
