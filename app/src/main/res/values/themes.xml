@@ -1,51 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Основная тема приложения (светлая) -->
-    <style name="Theme.CompressPhotoFast" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <!-- Основная тема приложения (светлая), Material 3 -->
+    <style name="Theme.CompressPhotoFast" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Цвета -->
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryDark">@color/primary_dark</item>
-        <item name="colorAccent">@color/accent</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
         <item name="colorSurface">@color/surface</item>
-        
-        <!-- Статус бар -->
-        <item name="android:statusBarColor">@color/primary_dark</item>
-        <item name="android:windowLightStatusBar">false</item>
-        
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+        <item name="colorOutline">@color/outline</item>
+        <item name="colorError">@color/error</item>
+
         <!-- Фон -->
+        <item name="android:colorBackground">@color/background</item>
         <item name="android:windowBackground">@color/background</item>
-        
+
         <!-- Типографика -->
-        <item name="android:textColorPrimary">@color/primary_text</item>
-        <item name="android:textColorSecondary">@color/secondary_text</item>
+        <item name="android:textColorPrimary">@color/on_background</item>
+        <item name="android:textColorSecondary">@color/on_surface_variant</item>
     </style>
-    
-    <!-- Стиль для кнопок -->
-    <style name="Widget.CompressPhotoFast.Button" parent="Widget.MaterialComponents.Button">
-        <item name="android:textColor">@color/white</item>
-        <item name="android:padding">12dp</item>
-        <item name="android:textSize">16sp</item>
-    </style>
-    
-    <!-- Стиль для переключателей -->
-    <style name="Widget.CompressPhotoFast.Switch" parent="Widget.MaterialComponents.CompoundButton.Switch">
-        <item name="android:textSize">16sp</item>
-        <item name="android:textColor">@color/primary_text</item>
-    </style>
-    
+
     <!-- Стиль для диалогов -->
-    <style name="Theme.CompressPhotoFast.AlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
-        <item name="colorAccent">@color/dialog_positive_button</item>
+    <style name="Theme.CompressPhotoFast.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="buttonBarPositiveButtonStyle">@style/PositiveButtonStyle</item>
         <item name="buttonBarNegativeButtonStyle">@style/NegativeButtonStyle</item>
     </style>
-    
-    <style name="PositiveButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
-        <item name="android:textColor">@color/dialog_positive_button</item>
-        <item name="android:textStyle">bold</item>
+
+    <style name="PositiveButtonStyle" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/primary</item>
     </style>
-    
-    <style name="NegativeButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
-        <item name="android:textColor">@color/dialog_negative_button</item>
+
+    <style name="NegativeButtonStyle" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/on_surface_variant</item>
     </style>
-</resources> 
+</resources>

@@ -13,16 +13,19 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.text.Html
 import android.transition.TransitionManager
 import android.view.View
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.color.DynamicColors
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.compressphotofast.R
@@ -217,9 +220,17 @@ class MainActivity : AppCompatActivity() {
         // Инициализация SharedPreferences
         prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         
+        // Динамический цвет Material 3 (Android 12+), на старых версиях — статичная палитра
+        DynamicColors.applyIfAvailable(this)
+
+        // Edge-to-edge: на Android 15+ включён принудительно, применяем insets к контенту
+        enableEdgeToEdge()
+
         // Инициализация ViewBinding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        applyWindowInsets()
         
         // Инициализация менеджера разрешений
         permissionsManager = PermissionsManager(this)
@@ -249,6 +260,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * Добавляет отступы под системные бары (edge-to-edge) к базовым отступам контента.
+     */
+    private fun applyWindowInsets() {
+        val density = resources.displayMetrics.density
+        fun px(dp: Int) = (dp * density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.mainScroll) { view, windowInsets ->
+            val bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left + px(16), bars.top + px(8), bars.right + px(16), bars.bottom + px(16))
+            windowInsets
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == Constants.ACTION_STOP_SERVICE) {
@@ -467,26 +491,17 @@ class MainActivity : AppCompatActivity() {
         binding.autoCompressionHeader.setOnClickListener {
             viewModel.toggleWarningExpanded()
         }
-        
-        // Настраиваем HTML-форматирование для предупреждения
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            binding.tvBackgroundModeWarning.text = Html.fromHtml(getString(R.string.background_mode_warning), Html.FROM_HTML_MODE_COMPACT)
-        } else {
-            @Suppress("DEPRECATION")
-            binding.tvBackgroundModeWarning.text = Html.fromHtml(getString(R.string.background_mode_warning))
-        }
-        
-        // Добавляем обработчик нажатия на предупреждение для перехода в настройки
-        binding.tvBackgroundModeWarning.setOnClickListener {
-            // Открываем экран исключения из оптимизации батареи (с fallback на настройки приложения).
+
+        // Переход в настройки батареи из карточки предупреждения
+        binding.btnOpenBatterySettings.setOnClickListener {
             val started = BatteryOptimizationHelper.openBatterySettings(this)
             if (started) {
                 showToast(getString(R.string.notification_toast_battery_settings))
             } else {
-                showToast("Пожалуйста, откройте настройки вручную")
+                showToast(getString(R.string.toast_open_battery_settings_manually))
             }
         }
-        
+
         // Переключатель режима сохранения (listener'ы регистрируются в attachSwitchListeners())
         binding.switchSaveMode.isChecked = viewModel.isSaveModeReplace()
         
@@ -588,10 +603,8 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
                 viewModel.isWarningExpanded.collect { isExpanded ->
                     TransitionManager.beginDelayedTransition(binding.mainContainer)
-                    binding.tvBackgroundModeWarning.visibility = if (isExpanded) View.VISIBLE else View.GONE
+                    binding.warningCard.visibility = if (isExpanded) View.VISIBLE else View.GONE
                     binding.ivExpandArrow.rotation = if (isExpanded) 180f else 0f
-                    // Эта строка будет менять фон в зависимости от состояния (свернуто/развернуто)
-                    binding.autoCompressionHeader.isActivated = isExpanded
                 }
             }
         }
@@ -623,15 +636,15 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showMediaLocationPermissionDialog() {
         AlertDialog.Builder(this, R.style.Theme_CompressPhotoFast_AlertDialog)
-            .setTitle("Сохранение геолокации")
-            .setMessage("Для сохранения GPS координат в сжатых фото требуется разрешение доступа к местоположению в медиафайлах.\n\nБез этого разрешения координаты будут потеряны при сжатии фото.")
-            .setPositiveButton("Предоставить") { _, _ ->
+            .setTitle(R.string.dialog_media_location_title)
+            .setMessage(R.string.dialog_media_location_message)
+            .setPositiveButton(R.string.dialog_media_location_grant) { _, _ ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     permissionsManager?.requestOtherPermissions { initializeBackgroundServices() }
                 }
             }
-            .setNegativeButton("Пропустить") { _, _ ->
-                showToast("GPS координаты не будут сохраняться в сжатых фото")
+            .setNegativeButton(R.string.dialog_media_location_skip) { _, _ ->
+                showToast(getString(R.string.toast_media_location_skipped))
                 initializeBackgroundServices()
             }
             .setCancelable(false)
@@ -652,7 +665,7 @@ class MainActivity : AppCompatActivity() {
             onSkip = {
                 initializeBackgroundServices()
                 // Показываем toast о том, что функциональность может быть ограничена
-                showToast("Функциональность приложения может быть ограничена без необходимых разрешений")
+                showToast(getString(R.string.toast_functionality_limited))
             }
         )
     }
@@ -680,32 +693,29 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupCompressionQualityRadioButtons() {
         updateQualityRadioButtonTexts()
-        
+
         when (viewModel.getCompressionQuality()) {
-            Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
-            Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
-            else -> binding.rbQualityMedium.isChecked = true
+            Constants.COMPRESSION_QUALITY_LOW -> binding.radioGroupQuality.check(R.id.rbQualityLow)
+            Constants.COMPRESSION_QUALITY_HIGH -> binding.radioGroupQuality.check(R.id.rbQualityHigh)
+            else -> binding.radioGroupQuality.check(R.id.rbQualityMedium)
         }
-        
-        binding.rbQualityLow.setOnClickListener {
-            viewModel.setCompressionPreset(CompressionPreset.LOW)
+
+        binding.radioGroupQuality.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            when (checkedId) {
+                R.id.rbQualityLow -> viewModel.setCompressionPreset(CompressionPreset.LOW)
+                R.id.rbQualityMedium -> viewModel.setCompressionPreset(CompressionPreset.MEDIUM)
+                R.id.rbQualityHigh -> viewModel.setCompressionPreset(CompressionPreset.HIGH)
+            }
         }
-        
-        binding.rbQualityMedium.setOnClickListener {
-            viewModel.setCompressionPreset(CompressionPreset.MEDIUM)
-        }
-        
-        binding.rbQualityHigh.setOnClickListener {
-            viewModel.setCompressionPreset(CompressionPreset.HIGH)
-        }
-        
+
         viewModel.compressionQuality.observe(this) { quality ->
             LogUtil.processDebug("Установлено качество сжатия: $quality")
             updateQualityRadioButtonTexts()
             when (quality) {
-                Constants.COMPRESSION_QUALITY_LOW -> binding.rbQualityLow.isChecked = true
-                Constants.COMPRESSION_QUALITY_MEDIUM -> binding.rbQualityMedium.isChecked = true
-                Constants.COMPRESSION_QUALITY_HIGH -> binding.rbQualityHigh.isChecked = true
+                Constants.COMPRESSION_QUALITY_LOW -> binding.radioGroupQuality.check(R.id.rbQualityLow)
+                Constants.COMPRESSION_QUALITY_MEDIUM -> binding.radioGroupQuality.check(R.id.rbQualityMedium)
+                Constants.COMPRESSION_QUALITY_HIGH -> binding.radioGroupQuality.check(R.id.rbQualityHigh)
             }
         }
     }
@@ -721,29 +731,26 @@ class MainActivity : AppCompatActivity() {
      */
     private fun setupResolutionRadioButtons() {
         when (viewModel.getMaxResolution()) {
-            Constants.RESOLUTION_1920 -> binding.rbResolution1920.isChecked = true
-            Constants.RESOLUTION_1280 -> binding.rbResolution1280.isChecked = true
-            else -> binding.rbResolutionOriginal.isChecked = true
+            Constants.RESOLUTION_1920 -> binding.radioGroupResolution.check(R.id.rbResolution1920)
+            Constants.RESOLUTION_1280 -> binding.radioGroupResolution.check(R.id.rbResolution1280)
+            else -> binding.radioGroupResolution.check(R.id.rbResolutionOriginal)
         }
 
-        binding.rbResolutionOriginal.setOnClickListener {
-            viewModel.setMaxResolution(Constants.RESOLUTION_ORIGINAL)
-        }
-
-        binding.rbResolution1920.setOnClickListener {
-            viewModel.setMaxResolution(Constants.RESOLUTION_1920)
-        }
-
-        binding.rbResolution1280.setOnClickListener {
-            viewModel.setMaxResolution(Constants.RESOLUTION_1280)
+        binding.radioGroupResolution.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            when (checkedId) {
+                R.id.rbResolutionOriginal -> viewModel.setMaxResolution(Constants.RESOLUTION_ORIGINAL)
+                R.id.rbResolution1920 -> viewModel.setMaxResolution(Constants.RESOLUTION_1920)
+                R.id.rbResolution1280 -> viewModel.setMaxResolution(Constants.RESOLUTION_1280)
+            }
         }
 
         viewModel.maxResolution.observe(this) { maxDimension ->
             LogUtil.processDebug("Установлено максимальное разрешение: $maxDimension")
             when (maxDimension) {
-                Constants.RESOLUTION_1920 -> binding.rbResolution1920.isChecked = true
-                Constants.RESOLUTION_1280 -> binding.rbResolution1280.isChecked = true
-                else -> binding.rbResolutionOriginal.isChecked = true
+                Constants.RESOLUTION_1920 -> binding.radioGroupResolution.check(R.id.rbResolution1920)
+                Constants.RESOLUTION_1280 -> binding.radioGroupResolution.check(R.id.rbResolution1280)
+                else -> binding.radioGroupResolution.check(R.id.rbResolutionOriginal)
             }
         }
     }

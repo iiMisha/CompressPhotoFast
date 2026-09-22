@@ -1,316 +1,293 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:id="@+id/mainContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="@dimen/screen_horizontal_margin"
-        android:paddingEnd="@dimen/screen_horizontal_margin"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp"
         tools:context=".ui.MainActivity">
 
-        <!-- Контейнер для секции автоматического сжатия -->
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/autoCompressionHeader"
-            android:layout_width="0dp"
+        <!-- Секция: автоматическое сжатие -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <!-- Новый TextView для текста "Автоматическое сжатие" -->
             <TextView
                 android:id="@+id/tvAutoCompressionLabel"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/auto_compression_toggle"
                 android:textSize="16sp"
-                android:gravity="center_vertical"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintHorizontal_chainStyle="packed"
-                app:layout_constraintHorizontal_bias="0"
-                app:layout_constraintEnd_toStartOf="@+id/warning_icon"/>
+                android:textColor="@color/on_surface" />
 
-            <!-- Иконка предупреждения -->
-            <TextView
-                android:id="@+id/warning_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="⚠️"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                app:layout_constraintStart_toEndOf="@id/tvAutoCompressionLabel"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/ivExpandArrow"/>
-
-            <!-- Иконка раскрытия -->
-            <ImageView
-                android:id="@+id/ivExpandArrow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_expand_more"
-                android:contentDescription="@string/auto_compression_description"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="4dp"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/warning_icon"
-                app:layout_constraintEnd_toStartOf="@+id/switchAutoCompression"/>
-
-            <!-- Переключатель, выровненный по правому краю -->
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchAutoCompression"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                style="@style/Widget.CompressPhotoFast.Switch"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"/>
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <!-- Описание автоматического сжатия -->
         <TextView
             android:id="@+id/tvAutoCompressionDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/auto_compression_description"
-            android:textSize="14sp"
-            android:textColor="@color/secondary_text"
             android:layout_marginTop="2dp"
-            app:layout_constraintTop_toBottomOf="@id/autoCompressionHeader"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-        
-        <!-- Предупреждение о необходимости разрешить фоновый режим -->
-        <TextView
-            android:id="@+id/tvBackgroundModeWarning"
+            android:text="@string/auto_compression_description"
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_variant" />
+
+        <!-- Строка раскрытия предупреждения -->
+        <LinearLayout
+            android:id="@+id/autoCompressionHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/background_mode_warning"
-            android:textSize="13sp"
-            android:textColor="@color/warning_text"
-            android:layout_marginTop="8dp"
-            android:padding="8dp"
-            android:visibility="gone"
-            android:clickable="true"
-            android:focusable="true"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:background="?attr/selectableItemBackground"
-            android:linksClickable="true"
-            app:layout_constraintTop_toBottomOf="@id/tvAutoCompressionDescription"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-        
-        <!-- Переключатель режима сохранения -->
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switchSaveMode"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="@string/save_mode_toggle"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tvBackgroundModeWarning"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            style="@style/Widget.CompressPhotoFast.Switch" />
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
 
-        <!-- Описание режима сохранения -->
+            <TextView
+                android:id="@+id/tvWarningTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/warning_card_title"
+                android:textSize="14sp"
+                android:textColor="@color/on_surface_variant" />
+
+            <ImageView
+                android:id="@+id/ivExpandArrow"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_expand_more"
+                android:contentDescription="@string/auto_compression_description"
+                app:tint="@color/on_surface_variant" />
+        </LinearLayout>
+
+        <!-- Сворачиваемая карточка предупреждения -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/warningCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            app:cardCornerRadius="16dp"
+            app:cardBackgroundColor="@color/surface_variant"
+            app:strokeWidth="0dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/tvBackgroundModeWarning"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/background_mode_warning"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/on_surface_variant" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOpenBatterySettings"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:paddingStart="0dp"
+                    android:text="@string/warning_open_battery_settings" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Секция: режим сохранения -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvSaveModeLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/save_mode_toggle"
+                android:textSize="16sp"
+                android:textColor="@color/on_surface" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchSaveMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/tvSaveModeDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/save_mode_description"
-            android:textSize="14sp"
-            android:textColor="@color/secondary_text"
             android:layout_marginTop="2dp"
-            app:layout_constraintTop_toBottomOf="@id/switchSaveMode"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:text="@string/save_mode_description"
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_variant" />
 
-        <!-- Разделитель для секции качества -->
-        <View
-            android:id="@+id/divider2"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/divider"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/tvSaveModeDescription"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-        
-        <!-- Заголовок для уровня сжатия -->
+        <!-- Секция: качество сжатия -->
         <TextView
             android:id="@+id/tvCompressionQualityTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
             android:text="@string/compression_quality_title"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/divider2"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-        
-        <!-- Описание уровня сжатия -->
+            android:letterSpacing="0.08"
+            android:textColor="@color/on_surface_variant" />
+
         <TextView
             android:id="@+id/tvCompressionQualityDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:text="@string/compression_quality_description"
-            android:textSize="14sp"
-            android:textColor="@color/secondary_text"
-            android:layout_marginTop="2dp"
-            app:layout_constraintTop_toBottomOf="@id/tvCompressionQualityTitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-        
-        <!-- Контейнер для кнопок выбора уровня качества -->
-        <RadioGroup
-            android:id="@+id/radioGroupQuality"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tvCompressionQualityDescription"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
-            
-            <com.google.android.material.radiobutton.MaterialRadioButton
-                android:id="@+id/rbQualityLow"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="13sp"
-                android:paddingStart="4dp"
-                android:text="@string/compression_quality_low"
-                tools:text="🔥 Низкое (60%)" />
-            
-            <com.google.android.material.radiobutton.MaterialRadioButton
-                android:id="@+id/rbQualityMedium"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="13sp"
-                android:paddingStart="4dp"
-                android:text="@string/compression_quality_medium"
-                tools:text="⚖️ Среднее (70%)" />
-            
-            <com.google.android.material.radiobutton.MaterialRadioButton
-                android:id="@+id/rbQualityHigh"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="13sp"
-                android:paddingStart="4dp"
-                android:text="@string/compression_quality_high"
-                tools:text="💎 Высокое (85%)" />
-        </RadioGroup>
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_variant" />
 
-        <!-- Заголовок для разрешения -->
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/radioGroupQuality"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rbQualityLow"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                tools:text="Низкое (60%)" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rbQualityMedium"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                tools:text="Среднее (70%)" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/rbQualityHigh"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                tools:text="Высокое (85%)" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <!-- Секция: разрешение -->
         <TextView
             android:id="@+id/tvResolutionTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
             android:text="@string/resolution_title"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textStyle="bold"
-            android:layout_marginTop="12dp"
-            app:layout_constraintTop_toBottomOf="@id/radioGroupQuality"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:letterSpacing="0.08"
+            android:textColor="@color/on_surface_variant" />
 
-        <!-- Описание разрешения -->
         <TextView
             android:id="@+id/tvResolutionDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:text="@string/resolution_description"
-            android:textSize="14sp"
-            android:textColor="@color/secondary_text"
-            android:layout_marginTop="2dp"
-            app:layout_constraintTop_toBottomOf="@id/tvResolutionTitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_variant" />
 
-        <!-- Контейнер для кнопок выбора разрешения -->
-        <RadioGroup
+        <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/radioGroupResolution"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tvResolutionDescription"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:layout_marginTop="12dp"
+            app:singleSelection="true"
+            app:selectionRequired="true">
 
-            <com.google.android.material.radiobutton.MaterialRadioButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/rbResolutionOriginal"
+                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="13sp"
-                android:paddingStart="4dp"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
                 android:text="@string/resolution_original" />
 
-            <com.google.android.material.radiobutton.MaterialRadioButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/rbResolution1920"
+                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="13sp"
-                android:paddingStart="4dp"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
                 android:text="@string/resolution_1920" />
 
-            <com.google.android.material.radiobutton.MaterialRadioButton
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/rbResolution1280"
+                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="13sp"
-                android:paddingStart="4dp"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
                 android:text="@string/resolution_1280" />
-        </RadioGroup>
+        </com.google.android.material.button.MaterialButtonToggleGroup>
 
-        <!-- Кнопка для выбора фото через Photo Picker -->
-        <Button
+        <!-- Кнопка выбора фото -->
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSelectPhotos"
-            android:layout_width="0dp"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
             android:text="@string/select_photos_button"
-            android:layout_marginTop="16dp"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/radioGroupResolution"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            tools:visibility="visible"/>
+            tools:visibility="visible" />
 
-        <!-- Индикатор загрузки -->
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="@style/LargeProgressBar"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:visibility="gone"
-            android:indeterminate="true"
-            android:elevation="4dp"
-            android:background="@drawable/progress_background"
-            android:padding="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</ScrollView> 
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

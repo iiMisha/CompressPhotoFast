@@ -2,28 +2,26 @@
     <string name="app_name">Сжатие фото</string>
     
     <!-- Основной экран -->
-    <string name="auto_compression_toggle">⚡ Автоматическое сжатие</string>
+    <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
-    <string name="background_mode_warning"><![CDATA[<font size="16">⚠️</font> При проблемах работы автоматического сжатия на некоторых устройствах: <br><br>
-1️⃣ Зайдите в Настройки → Приложения → CompressPhotoFast → Батарея → выберите \"Без ограничений\"<br><br>
-<i>или в зависимости от модели телефона:</i><br><br>
-2️⃣ Настройки → Батарея → Оптимизация расхода батареи (или \"Управление энергопотреблением\") → найдите CompressPhotoFast и отключите оптимизацию<br><br>
-(Нажмите <font color="#FF9800"><b><u>ЗДЕСЬ</u></b></font> для перехода в настройки <font size="16">👆</font>)]]></string>
-    <string name="save_mode_toggle">💾 Заменять оригинальные файлы</string>
+    <string name="warning_card_title">Работает не на всех устройствах?</string>
+    <string name="warning_open_battery_settings">Открыть настройки батареи</string>
+    <string name="background_mode_warning">При проблемах работы автоматического сжатия:\n\n1. Настройки → Приложения → CompressPhotoFast → Батарея → выберите «Без ограничений»\n\nили, в зависимости от модели телефона:\n\n2. Настройки → Батарея → Оптимизация расхода батареи (или «Управление энергопотреблением») → найдите CompressPhotoFast и отключите оптимизацию</string>
+    <string name="save_mode_toggle">Заменять оригинальные файлы</string>
     <string name="save_mode_description">При включенном переключателе сжатые файлы записываются в исходную папку, а оригиналы удаляются. При выключенном - сохраняются в отдельной папке</string>
-    <string name="compression_quality_title">⚙️ Качество сжатия</string>
+    <string name="compression_quality_title">Качество сжатия</string>
     <string name="compression_quality_description">Выберите качество сжатия (ниже = меньший размер, выше = лучшее качество)</string>
-    <string name="compression_quality_low">🔥 Низкое</string>
-    <string name="compression_quality_medium">⚖️ Среднее</string>
-    <string name="compression_quality_high">💎 Высокое</string>
-    <string name="compression_quality_low_with_value">🔥 Низкое (%d%%)</string>
-    <string name="compression_quality_medium_with_value">⚖️ Среднее (%d%%)</string>
-    <string name="compression_quality_high_with_value">💎 Высокое (%d%%)</string>
-    <string name="resolution_title">📐 Разрешение</string>
+    <string name="compression_quality_low">Низкое</string>
+    <string name="compression_quality_medium">Среднее</string>
+    <string name="compression_quality_high">Высокое</string>
+    <string name="compression_quality_low_with_value">Низкое (%d%%)</string>
+    <string name="compression_quality_medium_with_value">Среднее (%d%%)</string>
+    <string name="compression_quality_high_with_value">Высокое (%d%%)</string>
+    <string name="resolution_title">Разрешение</string>
     <string name="resolution_description">Максимальная сторона фото после сжатия (Оригинал — без изменения размеров)</string>
-    <string name="resolution_original">🖼️ Оригинал</string>
-    <string name="resolution_1920">🖥️ 1920px</string>
-    <string name="resolution_1280">📱 1280px</string>
+    <string name="resolution_original">Оригинал</string>
+    <string name="resolution_1920">1920 px</string>
+    <string name="resolution_1280">1280 px</string>
     <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->
@@ -70,6 +68,9 @@
     <string name="file_deleted_successfully">✅ Оригинальный файл успешно удален</string>
     <string name="batch_processing_stopped">⏹️ Обработка остановлена</string>
     <string name="notification_toast_battery_settings">Найдите настройки оптимизации батареи и отключите ограничения для приложения</string>
+    <string name="toast_open_battery_settings_manually">Пожалуйста, откройте настройки вручную</string>
+    <string name="toast_media_location_skipped">GPS координаты не будут сохраняться в сжатых фото</string>
+    <string name="toast_functionality_limited">Функциональность приложения может быть ограничена без необходимых разрешений</string>
     
     <!-- Сообщения для нескольких изображений -->
     <string name="multiple_images_progress">Обработка завершена</string>
@@ -90,6 +91,10 @@
     <string name="dialog_notification_permission_explanation">Для отправки уведомлений о завершении сжатия требуется разрешение</string>
     <string name="dialog_permissions_title">Требуются разрешения</string>
     <string name="dialog_permissions_explanation">Для корректной работы приложения требуются указанные разрешения</string>
+    <string name="dialog_media_location_title">Сохранение геолокации</string>
+    <string name="dialog_media_location_message">Для сохранения GPS координат в сжатых фото требуется разрешение доступа к местоположению в медиафайлах.\n\nБез этого разрешения координаты будут потеряны при сжатии фото.</string>
+    <string name="dialog_media_location_grant">Предоставить</string>
+    <string name="dialog_media_location_skip">Пропустить</string>
     <string name="dialog_ok">OK</string>
     <string name="dialog_cancel">Отмена</string>
     <string name="dialog_skip">Пропустить</string>

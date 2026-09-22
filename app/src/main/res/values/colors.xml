@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Светлая M3-палитра (seed #1976D2) -->
     <color name="primary">#1976D2</color>
-    <color name="primary_dark">#0D47A1</color>
-    <color name="primary_light">#BBDEFB</color>
-    <color name="accent">#2196F3</color>
-    <color name="primary_text">#212121</color>
-    <color name="secondary_text">#757575</color>
-    <color name="icons">#FFFFFF</color>
-    <color name="divider">#BDBDBD</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#D4E3FF</color>
+    <color name="on_primary_container">#001D3D</color>
+
+    <color name="background">#F7F9FF</color>
+    <color name="on_background">#191C20</color>
+    <color name="surface">#F7F9FF</color>
+    <color name="on_surface">#191C20</color>
+    <color name="surface_variant">#DFE2EB</color>
+    <color name="on_surface_variant">#43474E</color>
+    <color name="outline">#73777F</color>
+
+    <color name="error">#BA1A1A</color>
+    <color name="on_error">#FFFFFF</color>
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="background">#F5F5F5</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="error">#F44336</color>
-    <color name="success">#4CAF50</color>
     <color name="warning_text">#FF6D00</color>
-    <color name="dialog_positive_button">#2196F3</color>
-    <color name="dialog_negative_button">#FF5722</color>
-<color name="warning_background_light">#1AFFFF00</color>
-</resources> 
+</resources>
