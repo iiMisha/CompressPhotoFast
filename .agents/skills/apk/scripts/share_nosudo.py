@@ -40,6 +40,7 @@ import argparse
 import http.server
 import json
 import os
+import re
 import shutil
 import signal
 import socket
@@ -52,7 +53,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # --- Константы путей ---------------------------------------------------------
-PROJECT_DIR = Path("/home/misha/Документы/1 Проекты/CompressPhotoFast")
+PROJECT_DIR = Path(__file__).resolve().parents[4]
 
 
 def apk_output_dir(variant):
@@ -66,6 +67,7 @@ SHARE_ROOT = Path(os.path.expanduser("~/apk-share-compressphotofast"))  # веб
 META_DIR = Path(os.path.expanduser("~/.local/share/apk-share-compressphotofast"))  # метаданные
 
 DEFAULT_PORT = 8080
+PORT_SCAN_LIMIT = 20
 DEFAULT_TTL = "1h"
 TOKEN_BYTES = 16  # 32 hex-символа
 APK_FILENAME = "app-debug.apk"          # имя в URL (как в sudo-режиме)
@@ -173,6 +175,29 @@ def fmt_ttl(seconds):
     return f"{seconds}с"
 
 
+def find_available_port(preferred_port):
+    """Возвращает свободный TCP-порт, начиная с preferred_port."""
+    if not 1 <= preferred_port <= 65535:
+        die(f"Порт должен быть в диапазоне 1..65535 (получено {preferred_port}).")
+
+    for port in range(preferred_port, min(preferred_port + PORT_SCAN_LIMIT, 65536)):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            probe.bind(("0.0.0.0", port))
+            return port
+        except OSError:
+            pass
+        finally:
+            probe.close()
+
+    die(
+        f"Не найден свободный порт в диапазоне {preferred_port}.."
+        f"{min(preferred_port + PORT_SCAN_LIMIT - 1, 65535)}. "
+        "Задайте --port вручную или освободите порт."
+    )
+
+
 def make_download_name(apk_path, variant):
     """Имя скачиваемого файла с датой/временем сборки APK (по mtime файла).
 
@@ -226,6 +251,7 @@ def pid_alive(pid):
 
 # --- Публикация --------------------------------------------------------------
 def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debug"):
+    apk_filename = "app-release.apk" if variant == "release" else APK_FILENAME
     if not no_build:
         build_apk(variant)
         apk_path = find_apk(variant)
@@ -248,6 +274,11 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debu
             for name in removed:
                 info(f"     - {name}")
 
+    requested_port = port
+    port = find_available_port(port)
+    if port != requested_port:
+        info(f"⚠️  Порт {requested_port} занят, использую свободный порт {port}")
+
     SHARE_ROOT.mkdir(parents=True, exist_ok=True)
     META_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -255,13 +286,13 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debu
     token_dir = SHARE_ROOT / token
     token_dir.mkdir(parents=True, exist_ok=True)
     # Симлинк (не копируем APK).
-    link = token_dir / APK_FILENAME
+    link = token_dir / apk_filename
     if link.exists() or link.is_symlink():
         link.unlink()
     link.symlink_to(apk_path.resolve())
 
     download_name = make_download_name(apk_path, variant)
-    url = f"http://{host}:{port}/{token}/{APK_FILENAME}"
+    url = f"http://{host}:{port}/{token}/{apk_filename}"
     meta = {
         "token": token,
         "pid": None,
@@ -409,10 +440,21 @@ def kill_pid(pid):
 
 # --- Серверный режим (внутренний, --serve) ----------------------------------
 class ApkHandler(http.server.SimpleHTTPRequestHandler):
-    """Отдаёт APK с корректным MIME и force-download; без листинга директорий."""
+    """Отдаёт APK с корректным MIME и force-download; без листинга директорий.
+
+    Поддержка Range (bytes=start-end / bytes=-suffix, одиночный диапазон) —
+    докачка после сбоя сети вместо перезапуска с нуля; multipart игнорируем
+    (отдаём 200 целиком)."""
+
+    # Обрываем «мёртвые» соединения: если клиент 5 минут не подтверждает
+    # получение (сеть пропала), сокет-операция падает по таймауту и поток
+    # освобождается. Нормальная медленная докачка проходит (таймаут на операцию,
+    # не на всё соединение).
+    timeout = 300
 
     def __init__(self, *a, directory, download_name="CompressPhotoFast-debug.apk", **kw):
         self.download_name = download_name
+        self._range_bytes = None
         super().__init__(*a, directory=str(directory), **kw)
 
     def list_directory(self, path):
@@ -420,9 +462,73 @@ class ApkHandler(http.server.SimpleHTTPRequestHandler):
         self.send_error(404, "No listing")
         return None
 
+    def guess_type(self, path):
+        if str(path).endswith(".apk"):
+            return "application/vnd.android.package-archive"
+        return super().guess_type(path)
+
+    def send_head(self):
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            self.send_error(404, "No listing")
+            return None
+        try:
+            f = open(path, "rb")
+        except OSError:
+            self.send_error(404, "File not found")
+            return None
+        try:
+            fs = os.fstat(f.fileno())
+            size = fs.st_size
+            start, end = 0, size - 1
+            status = 200
+            rng = self.headers.get("Range")
+            if rng:
+                m = re.match(r"^bytes=(\d*)-(\d*)$", rng.strip())
+                if m and (m.group(1) or m.group(2)):
+                    if m.group(1):
+                        start = int(m.group(1))
+                        if m.group(2):
+                            end = min(int(m.group(2)), size - 1)
+                    else:
+                        # Суффикс bytes=-N: последние N байт.
+                        start = max(size - int(m.group(2)), 0)
+                    if start > end or start >= size:
+                        f.close()
+                        self.send_response(416)
+                        self.send_header("Content-Range", f"bytes */{size}")
+                        self.end_headers()
+                        return None
+                    status = 206
+            self.send_response(status)
+            if status == 206:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.send_header("Content-Length", str(end - start + 1))
+            self.send_header("Content-Type", self.guess_type(path))
+            self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
+            self.end_headers()
+            f.seek(start)
+            self._range_bytes = end - start + 1
+            return f
+        except Exception:
+            f.close()
+            raise
+
+    def copyfile(self, src, dst):
+        n = self._range_bytes
+        if n is None:
+            super().copyfile(src, dst)
+            return
+        remaining = n
+        while remaining > 0:
+            chunk = src.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            dst.write(chunk)
+            remaining -= len(chunk)
+
     def end_headers(self):
-        # Content-Type для .apk базовый guess_type() уже выставляет верно
-        # (application/vnd.android.package-archive) — добавляем только форс-скачивание.
+        # Content-Type для .apk выставляет guess_type() — добавляем форс-скачивание.
         if self.path.endswith(".apk"):
             self.send_header("Content-Disposition", f'attachment; filename="{self.download_name}"')
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -443,10 +549,14 @@ def serve(token, port, ttl_seconds, download_name=None):
     # чтением meta-файла); fallback на meta — для надёжности.
     download_name = download_name or meta.get("download_name") or "CompressPhotoFast-debug.apk"
 
-    class ReusableTCPServer(socketserver.TCPServer):
+    # Поток на соединение: зависший/оборванный клиент НЕ блокирует обработку
+    # других запросов (раньше однопоточный TCPServer «залипал» на мёртвом сокете
+    # до TCP-таймаута — повторное открытие ссылки ничего не давало).
+    class ReusableThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         allow_reuse_address = True
+        daemon_threads = True
 
-    httpd = ReusableTCPServer(
+    httpd = ReusableThreadingTCPServer(
         ("0.0.0.0", port),
         lambda *a, **kw: ApkHandler(*a, directory=SHARE_ROOT, download_name=download_name, **kw),
     )
@@ -483,7 +593,8 @@ def main():
     ap.add_argument("--keep", action="store_true",
                     help="сохранить старые ссылки и старые APK (по умолчанию удаляются)")
     ap.add_argument("--ttl", default=DEFAULT_TTL, help="срок жизни (напр. 30m, 6h, 2d). По умолчанию 1h")
-    ap.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"порт HTTP (по умолчанию {DEFAULT_PORT})")
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT,
+                    help=f"начать поиск свободного порта с N (по умолчанию {DEFAULT_PORT})")
     ap.add_argument("--host", default=None, help="хост/домен в URL (по умолчанию авто-определение IP)")
     ap.add_argument("--list", action="store_true", help="показать активные ссылки и выйти")
     ap.add_argument("--stop", metavar="TOKEN", help="остановить конкретную ссылку")
