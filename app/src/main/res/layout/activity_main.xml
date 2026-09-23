@@ -12,8 +12,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:paddingTop="8dp"
         android:paddingBottom="16dp"
         tools:context=".ui.MainActivity">
@@ -187,8 +187,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="12sp"
+                android:textSize="11sp"
+                android:textAllCaps="false"
                 android:insetLeft="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 android:insetRight="0dp"
                 tools:text="Низкое (60%)" />
 
@@ -198,8 +201,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="12sp"
+                android:textSize="11sp"
+                android:textAllCaps="false"
                 android:insetLeft="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 android:insetRight="0dp"
                 tools:text="Среднее (70%)" />
 
@@ -209,8 +215,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="12sp"
+                android:textSize="11sp"
+                android:textAllCaps="false"
                 android:insetLeft="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 android:insetRight="0dp"
                 tools:text="Высокое (85%)" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -250,8 +259,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="12sp"
+                android:textSize="11sp"
+                android:textAllCaps="false"
                 android:insetLeft="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 android:insetRight="0dp"
                 android:text="@string/resolution_original" />
 
@@ -261,8 +273,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="12sp"
+                android:textSize="11sp"
+                android:textAllCaps="false"
                 android:insetLeft="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 android:insetRight="0dp"
                 android:text="@string/resolution_2560" />
 
@@ -272,8 +287,11 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="12sp"
+                android:textSize="11sp"
+                android:textAllCaps="false"
                 android:insetLeft="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 android:insetRight="0dp"
                 android:text="@string/resolution_1920" />
 
