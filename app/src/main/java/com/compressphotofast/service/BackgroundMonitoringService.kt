@@ -209,6 +209,9 @@ class BackgroundMonitoringService : Service() {
 
             isRunning = true
             isReady = true
+            // Observer жив — content-trigger Job не нужен как активный путь.
+            // Он перепланируется в onDestroy/onTaskRemoved как recovery-механизм.
+            cancelRecoveryJobsWhileReady()
             startPeriodicScanning()
             startPeriodicCleanup()
             serviceScope.launch { MediaStoreUtil.cleanupStalePendingEntries(applicationContext) }
@@ -248,11 +251,30 @@ class BackgroundMonitoringService : Service() {
             return START_NOT_STICKY
         }
 
-        // Выполняем первоначальное сканирование при запуске сервиса.
-        // При системном восстановлении (intent == null) ContentObserver уже перерегистрирован в onCreate.
-        scanForNewImages()
+        // Если служба уже готова, content-trigger Job'ы не нужны: обнаружением
+        // занимается живой ContentObserver. Повторный intent мог принести arm
+        // из MonitoringController.startMonitoring — снимаем его снова.
+        if (isReady) {
+            cancelRecoveryJobsWhileReady()
+        } else {
+            scanForNewImages()
+        }
 
         return START_STICKY
+    }
+
+    /**
+     * Пока живой ContentObserver является активным путём обнаружения, armed
+     * content-trigger Job'ы только дублируют обработку каждого нового фото
+     * (двойные wake-up'ы и enqueue). Job остаётся recovery-механизмом: он
+     * перепланируется в [onDestroy] и [onTaskRemoved].
+     */
+    private fun cancelRecoveryJobsWhileReady() {
+        try {
+            ImageDetectionJobService.cancelJob(applicationContext)
+        } catch (e: Exception) {
+            LogUtil.error(null, "BackgroundMonitoringService", "Не удалось отменить recovery Job", e)
+        }
     }
 
     /**
@@ -263,6 +285,10 @@ class BackgroundMonitoringService : Service() {
      * резервный JobScheduler-триггер запланирован, чтобы новые фото не потерялись.
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
+        // Job перепланируется даже при живом FGS: если OEM убьёт процесс после
+        // свайпа, Job сработает в новом процессе (isReady=false) и восстановит
+        // мониторинг. Дублирование обработки при живом FGS исключает guard
+        // isReady в ImageDetectionJobService.onStartJob.
         if (!isUserStopped && SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
             LogUtil.processDebug("BackgroundMonitoringService: task removed — перепланируем резервный Job")
             ImageDetectionJobService.scheduleJob(applicationContext)
@@ -500,8 +526,13 @@ class BackgroundMonitoringService : Service() {
     private fun startPeriodicScanning() {
         scanJob = serviceScope.launch {
             while (isActive) {
-                scanForNewImages()
-                // Планируем следующее сканирование через 5 минут для оптимизации энергопотребления
+                if (isReady && isRunning && !isServiceDestroyed.get()) {
+                    // ContentObserver жив и является активным путём обнаружения —
+                    // периодический скан дал бы пустые проходы и лишний I/O.
+                    LogUtil.processDebug("Периодический скан пропущен: ContentObserver активен")
+                } else {
+                    scanForNewImages()
+                }
                 delay(scanInterval)
             }
         }

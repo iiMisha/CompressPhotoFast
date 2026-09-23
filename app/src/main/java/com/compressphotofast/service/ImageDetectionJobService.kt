@@ -96,6 +96,13 @@ class ImageDetectionJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) return false
+        // Живой ContentObserver — активный путь обнаружения: Job сработал как
+        // recovery при ещё живом FGS (например, после onTaskRemoved) — не
+        // дублируем обработку URI, отдаем Job системе без работы.
+        if (BackgroundMonitoringService.isReady) {
+            LogUtil.processDebug("Content-trigger Job пропущен: ContentObserver активен (isReady)")
+            return false
+        }
         runCatching { MonitoringController.startForegroundService(applicationContext) }
         val currentId = params?.jobId ?: JOB_ID_PRIMARY
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
