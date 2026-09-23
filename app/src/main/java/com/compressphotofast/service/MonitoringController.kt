@@ -61,7 +61,14 @@ object MonitoringController {
     /** Идемпотентно оставляет один content-trigger Job в JobScheduler. */
     fun ensureDetectionJob(context: Context) {
         try {
-            ImageDetectionJobService.scheduleJob(context)
+            val result = ImageDetectionJobService.scheduleJob(context)
+            when (result) {
+                DetectionJobScheduleResult.SCHEDULED ->
+                    LogUtil.processDebug("MonitoringController: recovery Job запланирован")
+                DetectionJobScheduleResult.ALREADY_ARMED -> Unit
+                DetectionJobScheduleResult.FAILED ->
+                    LogUtil.warning(null, "MonitoringController", "Не удалось запланировать recovery Job")
+            }
         } catch (e: Exception) {
             LogUtil.error(null, "MonitoringController", "Не удалось обеспечить recovery Job", e)
         }

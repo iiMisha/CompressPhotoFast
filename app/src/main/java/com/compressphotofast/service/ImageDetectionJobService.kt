@@ -78,6 +78,10 @@ class ImageDetectionJobService : JobService() {
                 .addTriggerContentUri(trigger)
                 .setTriggerContentMaxDelay(MAX_DELAY_MS)
                 .setTriggerContentUpdateDelay(0L)
+                // setPersisted(true) для content-trigger Job недопустим (Android API
+                // запрещает сочетание addTriggerContentUri + persisted): восстановление
+                // после перезагрузки обеспечивают BootCompletedReceiver и cold-start
+                // recovery через MonitoringController.ensureDetectionJob.
                 .build()
             return if (scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS) {
                 DetectionJobScheduleResult.SCHEDULED
