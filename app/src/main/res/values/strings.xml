@@ -20,8 +20,8 @@
     <string name="resolution_title">Разрешение</string>
     <string name="resolution_description">Максимальная сторона фото после сжатия (Оригинал — без изменения размеров)</string>
     <string name="resolution_original">Оригинал</string>
+    <string name="resolution_2560">2560 px (QHD)</string>
     <string name="resolution_1920">1920 px</string>
-    <string name="resolution_1280">1280 px</string>
     <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->

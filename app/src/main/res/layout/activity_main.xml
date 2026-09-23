@@ -256,6 +256,17 @@
                 android:text="@string/resolution_original" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/rbResolution2560"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:text="@string/resolution_2560" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/rbResolution1920"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
@@ -266,16 +277,6 @@
                 android:insetRight="0dp"
                 android:text="@string/resolution_1920" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/rbResolution1280"
-                style="?attr/materialButtonOutlinedStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:text="@string/resolution_1280" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
         <!-- Кнопка выбора фото -->

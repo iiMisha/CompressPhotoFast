@@ -123,8 +123,8 @@ object Constants {
 
     // Пресеты максимального разрешения (по большей стороне). 0 — сохранить исходное разрешение
     const val RESOLUTION_ORIGINAL = 0
+    const val RESOLUTION_2560 = 2560
     const val RESOLUTION_1920 = 1920
-    const val RESOLUTION_1280 = 1280
     const val DEFAULT_MAX_RESOLUTION = RESOLUTION_ORIGINAL
 
     // Совместимые имена без фактического ограничения разрешения. Декодирование

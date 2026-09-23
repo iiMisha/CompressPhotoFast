@@ -700,7 +700,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupResolutionRadioButtons() {
         when (viewModel.getMaxResolution()) {
             Constants.RESOLUTION_1920 -> binding.radioGroupResolution.check(R.id.rbResolution1920)
-            Constants.RESOLUTION_1280 -> binding.radioGroupResolution.check(R.id.rbResolution1280)
+            Constants.RESOLUTION_2560 -> binding.radioGroupResolution.check(R.id.rbResolution2560)
             else -> binding.radioGroupResolution.check(R.id.rbResolutionOriginal)
         }
 
@@ -709,7 +709,7 @@ class MainActivity : AppCompatActivity() {
             when (checkedId) {
                 R.id.rbResolutionOriginal -> viewModel.setMaxResolution(Constants.RESOLUTION_ORIGINAL)
                 R.id.rbResolution1920 -> viewModel.setMaxResolution(Constants.RESOLUTION_1920)
-                R.id.rbResolution1280 -> viewModel.setMaxResolution(Constants.RESOLUTION_1280)
+                R.id.rbResolution2560 -> viewModel.setMaxResolution(Constants.RESOLUTION_2560)
             }
         }
 
@@ -717,7 +717,7 @@ class MainActivity : AppCompatActivity() {
             LogUtil.processDebug("Установлено максимальное разрешение: $maxDimension")
             when (maxDimension) {
                 Constants.RESOLUTION_1920 -> binding.radioGroupResolution.check(R.id.rbResolution1920)
-                Constants.RESOLUTION_1280 -> binding.radioGroupResolution.check(R.id.rbResolution1280)
+                Constants.RESOLUTION_2560 -> binding.radioGroupResolution.check(R.id.rbResolution2560)
                 else -> binding.radioGroupResolution.check(R.id.rbResolutionOriginal)
             }
         }

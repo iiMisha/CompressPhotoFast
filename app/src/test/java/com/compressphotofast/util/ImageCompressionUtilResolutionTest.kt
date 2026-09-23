@@ -21,7 +21,7 @@ class ImageCompressionUtilResolutionTest {
     @Test
     fun `computeScalePlan returns null when image smaller than limit`() {
         assertNull(ImageCompressionUtil.computeScalePlan(1920, 1080, Constants.RESOLUTION_1920))
-        assertNull(ImageCompressionUtil.computeScalePlan(1000, 800, Constants.RESOLUTION_1280))
+        assertNull(ImageCompressionUtil.computeScalePlan(2000, 1500, Constants.RESOLUTION_2560))
     }
 
     @Test
@@ -33,9 +33,9 @@ class ImageCompressionUtilResolutionTest {
 
     @Test
     fun `computeScalePlan scales portrait to longest side`() {
-        val plan = ImageCompressionUtil.computeScalePlan(3000, 4000, Constants.RESOLUTION_1280)!!
-        assertEquals(960, plan.targetWidth)
-        assertEquals(1280, plan.targetHeight)
+        val plan = ImageCompressionUtil.computeScalePlan(3000, 4000, Constants.RESOLUTION_2560)!!
+        assertEquals(1920, plan.targetWidth)
+        assertEquals(2560, plan.targetHeight)
     }
 
     @Test
@@ -51,8 +51,8 @@ class ImageCompressionUtilResolutionTest {
         val cases = listOf(
             Case(4000, 3000, Constants.RESOLUTION_1920),
             Case(8000, 6000, Constants.RESOLUTION_1920),
-            Case(12000, 9000, Constants.RESOLUTION_1280),
-            Case(3024, 4032, Constants.RESOLUTION_1280)
+            Case(12000, 9000, Constants.RESOLUTION_2560),
+            Case(3024, 4032, Constants.RESOLUTION_2560)
         )
 
         cases.forEach { case ->

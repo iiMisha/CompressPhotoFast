@@ -706,4 +706,54 @@ class SettingsManagerTest : BaseUnitTest() {
         verify { mockEditor.putLong(Constants.PREF_LAST_SCAN_TIMESTAMP, timestamp) }
         verify { mockEditor.apply() }
     }
+
+    // ==================== Максимальное разрешение ====================
+
+    @Test
+    fun `getMaxResolution returns stored value`() {
+        // Arrange
+        every {
+            mockSharedPreferences.getInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+        } returns Constants.RESOLUTION_2560
+
+        // Act
+        val result = settingsManager.getMaxResolution()
+
+        // Assert
+        assertEquals(Constants.RESOLUTION_2560, result)
+    }
+
+    @Test
+    fun `getMaxResolution migrates legacy 1280 to default`() {
+        // Arrange
+        every {
+            mockSharedPreferences.getInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+        } returns 1280
+        every { mockSharedPreferences.edit() } returns mockEditor
+        every {
+            mockEditor.putInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+        } returns mockEditor
+
+        // Act
+        val result = settingsManager.getMaxResolution()
+
+        // Assert
+        assertEquals(Constants.DEFAULT_MAX_RESOLUTION, result)
+        verify { mockEditor.putInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION) }
+        verify { mockEditor.apply() }
+    }
+
+    @Test
+    fun `setMaxResolution saves value`() {
+        // Arrange
+        every { mockSharedPreferences.edit() } returns mockEditor
+        every { mockEditor.putInt(Constants.PREF_MAX_RESOLUTION, Constants.RESOLUTION_1920) } returns mockEditor
+
+        // Act
+        settingsManager.setMaxResolution(Constants.RESOLUTION_1920)
+
+        // Assert
+        verify { mockEditor.putInt(Constants.PREF_MAX_RESOLUTION, Constants.RESOLUTION_1920) }
+        verify { mockEditor.apply() }
+    }
 }

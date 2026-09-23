@@ -99,10 +99,19 @@ class SettingsManager @Inject constructor(
     
     /**
      * Получение максимального разрешения (по большей стороне).
-     * @return 0 для исходного разрешения, либо 1920/1280
+     * @return 0 для исходного разрешения, либо 2560/1920
      */
     fun getMaxResolution(): Int {
-        return sharedPreferences.getInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+        val value = sharedPreferences.getInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+        // Миграция: пресет 1280 удалён, возвращаем к значению по умолчанию
+        return if (value == 1280) {
+            sharedPreferences.edit()
+                .putInt(Constants.PREF_MAX_RESOLUTION, Constants.DEFAULT_MAX_RESOLUTION)
+                .apply()
+            Constants.DEFAULT_MAX_RESOLUTION
+        } else {
+            value
+        }
     }
 
     /**
