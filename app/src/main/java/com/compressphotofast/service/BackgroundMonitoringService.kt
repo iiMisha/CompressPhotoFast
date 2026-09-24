@@ -209,9 +209,9 @@ class BackgroundMonitoringService : Service() {
 
             isRunning = true
             isReady = true
-            // Observer жив — content-trigger Job не нужен как активный путь.
-            // Он перепланируется в onDestroy/onTaskRemoved как recovery-механизм.
-            cancelRecoveryJobsWhileReady()
+            // Content-trigger Job остаётся armed всегда: в отличие от ContentObserver
+            // он будит замороженный/приостановленный процесс (battery saver, OEM).
+            ensureDetectionJobArmed()
             startPeriodicScanning()
             startPeriodicCleanup()
             serviceScope.launch { MediaStoreUtil.cleanupStalePendingEntries(applicationContext) }
@@ -251,29 +251,26 @@ class BackgroundMonitoringService : Service() {
             return START_NOT_STICKY
         }
 
-        // Если служба уже готова, content-trigger Job'ы не нужны: обнаружением
-        // занимается живой ContentObserver. Повторный intent мог принести arm
-        // из MonitoringController.startMonitoring — снимаем его снова.
-        if (isReady) {
-            cancelRecoveryJobsWhileReady()
-        } else {
-            scanForNewImages()
-        }
+        // Служба уже готова: discovery остаётся за ContentObserver, но armed
+        // content-trigger Job гарантируем — он пробуждает замороженный процесс,
+        // если observer-события не доставляются (battery saver).
+        ensureDetectionJobArmed()
 
         return START_STICKY
     }
 
     /**
-     * Пока живой ContentObserver является активным путём обнаружения, armed
-     * content-trigger Job'ы только дублируют обработку каждого нового фото
-     * (двойные wake-up'ы и enqueue). Job остаётся recovery-механизмом: он
-     * перепланируется в [onDestroy] и [onTaskRemoved].
+     * Гарантирует armed-состояние content-trigger Job'а. Job — единственный
+     * механизм, будящий замороженный процесс, поэтому он не отменяется при
+     * живом ContentObserver; дублирование постановки URI исключает dedup
+     * (unique work KEEP, UriProcessingTracker, маркер сжатия).
      */
-    private fun cancelRecoveryJobsWhileReady() {
+    private fun ensureDetectionJobArmed() {
+        if (isUserStopped) return
         try {
-            ImageDetectionJobService.cancelJob(applicationContext)
+            ImageDetectionJobService.scheduleJob(applicationContext)
         } catch (e: Exception) {
-            LogUtil.error(null, "BackgroundMonitoringService", "Не удалось отменить recovery Job", e)
+            LogUtil.error(null, "BackgroundMonitoringService", "Не удалось гарантировать armed Job", e)
         }
     }
 
@@ -520,20 +517,26 @@ class BackgroundMonitoringService : Service() {
     }
 
     /**
-     * Запуск периодического сканирования галереи
+     * Запуск периодического сканирования галереи.
      * Использует корутины вместо Handler для лучшей производительности
      */
     private fun startPeriodicScanning() {
         scanJob = serviceScope.launch {
             while (isActive) {
-                if (isReady && isRunning && !isServiceDestroyed.get()) {
-                    // ContentObserver жив и является активным путём обнаружения —
-                    // периодический скан дал бы пустые проходы и лишний I/O.
-                    LogUtil.processDebug("Периодический скан пропущен: ContentObserver активен")
-                } else {
-                    scanForNewImages()
+                val observerAlive = isReady && isRunning && !isServiceDestroyed.get()
+                // Страховка от пропущенных observer-событий: при живом observer
+                // сканируем редко, иначе — штатным интервалом.
+                if (!observerAlive) {
+                    LogUtil.processDebug("Периодический скан: ContentObserver неактивен — полный интервал")
                 }
-                delay(scanInterval)
+                scanForNewImages()
+                delay(
+                    if (observerAlive) {
+                        Constants.BACKGROUND_SCAN_INTERVAL_FALLBACK_MINUTES * 60 * 1000L
+                    } else {
+                        scanInterval
+                    }
+                )
             }
         }
     }

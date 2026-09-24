@@ -100,23 +100,29 @@ class ImageDetectionJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) return false
-        // Живой ContentObserver — активный путь обнаружения: Job сработал как
-        // recovery при ещё живом FGS (например, после onTaskRemoved) — не
-        // дублируем обработку URI, отдаем Job системе без работы.
-        if (BackgroundMonitoringService.isReady) {
-            LogUtil.processDebug("Content-trigger Job пропущен: ContentObserver активен (isReady)")
-            return false
+        // Живой ContentObserver остаётся активным путём обнаружения: при isReady
+        // не поднимаем FGS и не делаем тяжёлый overflow-scan. Но triggered URIs
+        // обрабатываем всегда: Job — единственный механизм, будящий замороженный
+        // процесс (battery saver), а dedup (unique work KEEP, UriProcessingTracker,
+        // маркер сжатия) исключает двойную постановку одного URI.
+        val observerAlive = BackgroundMonitoringService.isReady
+        if (!observerAlive) {
+            runCatching { MonitoringController.startForegroundService(applicationContext) }
         }
-        runCatching { MonitoringController.startForegroundService(applicationContext) }
         val currentId = params?.jobId ?: JOB_ID_PRIMARY
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         val run = RunState(params, scope, armAlternate(applicationContext, currentId))
         activeRun = run
         scope.launch {
             try {
-                delay(2_000L)
+                val delayMs = if (observerAlive) 0L else 2_000L
+                delay(delayMs)
                 val uris = params?.triggeredContentUris?.toList() ?: emptyList()
-                if (uris.isEmpty()) processOverflowScan() else processUris(uris)
+                if (uris.isNotEmpty()) {
+                    processUris(uris)
+                } else if (!observerAlive) {
+                    processOverflowScan()
+                }
                 finishRun(run, reschedule = !run.alternateArmed)
             } catch (_: CancellationException) {
                 if (!run.stopped) finishRun(run, reschedule = !run.alternateArmed)

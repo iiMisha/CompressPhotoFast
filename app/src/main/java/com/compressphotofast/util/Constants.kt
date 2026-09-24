@@ -74,6 +74,9 @@ object Constants {
     
     // Интервалы
     const val BACKGROUND_SCAN_INTERVAL_MINUTES = 15L
+    // Редкий страховочный проход при живом ContentObserver: дешёвая защита от
+    // пропущенных observer-событий (замороженный/приостановленный процесс в battery saver).
+    const val BACKGROUND_SCAN_INTERVAL_FALLBACK_MINUTES = 60L
     const val RECENT_SCAN_WINDOW_SECONDS = 15 * 60L // 15 минут в секундах (увеличено с 5 для обработки копируемых файлов)
     const val HISTORY_SCAN_WINDOW_DAYS = 2
     const val HISTORY_SCAN_WINDOW_SECONDS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60L
