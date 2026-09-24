@@ -545,6 +545,12 @@ object NotificationUtil {
             .build()
     }
 
+    /** Форматирует эффективность сжатия компактно: "-45% · 1.8x". */
+    private fun formatReduction(reductionPercent: Float): String {
+        val clamped = reductionPercent.coerceIn(0f, 99.9f)
+        return "-%.0f%% · %.1fx".format(reductionPercent.coerceAtLeast(0f), 100f / (100f - clamped))
+    }
+
     private fun formatDailyStats(
         context: Context,
         stats: DailyCompressionStats
@@ -552,7 +558,7 @@ object NotificationUtil {
         val originalSize = FileOperationsUtil.formatFileSize(stats.totalOriginalBytes)
         val compressedSize = FileOperationsUtil.formatFileSize(stats.totalCompressedBytes)
         val savedSize = FileOperationsUtil.formatFileSize(stats.savedBytes)
-        val reduction = String.format("%.1f", stats.reductionPercent)
+        val reduction = formatReduction(stats.reductionPercent)
         val title = context.getString(R.string.notification_daily_stats_title, stats.successfulCount)
         val sizes = context.getString(R.string.notification_daily_stats_sizes, originalSize, compressedSize)
         val saved = context.getString(R.string.notification_daily_stats_saved, savedSize, reduction)
@@ -595,15 +601,15 @@ object NotificationUtil {
         // Форматируем информацию о размерах файла
         val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
         val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
-        val reductionStr = String.format("%.1f", sizeReduction)
-        
+        val reductionStr = formatReduction(sizeReduction)
+
         // Определяем заголовок и текст уведомления
         val title = if (skipped) {
             context.getString(R.string.notification_compression_skipped_title)
         } else {
             context.getString(R.string.notification_compression_completed_title)
         }
-        
+
         val message = if (skipped) {
             context.getString(
                 R.string.notification_compression_skipped_text,
