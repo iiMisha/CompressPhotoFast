@@ -5,7 +5,7 @@
 ## Быстрые правила
 
 - Для сборки или передачи APK обязательно использовать навык `apk`; после изменения runtime-кода `app/src/main/**` и успешной сборки публиковать APK автоматически (не для docs/тестов/CLI/ресурсов).
-- Android-тесты запускать через навык `android-test-suite`; по умолчанию только unit-тесты.
+- Android-тесты: по умолчанию запускать только unit-тесты (~10 мин); instrumentation (~20 мин) — только перед PR в main, при изменении кода, работающего с Android API, или при проблемах с UI/фоновыми сервисами; полный прогон — только перед релизом.
 - Не обходить ограничения Android для force stop, отозванных разрешений и ручных ограничений батареи.
 - Не удалять код, используемый в `test` или `androidTest`, без одновременного обновления тестов.
 
@@ -51,7 +51,7 @@
 ## Проверка и релиз
 
 - Сборка: `./gradlew assembleDebug`.
-- Unit-тесты: `./gradlew testDebugUnitTest` через навык `android-test-suite`.
+- Unit-тесты: `./gradlew testDebugUnitTest`.
 - Instrumentation-тесты: `./scripts/run_instrumentation_tests.sh`; нужен эмулятор `Small_Phone`.
 - Перед релизом: `./scripts/run_all_tests.sh`, затем `./gradlew assembleDebug` и `./gradlew assembleRelease`.
 - Версию обновлять в `gradle.properties` (`VERSION_NAME_BASE`) и `app/build.gradle.kts` (`versionCode`).
@@ -60,6 +60,6 @@
 
 1. Внести изменения в код.
 2. Проверить сборку Android командой `./gradlew assembleDebug`.
-3. Запустить unit-тесты `./gradlew testDebugUnitTest` через навык `android-test-suite`.
+3. Запустить unit-тесты `./gradlew testDebugUnitTest`.
 4. Обновить этот файл навыком `agents-updater`, сохраняя его кратким и актуальным.
 5. Собрать и расшарить debug-APK через навык `apk`.

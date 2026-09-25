@@ -24,7 +24,7 @@ Reference для скилла `agents-updater` (CompressPhotoFast).
 Одно предложение: утилита сжатия фото с EXIF, Android + Python CLI, язык проекта, версия.
 
 ## Быстрые правила
-- Навыки `apk` / `android-test-suite`, ограничения Android, правило test/androidTest.
+- Навык `apk`, правила запуска Android-тестов, ограничения Android, правило test/androidTest.
 
 ## Стек
 - Android: Kotlin, Coroutines, Hilt, WorkManager, ...; minSdk/targetSdk.
