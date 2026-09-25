@@ -31,8 +31,8 @@
     <string name="notification_background_service_description">Приложение автоматически сжимает новые фотографии для экономии места на устройстве</string>
     <string name="notification_action_stop">Остановить</string>
     <string name="notification_stop">Остановить</string>
-    <string name="background_service_notification_title">Автоматическое сжатие фотографий</string>
-    <string name="background_service_notification_text">Приложение мониторит новые фотографии и автоматически сжимает их</string>
+    <string name="background_service_notification_title">Автосжатие фото</string>
+    <string name="background_service_notification_text">Мониторинг новых фото и автосжатие</string>
     <string name="notification_compressing">📸 Сжатие фотографий…</string>
     <string name="notification_processing">🖼️ Обработка изображения...</string>
     <string name="notification_compression_complete">Сжатие завершено</string>
@@ -102,10 +102,7 @@
     
     <string name="notification_completion_channel_name">Результаты сжатия</string>
     <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
-    <string name="notification_daily_stats_title">Сжато: %1$d</string>
     <string name="notification_daily_stats_collapsed">Сжато: %1$d · −%2$s (%3$s)</string>
-    <string name="notification_daily_stats_sizes">%1$s → %2$s</string>
-    <string name="notification_daily_stats_saved">Сэкономлено %1$s (%2$s)</string>
     
     <!-- Статусные сообщения -->
     <string name="compression_started">Сжатие изображения запущено</string>

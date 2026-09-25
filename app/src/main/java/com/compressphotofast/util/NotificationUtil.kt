@@ -508,8 +508,7 @@ object NotificationUtil {
     ): Notification {
         val title = context.getString(R.string.background_service_notification_title)
         val defaultContent = context.getString(R.string.background_service_notification_text)
-        val content = stats?.let { formatDailyStats(context, it).first } ?: defaultContent
-        val expandedContent = stats?.let { formatDailyStats(context, it).second }
+        val content = stats?.let { formatDailyStats(context, it) } ?: defaultContent
 
         val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
             action = Constants.ACTION_STOP_SERVICE
@@ -533,9 +532,6 @@ object NotificationUtil {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(createMainActivityPendingIntent(context))
             .apply {
-                expandedContent?.let {
-                    setStyle(NotificationCompat.BigTextStyle().bigText(it))
-                }
                 addAction(
                     android.R.drawable.ic_menu_close_clear_cancel,
                     context.getString(R.string.notification_stop),
@@ -554,21 +550,15 @@ object NotificationUtil {
     private fun formatDailyStats(
         context: Context,
         stats: DailyCompressionStats
-    ): Pair<String, String> {
-        val originalSize = FileOperationsUtil.formatFileSize(stats.totalOriginalBytes)
-        val compressedSize = FileOperationsUtil.formatFileSize(stats.totalCompressedBytes)
+    ): String {
         val savedSizeCompact = FileOperationsUtil.formatFileSizeCompact(stats.savedBytes)
         val reduction = formatReduction(stats.reductionPercent)
-        val title = context.getString(R.string.notification_daily_stats_title, stats.successfulCount)
-        val collapsed = context.getString(
+        return context.getString(
             R.string.notification_daily_stats_collapsed,
             stats.successfulCount,
             savedSizeCompact,
             reduction
         )
-        val sizes = context.getString(R.string.notification_daily_stats_sizes, originalSize, compressedSize)
-        val saved = context.getString(R.string.notification_daily_stats_saved, FileOperationsUtil.formatFileSize(stats.savedBytes), reduction)
-        return collapsed to "$title\n$sizes\n$saved"
     }
 
     /** Обновляет постоянное уведомление мониторинга после успешного сжатия. */
@@ -605,6 +595,7 @@ object NotificationUtil {
         notificationId: Int = Constants.NOTIFICATION_ID_COMPRESSION_RESULT
     ) {
         // Форматируем информацию о размерах файла (компактно)
+        val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
         val originalSizeStr = FileOperationsUtil.formatFileSizeCompact(originalSize)
         val compressedSizeStr = FileOperationsUtil.formatFileSizeCompact(compressedSize)
         val reductionStr = formatReduction(sizeReduction)
@@ -619,13 +610,13 @@ object NotificationUtil {
         val message = if (skipped) {
             context.getString(
                 R.string.notification_compression_skipped_text,
-                fileName,
+                truncatedFileName,
                 reductionStr
             )
         } else {
             context.getString(
                 R.string.notification_compression_completed_text,
-                fileName,
+                truncatedFileName,
                 originalSizeStr,
                 compressedSizeStr,
                 reductionStr

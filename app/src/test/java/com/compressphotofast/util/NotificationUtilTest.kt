@@ -40,7 +40,7 @@ class NotificationUtilTest : BaseUnitTest() {
 
         val first = shadowOf(manager).getNotification(Constants.NOTIFICATION_ID_BACKGROUND_SERVICE)
         requireNotNull(first)
-        assertEquals("Автоматическое сжатие фотографий", first.extras.getCharSequence(Notification.EXTRA_TITLE))
+        assertEquals("Автосжатие фото", first.extras.getCharSequence(Notification.EXTRA_TITLE))
         assertTrue(first.extras.getCharSequence(Notification.EXTRA_TEXT).toString().contains("400"))
         assertTrue((first.flags and Notification.FLAG_ONGOING_EVENT) != 0)
         assertTrue((first.flags and Notification.FLAG_ONLY_ALERT_ONCE) != 0)
@@ -60,8 +60,6 @@ class NotificationUtilTest : BaseUnitTest() {
         assertTrue(collapsedText.contains("Сжато: 2"))
         assertTrue(collapsedText.contains("−"))
         assertTrue(collapsedText.contains("·"))
-        val bigText = updated.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
-        assertTrue(bigText.contains("Сжато: 2"))
-        assertTrue(bigText.contains("Сэкономлено"))
+        assertEquals(null, updated.extras.get(NotificationCompat.EXTRA_BIG_TEXT))
     }
 }
