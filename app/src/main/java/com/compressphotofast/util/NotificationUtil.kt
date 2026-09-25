@@ -348,11 +348,11 @@ object NotificationUtil {
         }
 
         val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
-        val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
+        val originalSizeStr = FileOperationsUtil.formatFileSizeCompact(originalSize)
+        val compressedSizeStr = FileOperationsUtil.formatFileSizeCompact(compressedSize)
         val reductionStr = String.format("%.1f", reduction)
 
-        val message = "🖼️ $truncatedFileName: $originalSizeStr → $compressedSizeStr (-$reductionStr%)"
+        val message = "🖼️ $truncatedFileName: $originalSizeStr→$compressedSizeStr (-$reductionStr%)"
         showToast(context, message, Toast.LENGTH_LONG)
     }
     
@@ -367,12 +367,12 @@ object NotificationUtil {
             return
         }
 
-        val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
+        val originalSizeStr = FileOperationsUtil.formatFileSizeCompact(originalSize)
+        val compressedSizeStr = FileOperationsUtil.formatFileSizeCompact(compressedSize)
 
         val reductionPercent = FileOperationsUtil.computeSizeReductionPercent(originalSize, compressedSize).roundToInt()
 
-        val message = "$fileName: $originalSizeStr → $compressedSizeStr (-$reductionPercent%)"
+        val message = "$fileName: $originalSizeStr→$compressedSizeStr (-$reductionPercent%)"
         showToast(context, message, duration)
     }
     
@@ -557,12 +557,18 @@ object NotificationUtil {
     ): Pair<String, String> {
         val originalSize = FileOperationsUtil.formatFileSize(stats.totalOriginalBytes)
         val compressedSize = FileOperationsUtil.formatFileSize(stats.totalCompressedBytes)
-        val savedSize = FileOperationsUtil.formatFileSize(stats.savedBytes)
+        val savedSizeCompact = FileOperationsUtil.formatFileSizeCompact(stats.savedBytes)
         val reduction = formatReduction(stats.reductionPercent)
         val title = context.getString(R.string.notification_daily_stats_title, stats.successfulCount)
+        val collapsed = context.getString(
+            R.string.notification_daily_stats_collapsed,
+            stats.successfulCount,
+            savedSizeCompact,
+            reduction
+        )
         val sizes = context.getString(R.string.notification_daily_stats_sizes, originalSize, compressedSize)
-        val saved = context.getString(R.string.notification_daily_stats_saved, savedSize, reduction)
-        return "$title: $saved" to "$title\n$sizes\n$saved"
+        val saved = context.getString(R.string.notification_daily_stats_saved, FileOperationsUtil.formatFileSize(stats.savedBytes), reduction)
+        return collapsed to "$title\n$sizes\n$saved"
     }
 
     /** Обновляет постоянное уведомление мониторинга после успешного сжатия. */
@@ -598,9 +604,9 @@ object NotificationUtil {
         skipped: Boolean,
         notificationId: Int = Constants.NOTIFICATION_ID_COMPRESSION_RESULT
     ) {
-        // Форматируем информацию о размерах файла
-        val originalSizeStr = FileOperationsUtil.formatFileSize(originalSize)
-        val compressedSizeStr = FileOperationsUtil.formatFileSize(compressedSize)
+        // Форматируем информацию о размерах файла (компактно)
+        val originalSizeStr = FileOperationsUtil.formatFileSizeCompact(originalSize)
+        val compressedSizeStr = FileOperationsUtil.formatFileSizeCompact(compressedSize)
         val reductionStr = formatReduction(sizeReduction)
 
         // Определяем заголовок и текст уведомления
@@ -801,8 +807,7 @@ object NotificationUtil {
                 context = context,
                 channelId = "compression_errors",
                 title = "Недостаточно памяти",
-                content = "Не удалось сжать $fileName. " +
-                    "Требуется ${requiredMemoryMb}MB, доступно ${availableMemoryMb}MB.",
+                content = "$fileName: нужно ${requiredMemoryMb}МБ, свободно ${availableMemoryMb}МБ.",
                 priority = NotificationCompat.PRIORITY_HIGH,
                 autoCancel = true,
                 contentIntent = pendingIntent

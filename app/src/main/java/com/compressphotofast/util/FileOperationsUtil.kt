@@ -356,6 +356,19 @@ object FileOperationsUtil {
         
         return DecimalFormat("#,##0.#").format(size / Math.pow(1024.0, digitGroups.toDouble())) + " " + units[digitGroups]
     }
+
+    /**
+     * Форматирует размер файла компактно: без пробела и с однобуквенными единицами (4.2М, 830К).
+     * Для уведомлений; полные единицы доступны через [formatFileSize].
+     */
+    fun formatFileSizeCompact(size: Long): String {
+        if (size <= 0) return "0Б"
+
+        val units = arrayOf("Б", "К", "М", "Г", "Т")
+        val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
+
+        return DecimalFormat("#,##0.#").format(size / Math.pow(1024.0, digitGroups.toDouble())) + units[digitGroups]
+    }
     
     /**
      * Сокращает длинное имя файла, заменяя середину на "..."
