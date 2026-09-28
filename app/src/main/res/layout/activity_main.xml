@@ -254,7 +254,7 @@
             app:selectionRequired="true">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/rbResolutionOriginal"
+                android:id="@+id/rbResolution1920"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -265,7 +265,7 @@
                 android:paddingStart="4dp"
                 android:paddingEnd="4dp"
                 android:insetRight="0dp"
-                android:text="@string/resolution_original" />
+                android:text="@string/resolution_1920" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/rbResolution2560"
@@ -282,7 +282,7 @@
                 android:text="@string/resolution_2560" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/rbResolution1920"
+                android:id="@+id/rbResolutionOriginal"
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -293,7 +293,7 @@
                 android:paddingStart="4dp"
                 android:paddingEnd="4dp"
                 android:insetRight="0dp"
-                android:text="@string/resolution_1920" />
+                android:text="@string/resolution_original" />
 
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
