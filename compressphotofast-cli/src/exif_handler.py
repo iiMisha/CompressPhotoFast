@@ -115,8 +115,36 @@ class ExifHandler:
             return False
         return True
 
+    MARKER_SIZE_FIELD_WIDTH = 15
+    MARKER_ORIG_SIZE_FIELD_WIDTH = 15
+
     @staticmethod
-    def add_compression_marker(file_path: str, quality: int, source_exif: Optional[dict] = None) -> bool:
+    def _build_marker(
+        quality: int, timestamp: int, size: Optional[int], orig_size: Optional[int]
+    ) -> str:
+        """
+        Build marker string in the format:
+        CompressPhotoFast_Compressed:quality:timestamp:size:origSize
+
+        size/origSize use fixed-width zero-padded fields (same as Android),
+        so a placeholder write keeps the string length stable.
+        """
+        size_field = str(size or 0).zfill(ExifHandler.MARKER_SIZE_FIELD_WIDTH)
+        orig_size_field = str(orig_size or 0).zfill(
+            ExifHandler.MARKER_ORIG_SIZE_FIELD_WIDTH
+        )
+        return (
+            f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}:"
+            f"{size_field}:{orig_size_field}"
+        )
+
+    @staticmethod
+    def add_compression_marker(
+        file_path: str,
+        quality: int,
+        source_exif: Optional[dict] = None,
+        original_size: Optional[int] = None,
+    ) -> bool:
         """
         Add compression marker to file, optionally preserving all source metadata.
 
@@ -124,11 +152,16 @@ class ExifHandler:
             file_path: Path to file to modify
             quality: Compression quality level
             source_exif: Optional source EXIF dictionary to preserve all metadata
+            original_size: Original file size before compression (defaults to
+                the current file size, e.g. for inefficient-skip markers)
 
         Returns:
             True if marker added successfully, False otherwise
         """
         try:
+            marker_size = os.path.getsize(file_path)
+            marker_orig_size = original_size if original_size and original_size > 0 else marker_size
+
             if source_exif:
                 # Copy all metadata from source and add marker
                 exif_dict = {}
@@ -142,7 +175,9 @@ class ExifHandler:
                     exif_dict["Exif"] = {}
 
                 timestamp = int(datetime.now().timestamp() * 1000)
-                marker_data = f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}"
+                marker_data = ExifHandler._build_marker(
+                    quality, timestamp, marker_size, marker_orig_size
+                )
                 marker_bytes = marker_data.encode("utf-8")
 
                 exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
@@ -172,7 +207,9 @@ class ExifHandler:
                     exif_dict["Exif"] = {}
 
                 timestamp = int(datetime.now().timestamp() * 1000)
-                marker_data = f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}"
+                marker_data = ExifHandler._build_marker(
+                    quality, timestamp, marker_size, marker_orig_size
+                )
                 marker_bytes = marker_data.encode("utf-8")
 
                 exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
@@ -230,7 +267,8 @@ class ExifHandler:
 
     @staticmethod
     def copy_exif_with_marker(source_path: str, target_path: str, quality: int,
-                             fallback_on_error: bool = True) -> bool:
+                             fallback_on_error: bool = True,
+                             original_size: Optional[int] = None) -> bool:
         """
         Copy EXIF data from source to target and add compression marker.
 
@@ -239,6 +277,8 @@ class ExifHandler:
             target_path: Path to compressed image file
             quality: Compression quality level
             fallback_on_error: If True, falls back to add_compression_marker on error
+            original_size: Original file size before compression (defaults to
+                the source file size)
 
         Returns:
             True if EXIF copied successfully, False otherwise
@@ -247,7 +287,15 @@ class ExifHandler:
             source_exif = ExifHandler.read_exif_data(source_path)
 
             if source_exif is None or not source_exif:
-                return ExifHandler.add_compression_marker(target_path, quality)
+                return ExifHandler.add_compression_marker(
+                    target_path, quality, original_size=original_size
+                )
+
+            marker_size = os.path.getsize(target_path)
+            marker_orig_size = (
+                original_size if original_size and original_size > 0
+                else os.path.getsize(source_path)
+            )
 
             target_exif = {}
             for ifd_name in ["0th", "Exif", "1st", "GPS", "Interop"]:
@@ -260,7 +308,9 @@ class ExifHandler:
                 target_exif["Exif"] = {}
 
             timestamp = int(datetime.now().timestamp() * 1000)
-            marker_data = f"{EXIF_COMPRESSION_MARKER}:{quality}:{timestamp}"
+            marker_data = ExifHandler._build_marker(
+                quality, timestamp, marker_size, marker_orig_size
+            )
             marker_bytes = marker_data.encode("utf-8")
 
             target_exif["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
@@ -270,7 +320,7 @@ class ExifHandler:
                 exif_bytes = piexif.dump(target_exif)
             except Exception:
                 if fallback_on_error:
-                    return ExifHandler.add_compression_marker(target_path, quality, source_exif)
+                    return ExifHandler.add_compression_marker(target_path, quality, source_exif, original_size=marker_orig_size)
                 return False
 
             with Image.open(target_path) as img:
@@ -288,7 +338,7 @@ class ExifHandler:
                             img.save(target_path, quality=quality, optimize=True)
                     except Exception:
                         if fallback_on_error:
-                            return ExifHandler.add_compression_marker(target_path, quality, source_exif)
+                            return ExifHandler.add_compression_marker(target_path, quality, source_exif, original_size=marker_orig_size)
                         return False
                 elif fmt.lower() == "png":
                     img.save(target_path, optimize=True)

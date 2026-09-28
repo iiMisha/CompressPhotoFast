@@ -142,17 +142,110 @@ class CompressionMarkerSizeTest : BaseUnitTest() {
     @Test
     fun `marker size field has fixed width`() {
         val buildMethod = ExifUtil.javaClass.getDeclaredMethod(
-            "buildCompressionMarker", Int::class.java, Long::class.java, Long::class.javaObjectType
+            "buildCompressionMarker", Int::class.java, Long::class.java, Long::class.javaObjectType, Long::class.javaObjectType
         )
         buildMethod.isAccessible = true
 
-        val placeholder = buildMethod.invoke(ExifUtil, 85, 1704067200000L, null) as String
-        val withSize = buildMethod.invoke(ExifUtil, 85, 1704067200000L, 12345678L) as String
+        val placeholder = buildMethod.invoke(ExifUtil, 85, 1704067200000L, null, null) as String
+        val withSize = buildMethod.invoke(ExifUtil, 85, 1704067200000L, 12345678L, null) as String
 
         assertEquals("Placeholder and sized marker must have equal length", placeholder.length, withSize.length)
-        assertTrue("Placeholder size field must be all zeros", placeholder.endsWith("0".repeat(15)))
-        assertTrue("Sized marker must contain padded size", withSize.endsWith("000000012345678"))
-        assertFalse("Placeholder must not parse as known size", placeholder.substringAfterLast(":").toLong() > 0)
+        assertTrue("Sized marker must contain padded size", withSize.contains(":000000012345678:000000000000000"))
+        assertFalse("Placeholder must not parse as known size", placeholder.split(":")[3].toLong() > 0)
+    }
+
+    /**
+     * Хелпер buildCompressionMarker записывает исходный размер (origSize)
+     * пятым полем фиксированной ширины, в том числе в заглушке фазы 1
+     */
+    @Test
+    fun `marker carries original size in fifth field`() {
+        val buildMethod = ExifUtil.javaClass.getDeclaredMethod(
+            "buildCompressionMarker", Int::class.java, Long::class.java, Long::class.javaObjectType, Long::class.javaObjectType
+        )
+        buildMethod.isAccessible = true
+
+        val phase1 = buildMethod.invoke(ExifUtil, 85, 1704067200000L, null, 5000000L) as String
+        val phase2 = buildMethod.invoke(ExifUtil, 85, 1704067200000L, 12345678L, 5000000L) as String
+
+        assertEquals("Phase 1 and phase 2 markers must have equal length", phase1.length, phase2.length)
+        assertEquals(5, phase1.split(":").size)
+        assertEquals("Phase 1 stub keeps origSize", "000000005000000", phase1.split(":")[4])
+        assertEquals("Phase 2 keeps origSize", "000000005000000", phase2.split(":")[4])
+        assertEquals("Phase 1 stub size field is zeros", "000000000000000", phase1.split(":")[3])
+        assertEquals("Phase 2 writes actual size", "000000012345678", phase2.split(":")[3])
+    }
+
+    /**
+     * Новый формат маркера с origSize: оба размера парсятся
+     */
+    @Test
+    fun `getCompressionMarker parses origSize from extended marker format`() {
+        val file = createTestJpeg()
+        val uri = Uri.fromFile(file)
+        writeMarkerComment(file, "CompressPhotoFast_Compressed:85:1704067200000:000000012345678:000000050000000")
+
+        val marker = kotlinx.coroutines.runBlocking {
+            ExifUtil.getCompressionMarker(context, uri)
+        }
+
+        assertTrue(marker.isCompressed)
+        assertEquals(12345678L, marker.fileSize)
+        assertEquals("Original size must be parsed from fifth field", 50000000L, marker.originalFileSize)
+    }
+
+    /**
+     * Заглушка фазы 1: size нулевой (null), origSize известен
+     */
+    @Test
+    fun `getCompressionMarker parses phase1 stub with known origSize`() {
+        val file = createTestJpeg()
+        val uri = Uri.fromFile(file)
+        writeMarkerComment(file, "CompressPhotoFast_Compressed:85:1704067200000:000000000000000:000000050000000")
+
+        val marker = kotlinx.coroutines.runBlocking {
+            ExifUtil.getCompressionMarker(context, uri)
+        }
+
+        assertTrue(marker.isCompressed)
+        assertNull("Phase 1 stub size must be unknown", marker.fileSize)
+        assertEquals("Phase 1 stub still carries origSize", 50000000L, marker.originalFileSize)
+    }
+
+    /**
+     * Старый 4-полевой формат: originalFileSize == null, обратная совместимость
+     */
+    @Test
+    fun `getCompressionMarker returns null origSize for legacy marker`() {
+        val file = createTestJpeg()
+        val uri = Uri.fromFile(file)
+        writeMarkerComment(file, "CompressPhotoFast_Compressed:85:1704067200000:000000012345678")
+
+        val marker = kotlinx.coroutines.runBlocking {
+            ExifUtil.getCompressionMarker(context, uri)
+        }
+
+        assertTrue(marker.isCompressed)
+        assertEquals(12345678L, marker.fileSize)
+        assertNull("Legacy marker has no origSize", marker.originalFileSize)
+    }
+
+    /**
+     * Нулевая заглушка origSize трактуется как неизвестный исходный размер
+     */
+    @Test
+    fun `getCompressionMarker returns null origSize for zero placeholder`() {
+        val file = createTestJpeg()
+        val uri = Uri.fromFile(file)
+        writeMarkerComment(file, "CompressPhotoFast_Compressed:85:1704067200000:000000012345678:000000000000000")
+
+        val marker = kotlinx.coroutines.runBlocking {
+            ExifUtil.getCompressionMarker(context, uri)
+        }
+
+        assertTrue(marker.isCompressed)
+        assertEquals(12345678L, marker.fileSize)
+        assertNull("Zero origSize placeholder must be unknown", marker.originalFileSize)
     }
 
     private fun invokeGetActualFileSizeOnDisk(uri: Uri): Long? {

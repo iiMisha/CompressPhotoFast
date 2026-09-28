@@ -659,7 +659,8 @@ object ImageCompressionUtil {
                         uri,
                         quality,
                         exifData,
-                        outputMimeType
+                        outputMimeType,
+                        fileSize
                     )
                 }
             } catch (e: java.io.FileNotFoundException) {

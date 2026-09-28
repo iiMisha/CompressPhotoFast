@@ -414,6 +414,7 @@ object MediaStoreUtil {
      * @param quality Качество сжатия
      * @param exifDataMemory EXIF данные для сохранения
      * @param mimeType MIME тип для сохранения (по умолчанию "image/jpeg")
+     * @param originalFileSize Исходный размер файла до сжатия (для поля origSize маркера)
      */
     suspend fun saveCompressedImageFromStream(
         context: Context,
@@ -423,7 +424,8 @@ object MediaStoreUtil {
         originalUri: Uri,
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
         exifDataMemory: Map<String, Any>? = null,
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        originalFileSize: Long? = null
     ): Uri? = withContext(Dispatchers.IO) {
         // ЗАЩИТА ОТ КОНКУРЕНТНОЙ ЗАПИСИ: Mutex по целевому пути гарантирует,
         // что два потока не будут одновременно записывать в один и тот же файл.
@@ -436,7 +438,7 @@ object MediaStoreUtil {
         val saveLock = getSaveLock(lockKey)
         saveLock.withLock {
             saveCompressedImageFromStreamInternal(
-                context, inputStream, fileName, directory, originalUri, quality, exifDataMemory, mimeType
+                context, inputStream, fileName, directory, originalUri, quality, exifDataMemory, mimeType, originalFileSize
             )
         }
     }
@@ -453,7 +455,8 @@ object MediaStoreUtil {
         originalUri: Uri,
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
         exifDataMemory: Map<String, Any>? = null,
-        mimeType: String = "image/jpeg"
+        mimeType: String = "image/jpeg",
+        originalFileSize: Long? = null
     ): Uri? = withContext(Dispatchers.IO) {
         var streamCacheFile: File? = null
         try {
@@ -637,7 +640,8 @@ object MediaStoreUtil {
                     originalUri,
                     uri,
                     quality,
-                    exifDataMemory
+                    exifDataMemory,
+                    originalFileSize
                 )
 
                 // Инвалидируем кэш URI после успешного сохранения

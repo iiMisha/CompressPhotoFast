@@ -400,7 +400,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 directory = directory,
                 originalUri = imageUri,
                 quality = compressionQuality,
-                exifDataMemory = exifDataMemory
+                exifDataMemory = exifDataMemory,
+                originalFileSize = sourceSize
             )
         }
 
@@ -465,7 +466,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             LogUtil.error(imageUri, "Удаление", "Не удалось удалить оригинальный файл после успешного сжатия. Причина: ${deleteErrorMessage ?: "неизвестно"}")
 
             try {
-                ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, 99)
+                ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, 99, sourceSize)
                 LogUtil.processInfo("Маркер сжатия записан в неудалённый оригинал для предотвращения повторной обработки")
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Маркер", "Не удалось записать маркер в оригинал", e)
@@ -521,7 +522,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         val skipReason: String? = null
 
         // Сохраняем обновленные EXIF-данные и маркер сжатия
-        ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, qualityForMarker)
+        ExifUtil.writeExifDataFromMemory(appContext, imageUri, exifDataMemory, qualityForMarker, sourceSize)
 
         updateForegroundForMode("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}")
 

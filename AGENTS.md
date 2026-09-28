@@ -28,7 +28,7 @@
 
 - Не сжимать файлы меньше 100 КБ.
 - Сохранять результат, только если экономия не меньше 30% и 10 КБ.
-- Маркировать сжатые файлы EXIF-тегом `CompressPhotoFast_Compressed:quality:timestamp:size` (size — фиксированной ширины, двухфазная запись в `ExifUtil`: фаза 1 — заглушка в общем `saveAttributes`, фаза 2 — одна запись фактического размера через fstat-замер с backup/restore и verify; дрейф `saveAttributes()` до ~1 КБ покрывается допуском).
+- Маркировать сжатые файлы EXIF-тегом `CompressPhotoFast_Compressed:quality:timestamp:size:origSize` (size — сжатый размер, origSize — исходный до сжатия; оба фиксированной ширины, двухфазная запись в `ExifUtil`: фаза 1 — заглушка size, origSize пишется сразу, фаза 2 — одна запись фактического размера через fstat-замер с backup/restore и verify; дрейф `saveAttributes()` до ~1 КБ покрывается допуском). Эффективность сжатия восстанавливается из маркера сторонним EXIF-приложением.
 - Повторная обработка файла с маркером — только если текущий размер файла расходится с size в маркере сверх допуска `Constants.MARKER_SIZE_TOLERANCE_BYTES` (4 КБ, `ImageProcessingChecker.isMarkerSizeMismatch`); mtime не используется; маркер без размера (старый формат/HEIC/заглушка) — пропуск.
 - Сохранять исходное разрешение; память контролировать admission-проверкой, software/low-RAM decode и `RGB_565` для JPEG, пакетно работать с MediaStore.
 - Python-логика должна сохранять семантическое соответствие Android-реализации.
