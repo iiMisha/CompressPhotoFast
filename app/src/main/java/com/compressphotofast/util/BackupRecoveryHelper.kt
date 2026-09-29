@@ -54,7 +54,7 @@ object BackupRecoveryHelper {
 
             try {
                 val exists = UriUtil.isUriExistsSuspend(context, uri)
-                val isValid = exists && ImageCompressionUtil.verifyImageIntegrity(context, uri)
+                val isValid = exists && ImageIntegrityUtil.verifyImageIntegrity(context, uri)
 
                 if (!isValid) {
                     // URI повреждён или отсутствует → пытаемся восстановить из backup

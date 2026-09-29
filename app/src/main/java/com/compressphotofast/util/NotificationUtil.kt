@@ -121,53 +121,6 @@ object NotificationUtil {
         val indeterminate: Boolean = false
     )
     
-    /**
-     * Создание уведомления для фонового сервиса
-     */
-    fun createForegroundNotification(
-        context: Context, 
-        title: String, 
-        content: String
-    ): Notification {
-        // Для foreground сервисов проверяем разрешения, но всё равно создаем уведомление
-        // (иначе сервис не может работать)
-        if (!canShowNotifications(context)) {
-            LogUtil.debug("NotificationUtil", "Foreground service notification создан без разрешений - сервис требует уведомления: '$title'")
-        }
-        
-        // Создаем Intent для открытия приложения при нажатии на уведомление
-        val pendingIntent = createMainActivityPendingIntent(context)
-        
-        // Создаем Intent для остановки сервиса
-        val stopIntent = Intent(context, BackgroundMonitoringService::class.java).apply {
-            action = Constants.ACTION_STOP_SERVICE
-        }
-        
-        val stopPendingIntent = PendingIntent.getService(
-            context,
-            0,
-            stopIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Создаем и возвращаем уведомление (обязательно для foreground сервисов)
-        return createNotification(
-            context = context,
-            channelId = context.getString(R.string.notification_channel_id),
-            title = title,
-            content = content,
-            priority = NotificationCompat.PRIORITY_LOW,
-            ongoing = true,
-            contentIntent = pendingIntent,
-            actions = listOf(
-                NotificationAction(
-                    iconRes = android.R.drawable.ic_menu_close_clear_cancel,
-                    title = context.getString(R.string.notification_stop),
-                    pendingIntent = stopPendingIntent
-                )
-            )
-        )
-    }
     
     /**
      * Создание ForegroundInfo для WorkManager
@@ -772,51 +725,4 @@ object NotificationUtil {
         }
     }
 
-    /**
-     * Показывает уведомление об ошибке OOM при сжатии изображения
-     *
-     * @param context Контекст приложения
-     * @param fileName Имя файла
-     * @param requiredMemoryMb Требуемая память в MB
-     * @param availableMemoryMb Доступная память в MB
-     */
-    fun showOomErrorNotification(
-        context: Context,
-        fileName: String,
-        requiredMemoryMb: Long,
-        availableMemoryMb: Long
-    ) {
-        // Проверяем разрешения перед показом уведомления
-        if (!canShowNotifications(context)) {
-            LogUtil.debug("NotificationUtil", "OOM notification пропущен - нет разрешений: '$fileName'")
-            return
-        }
-
-        try {
-            val pendingIntent = createMainActivityPendingIntent(context)
-
-            val notification = createNotification(
-                context = context,
-                channelId = "compression_errors",
-                title = "Недостаточно памяти",
-                content = "$fileName: нужно ${requiredMemoryMb}МБ, свободно ${availableMemoryMb}МБ.",
-                priority = NotificationCompat.PRIORITY_HIGH,
-                autoCancel = true,
-                contentIntent = pendingIntent
-            )
-
-            val notificationId = System.currentTimeMillis().toInt()
-            getNotificationManager(context).notify(notificationId, notification)
-            LogUtil.debug("NotificationUtil", "Показано OOM уведомление: $fileName")
-        } catch (e: SecurityException) {
-            LogUtil.error(
-                android.net.Uri.EMPTY,
-                "Notification",
-                "SecurityException при показе OOM уведомления - нет разрешения POST_NOTIFICATIONS: '$fileName'",
-                e
-            )
-        } catch (e: Exception) {
-            LogUtil.errorWithException("NotificationUtil", e)
-        }
-    }
 }

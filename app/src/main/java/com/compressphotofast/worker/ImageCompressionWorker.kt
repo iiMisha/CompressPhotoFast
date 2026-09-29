@@ -16,6 +16,7 @@ import com.compressphotofast.util.StatsTracker
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.PendingItemException
 import com.compressphotofast.util.ImageCompressionUtil
+import com.compressphotofast.util.ImageIntegrityUtil
 import com.compressphotofast.util.CompressionException
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.ExifUtil
@@ -421,7 +422,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
         // Верификация целостности ВСЕГДА, не только в режиме замены
         // Надёжность важнее скорости — повреждённый файл не должен попасть в галерею
-        val isSavedFileValid = ImageCompressionUtil.verifyImageIntegrity(context, savedUri)
+        val isSavedFileValid = ImageIntegrityUtil.verifyImageIntegrity(context, savedUri)
         if (!isSavedFileValid) {
             LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён!")
             // Удаляем повреждённый файл из MediaStore

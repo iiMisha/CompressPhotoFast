@@ -113,25 +113,6 @@ class PermissionsManager(
     }
 
     /**
-     * Запрашивает разрешения для доступа к хранилищу
-     * @return true если все разрешения уже предоставлены
-     */
-    override fun requestStoragePermissions(onPermissionsGranted: () -> Unit): Boolean {
-        this.onPermissionsGrantedCallback = onPermissionsGranted
-        val permissions = getRequiredStoragePermissions()
-
-        if (permissions.isEmpty()) {
-            LogUtil.processDebug("Все необходимые разрешения для хранилища уже предоставлены")
-            onPermissionsGranted()
-            return true
-        }
-
-        LogUtil.processDebug("Запрашиваем разрешения для хранилища: ${permissions.joinToString()}")
-        requestPermissionLauncher.launch(permissions.toTypedArray())
-        return false
-    }
-
-    /**
      * Получить список необходимых разрешений для хранилища в зависимости от версии Android
      */
     private fun getRequiredStoragePermissions(): MutableList<String> {

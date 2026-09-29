@@ -1,6 +1,5 @@
 package com.compressphotofast.util
 
-import androidx.activity.result.ActivityResultLauncher
 
 /**
  * Интерфейс для менеджера разрешений
@@ -29,11 +28,6 @@ interface IPermissionsManager {
      */
     fun requestStartupPermissions(onComplete: () -> Unit)
     
-    /**
-     * Запрашивает разрешения для доступа к хранилищу
-     * @return true если все разрешения уже предоставлены
-     */
-    fun requestStoragePermissions(onPermissionsGranted: () -> Unit): Boolean
     
     /**
      * Запрашивает разрешение на отправку уведомлений (только для Android 13+)

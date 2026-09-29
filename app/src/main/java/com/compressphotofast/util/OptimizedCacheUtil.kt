@@ -2,7 +2,6 @@ package com.compressphotofast.util
 
 import android.net.Uri
 import android.util.LruCache
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -183,27 +182,6 @@ object OptimizedCacheUtil {
     }
 
     /**
-     * Получает кэшированные EXIF-данные
-     * Улучшенная версия с инвалидацией при изменении размера файла
-     */
-    fun getCachedExifData(uri: Uri, currentFileSize: Long): CachedExifData? {
-        val cacheKey = uri.toString()
-
-        exifCacheLock.read {
-            val cached = exifCache.get(cacheKey)
-            if (cached != null) {
-                if (cached.isExpired() || (currentFileSize > 0L && cached.isStaleFor(currentFileSize))) {
-                    // Stale — не возвращаем, но и не удаляем (cleanupExpiredEntries() почистит)
-                    return@read null
-                }
-                return cached
-            }
-        }
-
-        return null
-    }
-
-    /**
      * Проверяет, является ли файл скриншотом, используя кэширование паттернов
      */
     fun isScreenshot(fileName: String): Boolean {
@@ -250,7 +228,7 @@ object OptimizedCacheUtil {
             mimeType.startsWith("image/jpeg") -> true
             mimeType.startsWith("image/jpg") -> true
             mimeType.startsWith("image/png") -> true
-            UriUtil.isHeicMimeType(mimeType) -> true
+            mimeType.equals("image/heic", ignoreCase = true) || mimeType.equals("image/heif", ignoreCase = true) -> true
             mimeType.startsWith("image/") -> mimeType.contains("jpeg") || mimeType.contains("jpg") || mimeType.contains("png")
             else -> false
         }
@@ -261,30 +239,6 @@ object OptimizedCacheUtil {
         }
         
         return isProcessable
-    }
-
-    /**
-     * Предзагрузка кэшированных данных для списка путей (для предиктивного кэширования)
-     */
-    fun preloadDirectoryCache(filePaths: List<String>, appDirectory: String) {
-        // Группируем пути по директориям для более эффективного кэширования
-        val directoryGroups = filePaths.groupBy { path ->
-            val lastSlash = path.lastIndexOf('/')
-            if (lastSlash > 0) path.substring(0, lastSlash) else path
-        }
-        
-        directoryGroups.forEach { (directory, paths) ->
-            // Предзагружаем данные для директории
-            val isAppDir = checkIsInAppDirectory(directory, appDirectory)
-
-            paths.forEach { path ->
-                directoryCacheLock.write {
-                    directoryCache.put(path, CachedDirectoryResult(isAppDir))
-                }
-            }
-        }
-        
-        LogUtil.processDebug("Предзагружен кэш для ${directoryGroups.size} директорий (${filePaths.size} файлов)")
     }
 
     /**

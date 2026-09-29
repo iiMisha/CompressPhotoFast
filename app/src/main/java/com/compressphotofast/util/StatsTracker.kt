@@ -2,8 +2,6 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.net.Uri
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 data class DailyCompressionStats(
@@ -64,13 +62,6 @@ object StatsTracker {
         return ImageProcessingChecker.shouldProcessImage(context, uri)
     }
 
-
-    /**
-     * Регистрирует ошибку удаления файла для метрик
-     */
-    fun recordDeleteFailure(uri: Uri?) {
-        LogUtil.warning(uri, "StatsTracker", "Зафиксирована ошибка удаления файла")
-    }
 
     /**
      * Сохраняет успешное сжатие в статистику текущих локальных суток.

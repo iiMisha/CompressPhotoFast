@@ -1529,5 +1529,5 @@ object ExifUtil {
     }
 
     private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean =
-        ImageCompressionUtil.verifyImageIntegrity(context, uri)
+        ImageIntegrityUtil.verifyImageIntegrity(context, uri)
 } 

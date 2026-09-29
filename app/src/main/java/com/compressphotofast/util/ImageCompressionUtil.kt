@@ -18,10 +18,7 @@ import android.graphics.Matrix
 import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.UriUtil
-import com.compressphotofast.util.MediaStoreUtil
-import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.NotificationUtil
 
 /**
  * Базовый класс исключений сжатия изображения
@@ -75,32 +72,6 @@ object ImageCompressionUtil {
      * Проверяет, является ли MIME тип HEIC/HEIF
      */
     private fun isHeicFormat(mimeType: String?): Boolean = UriUtil.isHeicMimeType(mimeType)
-
-    /**
-     * Верифицирует целостность изображения: декодирует только заголовки
-     * (inJustDecodeBounds=true) и проверяет корректность размеров.
-     *
-     * @return true если изображение корректно декодируется, false если повреждено
-     */
-    suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BitmapFactory.decodeStream(inputStream, null, options)
-                if (options.outWidth <= 0 || options.outHeight <= 0) {
-                    LogUtil.error(uri, "Верификация", "Файл повреждён или не является изображением: ${options.outWidth}x${options.outHeight}")
-                    return@withContext false
-                }
-            } ?: run {
-                LogUtil.error(uri, "Верификация", "Не удалось открыть поток для проверки целостности")
-                return@withContext false
-            }
-            return@withContext true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Верификация", "Ошибка при проверке целостности файла", e)
-            return@withContext false
-        }
-    }
 
     private data class OrientationTransform(
         val rotationDegrees: Int = 0,
@@ -550,177 +521,7 @@ object ImageCompressionUtil {
         return sizeReduction >= minSaving && (originalSize - compressedSize) >= minBytesSaving
     }
     
-    /**
-     * Полностью обрабатывает одно изображение - сжатие и сохранение
-     * 
-     * @param context Контекст приложения
-     * @param uri URI исходного изображения
-     * @param quality Качество сжатия (0-100)
-     * @return Triple с результатами:
-     *   - первый элемент: успех операции
-     *   - второй элемент: URI сохраненного файла или null
-     *   - третий элемент: сообщение о результате операции
-     */
-    suspend fun processAndSaveImage(
-        context: Context,
-        uri: Uri,
-        quality: Int,
-        maxDimension: Int = Constants.RESOLUTION_ORIGINAL
-    ): Triple<Boolean, Uri?, String> = withContext(Dispatchers.IO) {
-        val startTime = System.currentTimeMillis()
-        try {
-            // Проверка URI (включает проверку существования файла)
-            if (!isValidUri(context, uri)) {
-                return@withContext Triple(false, null, "Недействительный URI")
-            }
-
-            // Пропускаем уже сжатые файлы
-            val marker = ExifUtil.getCompressionMarker(context, uri)
-            if (marker.isCompressed) {
-                LogUtil.processDebug("Файл уже сжат, пропускаем: $uri")
-                return@withContext Triple(false, uri, "Файл уже сжат")
-            }
-
-            // Получение имени и размера файла с безопасной обработкой
-            val fileName = UriUtil.getFileNameFromUri(context, uri) ?: return@withContext Triple(false, null, "Не удалось получить имя файла")
-
-            val fileSize = try {
-                UriUtil.getFileSize(context, uri)
-            } catch (e: java.io.FileNotFoundException) {
-                LogUtil.error(uri, "Обработка", "Файл не найден при получении размера: ${e.message}")
-                return@withContext Triple(false, null, "Файл недоступен")
-            } catch (e: Exception) {
-                LogUtil.error(uri, "Обработка", "Ошибка при получении размера файла: ${e.message}")
-                return@withContext Triple(false, null, "Ошибка доступа к файлу")
-            }
-
-            if (fileSize <= 0) {
-                return@withContext Triple(false, null, "Не удалось получить размер файла или файл пуст")
-            }
-
-            // Проверка на минимальный размер
-            if (fileSize < Constants.MIN_PROCESSABLE_FILE_SIZE) {
-                return@withContext Triple(true, uri, "Файл слишком маленький для сжатия")
-            }
-
-            // Получение EXIF данных для сохранения
-            val exifData = ExifUtil.readExifDataToMemory(context, uri)
-
-            // JPEG пишется в disposable artifact, чтобы не держать две полные
-            // копии сжатого файла в heap.
-            val compressedFile = try {
-                compressImageToFile(context, uri, quality, maxDimension)
-                    ?: return@withContext Triple(false, null, "Ошибка при сжатии изображения")
-            } catch (e: java.io.FileNotFoundException) {
-                LogUtil.error(uri, "Сжатие изображения", "Файл не найден при сжатии: ${e.message}")
-                return@withContext Triple(false, null, "Файл не найден при сжатии")
-            } catch (e: java.io.IOException) {
-                LogUtil.error(uri, "Сжатие изображения", "Ошибка ввода/вывода при сжатии: ${e.message}")
-                return@withContext Triple(false, null, "Ошибка доступа к файлу при сжатии")
-            } catch (e: Exception) {
-                LogUtil.error(uri, "Сжатие изображения", "Ошибка при сжатии изображения", e)
-                return@withContext Triple(false, null, "Ошибка при сжатии: ${e.message}")
-            }
-            
-            val compressedSize = compressedFile.length()
-            
-            // Проверка эффективности сжатия
-            if (!isImageProcessingEfficient(fileSize, compressedSize)) {
-                compressedFile.delete()
-                return@withContext Triple(true, uri, "Сжатие не дало значительного результата")
-            }
-            
-            // Создание имени для сжатого файла
-            val compressedFileName = FileOperationsUtil.createCompressedFileName(context, fileName)
-
-            // Получение исходного MIME типа для правильного сохранения
-            val originalMimeType = UriUtil.getMimeType(context, uri)
-            LogUtil.debug("ImageCompression", "Исходный MIME тип: $originalMimeType для файла: $fileName")
-
-            // Определяем MIME тип для сохранения на основе формата сжатия
-            // Поскольку мы сжимаем в JPEG, MIME тип должен быть image/jpeg
-            val outputMimeType = "image/jpeg"
-            LogUtil.debug("ImageCompression", "MIME тип для сохранения: $outputMimeType")
-
-            // Сохранение сжатого файла с безопасным закрытием потока
-            val directoryToSave = if (FileOperationsUtil.isSaveModeReplace(context)) {
-                UriUtil.getDirectoryFromUri(context, uri)
-            } else {
-                Constants.APP_DIRECTORY
-            }
-
-            val savedFileResult = try {
-                FileInputStream(compressedFile).use { compressedInputStream ->
-                    MediaStoreUtil.saveCompressedImageFromStream(
-                        context,
-                        compressedInputStream,
-                        compressedFileName,
-                        directoryToSave,
-                        uri,
-                        quality,
-                        exifData,
-                        outputMimeType,
-                        fileSize
-                    )
-                }
-            } catch (e: java.io.FileNotFoundException) {
-                LogUtil.error(uri, "Сохранение сжатого изображения", "Файл не найден при сохранении: ${e.message}")
-                null
-            } catch (e: Exception) {
-                LogUtil.error(uri, "Сохранение сжатого изображения", "Ошибка при сохранении сжатого изображения", e)
-                null
-            } finally {
-                compressedFile.delete()
-            }
-
-            if (savedFileResult == null) {
-                return@withContext Triple(false, null, "Ошибка при сохранении сжатого изображения")
-            }
-            
-            // Расчет сокращения размера в процентах
-            val sizeReduction = FileOperationsUtil.computeSizeReductionPercent(fileSize, compressedSize)
-            
-            // Записываем время обработки для статистики
-            val processingTime = System.currentTimeMillis() - startTime
-            PerformanceMonitor.recordProcessingTime(fileSize, processingTime)
-            
-            return@withContext Triple(
-                true, 
-                savedFileResult,
-                "Сжатие успешно: экономия ${String.format("%.1f", sizeReduction)}%"
-            )
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Обработка изображения", e)
-            return@withContext Triple(false, null, "Ошибка: ${e.message}")
-        }
-    }
     
-    /**
-     * Проверяет, является ли URI действительным
-     */
-    private suspend fun isValidUri(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Проверяем существование URI
-            val exists = UriUtil.isUriExistsSuspend(context, uri)
-            if (!exists) {
-                LogUtil.uriInfo(uri, "URI не существует")
-                return@withContext false
-            }
-            
-            // Проверяем тип файла
-            val mimeType = UriUtil.getMimeType(context, uri)
-            val isImage = mimeType?.startsWith("image/") == true
-            if (!isImage) {
-                LogUtil.uriInfo(uri, "URI не является изображением: $mimeType")
-                return@withContext false
-            }
-            
-            return@withContext true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Проверка валидности URI", e)
-            return@withContext false
-        }
-    }
     
     /**
      * Модель для хранения результатов тестового сжатия

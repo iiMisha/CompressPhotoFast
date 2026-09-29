@@ -110,16 +110,6 @@ class UriProcessingTracker private constructor(
     }
 
     /**
-     * Удаляет URI из списка обрабатываемых
-     */
-    fun removeProcessingUri(uri: Uri) {
-        val uriString = uri.toString()
-        processingUris.remove(uriString)
-        uriProcessingTime.remove(uriString) // Удаляем время
-        LogUtil.processDebug("URI удален из списка обрабатываемых: $uriString (осталось: ${processingUris.size})")
-    }
-
-    /**
      * Удаляет URIs которые находятся в обработке слишком долго (stale).
      * Запускается периодически через [maybeCleanupStaleUris] из query-шлюзов
      * (isProcessing/isImageBeingProcessed), а также служит опорой для точечного

@@ -682,7 +682,7 @@ object MediaStoreUtil {
      * @return true если изображение корректно декодируется, false если повреждено
      */
     private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean =
-        ImageCompressionUtil.verifyImageIntegrity(context, uri)
+        ImageIntegrityUtil.verifyImageIntegrity(context, uri)
 
     /**
      * Проверяет доступность URI для операций с файлом, ожидая в течение указанного времени
