@@ -6,14 +6,9 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
-import android.net.Uri
 import android.provider.MediaStore
-import com.compressphotofast.util.CompressionEnqueueResult
-import com.compressphotofast.util.CompressionOrigin
-import com.compressphotofast.util.CompressionWorkScheduler
-import com.compressphotofast.util.Constants
-import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.GalleryScanCoordinator
 import com.compressphotofast.util.SettingsManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
@@ -24,7 +19,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
@@ -33,8 +27,8 @@ enum class DetectionJobScheduleResult { SCHEDULED, ALREADY_ARMED, FAILED }
 /** Content-trigger с двумя слотами, чтобы новый trigger был armed до завершения текущего. */
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
-    @Inject lateinit var scheduler: CompressionWorkScheduler
     @Inject lateinit var settingsManager: SettingsManager
+    @Inject lateinit var galleryScanCoordinator: GalleryScanCoordinator
 
     private data class RunState(
         val params: JobParameters?,
@@ -120,9 +114,10 @@ class ImageDetectionJobService : JobService() {
                 delay(delayMs)
                 val uris = params?.triggeredContentUris?.toList() ?: emptyList()
                 if (uris.isNotEmpty()) {
-                    processUris(uris)
+                    // Только triggered URI: это не скан галереи, watermark не продвигаем.
+                    galleryScanCoordinator.enqueueAll(uris)
                 } else if (!observerAlive) {
-                    processOverflowScan()
+                    galleryScanCoordinator.scan(GalleryScanCoordinator.Window.SINCE_WATERMARK)
                 }
                 finishRun(run, reschedule = !run.alternateArmed)
             } catch (_: CancellationException) {
@@ -141,31 +136,6 @@ class ImageDetectionJobService : JobService() {
         run.scope.cancel()
         finishRun(run, reschedule = !run.alternateArmed)
         return !run.alternateArmed
-    }
-
-    private suspend fun processUris(uris: List<Uri>) = withContext(Dispatchers.IO) {
-        var durable = true
-        uris.forEach { uri ->
-            when (scheduler.enqueue(uri, origin = CompressionOrigin.AUTO)) {
-                CompressionEnqueueResult.RETRYABLE_FAILURE -> durable = false
-                else -> Unit
-            }
-        }
-        if (durable) settingsManager
-            .setLastScanTimestamp(System.currentTimeMillis())
-    }
-
-    private suspend fun processOverflowScan() = withContext(Dispatchers.IO) {
-        val scan = GalleryScanUtil.scanRecentImages(applicationContext)
-        if (!scan.completedSuccessfully) return@withContext
-        var durable = true
-        scan.foundUris.forEach { uri ->
-            if (scheduler.enqueue(uri, origin = CompressionOrigin.AUTO) == CompressionEnqueueResult.RETRYABLE_FAILURE) {
-                durable = false
-            }
-        }
-        if (durable) settingsManager
-            .setLastScanTimestamp(System.currentTimeMillis())
     }
 
     private fun finishRun(run: RunState, reschedule: Boolean) {

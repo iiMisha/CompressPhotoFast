@@ -9,12 +9,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import androidx.work.await
-import com.compressphotofast.util.CompressionEnqueueResult
-import com.compressphotofast.util.CompressionOrigin
-import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.GalleryScanUtil
+import com.compressphotofast.util.GalleryScanCoordinator
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.SettingsManager
 import dagger.assisted.Assisted
@@ -26,28 +22,19 @@ import java.util.concurrent.TimeUnit
 class GalleryReconciliationWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val scheduler: CompressionWorkScheduler,
+    private val galleryScanCoordinator: GalleryScanCoordinator,
     private val settingsManager: SettingsManager
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         if (!settingsManager.isAutoCompressionEnabled()) return Result.success()
         val window = if (inputData.getBoolean(CATCH_UP, false)) {
-            Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt()
+            GalleryScanCoordinator.Window.HISTORY
         } else {
-            val last = settingsManager.getLastScanTimestamp()
-            ((System.currentTimeMillis() - last) / 1000L + Constants.RECENT_SCAN_WINDOW_SECONDS)
-                .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS).toInt()
+            GalleryScanCoordinator.Window.SINCE_WATERMARK
         }
-        val scan = GalleryScanUtil.scanRecentImages(applicationContext, window)
-        if (!scan.completedSuccessfully) return Result.retry()
-        var durable = true
-        scan.foundUris.forEach { uri ->
-            val result = scheduler.enqueue(uri, origin = CompressionOrigin.AUTO)
-            if (result == CompressionEnqueueResult.RETRYABLE_FAILURE) durable = false
-        }
-        if (durable) settingsManager.setLastScanTimestamp(System.currentTimeMillis())
-        LogUtil.processDebug("Reconciliation: found=${scan.foundUris.size}, durable=$durable")
-        return if (durable) Result.success() else Result.retry()
+        val outcome = galleryScanCoordinator.scan(window)
+        LogUtil.processDebug("Reconciliation: found=${outcome.foundCount}, durable=${outcome.durable}")
+        return if (outcome.durable) Result.success() else Result.retry()
     }
 
     companion object {

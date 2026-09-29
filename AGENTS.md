@@ -48,7 +48,7 @@
 - Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
 - Разрешения запрашиваются все при первом запуске: один runtime-диалог (медиа/уведомления/гео EXIF) через `PermissionsManager.requestStartupPermissions`, затем All-Files-Access (`requestAllFilesAccessIfNeeded` в `MainActivity`), затем battery exemption; счётчик попыток запросов убран.
 - DI: `SettingsManager` внедряется Hilt во все Hilt-компоненты (воркеры, сервисы, `MainActivity`, `CompressPhotoApp`, `CompressionWorkScheduler`); `SettingsManager.getInstance` — только в `object`/companion. Pending-delete URI — через `SettingsManager`.
-- Gallery scan возвращает `completedSuccessfully`, использует overlap watermark и не продвигает его после ошибки/null cursor; debug `ApplicationExitInfo` логирует человекочитаемую причину.
+- Скан галереи (FGS, Job, reconciliation) — только через `util/GalleryScanCoordinator` (окно от watermark с overlap или HISTORY); watermark = время начала скана, продвигается только при `completedSuccessfully` и durable enqueue всех URI; triggered URI из Job watermark не двигают; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
 ## Проверка и релиз
 

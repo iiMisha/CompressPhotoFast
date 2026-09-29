@@ -16,7 +16,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
@@ -24,15 +23,14 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import com.compressphotofast.util.TempFilesCleaner
+import com.compressphotofast.util.GalleryScanCoordinator
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.NotificationUtil
-import com.compressphotofast.util.GalleryScanUtil
 import com.compressphotofast.util.MediaStoreObserver
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.UriProcessingTracker
-import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.CompressionEnqueueResult
 import javax.inject.Inject
@@ -89,6 +87,9 @@ class BackgroundMonitoringService : Service() {
     @Inject
     lateinit var settingsManager: SettingsManager
 
+    @Inject
+    lateinit var galleryScanCoordinator: GalleryScanCoordinator
+
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
 
@@ -103,7 +104,6 @@ class BackgroundMonitoringService : Service() {
     private var cleanupJob: Job? = null
 
     // Mutex для предотвращения конкурентного сканирования
-    private val scanMutex = kotlinx.coroutines.sync.Mutex()
 
     /**
      * Безопасный запуск корутины в scope сервиса
@@ -362,57 +362,19 @@ class BackgroundMonitoringService : Service() {
     }
     
     /**
-     * Периодическое сканирование галереи для поиска новых изображений
+     * Периодическое сканирование галереи от последнего watermark
      */
-    private fun scanForNewImages() {
-        serviceScope.launch {
-            if (!scanMutex.tryLock()) {
-                LogUtil.processDebug("Сканирование уже выполняется, пропуск")
-                return@launch
-            }
-            try {
-                // Периодически проверяем недоступные URI и восстанавливаем их
-                try {
-                    uriProcessingTracker.retryUnavailableUris()
-                } catch (e: Exception) {
-                    LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
-                }
-
-                // Вычисляем динамическое окно сканирования на основе lastScanTimestamp
-                val currentTimeMs = System.currentTimeMillis()
-                val lastScanMs = settingsManager.getLastScanTimestamp()
-                val timeWindowSeconds = ((currentTimeMs - lastScanMs) / 1000L + Constants.RECENT_SCAN_WINDOW_SECONDS)
-                    .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS)
-                    .toInt()
-
-                // Используем централизованную логику сканирования с динамическим окном
-                val scanResult = GalleryScanUtil.scanRecentImages(
-                    applicationContext,
-                    timeWindowSeconds = timeWindowSeconds
-                )
-
-                // Обрабатываем найденные изображения
-                var allQueued = scanResult.completedSuccessfully
-                scanResult.foundUris.forEach { uri ->
-                    if (settingsManager.isAutoCompressionEnabled()) {
-                        if (!processNewImage(uri)) allQueued = false
-                    } else {
-                        allQueued = false
-                    }
-                }
-
-                // Продвигаем watermark только после того, как все найденные URI
-                // переданы в долговечную WorkManager-очередь.
-                if (allQueued) {
-                    settingsManager.setLastScanTimestamp(currentTimeMs)
-                }
-
-                // Выводим автоматический отчет о производительности
-                PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
-            } finally {
-                scanMutex.unlock()
-            }
+    private suspend fun scanForNewImages() {
+        // Периодически проверяем недоступные URI и восстанавливаем их
+        try {
+            uriProcessingTracker.retryUnavailableUris()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
         }
+        galleryScanCoordinator.scan(GalleryScanCoordinator.Window.SINCE_WATERMARK)
+        PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
     }
     
     /**
@@ -437,34 +399,11 @@ class BackgroundMonitoringService : Service() {
     }
     
     /**
-     * Сканирует галерею для поиска необработанных изображений
+     * Сканирует галерею за историю (по умолчанию 48 часов)
      */
-    private suspend fun scanGalleryForUnprocessedImages() = withContext(Dispatchers.IO) {
-        if (!scanMutex.tryLock()) {
-            LogUtil.processDebug("Сканирование уже выполняется, пропуск")
-            return@withContext
-        }
-        try {
-            // Используем централизованную логику сканирования за историю (по умолчанию 48 часов)
-            val scanResult = GalleryScanUtil.scanHistoryImages(applicationContext)
-            
-            // Обрабатываем найденные изображения
-            var allQueued = scanResult.completedSuccessfully
-            scanResult.foundUris.forEach { uri ->
-                if (!processNewImage(uri)) allQueued = false
-            }
-            
-            // Watermark обновляется только после постановки всех найденных URI в
-            // WorkManager; kill между scan и enqueue не создаёт окно потери.
-            if (allQueued) {
-                settingsManager.setLastScanTimestamp(System.currentTimeMillis())
-            }
-            
-            // Выводим автоматический отчет о производительности
-            PerformanceMonitor.autoReportIfNeeded(applicationContext)
-        } finally {
-            scanMutex.unlock()
-        }
+    private suspend fun scanGalleryForUnprocessedImages() {
+        galleryScanCoordinator.scan(GalleryScanCoordinator.Window.HISTORY)
+        PerformanceMonitor.autoReportIfNeeded(applicationContext)
     }
 
     /**
@@ -487,7 +426,13 @@ class BackgroundMonitoringService : Service() {
                 if (!observerAlive) {
                     LogUtil.processDebug("Периодический скан: ContentObserver неактивен — полный интервал")
                 }
-                scanForNewImages()
+                try {
+                    scanForNewImages()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    LogUtil.error(null, "PERIODIC_SCAN", "Ошибка периодического скана", e)
+                }
                 delay(
                     if (observerAlive) {
                         Constants.BACKGROUND_SCAN_INTERVAL_FALLBACK_MINUTES * 60 * 1000L
