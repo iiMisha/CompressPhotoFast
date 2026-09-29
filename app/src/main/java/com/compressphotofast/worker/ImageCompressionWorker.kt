@@ -45,7 +45,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val uriProcessingTracker: UriProcessingTracker,
     private val compressionBatchTracker: CompressionBatchTracker,
     private val executionGate: CompressionExecutionGate,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val imageProcessingChecker: ImageProcessingChecker
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -147,8 +148,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Повторная проверка после входа в gate закрывает race legacy/v2
             // и изменения EXIF между discovery и фактическим запуском.
-            val gatedProcessingCheck = ImageProcessingChecker.isProcessingRequired(
-                appContext, imageUri, forceProcess = true
+            val gatedProcessingCheck = imageProcessingChecker.isProcessingRequired(imageUri, forceProcess = true
             )
             if (!gatedProcessingCheck.processingRequired &&
                 gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
@@ -178,7 +178,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
             
             // Используем централизованную логику для проверки необходимости обработки
-            val processingCheckResult = ImageProcessingChecker.isProcessingRequired(appContext, imageUri, forceProcess = true)
+            val processingCheckResult = imageProcessingChecker.isProcessingRequired(imageUri, forceProcess = true)
             
             // Если файл уже обработан и не требует повторной обработки, пропускаем его
             if (!processingCheckResult.processingRequired &&

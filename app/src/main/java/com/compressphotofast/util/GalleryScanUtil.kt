@@ -6,14 +6,19 @@ import android.net.Uri
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.BatchMediaStoreUtil
-import com.compressphotofast.util.PerformanceMonitor
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Класс для централизованной работы со сканированием галереи
  */
-object GalleryScanUtil {
+@Singleton
+class GalleryScanUtil @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val settingsManager: SettingsManager,
+    private val imageProcessingChecker: ImageProcessingChecker
+) {
     
     /**
      * Результат сканирования галереи
@@ -27,13 +32,11 @@ object GalleryScanUtil {
     
     /**
      * Сканирует галерею для поиска недавно добавленных изображений
-     * @param context Контекст приложения
      * @param timeWindowSeconds Временное окно в секундах для поиска изображений (по умолчанию 5 минут)
      * @param checkProcessable Проверять, подлежит ли изображение обработке
      * @return Результат сканирования
      */
     suspend fun scanRecentImages(
-        context: Context, 
         timeWindowSeconds: Int = Constants.RECENT_SCAN_WINDOW_SECONDS.toInt(), // 5 минут по умолчанию
         checkProcessable: Boolean = true
     ): ScanResult = withContext(Dispatchers.IO) {
@@ -45,7 +48,7 @@ object GalleryScanUtil {
         
         try {
             // Проверяем состояние автоматического сжатия
-            if (checkProcessable && !SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
+            if (checkProcessable && !settingsManager.isAutoCompressionEnabled()) {
                 LogUtil.processDebug("Автосжатие выключено, сканирование отменено")
                 return@withContext ScanResult(0, 0, emptyList(), completedSuccessfully = false)
             }
@@ -130,7 +133,7 @@ object GalleryScanUtil {
                     
                     // Теперь проверяем каждый URI, используя кэшированные данные
                     for (uri in allUris) {
-                        if (StatsTracker.shouldProcessImage(context, uri)) {
+                        if (imageProcessingChecker.shouldProcessImage(uri)) {
                             foundUris.add(uri)
                             processedCount++
                         } else {
@@ -154,15 +157,5 @@ object GalleryScanUtil {
             LogUtil.errorWithException("SCAN_GALLERY", e)
             return@withContext ScanResult(processedCount, skippedCount, foundUris, completedSuccessfully = false)
         }
-    }
-    
-    /**
-     * Сканирует галерею для поиска необработраных изображений за историю (по умолчанию 2 дня)
-     * @param context Контекст приложения
-     * @return Результат сканирования
-     */
-    suspend fun scanHistoryImages(context: Context): ScanResult = withContext(Dispatchers.IO) {
-        // Вызываем сканирование с окном из констант (по умолчанию 48 часов)
-        scanRecentImages(context, Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt())
     }
 }

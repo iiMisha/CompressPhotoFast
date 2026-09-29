@@ -43,7 +43,8 @@ class MainViewModel @Inject constructor(
     private val settingsManager: SettingsManager,
     private val uriProcessingTracker: UriProcessingTracker,
     private val compressionBatchTracker: CompressionBatchTracker,
-    private val compressionWorkScheduler: CompressionWorkScheduler
+    private val compressionWorkScheduler: CompressionWorkScheduler,
+    private val imageProcessingChecker: ImageProcessingChecker
 ) : ViewModel() {
 
     // LiveData для URI выбранного изображения
@@ -287,7 +288,7 @@ class MainViewModel @Inject constructor(
                     )
                     
                     // Проверяем, требует ли изображение обработки с использованием центрального класса проверки
-                    val shouldProcess = ImageProcessingChecker.shouldProcessImage(context, contentUri, false)
+                    val shouldProcess = imageProcessingChecker.shouldProcessImage(contentUri, false)
                     
                     if (shouldProcess) {
                         uncompressedImages.add(contentUri)

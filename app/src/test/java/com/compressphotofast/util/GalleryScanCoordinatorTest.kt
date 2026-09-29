@@ -1,17 +1,13 @@
 package com.compressphotofast.util
 
-import android.content.Context
 import android.net.Uri
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.slot
-import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,28 +15,22 @@ import org.junit.Before
 import org.junit.Test
 
 class GalleryScanCoordinatorTest {
-    private val context = mockk<Context>(relaxed = true)
     private val settings = mockk<SettingsManager>(relaxed = true)
     private val scheduler = mockk<CompressionWorkScheduler>()
-    private val coordinator = GalleryScanCoordinator(context, settings, scheduler)
+    private val scanUtil = mockk<GalleryScanUtil>()
+    private val coordinator = GalleryScanCoordinator(settings, scheduler, scanUtil)
     private val uri1 = mockk<Uri>()
     private val uri2 = mockk<Uri>()
 
     @Before
     fun setUp() {
-        mockkObject(GalleryScanUtil)
         every { settings.isAutoCompressionEnabled() } returns true
         every { settings.getLastScanTimestamp() } returns 0L
         coEvery { scheduler.enqueue(any(), any(), any(), any(), any()) } returns CompressionEnqueueResult.DURABLY_ACCEPTED
     }
 
-    @After
-    fun tearDown() {
-        unmockkObject(GalleryScanUtil)
-    }
-
     private fun stubScan(completed: Boolean, uris: List<Uri> = listOf(uri1, uri2)) {
-        coEvery { GalleryScanUtil.scanRecentImages(any(), any(), any()) } returns
+        coEvery { scanUtil.scanRecentImages(any(), any()) } returns
             GalleryScanUtil.ScanResult(foundUris = uris, completedSuccessfully = completed)
     }
 
@@ -80,7 +70,7 @@ class GalleryScanCoordinatorTest {
     fun `history window scans full history`() = runTest {
         stubScan(completed = true)
         coordinator.scan(GalleryScanCoordinator.Window.HISTORY)
-        coVerify { GalleryScanUtil.scanRecentImages(any(), Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt(), any()) }
+        coVerify { scanUtil.scanRecentImages(Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt(), any()) }
     }
 
     @Test
@@ -112,7 +102,7 @@ class GalleryScanCoordinatorTest {
         val outcome = coordinator.scan(GalleryScanCoordinator.Window.HISTORY)
 
         assertFalse(outcome.durable)
-        coVerify(exactly = 0) { GalleryScanUtil.scanRecentImages(any(), any(), any()) }
+        coVerify(exactly = 0) { scanUtil.scanRecentImages(any(), any()) }
     }
 
     @Test

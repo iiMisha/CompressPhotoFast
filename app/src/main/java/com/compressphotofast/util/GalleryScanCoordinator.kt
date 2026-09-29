@@ -1,8 +1,6 @@
 package com.compressphotofast.util
 
-import android.content.Context
 import android.net.Uri
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -18,9 +16,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class GalleryScanCoordinator @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val settingsManager: SettingsManager,
-    private val scheduler: CompressionWorkScheduler
+    private val scheduler: CompressionWorkScheduler,
+    private val galleryScanUtil: GalleryScanUtil
 ) {
     enum class Window {
         /** От последнего watermark (с перекрытием), в пределах истории. */
@@ -41,7 +39,7 @@ class GalleryScanCoordinator @Inject constructor(
             Window.HISTORY -> Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt()
             Window.SINCE_WATERMARK -> windowSinceWatermark(settingsManager.getLastScanTimestamp(), startedAt)
         }
-        val scan = GalleryScanUtil.scanRecentImages(context, windowSeconds)
+        val scan = galleryScanUtil.scanRecentImages(windowSeconds)
         val durable = scan.completedSuccessfully && enqueueAll(scan.foundUris)
         if (durable) settingsManager.setLastScanTimestamp(startedAt)
         LogUtil.processDebug(

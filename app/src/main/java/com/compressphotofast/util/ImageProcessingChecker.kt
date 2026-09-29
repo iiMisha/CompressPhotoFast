@@ -5,17 +5,19 @@ import android.net.Uri
 import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.UriUtil
-import com.compressphotofast.util.OptimizedCacheUtil
-import com.compressphotofast.util.PerformanceMonitor
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Централизованный класс для проверки необходимости обработки изображений
  * Предотвращает дублирование логики в разных частях приложения
  */
-object ImageProcessingChecker {
+@Singleton
+class ImageProcessingChecker @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    private val settingsManager: SettingsManager
+) {
 
     /**
      * Нормализует путь к файлу для надежного сравнения
@@ -63,14 +65,13 @@ object ImageProcessingChecker {
      * Проверяет, нужно ли обрабатывать изображение
      * Централизованная версия логики для всего приложения
      * 
-     * @param context Контекст
      * @param uri URI изображения
      * @param forceProcess Принудительная обработка, даже если автосжатие отключено
      * @return true если изображение нужно обработать, false в противном случае
      */
-    suspend fun shouldProcessImage(context: Context, uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+    suspend fun shouldProcessImage(uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         try {
-            val result = isProcessingRequired(context, uri, forceProcess)
+            val result = isProcessingRequired(uri, forceProcess)
             if (!result.processingRequired) {
                 LogUtil.debug("ImageProcessingChecker", "Изображение не требует обработки: ${result.reason}")
             }
@@ -101,7 +102,6 @@ object ImageProcessingChecker {
             }
             
             // Проверяем, включено ли автоматическое сжатие
-            val settingsManager = SettingsManager.getInstance(context)
             val isAutoEnabled = settingsManager.isAutoCompressionEnabled()
             
             // Если автосжатие отключено и нет флага принудительной обработки, возвращаем false
@@ -158,12 +158,14 @@ object ImageProcessingChecker {
      * Проверяет, требуется ли обработка изображения
      * Объединяет различные проверки из разных частей приложения
      * 
-     * @param context Контекст
      * @param uri URI изображения
      * @param forceProcess Принудительная обработка, даже если автосжатие отключено
      * @return результат проверки в виде объекта ProcessingCheckResult
      */
-    suspend fun isProcessingRequired(context: Context, uri: Uri, forceProcess: Boolean = false): ProcessingCheckResult = withContext(Dispatchers.IO) {
+    suspend fun isProcessingRequired(uri: Uri, forceProcess: Boolean = false): ProcessingCheckResult =
+        isProcessingRequired(appContext, uri, forceProcess)
+
+    private suspend fun isProcessingRequired(context: Context, uri: Uri, forceProcess: Boolean): ProcessingCheckResult = withContext(Dispatchers.IO) {
         try {
             // Создаем результат по умолчанию
             val result = ProcessingCheckResult()
@@ -275,8 +277,10 @@ object ImageProcessingChecker {
      * маркера (до ~1 КБ) правкой не считается, большее расхождение — признак
      * редактирования или внешнего пережатия файла
      */
-    fun isMarkerSizeMismatch(fileSize: Long, markerFileSize: Long): Boolean =
-        abs(fileSize - markerFileSize) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+    companion object {
+        fun isMarkerSizeMismatch(fileSize: Long, markerFileSize: Long): Boolean =
+            abs(fileSize - markerFileSize) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+    }
 
     /**
      * Класс для хранения результатов проверки необходимости обработки

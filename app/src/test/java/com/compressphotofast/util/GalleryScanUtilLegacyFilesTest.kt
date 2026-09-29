@@ -1,15 +1,18 @@
 package com.compressphotofast.util
 
 import com.compressphotofast.BaseUnitTest
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.After
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Unit тесты для GalleryScanUtil, проверяющие обработку старых файлов,
@@ -21,9 +24,15 @@ import org.junit.After
  * 3. Файлы с устаревшим флагом IS_PENDING
  * 4. Расширенное окно сканирования истории (по умолчанию 2 дня)
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29])
 class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
 
     private lateinit var mockContext: android.content.Context
+    private val settings = mockk<SettingsManager>(relaxed = true)
+    private val checker = mockk<ImageProcessingChecker>(relaxed = true)
+
+    private fun scanner() = GalleryScanUtil(mockContext, settings, checker)
 
     @Before
     override fun setUp() {
@@ -77,20 +86,18 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
 
         // Выполняем сканирование с checkProcessable=false, чтобы не мокать сложные зависимости
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 900, // 15 минут
             checkProcessable = false // Не проверяем processable, только базовую логику
         )
 
         // Проверяем результаты
-        // assertEquals("Файл должен быть обнаружен", 1, result.processedCount)
-        // assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
-        // assertTrue("Список URI должен содержать файл", result.foundUris.isNotEmpty())
+        assertEquals("Файл должен быть обнаружен", 1, result.processedCount)
+        assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
+        assertTrue("Список URI должен содержать файл", result.foundUris.isNotEmpty())
     }
 
     /**
@@ -119,20 +126,16 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
 
         // Выполняем сканирование
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 900,
             checkProcessable = false // Не проверяем processable
         )
 
-        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
-        // TODO: Испправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertEquals("Маленький файл не должен обрабатываться", 0, result.processedCount)
-        // assertTrue("Маленький файл должен быть в списке пропущенных", result.skippedCount > 0)
+        assertEquals("Маленький файл не должен обрабатываться", 0, result.processedCount)
+        assertTrue("Маленький файл должен быть в списке пропущенных", result.skippedCount > 0)
     }
 
     /**
@@ -165,16 +168,15 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
+
+        coEvery { checker.shouldProcessImage(any(), any()) } returns true
 
         // Выполняем сканирование истории
-        val result = GalleryScanUtil.scanHistoryImages(mockContext)
+        val result = scanner().scanRecentImages(Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt())
         
-        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
-        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertEquals("Файл должен быть найден при сканировании истории", 1, result.processedCount)
-        // assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
+        assertEquals("Файл должен быть найден при сканировании истории", 1, result.processedCount)
+        assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
     }
 
     /**
@@ -188,12 +190,10 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
     @Test
     fun scanRecentImages_returnsEmptyWhenAutoCompressionDisabled() = runTest {
         // Мокаем SettingsManager с отключенным автосжатием
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns false
+        every { settings.isAutoCompressionEnabled() } returns false
 
         // Выполняем сканирование
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 900,
             checkProcessable = true
         )
@@ -230,20 +230,16 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
 
         // Выполняем сканирование
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 900,
             checkProcessable = false
         )
 
-        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
-        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertEquals("Большой файл не должен обрабатываться", 0, result.processedCount)
-        // assertTrue("Большой файл должен быть в списке пропущенных", result.skippedCount > 0)
+        assertEquals("Большой файл не должен обрабатываться", 0, result.processedCount)
+        assertTrue("Большой файл должен быть в списке пропущенных", result.skippedCount > 0)
     }
 
     /**
@@ -274,20 +270,16 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
 
         // Выполняем сканирование
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 900,
             checkProcessable = false
         )
 
-        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
-        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertEquals("Нормальный файл должен быть обработан", 1, result.processedCount)
-        // assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
+        assertEquals("Нормальный файл должен быть обработан", 1, result.processedCount)
+        assertEquals("Файлы не должны пропускаться из-за размера", 0, result.skippedCount)
     }
 
     /**
@@ -316,19 +308,15 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
 
         // Выполняем сканирование без проверки processable
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 900,
             checkProcessable = false // Не проверяем processable, поэтому IS_PENDING не учитывается
         )
 
-        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
-        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertEquals("Файл должен быть добавлен при checkProcessable=false", 1, result.processedCount)
+        assertEquals("Файл должен быть добавлен при checkProcessable=false", 1, result.processedCount)
     }
 
     /**
@@ -362,22 +350,18 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         every { mockContext.contentResolver } returns contentResolver
 
         // Мокаем SettingsManager
-        mockkObject(SettingsManager)
-        every { SettingsManager.getInstance(mockContext).isAutoCompressionEnabled() } returns true
+        every { settings.isAutoCompressionEnabled() } returns true
 
         // Выполняем сканирование без проверки processable
-        val result = GalleryScanUtil.scanRecentImages(
-            context = mockContext,
+        val result = scanner().scanRecentImages(
             timeWindowSeconds = 300,
             checkProcessable = false
         )
 
-        // Временно закомментировали проверки из-за проблем с MockK и MatrixCursor
-        // TODO: Исправить mock ContentResolver для корректной работы с MatrixCursor
-        // assertTrue("Файлы, добавленные менее 3 секунд назад, должны обрабатываться",
-        //     result.foundUris.isNotEmpty())
-        // assertEquals("Файл должен быть найден", 1, result.processedCount)
-        // assertEquals("Файл не должен быть пропущен", 0, result.skippedCount)
+        assertTrue("Файлы, добавленные менее 3 секунд назад, должны обрабатываться",
+            result.foundUris.isNotEmpty())
+        assertEquals("Файл должен быть найден", 1, result.processedCount)
+        assertEquals("Файл не должен быть пропущен", 0, result.skippedCount)
     }
 }
 

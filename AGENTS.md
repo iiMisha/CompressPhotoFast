@@ -47,7 +47,7 @@
 - Тяжёлая Bitmap/MediaStore-фаза сериализуется `CompressionExecutionGate`; transient retry ограничен пятью попытками с линейным backoff, проблемный URI не блокирует соседние.
 - Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
 - Разрешения запрашиваются все при первом запуске: один runtime-диалог (медиа/уведомления/гео EXIF) через `PermissionsManager.requestStartupPermissions`, затем All-Files-Access (`requestAllFilesAccessIfNeeded` в `MainActivity`), затем battery exemption; счётчик попыток запросов убран.
-- DI: `SettingsManager` внедряется Hilt во все Hilt-компоненты (воркеры, сервисы, `MainActivity`, `CompressPhotoApp`, `CompressionWorkScheduler`); `SettingsManager.getInstance` — только в `object`/companion. Pending-delete URI — через `SettingsManager`.
+- DI: `SettingsManager` внедряется Hilt во все Hilt-компоненты (воркеры, сервисы, `MainActivity`, `CompressPhotoApp`, `CompressionWorkScheduler`); `SettingsManager.getInstance` — только в `object`/companion. Pending-delete URI — через `SettingsManager`. `ImageProcessingChecker`, `GalleryScanUtil` — инъецируемые `@Singleton`; граф util-`object` ациклический (новые зависимости не должны создавать циклов).
 - Скан галереи (FGS, Job, reconciliation) — только через `util/GalleryScanCoordinator` (окно от watermark с overlap или HISTORY); watermark = время начала скана, продвигается только при `completedSuccessfully` и durable enqueue всех URI; triggered URI из Job watermark не двигают; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
 ## Проверка и релиз

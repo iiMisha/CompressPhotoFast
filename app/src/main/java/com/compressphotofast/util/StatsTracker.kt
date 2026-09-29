@@ -54,14 +54,6 @@ object StatsTracker {
         }
     }
 
-    /**
-     * Проверяет, нужно ли обрабатывать изображение
-     * Делегирует к централизованной логике в ImageProcessingChecker
-     */
-    suspend fun shouldProcessImage(context: Context, uri: Uri): Boolean {
-        return ImageProcessingChecker.shouldProcessImage(context, uri)
-    }
-
 
     /**
      * Сохраняет успешное сжатие в статистику текущих локальных суток.
