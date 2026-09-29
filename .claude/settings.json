@@ -1,6 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "~/.claude/statusline-command.sh"
+    "command": "bash /home/misha/.claude/statusline-limits.sh",
+    "padding": 0
   }
 }
