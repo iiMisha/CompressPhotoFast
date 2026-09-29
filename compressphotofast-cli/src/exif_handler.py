@@ -7,6 +7,7 @@ from PIL import Image
 
 from .constants import (
     EXIF_COMPRESSION_MARKER,
+    MARKER_SIZE_TOLERANCE_BYTES,
     TIME_DIFFERENCE_ALLOWED_SECONDS,
 )
 
@@ -65,35 +66,43 @@ class ExifHandler:
             return None
 
     @staticmethod
-    def get_compression_info(file_path: str) -> Tuple[bool, int, int]:
+    def _read_marker_parts(file_path: str) -> Optional[list]:
+        """Возвращает поля маркера сжатия из UserComment или None, если маркера нет."""
         exif_dict = ExifHandler.read_exif_data(file_path)
         if exif_dict is None:
-            return False, -1, 0
+            return None
 
         if "Exif" not in exif_dict:
-            return False, -1, 0
+            return None
 
         exif_ifd = exif_dict["Exif"]
         user_comment_tag = piexif.ExifIFD.UserComment
 
         if user_comment_tag not in exif_ifd:
-            return False, -1, 0
+            return None
 
         user_comment = exif_ifd[user_comment_tag]
         if isinstance(user_comment, bytes):
             try:
                 user_comment = user_comment.decode("utf-8", errors="ignore")
             except UnicodeDecodeError:
-                return False, -1, 0
+                return None
 
         if not isinstance(user_comment, str):
-            return False, -1, 0
+            return None
 
         if not user_comment.startswith(EXIF_COMPRESSION_MARKER):
+            return None
+
+        return user_comment.split(":")
+
+    @staticmethod
+    def get_compression_info(file_path: str) -> Tuple[bool, int, int]:
+        parts = ExifHandler._read_marker_parts(file_path)
+        if parts is None:
             return False, -1, 0
 
         try:
-            parts = user_comment.split(":")
             if len(parts) >= 3:
                 quality = int(parts[1])
                 timestamp = int(parts[2])
@@ -104,16 +113,52 @@ class ExifHandler:
         return False, -1, 0
 
     @staticmethod
+    def get_marker_file_size(file_path: str) -> Optional[int]:
+        """
+        Размер файла, записанный в маркере на момент сжатия.
+
+        None — старый формат маркера без размера, заглушка незавершённой
+        двухфазной записи (нули) или нечитаемое поле (как в Android ExifUtil).
+        """
+        parts = ExifHandler._read_marker_parts(file_path)
+        if parts is None or len(parts) < 4:
+            return None
+        try:
+            size = int(parts[3].strip("\x00 "))
+        except ValueError:
+            return None
+        return size if size > 0 else None
+
+    @staticmethod
     def is_image_compressed(file_path: str) -> bool:
         is_compressed, _, _ = ExifHandler.get_compression_info(file_path)
         return is_compressed
 
     @staticmethod
+    def is_marker_size_mismatch(file_size: int, marker_file_size: int) -> bool:
+        """Расхождение размеров сверх допуска — файл изменён после сжатия."""
+        return abs(file_size - marker_file_size) > MARKER_SIZE_TOLERANCE_BYTES
+
+    @staticmethod
     def should_recompress(file_path: str) -> bool:
-        is_compressed, quality, timestamp = ExifHandler.get_compression_info(file_path)
-        if is_compressed:
+        """
+        Файл с маркером обрабатывается повторно только при расхождении текущего
+        размера с размером в маркере сверх допуска (ImageProcessingChecker в Android).
+        Маркер без размера — доверяем маркеру и пропускаем.
+        """
+        is_compressed, _, _ = ExifHandler.get_compression_info(file_path)
+        if not is_compressed:
+            return True
+
+        marker_file_size = ExifHandler.get_marker_file_size(file_path)
+        if marker_file_size is None:
             return False
-        return True
+
+        try:
+            file_size = os.path.getsize(file_path)
+        except OSError:
+            return False
+        return file_size > 0 and ExifHandler.is_marker_size_mismatch(file_size, marker_file_size)
 
     MARKER_SIZE_FIELD_WIDTH = 15
     MARKER_ORIG_SIZE_FIELD_WIDTH = 15
