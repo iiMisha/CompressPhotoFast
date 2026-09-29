@@ -199,17 +199,12 @@ def find_available_port(preferred_port):
 
 
 def make_download_name(apk_path, variant):
-    """Имя скачиваемого файла с датой/временем сборки APK (по mtime файла).
+    """Имя скачиваемого файла — фактическое имя собранного APK.
 
-    Берётся mtime самого APK — соответствует моменту сборки, а не публикации:
-    несколько переиспользований одного APK (--no-build) дают одинаковое имя,
-    что честно (та же сборка). Время локальное (time.localtime)."""
-    try:
-        ts = apk_path.stat().st_mtime
-    except OSError:
-        ts = time.time()
-    stamp = datetime.fromtimestamp(ts).strftime("%Y%m%d-%H%M%S")
-    return f"CompressPhotoFast-{variant}-{stamp}.apk"
+    Gradle уже включает в имя варианта, версию, дату/время сборки и
+    короткий хеш git-коммита (GitHashValueSource), поэтому генерировать
+    своё имя нельзя — оно затирало бы эту информацию."""
+    return apk_path.name
 
 
 # --- Метаданные --------------------------------------------------------------
