@@ -11,7 +11,7 @@
 
 ## Стек
 
-- Android: Kotlin 2.2.10, Coroutines, Hilt, WorkManager, DataStore, Coil, ExifInterface; minSdk 29, targetSdk 36.
+- Android: Kotlin 2.2.10, Coroutines, Hilt, WorkManager, Coil, ExifInterface; minSdk 29, targetSdk 36.
 - Тесты: JUnit, MockK, Robolectric, Espresso, JaCoCo.
 - CLI: Pillow, pillow-heif, piexif, Click, Rich, tqdm, `ProcessPoolExecutor`.
 
@@ -19,7 +19,7 @@
 
 - UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt`.
 - Сжатие: `worker/ImageCompressionWorker.kt`, `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `util/CompressionWorkScheduler.kt`, `util/CompressionExecutionGate.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
-- Настройки и данные: `util/SettingsManager.kt`, `MediaStore`.
+- Настройки и данные: `util/SettingsManager.kt` (SharedPreferences), `MediaStore`.
 - Инфраструктура: `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.
 - Мониторинг: `service/BackgroundMonitoringService.kt`, `service/ImageDetectionJobService.kt`, `service/MonitoringController.kt`, `service/BootCompletedReceiver.kt`.
 - CLI: `compressphotofast-cli/src/cli.py`, `compressphotofast-cli/src/compression.py`.
@@ -29,7 +29,7 @@
 - Не сжимать файлы меньше 100 КБ.
 - Сохранять результат, только если экономия не меньше 30% и 10 КБ.
 - Маркировать сжатые файлы EXIF-тегом `CompressPhotoFast_Compressed:quality:timestamp:size:origSize` (size — сжатый размер, origSize — исходный до сжатия; оба фиксированной ширины, двухфазная запись в `ExifUtil`: фаза 1 — заглушка size, origSize пишется сразу, фаза 2 — одна запись фактического размера через fstat-замер с backup/restore и verify; дрейф `saveAttributes()` до ~1 КБ покрывается допуском). Эффективность сжатия восстанавливается из маркера сторонним EXIF-приложением.
-- Повторная обработка файла с маркером — только если текущий размер файла расходится с size в маркере сверх допуска `Constants.MARKER_SIZE_TOLERANCE_BYTES` (4 КБ, `ImageProcessingChecker.isMarkerSizeMismatch`); mtime не используется; маркер без размера (старый формат/HEIC/заглушка) — пропуск.
+- Повторная обработка файла с маркером — только если текущий размер файла расходится с size в маркере сверх допуска `Constants.MARKER_SIZE_TOLERANCE_BYTES` (4 КБ, `ImageProcessingChecker.isMarkerSizeMismatch`; в CLI — `ExifHandler.should_recompress`); mtime не используется; маркер без размера (старый формат/HEIC/заглушка) — пропуск.
 - Сохранять исходное разрешение; память контролировать admission-проверкой, software/low-RAM decode и `RGB_565` для JPEG, пакетно работать с MediaStore.
 - Python-логика должна сохранять семантическое соответствие Android-реализации.
 

@@ -163,17 +163,19 @@ class CompressPhotoApp : Application(), Configuration.Provider {
     }
 
     /**
-     * Конфигурация для WorkManager с поддержкой Hilt
+     * Конфигурация для WorkManager с поддержкой Hilt.
+     * Создаётся один раз: иначе каждое обращение порождало бы новые пулы потоков.
      */
-    override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
+    override val workManagerConfiguration: Configuration by lazy {
+        Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .setDefaultProcessName("com.compressphotofast")
             .setExecutor(Executors.newFixedThreadPool(2))
             .setTaskExecutor(Executors.newFixedThreadPool(2))
             .build()
-            
+    }
+
     /**
      * Дерево логирования для релизной версии, полностью отключает все логи
      */

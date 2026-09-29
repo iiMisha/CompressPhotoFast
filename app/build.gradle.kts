@@ -189,9 +189,6 @@ dependencies {
     // ExifInterface для работы с метаданными
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     
-    // DataStore для хранения настроек
-    implementation("androidx.datastore:datastore-preferences:1.1.7")
-    
     // Material Design
     implementation("com.google.android.material:material:1.12.0")
     

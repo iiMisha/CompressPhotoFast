@@ -19,7 +19,7 @@ import javax.inject.Singleton
  * Использует WorkManagerTestInitHelper для proper initialization с SynchronousExecutor.
  *
  * **Важно:** Этот модуль заменяет только provideWorkManager из AppModule,
- * оставляя остальные зависимости (DataStore, SharedPreferences и т.д.) без изменений.
+ * оставляя остальные зависимости (SharedPreferences и т.д.) без изменений.
  *
  * Использование:
  * ```kotlin
