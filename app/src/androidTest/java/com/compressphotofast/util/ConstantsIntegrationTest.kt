@@ -132,12 +132,6 @@ class ConstantsIntegrationTest : BaseInstrumentedTest() {
     @Test
     fun test_actionsAreCorrect() {
         org.junit.Assert.assertEquals(
-            "Action для обработки изображения",
-            "com.compressphotofast.PROCESS_IMAGE",
-            Constants.ACTION_PROCESS_IMAGE
-        )
-
-        org.junit.Assert.assertEquals(
             "Action для завершения сжатия",
             "com.compressphotofast.ACTION_COMPRESSION_COMPLETED",
             Constants.ACTION_COMPRESSION_COMPLETED

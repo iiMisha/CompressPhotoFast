@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import android.content.Context
 import android.content.SharedPreferences
 import com.compressphotofast.BaseUnitTest
-import com.compressphotofast.ui.CompressionPreset
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

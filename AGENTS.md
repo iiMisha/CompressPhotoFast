@@ -18,7 +18,7 @@
 
 ## Архитектура Android
 
-- UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt`.
+- UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt` (валидация и постановка share/Photo Picker URI — `compressSharedImages`). `util/`, `service/`, `worker/` не импортируют `ui`.
 - Сжатие: `worker/ImageCompressionWorker.kt`, `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `util/CompressionWorkScheduler.kt`, `util/CompressionExecutionGate.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
 - Настройки и данные: `util/SettingsManager.kt` (SharedPreferences), `MediaStore`.
 - Инфраструктура: `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.

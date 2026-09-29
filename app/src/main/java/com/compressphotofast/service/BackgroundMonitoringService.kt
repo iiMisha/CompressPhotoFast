@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.IBinder
 import android.content.pm.ServiceInfo
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.StatsTracker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -127,34 +126,6 @@ class BackgroundMonitoringService : Service() {
         }
     }
 
-    // BroadcastReceiver для обработки запросов на обработку изображений
-    private val imageProcessingReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Constants.ACTION_PROCESS_IMAGE) {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(Constants.EXTRA_URI)
-                }
-
-                uri?.let {
-                    // Запускаем корутину для проверки статуса изображения
-                    launchServiceScope {
-                        // Проверяем, не было ли изображение уже обработано
-                        if (!StatsTracker.shouldProcessImage(context, uri)) {
-                            return@launchServiceScope Unit
-                        }
-
-                        // Добавляем URI в список обрабатываемых и запускаем обработку
-                        // processNewImage уже содержит все необходимые проверки
-                        processNewImage(uri)
-                    }
-                }
-            }
-        }
-    }
-    
     // BroadcastReceiver для получения уведомлений о завершении сжатия
     private val compressionCompletedReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -203,7 +174,6 @@ class BackgroundMonitoringService : Service() {
             }
 
             setupContentObserver()
-            registerProcessImageReceiver()
             registerReceiver(
                 compressionCompletedReceiver,
                 IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
@@ -224,7 +194,6 @@ class BackgroundMonitoringService : Service() {
             LogUtil.error(null, "BackgroundMonitoringService", "Не удалось подготовить monitoring FGS", e)
             try {
                 mediaStoreObserver?.unregister()
-                unregisterReceiver(imageProcessingReceiver)
                 unregisterReceiver(compressionCompletedReceiver)
             } catch (_: Exception) {
                 // Ресурсы могли не успеть зарегистрироваться.
@@ -364,7 +333,6 @@ class BackgroundMonitoringService : Service() {
 
         // Отменяем регистрацию BroadcastReceiver
         try {
-            unregisterReceiver(imageProcessingReceiver)
             unregisterReceiver(compressionCompletedReceiver)
         } catch (e: Exception) {
             // Игнорируем ошибку отмены регистрации
@@ -497,18 +465,6 @@ class BackgroundMonitoringService : Service() {
         } finally {
             scanMutex.unlock()
         }
-    }
-
-    /**
-     * Регистрация BroadcastReceiver для обработки запросов на сжатие изображений
-     */
-    private fun registerProcessImageReceiver() {
-        // Регистрируем BroadcastReceiver для обработки запросов на обработку изображений
-        registerReceiver(
-            imageProcessingReceiver,
-            IntentFilter(Constants.ACTION_PROCESS_IMAGE),
-            Context.RECEIVER_NOT_EXPORTED
-        )
     }
 
     /**

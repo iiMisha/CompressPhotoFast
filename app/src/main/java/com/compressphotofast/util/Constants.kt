@@ -89,7 +89,6 @@ object Constants {
     const val REQUEST_CODE_DELETE_PERMISSION = 12346
     
     // BroadcastReceiver actions
-    const val ACTION_PROCESS_IMAGE = "com.compressphotofast.PROCESS_IMAGE"
     const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.REQUEST_DELETE_PERMISSION"
     const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.ACTION_COMPRESSION_COMPLETED"
     const val ACTION_COMPRESSION_SKIPPED = "com.compressphotofast.ACTION_COMPRESSION_SKIPPED"

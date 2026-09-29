@@ -16,16 +16,19 @@ import com.compressphotofast.util.ImageProcessingChecker
 import com.compressphotofast.util.CompressionEnqueueResult
 import com.compressphotofast.util.CompressionOrigin
 import com.compressphotofast.util.CompressionWorkScheduler
+import com.compressphotofast.util.CompressionPreset
 import com.compressphotofast.util.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.CompressionBatchTracker
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.util.UriUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -76,33 +79,107 @@ class MainViewModel @Inject constructor(
     /**
      * Сжатие списка изображений
      *
-     * Консолидировано с ручным путём (handleIntent): создаётся batchId, каждое
-     * изображение ставится в очередь через CompressionWorkScheduler
-     * (WorkManager). Результаты группируются CompressionBatchTracker в единый
-     * Toast/уведомление по достижении expectedCount.
+     * Каждое изображение ставится в очередь через CompressionWorkScheduler
+     * (WorkManager) в общем батче. Результаты группируются CompressionBatchTracker
+     * в единый Toast/уведомление по достижении expectedCount.
      */
     fun compressMultipleImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) { enqueueManualBatch(uris) }
+    }
 
+    /**
+     * Ручное сжатие изображений из Share-интента или Photo Picker.
+     * Отбрасывает несуществующие и не-image URI, показывает первое изображение в UI.
+     * @return число URI, принятых в durable очередь (0 — все пропущены или невалидны)
+     */
+    suspend fun compressSharedImages(uris: List<Uri>): Int {
+        val validUris = uris.filter { isValidSharedImage(it) }
+        if (validUris.isEmpty()) {
+            LogUtil.processWarning("compressSharedImages: Нет валидных URI для обработки")
+            return 0
+        }
+        setSelectedImageUri(validUris[0])
+        return withContext(Dispatchers.IO) {
+            validUris.forEach { logFileDetails(it) }
+            enqueueManualBatch(validUris)
+        }
+    }
+
+    private suspend fun isValidSharedImage(uri: Uri): Boolean {
+        // Двойная проверка существования с паузой защищает от race condition
+        // с провайдером, который ещё не завершил запись.
+        for (attempt in 1..2) {
+            if (attempt == 2) delay(50)
+            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+                LogUtil.error(uri, "Intent обработка", "Файл не существует (проверка $attempt)")
+                uriProcessingTracker.markUriUnavailable(uri)
+                return false
+            }
+        }
+        val mimeType = try {
+            withContext(Dispatchers.IO) { UriUtil.getMimeType(context, uri) }
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Intent обработка", "Ошибка получения MIME типа: ${e.message}")
+            null
+        }
+        if (mimeType?.startsWith("image/") != true) {
+            LogUtil.processWarning("Intent обработка: Файл не является изображением ($uri): $mimeType")
+            return false
+        }
+        return true
+    }
+
+    /**
+     * Ставит URI в очередь одним ручным батчем; пустой батч сразу финализируется.
+     * @return число URI, принятых в durable очередь
+     */
+    private suspend fun enqueueManualBatch(uris: List<Uri>): Int {
         val batchId = compressionBatchTracker.createIntentBatch(uris.size)
         LogUtil.processInfo("Запущена пакетная обработка ${uris.size} изображений (batch=$batchId)")
+        var enqueued = 0
+        for (uri in uris) {
+            try {
+                val result = compressionWorkScheduler.enqueue(
+                    uri, forceProcess = true, batchId = batchId, origin = CompressionOrigin.MANUAL
+                )
+                if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) {
+                    enqueued++
+                } else {
+                    LogUtil.processDebug("URI $uri пропущен: $result")
+                }
+            } catch (e: Exception) {
+                LogUtil.error(uri, "Ручное сжатие", "Ошибка запуска обработки", e)
+            }
+        }
+        // Если ни одно изображение не запущено (все пропущены/ошибки) — финализируем батч
+        if (enqueued == 0) {
+            compressionBatchTracker.finalizeBatch(batchId)
+        }
+        return enqueued
+    }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            var enqueued = 0
-            for (uri in uris) {
-                try {
-                    val result = compressionWorkScheduler.enqueue(
-                        uri, forceProcess = true, batchId = batchId, origin = CompressionOrigin.MANUAL
-                    )
-                    if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) enqueued++
-                } catch (e: Exception) {
-                    LogUtil.error(uri, "Автосжатие", "Ошибка запуска обработки", e)
+    private fun logFileDetails(uri: Uri) {
+        try {
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.MIME_TYPE
+            )
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getColumnIndex(MediaStore.Images.Media._ID).let { if (it != -1) cursor.getLong(it) else -1 }
+                    val name = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME).let { if (it != -1) cursor.getString(it) else "unknown" }
+                    val size = cursor.getColumnIndex(MediaStore.Images.Media.SIZE).let { if (it != -1) cursor.getLong(it) else -1 }
+                    val date = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED).let { if (it != -1) cursor.getLong(it) else -1 }
+                    val mime = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE).let { if (it != -1) cursor.getString(it) else "unknown" }
+                    LogUtil.processDebug("Файл: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
                 }
             }
-            // Если ни одно изображение не запущено (все пропущены/ошибки) — финализируем батч
-            if (enqueued == 0) {
-                compressionBatchTracker.finalizeBatch(batchId)
-            }
+        } catch (e: Exception) {
+            LogUtil.errorWithMessageAndException("FILE_INFO", "Ошибка при получении информации о файле", e)
         }
     }
 
@@ -268,11 +345,4 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
     }
-}
-
-/**
- * Предустановки уровня сжатия
- */
-enum class CompressionPreset {
-    LOW, MEDIUM, HIGH
 }

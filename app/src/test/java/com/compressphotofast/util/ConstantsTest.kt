@@ -243,12 +243,6 @@ class ConstantsTest : BaseUnitTest() {
     // ========== Тесты действий BroadcastReceiver ==========
 
     @Test
-    fun `проверка действия обработки изображения`() {
-        // Arrange & Act & Assert
-        assertEquals("com.compressphotofast.PROCESS_IMAGE", Constants.ACTION_PROCESS_IMAGE)
-    }
-
-    @Test
     fun `проверка действия завершения сжатия`() {
         // Arrange & Act & Assert
         assertEquals("com.compressphotofast.ACTION_COMPRESSION_COMPLETED", Constants.ACTION_COMPRESSION_COMPLETED)

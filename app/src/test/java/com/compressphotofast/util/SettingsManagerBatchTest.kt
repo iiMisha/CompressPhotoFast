@@ -1,7 +1,6 @@
 package com.compressphotofast.util
 
 import android.content.SharedPreferences
-import com.compressphotofast.ui.CompressionPreset
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just

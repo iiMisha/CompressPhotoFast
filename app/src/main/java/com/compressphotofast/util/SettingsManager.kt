@@ -2,7 +2,6 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.compressphotofast.ui.CompressionPreset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject

@@ -11,7 +11,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import android.widget.Toast
 import com.compressphotofast.R
-import com.compressphotofast.ui.MainActivity
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.util.LogUtil
 import java.util.concurrent.ConcurrentHashMap
@@ -662,10 +661,12 @@ object NotificationUtil {
     }
     
     /**
-     * Создает PendingIntent для открытия главного активити
+     * Создает PendingIntent для открытия главного (launcher) активити.
+     * Launcher-интент берётся из манифеста, чтобы util не зависел от слоя ui.
      */
     fun createMainActivityPendingIntent(context: Context, requestCode: Int = 0): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java)
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?: Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName)
         return PendingIntent.getActivity(
             context,
             requestCode,

@@ -10,7 +10,6 @@ import android.content.IntentSender
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import android.transition.TransitionManager
 import android.view.View
 import android.widget.Toast
@@ -29,12 +28,9 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.MonitoringController
-import com.compressphotofast.ui.CompressionPreset
+import com.compressphotofast.util.CompressionPreset
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.CompressionEnqueueResult
-import com.compressphotofast.util.CompressionOrigin
-import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.IPermissionsManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.BatteryOptimizationHelper
@@ -42,15 +38,11 @@ import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.util.PermissionsManager
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriUtil
-import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.worker.GalleryReconciliationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -61,12 +53,6 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
-
-    @Inject
-    lateinit var compressionBatchTracker: CompressionBatchTracker
-
-    @Inject
-    lateinit var compressionWorkScheduler: CompressionWorkScheduler
 
     @Inject
     lateinit var settingsManager: SettingsManager
@@ -335,144 +321,23 @@ class MainActivity : AppCompatActivity() {
         val uris = extractUrisFromIntent(intent)
         if (uris.isEmpty()) return
 
-        // Валидация всех URI перед началом пакетной обработки
-        val validUris = mutableListOf<Uri>()
-        lifecycleScope.launch {
-            for (uri in uris) {
-                // Первая проверка существования файла
-                if (!UriUtil.isUriExistsSuspend(this@MainActivity, uri)) {
-                    LogUtil.error(uri, "Intent обработка", "Файл не существует (первая проверка)")
-                    uriProcessingTracker.markUriUnavailable(uri)
-                    continue
-                }
-
-                // Небольшая задержка для предотвращения race condition
-                delay(50)
-
-                // Повторная проверка существования файла
-                if (!UriUtil.isUriExistsSuspend(this@MainActivity, uri)) {
-                    LogUtil.error(uri, "Intent обработка", "Файл не существует (вторая проверка)")
-                    uriProcessingTracker.markUriUnavailable(uri)
-                    continue
-                }
-
-                // Проверка, является ли файл изображением
-                val mimeType = try {
-                    UriUtil.getMimeType(this@MainActivity, uri)
-                } catch (e: Exception) {
-                    LogUtil.error(uri, "Intent обработка", "Ошибка получения MIME типа: ${e.message}")
-                    null
-                }
-
-                if (mimeType?.startsWith("image/") != true) {
-                    LogUtil.processWarning("Intent обработка: Файл не является изображением ($uri): $mimeType")
-                    continue
-                }
-
-                validUris.add(uri)
-                LogUtil.processDebug("handleIntent: URI прошел валидацию: $uri")
-            }
-
-            // Если нет валидных URI, выходим
-            if (validUris.isEmpty()) {
-                LogUtil.processWarning("handleIntent: Нет валидных URI для обработки")
-                return@launch
-            }
-
-            // Создаем batch ID для Intent-сжатий
-            val batchId = compressionBatchTracker.createIntentBatch(validUris.size)
-            LogUtil.processDebug("Создан Intent батч для ${validUris.size} изображений: $batchId")
-
-            // Если есть хотя бы одно изображение, показываем первое в UI
-            viewModel.setSelectedImageUri(validUris[0])
-
-            // Обрабатываем несколько изображений принудительно, независимо от настройки автосжатия
-            var processedCount = 0
-
-            for (uri in validUris) {
+        val flags = intent.flags and
+            (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        if (flags != 0) {
+            uris.forEach { uri ->
                 try {
-                    val flags = intent.flags and
-                        (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    if (flags != 0) contentResolver.takePersistableUriPermission(uri, flags)
+                    contentResolver.takePersistableUriPermission(uri, flags)
                 } catch (_: Exception) {
                     // Provider may not support persistable grants.
                 }
-                LogUtil.processDebug("handleIntent: Обработка валидного URI: $uri")
-                logFileDetails(uri)
-
-                try {
-                    // Принудительно обрабатываем изображения, полученные через Share, передаем batch ID
-                    val result = compressionWorkScheduler.enqueue(
-                        uri,
-                        forceProcess = true,
-                        batchId = batchId,
-                        origin = CompressionOrigin.MANUAL
-                    )
-
-                    // Считаем обработанные изображения
-                    if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) {
-                        processedCount++
-                    } else {
-                        // Ошибки или уже обработанные изображения
-                        LogUtil.processDebug("handleIntent: URI $uri пропущен: $result")
-                    }
-                } catch (e: Exception) {
-                    LogUtil.error(uri, "Intent обработка", "Критическая ошибка при обработке: ${e.message}")
-                }
-            }
-            
-            // Показываем уведомление о запуске сжатия
-            if (processedCount > 0) {
-                // Не показываем уведомление о запуске сжатия для Share
-                // Сохраняем только логирование
-                LogUtil.processDebug("Запущено сжатие для $processedCount изображений в батче $batchId")
-            } else {
-                // Если все изображения уже обработаны, завершаем батч и показываем сообщение
-                compressionBatchTracker.finalizeBatch(batchId)
-                showToast(getString(R.string.all_images_already_compressed))
             }
         }
-    }
 
-    /**
-     * Логирует подробную информацию о файле
-     * Выполняется в IO диспетчере для избежания блокировки главного потока
-     */
-    private suspend fun logFileDetails(uri: Uri) = withContext(Dispatchers.IO) {
-        try {
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.MIME_TYPE
-            )
-
-            contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                    val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
-                    val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
-                    val mimeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-
-                    val id = if (idIndex != -1) cursor.getLong(idIndex) else -1
-                    val name = if (nameIndex != -1) cursor.getString(nameIndex) else "unknown"
-                    val size = if (sizeIndex != -1) cursor.getLong(sizeIndex) else -1
-                    val date = if (dateIndex != -1) cursor.getLong(dateIndex) else -1
-                    val mime = if (mimeIndex != -1) cursor.getString(mimeIndex) else "unknown"
-
-                    LogUtil.processDebug("Файл: ID=$id, Имя=$name, Размер=$size, Дата=$date, MIME=$mime, URI=$uri")
-                }
+        // Принудительная обработка независимо от настройки автосжатия
+        lifecycleScope.launch {
+            if (viewModel.compressSharedImages(uris) == 0) {
+                showToast(getString(R.string.all_images_already_compressed))
             }
-        } catch (e: Exception) {
-            LogUtil.errorWithMessageAndException("FILE_INFO", "Ошибка при получении информации о файле", e)
         }
     }
 
@@ -775,26 +640,6 @@ class MainActivity : AppCompatActivity() {
     /**
      * Обработка результата запроса на удаление файла
      */
-
-    /**
-     * Запускает обработку изображения через фоновый сервис
-     */
-    private fun startBackgroundProcessing(uri: Uri) {
-        try {
-            // Запускаем фоновый сервис, если он еще не запущен
-            MonitoringController.startForegroundService(this)
-
-            // Создаем интент для обработки конкретного изображения
-            val processIntent = Intent(Constants.ACTION_PROCESS_IMAGE)
-            processIntent.setPackage(packageName)
-            processIntent.putExtra(Constants.EXTRA_URI, uri)
-            sendBroadcast(processIntent)
-
-            LogUtil.processDebug("startBackgroundProcessing: Отправлен запрос на обработку изображения: $uri")
-        } catch (e: Exception) {
-            LogUtil.errorWithMessageAndException(uri, "BACKGROUND_PROCESS", "Ошибка при запуске фонового сервиса", e)
-        }
-    }
 
     /**
      * Инициализирует фоновые сервисы и продолжает запуск приложения
