@@ -55,6 +55,7 @@
 - Instrumentation-тесты: `./scripts/run_instrumentation_tests.sh`; нужен эмулятор `Small_Phone`.
 - Перед релизом: `./scripts/run_all_tests.sh`, затем `./gradlew assembleDebug` и `./gradlew assembleRelease`.
 - Версию обновлять в `gradle.properties` (`VERSION_NAME_BASE`) и `app/build.gradle.kts` (`versionCode`).
+- `versionName` и имя APK содержат короткий хеш git-коммита (+ `-dirty` при несохранённых изменениях); хеш берётся через `GitHashValueSource` в `app/build.gradle.kts`, совместим с configuration cache.
 
 ## Рабочий процесс
 

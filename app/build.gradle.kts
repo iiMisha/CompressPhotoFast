@@ -6,8 +6,51 @@ plugins {
     id("jacoco")
 }
 
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
+
+// Источник значения для configuration cache: внутри ValueSource разрешены внешние
+// процессы, а сам источник перевычисляется при изменении .git/logs/HEAD (файл
+// дополняется при каждом коммите), поэтому хеш не устаревает между сборками.
+abstract class GitHashValueSource : ValueSource<String, GitHashValueSource.Params> {
+    interface Params : ValueSourceParameters {
+        val repoDir: Property<String>
+        val refLogFile: RegularFileProperty
+    }
+
+    override fun obtain(): String {
+        return try {
+            val dir = File(parameters.repoDir.get())
+            val hash = ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+                .directory(dir)
+                .start().inputStream.bufferedReader().readText().trim()
+            val dirty = ProcessBuilder("git", "status", "--porcelain")
+                .directory(dir)
+                .start().inputStream.bufferedReader().readText().isNotBlank()
+            if (hash.isEmpty()) "unknown" else if (dirty) "$hash-dirty" else hash
+        } catch (e: Exception) {
+            "unknown"
+        }
+    }
+}
+
+val gitHash = providers.of(GitHashValueSource::class) {
+    parameters {
+        repoDir.set(rootDir.absolutePath)
+        // logs/HEAD меняется при каждом коммите/checkout; fallback на HEAD вне git
+        refLogFile.set(
+            rootProject.layout.projectDirectory.file(".git/logs/HEAD").asFile
+                .takeIf { it.exists() }
+                ?.let { rootProject.layout.projectDirectory.file(".git/logs/HEAD") }
+                ?: rootProject.layout.projectDirectory.file(".git/HEAD")
+        )
+    }
+}.get()
 
 android {
     namespace = "com.compressphotofast"
@@ -19,9 +62,9 @@ android {
         targetSdk = 36
         versionCode = 2
 
-        // Динамическое формирование версии с датой и временем
+        // Динамическое формирование версии с датой, временем и хешем коммита
         val baseVersion = project.findProperty("VERSION_NAME_BASE") as String? ?: "2.2.10"
-        versionName = getBuildVersion(baseVersion)
+        versionName = "${getBuildVersion(baseVersion)}-$gitHash"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["coverage"] = "true"
