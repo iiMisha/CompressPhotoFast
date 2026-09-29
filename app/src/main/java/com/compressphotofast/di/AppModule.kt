@@ -37,16 +37,6 @@ object AppModule {
     }
 
     /**
-     * Предоставляет синглтон экземпляр CompressionBatchTracker
-     * Использует Application Context для предотвращения утечек памяти
-     */
-    @Provides
-    @Singleton
-    fun provideCompressionBatchTracker(@ApplicationContext context: Context): com.compressphotofast.util.CompressionBatchTracker {
-        return com.compressphotofast.util.CompressionBatchTracker(context)
-    }
-
-    /**
      * Предоставляет синглтон экземпляр UriProcessingTracker
      */
     @Provides

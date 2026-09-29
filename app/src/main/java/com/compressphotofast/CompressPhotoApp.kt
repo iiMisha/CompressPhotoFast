@@ -38,6 +38,9 @@ class CompressPhotoApp : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var settingsManager: SettingsManager
+
     /**
      * Application-scoped корутинный скоуп для фоновых задач инициализации/очистки,
      * запускаемых в onCreate. SupervisorJob гарантирует, что одна упавшая задача
@@ -78,7 +81,7 @@ class CompressPhotoApp : Application(), Configuration.Provider {
 
         // Холодный старт может быть вызван WorkManager/JobScheduler после LMK.
         // Сначала обеспечиваем Job, затем best-effort пробуем вернуть FGS.
-        if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+        if (settingsManager.isAutoCompressionEnabled()) {
             GalleryReconciliationWorker.schedule(applicationContext, catchUp = true)
             MonitoringController.startMonitoring(applicationContext)
         }

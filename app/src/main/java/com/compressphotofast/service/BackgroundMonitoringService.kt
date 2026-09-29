@@ -87,6 +87,9 @@ class BackgroundMonitoringService : Service() {
     @Inject
     lateinit var compressionWorkScheduler: CompressionWorkScheduler
 
+    @Inject
+    lateinit var settingsManager: SettingsManager
+
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
 
@@ -194,7 +197,7 @@ class BackgroundMonitoringService : Service() {
             NotificationUtil.createDefaultNotificationChannel(applicationContext)
             startForegroundWithNotification()
 
-            if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+            if (!settingsManager.isAutoCompressionEnabled()) {
                 stopSelf()
                 return
             }
@@ -236,7 +239,7 @@ class BackgroundMonitoringService : Service() {
             // Явная остановка пользователем: отключаем автосжатие, отменяем резервный Job
             // и помечаем флаг, чтобы не восстанавливать мониторинг в этом процессе.
             isUserStopped = true
-            SettingsManager.getInstance(applicationContext).setAutoCompression(false)
+            settingsManager.setAutoCompression(false)
             ImageDetectionJobService.cancelJob(applicationContext)
 
             stopSelf()
@@ -286,7 +289,7 @@ class BackgroundMonitoringService : Service() {
         // свайпа, Job сработает в новом процессе (isReady=false) и восстановит
         // мониторинг. Дублирование обработки при живом FGS исключает guard
         // isReady в ImageDetectionJobService.onStartJob.
-        if (!isUserStopped && SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+        if (!isUserStopped && settingsManager.isAutoCompressionEnabled()) {
             LogUtil.processDebug("BackgroundMonitoringService: task removed — перепланируем резервный Job")
             ImageDetectionJobService.scheduleJob(applicationContext)
         }
@@ -325,7 +328,7 @@ class BackgroundMonitoringService : Service() {
 
     override fun onDestroy() {
         val shouldKeepRecoveryJob = !isUserStopped &&
-            SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()
+            settingsManager.isAutoCompressionEnabled()
         isRunning = false
         isReady = false
         isServiceDestroyed.set(true)
@@ -409,7 +412,7 @@ class BackgroundMonitoringService : Service() {
 
                 // Вычисляем динамическое окно сканирования на основе lastScanTimestamp
                 val currentTimeMs = System.currentTimeMillis()
-                val lastScanMs = SettingsManager.getInstance(applicationContext).getLastScanTimestamp()
+                val lastScanMs = settingsManager.getLastScanTimestamp()
                 val timeWindowSeconds = ((currentTimeMs - lastScanMs) / 1000L + Constants.RECENT_SCAN_WINDOW_SECONDS)
                     .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS)
                     .toInt()
@@ -423,7 +426,7 @@ class BackgroundMonitoringService : Service() {
                 // Обрабатываем найденные изображения
                 var allQueued = scanResult.completedSuccessfully
                 scanResult.foundUris.forEach { uri ->
-                    if (SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+                    if (settingsManager.isAutoCompressionEnabled()) {
                         if (!processNewImage(uri)) allQueued = false
                     } else {
                         allQueued = false
@@ -433,7 +436,7 @@ class BackgroundMonitoringService : Service() {
                 // Продвигаем watermark только после того, как все найденные URI
                 // переданы в долговечную WorkManager-очередь.
                 if (allQueued) {
-                    SettingsManager.getInstance(applicationContext).setLastScanTimestamp(currentTimeMs)
+                    settingsManager.setLastScanTimestamp(currentTimeMs)
                 }
 
                 // Выводим автоматический отчет о производительности
@@ -449,7 +452,6 @@ class BackgroundMonitoringService : Service() {
      */
     private suspend fun processNewImage(uri: Uri): Boolean {
         try {
-            val settingsManager = SettingsManager.getInstance(applicationContext)
             if (!settingsManager.isAutoCompressionEnabled()) {
                 return false
             }
@@ -487,7 +489,7 @@ class BackgroundMonitoringService : Service() {
             // Watermark обновляется только после постановки всех найденных URI в
             // WorkManager; kill между scan и enqueue не создаёт окно потери.
             if (allQueued) {
-                SettingsManager.getInstance(applicationContext).setLastScanTimestamp(System.currentTimeMillis())
+                settingsManager.setLastScanTimestamp(System.currentTimeMillis())
             }
             
             // Выводим автоматический отчет о производительности

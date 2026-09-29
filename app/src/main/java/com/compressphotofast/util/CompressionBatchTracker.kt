@@ -49,11 +49,9 @@ class CompressionBatchTracker @Inject constructor(
 
         /**
          * Статический экземпляр для обратной совместимости
-         * Используется в ImageProcessingUtil (object) который не может инжектировать зависимости
+         * Используется только Compat-API (тесты)
          *
          * IMPORTANT: staticInstance инициализируется при создании DI-экземпляра через init-блок
-         *
-         * TODO: Удалить после рефакторинга ImageProcessingUtil в injectable class
          */
         @Volatile
         private var staticInstance: CompressionBatchTracker? = null

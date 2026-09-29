@@ -26,14 +26,15 @@ import java.util.concurrent.TimeUnit
 class GalleryReconciliationWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val scheduler: CompressionWorkScheduler
+    private val scheduler: CompressionWorkScheduler,
+    private val settingsManager: SettingsManager
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
-        if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) return Result.success()
+        if (!settingsManager.isAutoCompressionEnabled()) return Result.success()
         val window = if (inputData.getBoolean(CATCH_UP, false)) {
             Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt()
         } else {
-            val last = SettingsManager.getInstance(applicationContext).getLastScanTimestamp()
+            val last = settingsManager.getLastScanTimestamp()
             ((System.currentTimeMillis() - last) / 1000L + Constants.RECENT_SCAN_WINDOW_SECONDS)
                 .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS).toInt()
         }
@@ -44,7 +45,7 @@ class GalleryReconciliationWorker @AssistedInject constructor(
             val result = scheduler.enqueue(uri, origin = CompressionOrigin.AUTO)
             if (result == CompressionEnqueueResult.RETRYABLE_FAILURE) durable = false
         }
-        if (durable) SettingsManager.getInstance(applicationContext).setLastScanTimestamp(System.currentTimeMillis())
+        if (durable) settingsManager.setLastScanTimestamp(System.currentTimeMillis())
         LogUtil.processDebug("Reconciliation: found=${scan.foundUris.size}, durable=$durable")
         return if (durable) Result.success() else Result.retry()
     }

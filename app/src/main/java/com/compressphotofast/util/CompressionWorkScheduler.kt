@@ -30,7 +30,8 @@ enum class CompressionOrigin { AUTO, MANUAL }
 @Singleton
 class CompressionWorkScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val settingsManager: SettingsManager
 ) {
     suspend fun enqueue(
         uri: Uri,
@@ -39,13 +40,13 @@ class CompressionWorkScheduler @Inject constructor(
         origin: CompressionOrigin = if (forceProcess) CompressionOrigin.MANUAL else CompressionOrigin.AUTO,
         discoveredAt: Long = System.currentTimeMillis()
     ): CompressionEnqueueResult {
-        if (!forceProcess && !SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
+        if (!forceProcess && !settingsManager.isAutoCompressionEnabled()) {
             return CompressionEnqueueResult.NOT_REQUIRED
         }
 
         return try {
-            val quality = SettingsManager.getInstance(context).getCompressionQuality()
-            val maxResolution = SettingsManager.getInstance(context).getMaxResolution()
+            val quality = settingsManager.getCompressionQuality()
+            val maxResolution = settingsManager.getMaxResolution()
             val originalSize = runCatching { UriUtil.getFileSize(context, uri) ?: 0L }.getOrDefault(0L)
             val data = buildInputData(uri, quality, originalSize, forceProcess, batchId, origin, discoveredAt, maxResolution)
             if (forceProcess) {

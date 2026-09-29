@@ -34,6 +34,7 @@ enum class DetectionJobScheduleResult { SCHEDULED, ALREADY_ARMED, FAILED }
 @AndroidEntryPoint
 class ImageDetectionJobService : JobService() {
     @Inject lateinit var scheduler: CompressionWorkScheduler
+    @Inject lateinit var settingsManager: SettingsManager
 
     private data class RunState(
         val params: JobParameters?,
@@ -99,7 +100,7 @@ class ImageDetectionJobService : JobService() {
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        if (!SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) return false
+        if (!settingsManager.isAutoCompressionEnabled()) return false
         // Живой ContentObserver остаётся активным путём обнаружения: при isReady
         // не поднимаем FGS и не делаем тяжёлый overflow-scan. Но triggered URIs
         // обрабатываем всегда: Job — единственный механизм, будящий замороженный
@@ -150,7 +151,7 @@ class ImageDetectionJobService : JobService() {
                 else -> Unit
             }
         }
-        if (durable) SettingsManager.getInstance(applicationContext)
+        if (durable) settingsManager
             .setLastScanTimestamp(System.currentTimeMillis())
     }
 
@@ -163,7 +164,7 @@ class ImageDetectionJobService : JobService() {
                 durable = false
             }
         }
-        if (durable) SettingsManager.getInstance(applicationContext)
+        if (durable) settingsManager
             .setLastScanTimestamp(System.currentTimeMillis())
     }
 
@@ -175,7 +176,7 @@ class ImageDetectionJobService : JobService() {
             LogUtil.error(null, "JOB_FINISH", "Не удалось завершить Job", e)
         }
         if (activeRun === run) activeRun = null
-        if (reschedule && SettingsManager.getInstance(applicationContext).isAutoCompressionEnabled()) {
+        if (reschedule && settingsManager.isAutoCompressionEnabled()) {
             runCatching { scheduleJob(applicationContext) }
         }
     }

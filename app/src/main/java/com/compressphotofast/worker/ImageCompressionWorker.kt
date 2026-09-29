@@ -26,6 +26,7 @@ import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.CompressionExecutionGate
+import com.compressphotofast.util.SettingsManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +43,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val uriProcessingTracker: UriProcessingTracker,
     private val compressionBatchTracker: CompressionBatchTracker,
-    private val executionGate: CompressionExecutionGate
+    private val executionGate: CompressionExecutionGate,
+    private val settingsManager: SettingsManager
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -619,15 +621,8 @@ class ImageCompressionWorker @AssistedInject constructor(
      */
     private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: IntentSender) {
         
-        // Сохраняем URI в SharedPreferences для последующей обработки
-        val prefs = appContext.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        val pendingDeleteUris = prefs.getStringSet(Constants.PREF_PENDING_DELETE_URIS, mutableSetOf()) ?: mutableSetOf()
-        val newSet = pendingDeleteUris.toMutableSet()
-        newSet.add(uri.toString())
-        
-        prefs.edit()
-            .putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
-            .apply()
+        // Сохраняем URI для последующей обработки в MainActivity
+        settingsManager.savePendingDeleteUri(uri.toString())
         
         // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
         val intent = Intent(Constants.ACTION_REQUEST_DELETE_PERMISSION).apply {

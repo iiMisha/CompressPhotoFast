@@ -20,6 +20,7 @@ class ImageProcessingUtilWorkRequestTest {
     fun `automatic work is delayed by thirty seconds`() {
         val scheduler = CompressionWorkScheduler(
             org.robolectric.RuntimeEnvironment.getApplication(),
+            mockk(relaxed = true),
             mockk(relaxed = true)
         )
         val data = scheduler.buildInputData(uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L)
@@ -36,6 +37,7 @@ class ImageProcessingUtilWorkRequestTest {
     fun `manual work has no initial delay`() {
         val scheduler = CompressionWorkScheduler(
             org.robolectric.RuntimeEnvironment.getApplication(),
+            mockk(relaxed = true),
             mockk(relaxed = true)
         )
         val data = scheduler.buildInputData(uri, 70, 200_000L, true, "manual", CompressionOrigin.MANUAL, 1L)
@@ -61,6 +63,7 @@ class ImageProcessingUtilWorkRequestTest {
     fun `max resolution is threaded through input data`() {
         val scheduler = CompressionWorkScheduler(
             org.robolectric.RuntimeEnvironment.getApplication(),
+            mockk(relaxed = true),
             mockk(relaxed = true)
         )
         val data = scheduler.buildInputData(
@@ -78,6 +81,7 @@ class ImageProcessingUtilWorkRequestTest {
     fun `max resolution defaults to original when not specified`() {
         val scheduler = CompressionWorkScheduler(
             org.robolectric.RuntimeEnvironment.getApplication(),
+            mockk(relaxed = true),
             mockk(relaxed = true)
         )
         val data = scheduler.buildInputData(uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L)

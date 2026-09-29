@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.IntentSender
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -58,7 +57,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
-    private var prefs: SharedPreferences? = null
     private var permissionsManager: IPermissionsManager? = null
 
     @Inject
@@ -69,6 +67,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var compressionWorkScheduler: CompressionWorkScheduler
+
+    @Inject
+    lateinit var settingsManager: SettingsManager
 
     // Запуск запроса разрешений
 
@@ -136,7 +137,6 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
         // Проверяем настройку перед показом Toast
-        val settingsManager = SettingsManager.getInstance(this)
         if (!settingsManager.shouldShowCompressionToast()) {
             LogUtil.debug("MainActivity", "Toast о сжатии отключен в настройках")
             return
@@ -215,9 +215,6 @@ class MainActivity : AppCompatActivity() {
         
         // Инициализация для логирования
         LogUtil.processDebug("MainActivity onCreate")
-        
-        // Инициализация SharedPreferences
-        prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         
         // Динамический цвет Material 3 (Android 12+), на старых версиях — статичная палитра
         DynamicColors.applyIfAvailable(this)
@@ -544,7 +541,6 @@ class MainActivity : AppCompatActivity() {
      * повторные навязчивые системные диалоги при отказе. Отказ не отключает автосжатие.
      */
     private fun requestBatteryExemptionIfNeeded() {
-        val settingsManager = SettingsManager.getInstance(this)
         if (settingsManager.isBatteryExemptionRequested()) return
 
         // Если система уже исключила приложение — просто отмечаем флаг.
@@ -587,7 +583,6 @@ class MainActivity : AppCompatActivity() {
         syncSwitchesFromPrefs()
         // Если система уже исключила приложение из оптимизации батареи — отмечаем флаг,
         // чтобы не запрашивать повторно при следующем включении автосжатия.
-        val settingsManager = SettingsManager.getInstance(this)
         if (!settingsManager.isBatteryExemptionRequested() && BatteryOptimizationHelper.isExempted(this)) {
             settingsManager.setBatteryExemptionRequested(true)
         }
@@ -727,49 +722,34 @@ class MainActivity : AppCompatActivity() {
      * Проверка наличия отложенных запросов на удаление файлов
      */
     private fun checkPendingDeleteRequests() {
-        // Получаем список URI, ожидающих удаления
-        val prefs = getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
-        val pendingDeleteUris = prefs?.getStringSet(Constants.PREF_PENDING_DELETE_URIS, null)
+        // Берём первый URI из списка ожидающих удаления (он сразу удаляется из списка)
+        val uriString = settingsManager.getAndRemoveFirstPendingDeleteUri() ?: return
+        LogUtil.processDebug("Обработка отложенного запроса на удаление файла: $uriString")
+        try {
+            val uri = Uri.parse(uriString)
 
-        if (!pendingDeleteUris.isNullOrEmpty()) {
-            LogUtil.processDebug("Найдено ${pendingDeleteUris.size} отложенных запросов на удаление файлов")
-
-            // Обрабатываем первый URI в списке
-            val uriString = pendingDeleteUris.firstOrNull()
-            if (uriString != null) {
-                try {
-                    val uri = Uri.parse(uriString)
-                    // Удаляем URI из списка ожидающих
-                    val newSet = pendingDeleteUris.toMutableSet()
-                    newSet.remove(uriString)
-                    prefs?.edit()
-                        ?.putStringSet(Constants.PREF_PENDING_DELETE_URIS, newSet)
-                        ?.apply()
-
-                    // Проверяем существование URI перед запросом удаления:
-                    // после краша/ребута файл мог быть уже удалён другим путём,
-                    // стать недоступным или принадлежать другой записи MediaStore.
-                    // В таком случае запрашивать IntentSender бессмысленно и опасно
-                    // (может показать системный диалог для несуществующего файла).
-                    lifecycleScope.launch {
-                        val exists = try {
-                            UriUtil.isUriExistsSuspend(this@MainActivity, uri)
-                        } catch (e: Exception) {
-                            false
-                        }
-                        if (!exists) {
-                            LogUtil.warning(uri, "PENDING_DELETE", "URI больше не существует, пропускаем запрос на удаление")
-                            // URI уже удалён — проверяем, есть ли ещё отложенные запросы
-                            checkPendingDeleteRequests()
-                        } else {
-                            // Запрашиваем удаление файла
-                            requestFileDelete(uri)
-                        }
-                    }
+            // Проверяем существование URI перед запросом удаления:
+            // после краша/ребута файл мог быть уже удалён другим путём,
+            // стать недоступным или принадлежать другой записи MediaStore.
+            // В таком случае запрашивать IntentSender бессмысленно и опасно
+            // (может показать системный диалог для несуществующего файла).
+            lifecycleScope.launch {
+                val exists = try {
+                    UriUtil.isUriExistsSuspend(this@MainActivity, uri)
                 } catch (e: Exception) {
-                    LogUtil.errorWithMessageAndException("PENDING_DELETE", "Ошибка при обработке отложенного запроса на удаление", e)
+                    false
+                }
+                if (!exists) {
+                    LogUtil.warning(uri, "PENDING_DELETE", "URI больше не существует, пропускаем запрос на удаление")
+                    // URI уже удалён — проверяем, есть ли ещё отложенные запросы
+                    checkPendingDeleteRequests()
+                } else {
+                    // Запрашиваем удаление файла
+                    requestFileDelete(uri)
                 }
             }
+        } catch (e: Exception) {
+            LogUtil.errorWithMessageAndException("PENDING_DELETE", "Ошибка при обработке отложенного запроса на удаление", e)
         }
     }
     
