@@ -622,8 +622,10 @@ object NotificationUtil {
             else 
                 Constants.ACTION_COMPRESSION_COMPLETED
                 
-            // Отправляем информацию через broadcast
+            // Отправляем информацию через broadcast. setPackage обязателен:
+            // иначе неявный broadcast с именем файла и URI получат сторонние приложения.
             val intent = Intent(action).apply {
+                setPackage(context.packageName)
                 putExtra(Constants.EXTRA_FILE_NAME, fileName)
                 putExtra(Constants.EXTRA_URI, uriString)
                 putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
