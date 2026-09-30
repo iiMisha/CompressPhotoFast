@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Bundle
 import android.transition.TransitionManager
 import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
@@ -20,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.children
 import com.google.android.material.color.DynamicColors
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -162,11 +165,19 @@ class MainActivity : AppCompatActivity() {
      * Добавляет отступы под системные бары (edge-to-edge) к базовым отступам контента.
      */
     private fun applyWindowInsets() {
-        val density = resources.displayMetrics.density
-        fun px(dp: Int) = (dp * density).toInt()
-        ViewCompat.setOnApplyWindowInsetsListener(binding.mainScroll) { view, windowInsets ->
+        val pageMargin = resources.getDimensionPixelSize(R.dimen.page_margin)
+        val maxWidth = resources.getDimensionPixelSize(R.dimen.content_max_width)
+        val fabMargin = (16 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
             val bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(bars.left + px(16), bars.top + px(8), bars.right + px(16), bars.bottom + px(16))
+            binding.appBar.setPadding(bars.left, bars.top, bars.right, 0)
+            binding.mainScroll.setPadding(bars.left, 0, bars.right, bars.bottom)
+            // На широких экранах ограничиваем ширину контента и центрируем его
+            val side = maxOf(pageMargin, (resources.displayMetrics.widthPixels - bars.left - bars.right - maxWidth) / 2)
+            binding.mainContainer.setPadding(side, binding.mainContainer.paddingTop, side, binding.mainContainer.paddingBottom)
+            (binding.btnSelectPhotos.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                setMargins(fabMargin + bars.left, fabMargin, fabMargin + bars.right, fabMargin + bars.bottom)
+            }
             windowInsets
         }
     }
@@ -282,6 +293,11 @@ class MainActivity : AppCompatActivity() {
         // Переключатель режима сохранения (listener'ы регистрируются в attachSwitchListeners())
         binding.switchSaveMode.isChecked = viewModel.isSaveModeReplace()
         
+        // MaterialButtonToggleGroup принудительно ставит кнопкам maxLines=1 — подписи в две строки
+        for (group in listOf(binding.radioGroupQuality, binding.radioGroupResolution)) {
+            group.children.forEach { (it as TextView).maxLines = 2 }
+        }
+
         // Установка начального состояния для переключателей качества
         setupCompressionQualityRadioButtons()
         setupResolutionRadioButtons()
@@ -396,7 +412,7 @@ class MainActivity : AppCompatActivity() {
                 viewModel.isWarningExpanded.collect { isExpanded ->
                     TransitionManager.beginDelayedTransition(binding.mainContainer)
                     binding.warningCard.visibility = if (isExpanded) View.VISIBLE else View.GONE
-                    binding.ivExpandArrow.rotation = if (isExpanded) 180f else 0f
+                    binding.ivExpandArrow.animate().rotation(if (isExpanded) 180f else 0f).setDuration(200).start()
                 }
             }
         }

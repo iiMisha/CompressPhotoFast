@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -236,7 +236,7 @@ class PermissionsManager(
      * Показывает диалог с объяснением необходимости полного доступа к файловой системе
      */
     override fun showStoragePermissionDialog(onSkip: () -> Unit) {
-        AlertDialog.Builder(activity, R.style.Theme_CompressPhotoFast_AlertDialog)
+        MaterialAlertDialogBuilder(activity, R.style.Theme_CompressPhotoFast_AlertDialog)
             .setTitle(R.string.dialog_storage_permission_title)
             .setMessage(R.string.dialog_storage_permission_message)
             .setPositiveButton(R.string.dialog_ok) { _, _ ->
@@ -279,7 +279,7 @@ class PermissionsManager(
             IPermissionsManager.PermissionType.ALL -> R.string.dialog_permissions_explanation
         }
         
-        AlertDialog.Builder(activity, R.style.Theme_CompressPhotoFast_AlertDialog)
+        MaterialAlertDialogBuilder(activity, R.style.Theme_CompressPhotoFast_AlertDialog)
             .setTitle(titleResId)
             .setMessage(messageResId)
             .setPositiveButton(R.string.dialog_ok) { _, _ -> onRetry() }

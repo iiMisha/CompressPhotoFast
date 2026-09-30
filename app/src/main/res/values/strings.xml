@@ -4,24 +4,25 @@
     <!-- Основной экран -->
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
+    <string name="warning_toggle_description">Показать или скрыть подсказку</string>
     <string name="warning_card_title">Работает не на всех устройствах?</string>
     <string name="warning_open_battery_settings">Открыть настройки батареи</string>
     <string name="background_mode_warning">При проблемах работы автоматического сжатия:\n\n1. Настройки → Приложения → CompressPhotoFast → Батарея → выберите «Без ограничений»\n\nили, в зависимости от модели телефона:\n\n2. Настройки → Батарея → Оптимизация расхода батареи (или «Управление энергопотреблением») → найдите CompressPhotoFast и отключите оптимизацию</string>
-    <string name="save_mode_toggle">Заменять оригинальные файлы</string>
-    <string name="save_mode_description">При включенном переключателе сжатые файлы записываются в исходную папку, а оригиналы удаляются. При выключенном - сохраняются в отдельной папке</string>
+    <string name="save_mode_toggle">Заменять оригиналы</string>
+    <string name="save_mode_description">Вкл. — сжатое фото заменяет оригинал. Выкл. — сохраняется в папку CompressPhotoFast</string>
     <string name="compression_quality_title">Качество сжатия</string>
-    <string name="compression_quality_description">Выберите качество сжатия (ниже = меньший размер, выше = лучшее качество)</string>
+    <string name="compression_quality_description">Ниже — меньше размер файла, выше — лучше качество</string>
     <string name="compression_quality_low">Низкое</string>
     <string name="compression_quality_medium">Среднее</string>
     <string name="compression_quality_high">Высокое</string>
-    <string name="compression_quality_low_with_value">Низкое (%d%%)</string>
-    <string name="compression_quality_medium_with_value">Среднее (%d%%)</string>
-    <string name="compression_quality_high_with_value">Высокое (%d%%)</string>
+    <string name="compression_quality_low_with_value">Низкое\n%d%%</string>
+    <string name="compression_quality_medium_with_value">Среднее\n%d%%</string>
+    <string name="compression_quality_high_with_value">Высокое\n%d%%</string>
     <string name="resolution_title">Разрешение</string>
-    <string name="resolution_description">Максимальная сторона фото после сжатия (Оригинал — без изменения размеров)</string>
+    <string name="resolution_description">Максимальная сторона фото после сжатия</string>
     <string name="resolution_original">Оригинал</string>
-    <string name="resolution_2560">2560 px (QHD)</string>
-    <string name="resolution_1920">1920 px</string>
+    <string name="resolution_2560">2560 px\nQHD</string>
+    <string name="resolution_1920">1920 px\nFull HD</string>
     <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->

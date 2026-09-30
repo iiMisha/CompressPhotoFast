@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Заголовок секции внутри карточки -->
+    <style name="TextAppearance.App.Section" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <!-- Название настройки -->
+    <style name="TextAppearance.App.Label" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- Пояснение к настройке -->
+    <style name="TextAppearance.App.Caption" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Карточка секции настроек -->
+    <style name="Widget.App.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <!-- Сегментная кнопка выбора значения -->
+    <style name="Widget.App.ToggleButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textSize">13sp</item>
+        <item name="android:lineSpacingMultiplier">0.9</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAlignment">center</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">2dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+    </style>
+</resources>

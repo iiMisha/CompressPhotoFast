@@ -15,9 +15,9 @@
     <color name="outline">#8D9199</color>
 
     <color name="error">#FFB4AB</color>
-    <color name="on_error">#690005</color>
 
-    <color name="white">#FFFFFF</color>
-    <color name="black">#000000</color>
-    <color name="warning_text">#FFB74D</color>
+
+    <color name="surface_container">#14171C</color>
+    <color name="secondary_container">#2A3648</color>
+    <color name="on_secondary_container">#D9E3F5</color>
 </resources>
