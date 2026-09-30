@@ -29,7 +29,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         every { NotificationUtil.showCompressionResultToast(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>()) } just Runs
         every { NotificationUtil.showToast(any<android.content.Context>(), any<String>(), any<Int>()) } just Runs
 
-        tracker = CompressionBatchTracker(mockContext)
+        tracker = CompressionBatchTracker(mockContext, mockk(relaxed = true))
     }
 
     @After

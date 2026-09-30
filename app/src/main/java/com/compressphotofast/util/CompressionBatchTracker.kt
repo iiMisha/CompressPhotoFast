@@ -23,7 +23,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class CompressionBatchTracker @Inject constructor(
-    @ApplicationContext private val appContext: Context
+    @ApplicationContext private val appContext: Context,
+    private val settingsManager: SettingsManager
 ) {
 
     companion object {
@@ -212,7 +213,6 @@ class CompressionBatchTracker @Inject constructor(
      */
     private fun showBatchToast(context: Context, successfulResults: List<CompressionResult>, skippedCount: Int) {
         // Проверяем настройку перед показом Toast
-        val settingsManager = SettingsManager.getInstance(context)
         if (!settingsManager.shouldShowCompressionToast()) {
             LogUtil.debug("CompressionBatchTracker", "Toast о батче сжатия отключен в настройках")
             return

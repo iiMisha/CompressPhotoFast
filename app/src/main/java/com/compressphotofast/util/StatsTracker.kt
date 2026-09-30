@@ -1,7 +1,6 @@
 package com.compressphotofast.util
 
 import android.content.Context
-import android.net.Uri
 import java.time.LocalDate
 
 data class DailyCompressionStats(
@@ -22,37 +21,10 @@ data class DailyCompressionStats(
 }
 
 /**
- * Утилитарный класс для отслеживания статистики и статуса сжатия изображений
+ * Утилитарный класс для накопления дневной статистики сжатия
  */
 object StatsTracker {
     private val dailyStatsLock = Any()
-    // Константы статусов сжатия
-    const val COMPRESSION_STATUS_PROCESSING = 1
-    const val COMPRESSION_STATUS_COMPLETED = 2
-    const val COMPRESSION_STATUS_FAILED = 3
-    const val COMPRESSION_STATUS_SKIPPED = 4
-
-    /**
-     * Начинает отслеживание URI (для логирования)
-     */
-    fun startTracking(uri: Uri) {
-        LogUtil.processDebug("Начато отслеживание URI: $uri")
-    }
-
-    /**
-     * Обновляет статус сжатия для указанного URI (для логирования)
-     */
-    fun updateStatus(uri: Uri, status: Int) {
-        try {
-            // Если статус завершающий (COMPLETED или FAILED), логируем
-            if (status == COMPRESSION_STATUS_COMPLETED || status == COMPRESSION_STATUS_FAILED || status == COMPRESSION_STATUS_SKIPPED) {
-                LogUtil.processDebug("URI завершил обработку со статусом $status: $uri")
-            }
-        } catch (e: Exception) {
-            LogUtil.error(uri, "UPDATE_STATUS", "Ошибка при обновлении статуса", e)
-        }
-    }
-
 
     /**
      * Сохраняет успешное сжатие в статистику текущих локальных суток.

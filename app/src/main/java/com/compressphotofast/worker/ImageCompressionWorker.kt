@@ -148,11 +148,11 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Повторная проверка после входа в gate закрывает race legacy/v2
             // и изменения EXIF между discovery и фактическим запуском.
-            val gatedProcessingCheck = imageProcessingChecker.isProcessingRequired(imageUri, forceProcess = true
-            )
+            val gatedProcessingCheck = imageProcessingChecker.isProcessingRequired(imageUri, forceProcess = true)
             if (!gatedProcessingCheck.processingRequired &&
                 gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
             ) {
+                updateForegroundForMode("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}")
                 markRecentlyProcessed = true
                 return@withContext Result.success()
             }
@@ -176,22 +176,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 LogUtil.error(imageUri, "Чтение EXIF", "Не удалось прочитать EXIF-данные, отмена задачи.", e)
                 return@withContext Result.failure()
             }
-            
-            // Используем централизованную логику для проверки необходимости обработки
-            val processingCheckResult = imageProcessingChecker.isProcessingRequired(imageUri, forceProcess = true)
-            
-            // Если файл уже обработан и не требует повторной обработки, пропускаем его
-            if (!processingCheckResult.processingRequired &&
-                processingCheckResult.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED) {
-                updateForegroundForMode("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}")
-                markRecentlyProcessed = true
-                return@withContext Result.success()
-            }
 
-            // Начинаем отслеживание сжатия
-            StatsTracker.startTracking(imageUri)
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_PROCESSING)
-            
             // Проверяем размер исходного файла
             val sourceSize = try {
                 UriUtil.getFileSize(appContext, imageUri)
@@ -221,7 +206,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (testResult == null) {
                 LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
                 updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
-                StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
                 return@withContext Result.failure()
             }
             
@@ -284,13 +268,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
-
-            val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
-            if (uriString != null) {
-                val uri = Uri.parse(uriString)
-                StatsTracker.updateStatus(uri, StatsTracker.COMPRESSION_STATUS_FAILED)
-            }
-
             return@withContext Result.failure()
         } finally {
             testResult?.deleteArtifact()
@@ -368,7 +345,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         if (fileName.isNullOrEmpty()) {
             LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
         }
 
@@ -390,7 +366,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         if (compressedImageFile == null || !compressedImageFile.exists()) {
             LogUtil.error(imageUri, "Сжатие", "Сжатый artifact утерян (null или удалён)")
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
         }
 
@@ -411,7 +386,6 @@ class ImageCompressionWorker @AssistedInject constructor(
         if (savedUri == null) {
             LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
         }
 
@@ -439,7 +413,6 @@ class ImageCompressionWorker @AssistedInject constructor(
                     LogUtil.error(savedUri, "Верификация", "Не удалось удалить повреждённый файл", e)
                 }
             }
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
         }
 
@@ -454,7 +427,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             } catch (e: Exception) {
                 LogUtil.error(savedUri, "Replace", "Не удалось удалить устаревшую сжатую копию", e)
             }
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
         }
 
@@ -509,7 +481,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             )
 
             updateForegroundForMode("⚠️ Ошибка удаления оригинала")
-            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
             markRecentlyProcessed = true
             return Result.success()
         }
@@ -529,7 +500,6 @@ class ImageCompressionWorker @AssistedInject constructor(
 
         updateForegroundForMode("✅ ${appContext.getString(R.string.notification_compression_completed)}")
 
-        StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_COMPLETED)
         markRecentlyProcessed = true
         return Result.success()
     }
@@ -576,7 +546,6 @@ class ImageCompressionWorker @AssistedInject constructor(
             skipReason
         )
 
-        StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_SKIPPED)
         markRecentlyProcessed = true
         return Result.success()
     }

@@ -2,7 +2,6 @@ package com.compressphotofast.ui
 
 import android.content.ContentUris
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.lifecycle.LiveData
@@ -38,7 +37,6 @@ import kotlinx.coroutines.flow.asStateFlow
 @HiltViewModel
 class MainViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val sharedPreferences: SharedPreferences,
     private val settingsManager: SettingsManager,
     private val uriProcessingTracker: UriProcessingTracker,
     private val compressionBatchTracker: CompressionBatchTracker,
