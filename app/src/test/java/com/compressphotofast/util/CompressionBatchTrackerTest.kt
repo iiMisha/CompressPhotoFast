@@ -7,6 +7,9 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.just
 import io.mockk.Runs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -29,13 +32,17 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         every { NotificationUtil.showCompressionResultToast(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>()) } just Runs
         every { NotificationUtil.showToast(any<android.content.Context>(), any<String>(), any<Int>()) } just Runs
 
-        tracker = CompressionBatchTracker(mockContext, mockk(relaxed = true))
+        tracker = CompressionBatchTracker(
+            mockContext,
+            mockk(relaxed = true),
+            CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        )
     }
 
     @After
     override fun tearDown() {
         tracker.clearAllBatches()
-        // Ждем завершения фоновых корутин в batchScope (Dispatchers.Default),
+        // Ждем завершения фоновых корутин в appScope (Dispatchers.Default),
         // которые могли быть запущены в конце теста (например, при финализации автобатча),
         // чтобы они успели использовать замоканный NotificationUtil
         Thread.sleep(500)

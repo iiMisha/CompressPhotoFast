@@ -9,7 +9,6 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.compressphotofast.util.NotificationUtil
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.CompressionBatchTracker
 import com.compressphotofast.util.TempFilesCleaner
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.BackupRecoveryHelper
@@ -17,10 +16,10 @@ import com.compressphotofast.util.OptimizedCacheUtil
 import com.compressphotofast.util.SettingsManager
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.worker.GalleryReconciliationWorker
+import com.compressphotofast.di.ApplicationScope
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -38,12 +37,9 @@ class CompressPhotoApp : Application(), Configuration.Provider {
     @Inject
     lateinit var settingsManager: SettingsManager
 
-    /**
-     * Application-scoped корутинный скоуп для фоновых задач инициализации/очистки,
-     * запускаемых в onCreate. SupervisorJob гарантирует, что одна упавшая задача
-     * не отменяет остальные.
-     */
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject
+    @ApplicationScope
+    lateinit var appScope: CoroutineScope
 
     override fun onCreate() {
         super.onCreate()
@@ -102,7 +98,7 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         val processStartMs = System.currentTimeMillis()
         // Порядок важен: восстановление из backup'ов строго ДО очистки временных
         // файлов, иначе cleaner мог бы удалить backup, нужный для восстановления.
-        appScope.launch {
+        appScope.launch(Dispatchers.IO) {
             try {
                 MediaStoreUtil.cleanupStalePendingEntries(applicationContext)
             } catch (e: Exception) {
@@ -119,12 +115,6 @@ class CompressPhotoApp : Application(), Configuration.Provider {
                 LogUtil.errorWithException("APP_POST_CRASH_CLEANUP", e)
             }
         }
-    }
-
-    override fun onTerminate() {
-        super.onTerminate()
-        // Очищаем статические ресурсы CompressionBatchTracker
-        CompressionBatchTracker.destroyStatic()
     }
 
     override fun onTrimMemory(level: Int) {

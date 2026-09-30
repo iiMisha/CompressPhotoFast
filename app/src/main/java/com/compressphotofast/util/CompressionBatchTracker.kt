@@ -1,13 +1,11 @@
 package com.compressphotofast.util
 
 import android.content.Context
+import com.compressphotofast.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -24,30 +22,12 @@ import javax.inject.Singleton
 @Singleton
 class CompressionBatchTracker @Inject constructor(
     @ApplicationContext private val appContext: Context,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    @ApplicationScope private val appScope: CoroutineScope
 ) {
 
-    companion object {
-        // Shared CoroutineScope для всех экземпляров
-        private val sharedMainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-        /**
-         * Очищает статические ресурсы (sharedMainScope)
-         * Должен вызываться при уничтожении приложения
-         */
-        @JvmStatic
-        fun destroyStatic() {
-            sharedMainScope.cancel()
-            LogUtil.processDebug("CompressionBatchTracker статические ресурсы очищены")
-        }
-    }
-
     private val batches = ConcurrentHashMap<String, CompressionBatch>()
-    private val mainScope = sharedMainScope
     private val batchIdCounter = AtomicInteger(1)
-
-    // Singleton coroutine scope для батч-операций (используем Default вместо Main для избежания блокировки UI)
-    private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // Константы таймаутов
     private val INTENT_BATCH_TIMEOUT_MS = 30000L       // 30 сек таймаут безопасности для Intent-батчей
@@ -158,7 +138,7 @@ class CompressionBatchTracker @Inject constructor(
         }
 
         // Используем Application Context из конструктора
-        batchScope.launch {
+        appScope.launch {
             if (results.size == 1) {
                 // Показываем индивидуальный результат
                 showIndividualResult(appContext, results[0])
@@ -253,7 +233,7 @@ class CompressionBatchTracker @Inject constructor(
             // Отменяем предыдущий таймаут
             batch.timeoutJob?.cancel()
 
-            val timeoutJob = mainScope.launch {
+            val timeoutJob = appScope.launch {
                 delay(timeoutMs)
                 LogUtil.processDebug("Истек таймаут для батча: $batchId")
                 processBatch(batchId)
