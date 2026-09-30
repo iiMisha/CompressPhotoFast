@@ -84,7 +84,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
 
     private fun stubSave(result: MediaStoreUtil.SaveResult) {
         coEvery {
-            MediaStoreUtil.saveCompressedImageFromStream(any(), any(), any(), any(), any(), any(), any(), any(), any())
+            MediaStoreUtil.saveCompressedImageFromFile(any(), artifact, any(), any(), any(), any(), any(), any(), any())
         } returns result
     }
 
@@ -139,14 +139,17 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     }
 
     @Test
-    fun `повреждённая новая копия удаляется, оригинал не трогается`() = runTest {
+    fun `повреждённая новая копия — сбой без удаления оригинала`() = runTest {
+        every { FileOperationsUtil.isSaveModeReplace(any()) } returns true
         stubTest(compressedSize = 400_000L)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
-        coEvery { ImageIntegrityUtil.verifyImageIntegrity(any(), savedUri) } returns false
+        // Верификацию и удаление повреждённой копии выполняет MediaStoreUtil
+        stubSave(MediaStoreUtil.SaveResult.Failed(MediaStoreUtil.SaveFailure.CORRUPTED_OUTPUT))
 
-        assertEquals(CompressImageUseCase.Outcome.Failed(), useCase(uri, params))
-        verify { resolver.delete(savedUri, null, null) }
-        verify(exactly = 0) { resolver.delete(uri, any<String>(), any()) }
+        assertEquals(
+            CompressImageUseCase.Outcome.Failed(MediaStoreUtil.SaveFailure.CORRUPTED_OUTPUT),
+            useCase(uri, params)
+        )
+        coVerify(exactly = 0) { FileOperationsUtil.deleteFile(any(), uri, any(), any()) }
     }
 
     @Test

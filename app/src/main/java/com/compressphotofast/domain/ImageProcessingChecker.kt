@@ -93,7 +93,7 @@ class ImageProcessingChecker @Inject constructor(
      * Проверяет основные условия и настройки для обработки изображения
      * @return true если прошли все базовые проверки
      */
-    private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean, path: String?): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование URI
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
@@ -118,14 +118,13 @@ class ImageProcessingChecker @Inject constructor(
             }
             
             // Проверяем, не является ли изображение скриншотом
-            if (!settingsManager.shouldProcessScreenshots() && UriUtil.isScreenshot(context, uri)) {
+            if (!settingsManager.shouldProcessScreenshots() && OptimizedCacheUtil.isScreenshot(fileName)) {
                 LogUtil.processDebug("Файл является скриншотом, обработка скриншотов отключена: $uri")
                 return@withContext false
             }
             
             // Проверяем, не находится ли файл в директории приложения
             // Используем улучшенную проверку с нормализацией путей
-            val path = UriUtil.getFilePathFromUri(context, uri)
             if (isInAppDirectoryNormalized(path)) {
                 LogUtil.processDebug("Файл находится в директории приложения: ${normalizePath(path ?: "null")}")
                 return@withContext false
@@ -136,7 +135,6 @@ class ImageProcessingChecker @Inject constructor(
             if (UriUtil.isFilePendingSuspend(context, uri)) {
                 LogUtil.processDebug("Файл является временным или в процессе записи: $uri")
                 // Проверяем, может быть файл уже был обработан, но все еще помечен как pending
-                val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
                 if (fileName.contains("_compressed")) {
                     // Это может быть сжатая версия, пропускаем проверку pending
                     LogUtil.processDebug("Файл содержит '_compressed', возможно это результат предыдущей обработки: $uri")
@@ -177,15 +175,17 @@ class ImageProcessingChecker @Inject constructor(
             // Создаем результат по умолчанию
             val result = ProcessingCheckResult()
             
+            // Путь запрашивается один раз для обеих проверок директории приложения
+            val filePath = UriUtil.getFilePathFromUri(context, uri)
+
             // Проверяем базовые условия
-            if (!passesBasicChecks(context, uri, forceProcess)) {
+            if (!passesBasicChecks(context, uri, forceProcess, filePath)) {
                 result.processingRequired = false
                 result.reason = ProcessingSkipReason.BASIC_CHECK_FAILED
                 return@withContext result
             }
 
-            val path = UriUtil.getFilePathFromUri(context, uri) ?: ""
-            val isInAppDir = OptimizedCacheUtil.checkDirectoryStatus(path, Constants.APP_DIRECTORY)
+            val isInAppDir = OptimizedCacheUtil.checkDirectoryStatus(filePath ?: "", Constants.APP_DIRECTORY)
 
             // Проверяем путь к файлу - если файл находится в директории приложения, считаем его обработанным
             if (isInAppDir) {
@@ -212,16 +212,10 @@ class ImageProcessingChecker @Inject constructor(
             // только дату модификации) не инвалидируют кэш, реальное изменение
             // содержимого — инвалидирует.
             val exifData = OptimizedCacheUtil.getOrComputeExifData(uri, fileSize) {
-                PerformanceMonitor.recordCacheMiss("EXIF")
-                PerformanceMonitor.measureExifCheck {
-                    val marker = ExifUtil.getCompressionMarker(context, uri)
-                    OptimizedCacheUtil.CachedExifData(
-                        marker.isCompressed, marker.quality, marker.timestamp, marker.fileSize, fileSize
-                    )
-                }
-            }
-            if (exifData != null) {
-                PerformanceMonitor.recordCacheHit("EXIF")
+                val marker = ExifUtil.getCompressionMarker(context, uri)
+                OptimizedCacheUtil.CachedExifData(
+                    marker.isCompressed, marker.quality, marker.timestamp, marker.fileSize, fileSize
+                )
             }
             val isCompressed = exifData?.isCompressed ?: false
             val quality = exifData?.quality ?: -1

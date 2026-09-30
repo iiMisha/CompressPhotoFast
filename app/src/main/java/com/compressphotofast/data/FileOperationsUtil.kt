@@ -131,7 +131,11 @@ object FileOperationsUtil {
      * @param forceDelete Если true, обходит проверку нахождения URI в обработке
      * @return Boolean - успешность удаления или IntentSender для запроса разрешения на Android 10+
      */
-    suspend fun deleteFile(context: Context, uri: Uri, uriProcessingTracker: UriProcessingTracker, forceDelete: Boolean = false): Any? {
+    suspend fun deleteFile(context: Context, uri: Uri, uriProcessingTracker: UriProcessingTracker, forceDelete: Boolean = false): Any? =
+        // contentResolver.delete — IPC; вызывается в том числе из lifecycleScope Activity
+        withContext(Dispatchers.IO) { deleteFileInternal(context, uri, uriProcessingTracker, forceDelete) }
+
+    private fun deleteFileInternal(context: Context, uri: Uri, uriProcessingTracker: UriProcessingTracker, forceDelete: Boolean): Any? {
         if (!forceDelete && uriProcessingTracker.isProcessing(uri)) {
             LogUtil.processWarning("deleteFile: URI находится в обработке, удаление отменено: $uri")
             return false

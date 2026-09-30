@@ -50,9 +50,10 @@ class GalleryReconciliationWorker @AssistedInject constructor(
                 .build()
             wm.enqueueUniqueWork(ONE_TIME_NAME, ExistingWorkPolicy.KEEP, request)
             val periodic = PeriodicWorkRequestBuilder<GalleryReconciliationWorker>(
-                Constants.BACKGROUND_SCAN_INTERVAL_MINUTES.coerceAtLeast(15L), TimeUnit.MINUTES
+                Constants.RECONCILIATION_INTERVAL_MINUTES, TimeUnit.MINUTES
             ).build()
-            wm.enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.KEEP, periodic)
+            // UPDATE: установки с прежним 15-минутным интервалом получают новый
+            wm.enqueueUniquePeriodicWork(PERIODIC_NAME, ExistingPeriodicWorkPolicy.UPDATE, periodic)
         }
     }
 }

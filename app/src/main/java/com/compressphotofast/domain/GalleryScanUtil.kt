@@ -9,7 +9,6 @@ import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.compressphotofast.data.BatchMediaStoreUtil
 import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
@@ -126,16 +125,7 @@ class GalleryScanUtil @Inject constructor(
                     uriNameMap[contentUri] = name
                 }
                 
-                // Используем пакетную предзагрузку метаданных для оптимизации
                 if (checkProcessable && allUris.isNotEmpty()) {
-                    LogUtil.processDebug("Предзагрузка метаданных для ${allUris.size} URI")
-                    
-                    // Предзагружаем метаданные пакетом для кэширования
-                    PerformanceMonitor.measureBatchMetadata {
-                        BatchMediaStoreUtil.getBatchFileMetadata(context, allUris)
-                    }
-                    
-                    // Теперь проверяем каждый URI, используя кэшированные данные
                     for (uri in allUris) {
                         if (imageProcessingChecker.shouldProcessImage(uri)) {
                             foundUris.add(uri)

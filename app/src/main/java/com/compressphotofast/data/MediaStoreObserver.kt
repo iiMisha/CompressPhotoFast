@@ -58,9 +58,8 @@ class MediaStoreObserver @Inject constructor(
         if (uriProcessingTracker.shouldIgnore(uri) || uriProcessingTracker.isProcessing(uri)) return
         if (!uri.toString().contains("media") || !uri.toString().contains("image")) return
 
-        val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
-        if (fileName.contains("_original.")) return
-
+        // Debounce до запроса имени: серия onChange по одному URI не должна
+        // порождать серию IPC к MediaStore
         val uriString = uri.toString()
         val currentTime = System.currentTimeMillis()
         val lastObservedTime = recentlyObservedUris[uriString]
@@ -69,6 +68,9 @@ class MediaStoreObserver @Inject constructor(
         recentlyObservedUris.entries
             .filter { currentTime - it.value > 15000L }
             .forEach { recentlyObservedUris.remove(it.key) }
+
+        val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
+        if (fileName.contains("_original.")) return
 
         LogUtil.processDebug("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
         pendingTasks[uriString]?.cancel()

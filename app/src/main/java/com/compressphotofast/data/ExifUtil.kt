@@ -1173,15 +1173,9 @@ object ExifUtil {
                         context, destinationUri, exifDataMemory, quality, originalFileSize,
                         pixelsTransformed = true
                     )
+                    // Целостность после каждой записи проверяет guardedExifWrite,
+                    // итоговую — вызывающий MediaStoreUtil
                     LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
-
-                    if (exifSuccess) {
-                        val isValid = ImageIntegrityUtil.verifyImageIntegrity(context, destinationUri)
-                        if (!isValid) {
-                            LogUtil.error(destinationUri, "EXIF", "Файл повреждён после saveAttributes()")
-                            exifSuccess = false
-                        }
-                    }
                 } catch (e: Exception) {
                     LogUtil.error(destinationUri, "EXIF", "Ошибка при применении EXIF данных из памяти", e)
                 }
@@ -1200,22 +1194,6 @@ object ExifUtil {
                 } catch (e: Exception) {
                     LogUtil.error(sourceUri, "Копирование EXIF", e)
                 }
-            }
-            
-            // Финальная верификация EXIF данных
-            try {
-                delay(Constants.EXIF_VERIFY_DELAY_MS)
-                context.contentResolver.openInputStream(destinationUri)?.use { input ->
-                    val exif = ExifInterface(input)
-                    val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                    if (CompressionMarker.hasMarkerWithQuality(userComment, quality)) {
-                        LogUtil.processDebug("Финальная верификация успешна: маркер сжатия присутствует в URI")
-                    } else {
-                        LogUtil.processWarning("Финальная верификация не удалась: маркер сжатия отсутствует в URI. UserComment: $userComment")
-                    }
-                }
-            } catch (e: Exception) {
-                LogUtil.error(destinationUri, "Верификация EXIF", e)
             }
             
             return@withContext exifSuccess

@@ -44,6 +44,7 @@ object UriUtil {
     private val uriExistsCache = ConcurrentHashMap<String, UriExistsResult>()
 
     private const val URI_EXISTS_CACHE_TTL = 10_000L // 10 секунд
+    private const val URI_EXISTS_CACHE_PRUNE_THRESHOLD = 256
 
     /**
      * Проверяет, является ли MIME-тип HEIC/HEIF форматом
@@ -253,6 +254,10 @@ object UriUtil {
 
         // Кэшируем результат
         uriExistsCache[cacheKey] = result
+        // Записи с TTL 10 с иначе копились бы весь срок жизни процесса
+        if (uriExistsCache.size > URI_EXISTS_CACHE_PRUNE_THRESHOLD) {
+            uriExistsCache.entries.removeIf { it.value.isExpired(URI_EXISTS_CACHE_TTL) }
+        }
 
         return@withContext result.exists
     }
@@ -553,17 +558,4 @@ object UriUtil {
         return null
     }
 
-    /**
-     * Проверяет, является ли изображение скриншотом.
-     * Использует OptimizedCacheUtil для кэширования результатов проверки паттернов.
-     */
-    fun isScreenshot(context: Context, uri: Uri): Boolean {
-        try {
-            val fileName = getFileNameFromUri(context, uri) ?: return false
-            return OptimizedCacheUtil.isScreenshot(fileName)
-        } catch (e: Exception) {
-            LogUtil.error(null, "Ошибка при проверке скриншота для $uri", e)
-            return false
-        }
-    }
 }

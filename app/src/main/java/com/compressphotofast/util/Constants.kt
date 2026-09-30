@@ -68,6 +68,9 @@ object Constants {
     // Редкий страховочный проход при живом ContentObserver: дешёвая защита от
     // пропущенных observer-событий (замороженный/приостановленный процесс в battery saver).
     const val BACKGROUND_SCAN_INTERVAL_FALLBACK_MINUTES = 60L
+    // Периодический reconciliation WorkManager: основное обнаружение — ContentObserver
+    // и content-trigger Job (будит и мёртвый процесс), это лишь страховка.
+    const val RECONCILIATION_INTERVAL_MINUTES = 60L
     const val RECENT_SCAN_WINDOW_SECONDS = 15 * 60L // 15 минут в секундах (увеличено с 5 для обработки копируемых файлов)
     const val HISTORY_SCAN_WINDOW_DAYS = 2
     const val HISTORY_SCAN_WINDOW_SECONDS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60L
@@ -84,7 +87,6 @@ object Constants {
     
     // Задержки для EXIF и MediaStore операций (мс)
     const val EXIF_COPY_DELAY_MS = 300L
-    const val EXIF_VERIFY_DELAY_MS = 100L
     const val MEDIASTORE_ANDROID11_DELAY_MS = 300L
 
     // Пресеты максимального разрешения (по большей стороне). 0 — сохранить исходное разрешение

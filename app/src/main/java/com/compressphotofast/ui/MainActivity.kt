@@ -175,7 +175,10 @@ class MainActivity : AppCompatActivity() {
         // Инициализация менеджера разрешений
         permissionsManager = PermissionsManager(this)
 
-        GalleryReconciliationWorker.schedule(this, catchUp = true)
+        // Пересоздание Activity (поворот, смена темы) не должно повторять HISTORY-скан
+        if (savedInstanceState == null) {
+            GalleryReconciliationWorker.schedule(this, catchUp = true)
+        }
         
         // Обрабатываем действие остановки
         if (intent?.action == Constants.ACTION_STOP_SERVICE) {

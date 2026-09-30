@@ -16,7 +16,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileIoUtil
@@ -278,7 +277,7 @@ object MediaStoreUtil {
      * Сохраняет сжатое изображение из потока
      *
      * @param context Контекст приложения
-     * @param inputStream Входной поток с сжатым изображением
+     * @param compressedFile Сжатый JPEG-artifact в cacheDir (удаляет вызывающая сторона)
      * @param fileName Имя файла для сохранения
      * @param directory Директория для сохранения
      * @param originalUri URI исходного файла
@@ -288,9 +287,9 @@ object MediaStoreUtil {
      * @param originalFileSize Исходный размер файла до сжатия (для поля origSize маркера)
      * @return [SaveResult.Saved] с URI сохранённого файла или [SaveResult.Failed] с причиной
      */
-    suspend fun saveCompressedImageFromStream(
+    suspend fun saveCompressedImageFromFile(
         context: Context,
-        inputStream: InputStream,
+        compressedFile: File,
         fileName: String,
         directory: String,
         originalUri: Uri,
@@ -309,19 +308,19 @@ object MediaStoreUtil {
 
         val saveLock = getSaveLock(lockKey)
         saveLock.withLock {
-            saveCompressedImageFromStreamInternal(
-                context, inputStream, fileName, directory, originalUri, quality, exifDataMemory, mimeType, originalFileSize
+            saveCompressedImageFromFileInternal(
+                context, compressedFile, fileName, directory, originalUri, quality, exifDataMemory, mimeType, originalFileSize
             )
         }
     }
 
     /**
      * Внутренняя реализация сохранения сжатого изображения из потока.
-     * Вызывается из saveCompressedImageFromStream() под защитой Mutex.
+     * Вызывается из saveCompressedImageFromFile() под защитой Mutex.
      */
-    private suspend fun saveCompressedImageFromStreamInternal(
+    private suspend fun saveCompressedImageFromFileInternal(
         context: Context,
-        inputStream: InputStream,
+        compressedFile: File,
         fileName: String,
         directory: String,
         originalUri: Uri,
@@ -330,16 +329,9 @@ object MediaStoreUtil {
         mimeType: String = "image/jpeg",
         originalFileSize: Long? = null
     ): SaveResult = withContext(Dispatchers.IO) {
-        var streamCacheFile: File? = null
         try {
-            // Не материализуем JPEG в ByteArray. Дисковый spool нужен только
-            // потому, что replace-mode может потребовать fallback-повтор записи.
-            streamCacheFile = File(
-                context.cacheDir,
-                "stream_cache_${originalUri.hashCode()}_${System.currentTimeMillis()}.jpg"
-            )
-            FileOutputStream(streamCacheFile!!).use { output -> inputStream.copyTo(output) }
-            val request = SaveRequest(streamCacheFile!!, originalUri, quality, exifDataMemory, mimeType, originalFileSize)
+            // Artifact на диске читается повторно, если replace-mode уходит в fallback-запись
+            val request = SaveRequest(compressedFile, originalUri, quality, exifDataMemory, mimeType, originalFileSize)
 
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
@@ -381,8 +373,6 @@ object MediaStoreUtil {
             if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
             return@withContext SaveResult.Failed(SaveFailure.OTHER)
-        } finally {
-            streamCacheFile?.delete()
         }
     }
 

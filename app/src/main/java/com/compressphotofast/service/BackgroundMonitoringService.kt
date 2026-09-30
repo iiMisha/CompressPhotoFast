@@ -28,9 +28,7 @@ import com.compressphotofast.domain.GalleryScanCoordinator
 import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.platform.NotificationUtil
 import com.compressphotofast.data.MediaStoreObserver
-import com.compressphotofast.data.MediaStoreUtil
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.domain.PerformanceMonitor
 import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.domain.CompressionEvents
 import com.compressphotofast.domain.CompressionWorkScheduler
@@ -186,8 +184,9 @@ class BackgroundMonitoringService : Service() {
             // он будит замороженный/приостановленный процесс (battery saver, OEM).
             ensureDetectionJobArmed()
             startPeriodicScanning()
+            // Stale pending, recovery и temp-очистку при холодном старте процесса
+            // уже выполняет CompressPhotoApp.performPostCrashCleanup
             startPeriodicCleanup()
-            serviceScope.launch { MediaStoreUtil.cleanupStalePendingEntries(applicationContext) }
         } catch (e: Exception) {
             isReady = false
             isRunning = false
@@ -349,9 +348,10 @@ class BackgroundMonitoringService : Service() {
         // Регистрируем MediaStoreObserver
         observer.register()
 
-        // Запускаем начальное сканирование
+        // Начальный скан от watermark; HISTORY-догон при холодном старте ставит
+        // CompressPhotoApp через GalleryReconciliationWorker
         launchServiceScope {
-            scanGalleryForUnprocessedImages()
+            scanForNewImages()
         }
     }
     
@@ -368,7 +368,6 @@ class BackgroundMonitoringService : Service() {
             LogUtil.warning(Uri.EMPTY, "BackgroundMonitoring", "Ошибка при восстановлении недоступных URI: ${e.message}")
         }
         galleryScanCoordinator.scan(GalleryScanCoordinator.Window.SINCE_WATERMARK)
-        PerformanceMonitor.autoReportIfNeeded(this@BackgroundMonitoringService)
     }
     
     /**
@@ -393,14 +392,6 @@ class BackgroundMonitoringService : Service() {
     }
     
     /**
-     * Сканирует галерею за историю (по умолчанию 48 часов)
-     */
-    private suspend fun scanGalleryForUnprocessedImages() {
-        galleryScanCoordinator.scan(GalleryScanCoordinator.Window.HISTORY)
-        PerformanceMonitor.autoReportIfNeeded(applicationContext)
-    }
-
-    /**
      * Очистка старых временных файлов
      */
     private fun cleanupTempFiles() {
@@ -414,6 +405,14 @@ class BackgroundMonitoringService : Service() {
     private fun startPeriodicScanning() {
         scanJob = serviceScope.launch {
             while (isActive) {
+                // Первый проход уже выполнен начальным сканом в setupContentObserver
+                delay(
+                    if (isReady && isRunning && !isServiceDestroyed.get()) {
+                        Constants.BACKGROUND_SCAN_INTERVAL_FALLBACK_MINUTES * 60 * 1000L
+                    } else {
+                        scanInterval
+                    }
+                )
                 val observerAlive = isReady && isRunning && !isServiceDestroyed.get()
                 // Страховка от пропущенных observer-событий: при живом observer
                 // сканируем редко, иначе — штатным интервалом.
@@ -427,13 +426,6 @@ class BackgroundMonitoringService : Service() {
                 } catch (e: Exception) {
                     LogUtil.error(null, "PERIODIC_SCAN", "Ошибка периодического скана", e)
                 }
-                delay(
-                    if (observerAlive) {
-                        Constants.BACKGROUND_SCAN_INTERVAL_FALLBACK_MINUTES * 60 * 1000L
-                    } else {
-                        scanInterval
-                    }
-                )
             }
         }
     }
@@ -444,7 +436,6 @@ class BackgroundMonitoringService : Service() {
      */
     private fun startPeriodicCleanup() {
         cleanupJob = serviceScope.launch {
-            cleanupTempFiles() // Немедленная очистка при старте
             while (isActive) {
                 // Планируем следующую очистку через 24 часа
                 delay(24 * 60 * 60 * 1000L) // 24 часа

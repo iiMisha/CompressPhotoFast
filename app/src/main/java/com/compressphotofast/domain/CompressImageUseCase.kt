@@ -7,14 +7,12 @@ import com.compressphotofast.util.Constants
 import com.compressphotofast.data.DailyCompressionStats
 import com.compressphotofast.data.ExifUtil
 import com.compressphotofast.data.FileOperationsUtil
-import com.compressphotofast.data.ImageIntegrityUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.MediaStoreUtil
 import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.data.StatsTracker
 import com.compressphotofast.data.UriUtil
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.FileInputStream
 import javax.inject.Inject
 import com.compressphotofast.data.UriProcessingTracker
 
@@ -148,18 +146,16 @@ class CompressImageUseCase @Inject constructor(
             return Outcome.Failed()
         }
 
-        val saveResult = FileInputStream(compressedImageFile).use { stream ->
-            MediaStoreUtil.saveCompressedImageFromStream(
-                context = context,
-                inputStream = stream,
-                fileName = finalFileName,
-                directory = directory,
-                originalUri = imageUri,
-                quality = params.quality,
-                exifDataMemory = exifDataMemory,
-                originalFileSize = sourceSize
-            )
-        }
+        val saveResult = MediaStoreUtil.saveCompressedImageFromFile(
+            context = context,
+            compressedFile = compressedImageFile,
+            fileName = finalFileName,
+            directory = directory,
+            originalUri = imageUri,
+            quality = params.quality,
+            exifDataMemory = exifDataMemory,
+            originalFileSize = sourceSize
+        )
         val savedUri = when (saveResult) {
             is MediaStoreUtil.SaveResult.Failed -> {
                 LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение: ${saveResult.reason}")
@@ -177,21 +173,8 @@ class CompressImageUseCase @Inject constructor(
             uriProcessingTracker.setIgnorePeriod(imageUri)
         }
 
-        // Верификация целостности ВСЕГДА, не только в режиме замены
-        if (!ImageIntegrityUtil.verifyImageIntegrity(context, savedUri)) {
-            LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён!")
-            // ИНВАРИАНТ БЕЗОПАСНОСТИ: удалять можно только новый файл. Если оригинал
-            // перезаписан на месте (overwrittenInPlace), это файл пользователя.
-            if (!overwrittenInPlace) {
-                try {
-                    context.contentResolver.delete(savedUri, null, null)
-                    LogUtil.error(imageUri, "Верификация", "Повреждённый файл удалён из MediaStore: $savedUri")
-                } catch (e: Exception) {
-                    LogUtil.error(savedUri, "Верификация", "Не удалось удалить повреждённый файл", e)
-                }
-            }
-            return Outcome.Failed()
-        }
+        // Целостность сохранённого файла (в т.ч. после записи EXIF) уже проверена
+        // в MediaStoreUtil: при провале новая копия удалена и вернулся Failed.
 
         // Защита от потери правок: если оригинал изменился за время сжатия,
         // сжатая копия устарела — удаляем её, оригинал не трогаем.

@@ -21,7 +21,7 @@
 - Пакеты: `domain/` (правила и оркестрация) → `data/` (MediaStore, EXIF, backup, настройки) → `util/` (leaf: `Constants`, `LogUtil`, `FileIoUtil`); `platform/` — уведомления, разрешения, батарея. `data/` и `util/` не импортируют `domain/`; `domain/`, `data/`, `service/`, `worker/` не импортируют `ui`.
 - UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt` (валидация и постановка share/Photo Picker URI — `compressSharedImages`; события воркера — `compressionEvents`).
 - Сжатие: `domain/CompressImageUseCase.kt` (EXIF → тест → сохранение → верификация → удаление оригинала; возвращает `Outcome`), `worker/ImageCompressionWorker.kt` (тонкий адаптер: lock URI, gate, foreground, retry, показ результата), `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `domain/CompressionWorkScheduler.kt`, `domain/CompressionExecutionGate.kt`, `domain/ImageCompressionUtil.kt`, `domain/ImageProcessingChecker.kt`.
-- Данные: `data/SettingsManager.kt` (SharedPreferences), `data/MediaStoreUtil.kt` (`saveCompressedImageFromStream` → `SaveResult`, без UI), `data/ExifUtil.kt`, `data/CompressionMarker.kt` (формат маркера, чистые функции), `data/UriProcessingTracker.kt`, `data/StatsTracker.kt`.
+- Данные: `data/SettingsManager.kt` (SharedPreferences), `data/MediaStoreUtil.kt` (`saveCompressedImageFromFile(File artifact)` → `SaveResult`, без UI), `data/ExifUtil.kt`, `data/CompressionMarker.kt` (формат маркера, чистые функции), `data/UriProcessingTracker.kt`, `data/StatsTracker.kt`.
 - Инфраструктура: `data/BackupRegistry.kt`, `data/BackupRecoveryHelper.kt`, `util/FileIoUtil.kt` (fstat/fsync), `di/AppModule.kt`, `di/CoroutineScopeModule.kt` (`@ApplicationScope`), `domain/CompressionBatchTracker.kt`, `domain/CompressionEvents.kt` (SharedFlow воркер → UI/сервис вместо broadcast'ов).
 - Мониторинг: `service/BackgroundMonitoringService.kt`, `service/ImageDetectionJobService.kt`, `service/MonitoringController.kt`, `service/BootCompletedReceiver.kt`.
 - CLI: `compressphotofast-cli/src/cli.py`, `compressphotofast-cli/src/compression.py`.
@@ -45,14 +45,14 @@
 - Recovery при старте (`BackupRecoveryHelper`, до `TempFilesCleaner`, который не трогает зарегистрированные backup): безусловный restore самого раннего backup URI, иначе копия в `Pictures/CompressPhotoFast/Recovered`; backup'ы текущего процесса пропускаются.
 - Replace-режим: перезапись на месте только если найденный по имени файл — сам оригинал (ID MediaStore; воркер тоже сравнивает через `isSameMediaItem`, не строки URI); размер оригинала сверяется до перезаписи/удаления (TOCTOU); провал EXIF — откат/удаление новой копии. `cleanDoubleExtensions` срезает только расширения изображений (как CLI). `Orientation=NORMAL` — только при `pixelsTransformed`.
 - UI/E2E instrumentation-тесты удалены как неактуальные; сохранены интеграционные тесты утилит и сервисов.
-- Recovery после LMK/OEM kill: cold-start и JobScheduler best-effort восстанавливают FGS, reconciliation независимо от FGS восстанавливает MediaStore URI, content-trigger использует два чередующихся job ID.
+- Recovery после LMK/OEM kill: cold-start и JobScheduler best-effort восстанавливают FGS, reconciliation независимо от FGS восстанавливает MediaStore URI, content-trigger использует два чередующихся job ID (update delay 3 с, URI в ignore-периоде `UriProcessingTracker` отсекаются); periodic reconciliation — 60 мин (`RECONCILIATION_INTERVAL_MINUTES`, policy UPDATE).
 - Новые URI ставятся в per-URI unique WorkManager works через SHA-256 identity: auto settle задержан на 30 секунд, manual final-work expedited без delay; legacy `sequential_image_compression` не отменяется и дренируется bounded Worker.
 - Тяжёлая Bitmap/MediaStore-фаза сериализуется `CompressionExecutionGate`; transient retry ограничен пятью попытками с линейным backoff, проблемный URI не блокирует соседние.
 - Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
 - Ручной батч (Picker/Share): Snackbar «принято N», прогресс в подписи FAB (`CompressionBatchTracker.progress`), итог — `CompressionEvents.Event.BatchCompleted` → Snackbar (не зависит от уведомлений/`PREF_SHOW_COMPRESSION_TOAST`). Воркер отчитывается в батч на каждом финальном исходе (COMPRESSED/SKIPPED/FAILED); `setExpectedCount` после enqueue; таймаут скользящий 120 с.
 - Разрешения запрашиваются все при первом запуске: один runtime-диалог (медиа/уведомления/гео EXIF) через `PermissionsManager.requestStartupPermissions`, затем All-Files-Access (`requestAllFilesAccessIfNeeded` в `MainActivity`), затем battery exemption; счётчик попыток запросов убран.
 - DI: `SettingsManager` внедряется Hilt во все Hilt-компоненты (воркеры, сервисы, `MainActivity`, `CompressPhotoApp`, `CompressionWorkScheduler`); `SettingsManager.getInstance` — только в `object`/companion. Pending-delete URI — через `SettingsManager`. `ImageProcessingChecker`, `GalleryScanUtil` — инъецируемые `@Singleton`; граф `object` ациклический (новые зависимости не должны создавать циклов). Корутины синглтонов — в `@ApplicationScope`, не в самодельных scope.
-- Скан галереи (FGS, Job, reconciliation) — только через `domain/GalleryScanCoordinator` (окно от watermark с overlap или HISTORY); watermark = время начала скана, продвигается только при `completedSuccessfully` и durable enqueue всех URI; triggered URI из Job watermark не двигают; debug `ApplicationExitInfo` логирует человекочитаемую причину.
+- Скан галереи (FGS, Job, reconciliation) — только через `domain/GalleryScanCoordinator` (окно от watermark с overlap или HISTORY); watermark = время начала скана, продвигается только при `completedSuccessfully` и durable enqueue всех URI; triggered URI из Job watermark не двигают; HISTORY — только catch-up worker при cold start/`MainActivity` (не при пересоздании), FGS стартует со скана от watermark; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
 ## Проверка и релиз
 
@@ -61,6 +61,7 @@
 - Instrumentation-тесты: `./scripts/run_instrumentation_tests.sh`; нужен эмулятор `Small_Phone`.
 - Перед релизом: `./scripts/run_all_tests.sh`, затем `./gradlew assembleDebug` и `./gradlew assembleRelease`.
 - Версию обновлять в `gradle.properties` (`VERSION_NAME_BASE`) и `app/build.gradle.kts` (`versionCode`).
+- Release: R8 без широких `-keep`, `shrinkResources`, `localeFilters=ru`; `LogUtil` вырезается `-assumenosideeffects`, Timber-дерево в release не сажается.
 - `versionName` и имя APK содержат короткий хеш git-коммита (+ `-dirty` при несохранённых изменениях); хеш берётся через `GitHashValueSource` в `app/build.gradle.kts`, совместим с configuration cache.
 
 ## Рабочий процесс

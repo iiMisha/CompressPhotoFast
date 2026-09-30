@@ -336,9 +336,10 @@ object ImageCompressionUtil {
                     val requiresSecondBitmap = transform.rotationDegrees != 0 ||
                         transform.flipHorizontal || transform.flipVertical
                     val requiredBytes = estimatePeakMemoryBytes(width, height, mimeType, requiresSecondBitmap)
-                    val availableBytes = FileOperationsUtil.availableMemoryBytes(context)
                     if (!FileOperationsUtil.hasEnoughMemory(context, requiredBytes)) {
-                        throw CompressionException.InsufficientMemory(requiredBytes, availableBytes)
+                        throw CompressionException.InsufficientMemory(
+                            requiredBytes, FileOperationsUtil.availableMemoryBytes(context)
+                        )
                     }
 
                     // Full-resolution decode is the default. Memory admission above

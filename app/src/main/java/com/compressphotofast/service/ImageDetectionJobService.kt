@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.domain.GalleryScanCoordinator
 import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.UriProcessingTracker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,7 @@ enum class DetectionJobScheduleResult { SCHEDULED, ALREADY_ARMED, FAILED }
 class ImageDetectionJobService : JobService() {
     @Inject lateinit var settingsManager: SettingsManager
     @Inject lateinit var galleryScanCoordinator: GalleryScanCoordinator
+    @Inject lateinit var uriProcessingTracker: UriProcessingTracker
 
     private data class RunState(
         val params: JobParameters?,
@@ -44,6 +46,8 @@ class ImageDetectionJobService : JobService() {
         const val JOB_ID_PRIMARY = 1000
         const val JOB_ID_ALTERNATE = 1001
         private const val MAX_DELAY_MS = 15_000L
+        // Серия снимков/собственные записи приложения схлопываются в один запуск
+        private const val UPDATE_DELAY_MS = 3_000L
 
         fun scheduleJob(context: Context): DetectionJobScheduleResult {
             if (!SettingsManager.getInstance(context).isAutoCompressionEnabled()) {
@@ -51,7 +55,8 @@ class ImageDetectionJobService : JobService() {
                 return DetectionJobScheduleResult.FAILED
             }
             val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            if (scheduler.allPendingJobs.any { it.id == JOB_ID_PRIMARY || it.id == JOB_ID_ALTERNATE }) {
+            // getPendingJob вместо allPendingJobs: тот возвращает и все задачи WorkManager
+            if (scheduler.getPendingJob(JOB_ID_PRIMARY) != null || scheduler.getPendingJob(JOB_ID_ALTERNATE) != null) {
                 return DetectionJobScheduleResult.ALREADY_ARMED
             }
             return arm(context, scheduler, JOB_ID_PRIMARY)
@@ -72,7 +77,7 @@ class ImageDetectionJobService : JobService() {
             val info = JobInfo.Builder(id, ComponentName(context, ImageDetectionJobService::class.java))
                 .addTriggerContentUri(trigger)
                 .setTriggerContentMaxDelay(MAX_DELAY_MS)
-                .setTriggerContentUpdateDelay(0L)
+                .setTriggerContentUpdateDelay(UPDATE_DELAY_MS)
                 // setPersisted(true) для content-trigger Job недопустим (Android API
                 // запрещает сочетание addTriggerContentUri + persisted): восстановление
                 // после перезагрузки обеспечивают BootCompletedReceiver и cold-start
@@ -88,7 +93,7 @@ class ImageDetectionJobService : JobService() {
         private fun armAlternate(context: Context, currentId: Int): Boolean {
             val alternateId = if (currentId == JOB_ID_PRIMARY) JOB_ID_ALTERNATE else JOB_ID_PRIMARY
             val scheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            if (scheduler.allPendingJobs.any { it.id == alternateId }) return true
+            if (scheduler.getPendingJob(alternateId) != null) return true
             return arm(context, scheduler, alternateId) == DetectionJobScheduleResult.SCHEDULED
         }
     }
@@ -112,8 +117,11 @@ class ImageDetectionJobService : JobService() {
             try {
                 val delayMs = if (observerAlive) 0L else 2_000L
                 delay(delayMs)
-                val uris = params?.triggeredContentUris?.toList() ?: emptyList()
-                if (uris.isNotEmpty()) {
+                val triggered = params?.triggeredContentUris?.toList() ?: emptyList()
+                // Собственные записи приложения (insert, IS_PENDING, EXIF) тоже будят Job —
+                // отсекаем их до постановки settle/final работ
+                val uris = triggered.filterNot { uriProcessingTracker.shouldIgnore(it) }
+                if (triggered.isNotEmpty()) {
                     // Только triggered URI: это не скан галереи, watermark не продвигаем.
                     galleryScanCoordinator.enqueueAll(uris)
                 } else if (!observerAlive) {

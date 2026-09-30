@@ -25,7 +25,7 @@ class ImageProcessingUtilWorkRequestTest {
             mockk(relaxed = true),
             mockk(relaxed = true)
         )
-        val data = scheduler.buildInputData(uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L)
+        val data = scheduler.buildInputData(uri, 70, false, null, CompressionOrigin.AUTO, 1L)
         val request = scheduler.buildSettleWorkRequest(uri, data)
 
         assertEquals(
@@ -42,7 +42,7 @@ class ImageProcessingUtilWorkRequestTest {
             mockk(relaxed = true),
             mockk(relaxed = true)
         )
-        val data = scheduler.buildInputData(uri, 70, 200_000L, true, "manual", CompressionOrigin.MANUAL, 1L)
+        val data = scheduler.buildInputData(uri, 70, true, "manual", CompressionOrigin.MANUAL, 1L)
         val request = scheduler.buildFinalWorkRequest(uri, data, expedited = true)
 
         assertEquals(0L, request.workSpec.initialDelay)
@@ -69,7 +69,7 @@ class ImageProcessingUtilWorkRequestTest {
             mockk(relaxed = true)
         )
         val data = scheduler.buildInputData(
-            uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L,
+            uri, 70, false, null, CompressionOrigin.AUTO, 1L,
             maxResolution = Constants.RESOLUTION_1920
         )
 
@@ -86,7 +86,7 @@ class ImageProcessingUtilWorkRequestTest {
             mockk(relaxed = true),
             mockk(relaxed = true)
         )
-        val data = scheduler.buildInputData(uri, 70, 200_000L, false, null, CompressionOrigin.AUTO, 1L)
+        val data = scheduler.buildInputData(uri, 70, false, null, CompressionOrigin.AUTO, 1L)
 
         assertEquals(
             Constants.DEFAULT_MAX_RESOLUTION,

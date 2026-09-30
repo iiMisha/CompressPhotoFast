@@ -18,7 +18,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.compressphotofast.data.SettingsManager
-import com.compressphotofast.data.UriUtil
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
 
@@ -51,8 +50,7 @@ class CompressionWorkScheduler @Inject constructor(
         return try {
             val quality = settingsManager.getCompressionQuality()
             val maxResolution = settingsManager.getMaxResolution()
-            val originalSize = runCatching { UriUtil.getFileSize(context, uri) ?: 0L }.getOrDefault(0L)
-            val data = buildInputData(uri, quality, originalSize, forceProcess, batchId, origin, discoveredAt, maxResolution)
+            val data = buildInputData(uri, quality, forceProcess, batchId, origin, discoveredAt, maxResolution)
             if (forceProcess) {
                 workManager.cancelUniqueWork(settleName(uri)).await()
                 enqueueFinal(uri, data, expedited = true)
@@ -103,7 +101,6 @@ class CompressionWorkScheduler @Inject constructor(
     internal fun buildInputData(
         uri: Uri,
         quality: Int,
-        originalSize: Long,
         forceProcess: Boolean,
         batchId: String?,
         origin: CompressionOrigin,
@@ -113,7 +110,6 @@ class CompressionWorkScheduler @Inject constructor(
         Constants.WORK_INPUT_IMAGE_URI to uri.toString(),
         Constants.WORK_COMPRESSION_QUALITY to quality,
         Constants.WORK_MAX_RESOLUTION to maxResolution,
-        "original_size" to originalSize,
         Constants.WORK_ORIGIN to origin.name,
         Constants.WORK_DISCOVERED_AT to discoveredAt,
         Constants.WORK_ENQUEUED_AT to System.currentTimeMillis(),
@@ -122,8 +118,17 @@ class CompressionWorkScheduler @Inject constructor(
     )
 
     companion object {
-        fun digest(uri: Uri): String = MessageDigest.getInstance("SHA-256")
-            .digest(uri.toString().toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+        private val HEX = "0123456789abcdef".toCharArray()
+
+        fun digest(uri: Uri): String {
+            val bytes = MessageDigest.getInstance("SHA-256")
+                .digest(uri.toString().toByteArray(Charsets.UTF_8))
+            val out = CharArray(bytes.size * 2)
+            bytes.forEachIndexed { i, b ->
+                out[i * 2] = HEX[(b.toInt() shr 4) and 0xF]
+                out[i * 2 + 1] = HEX[b.toInt() and 0xF]
+            }
+            return String(out)
+        }
     }
 }
