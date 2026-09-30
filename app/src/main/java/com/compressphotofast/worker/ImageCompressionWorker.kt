@@ -370,7 +370,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
 
         // Сохраняем сжатое изображение с гарантированным закрытием потока
-        val savedUri = FileInputStream(compressedImageFile).use { stream ->
+        val saveResult = FileInputStream(compressedImageFile).use { stream ->
             MediaStoreUtil.saveCompressedImageFromStream(
                 context = appContext,
                 inputStream = stream,
@@ -383,11 +383,13 @@ class ImageCompressionWorker @AssistedInject constructor(
             )
         }
 
-        if (savedUri == null) {
-            LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение")
+        if (saveResult is MediaStoreUtil.SaveResult.Failed) {
+            LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение: ${saveResult.reason}")
+            notifySaveFailure(saveResult.reason)
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
             return Result.failure()
         }
+        val savedUri = (saveResult as MediaStoreUtil.SaveResult.Saved).uri
 
         // Перезапись на месте определяется по ID MediaStore: savedUri строится как
         // content://media/external/..., а imageUri может прийти через external_primary.
@@ -631,6 +633,20 @@ class ImageCompressionWorker @AssistedInject constructor(
         appContext.sendBroadcast(intent)
     }
 
+
+    /**
+     * Сообщает пользователю о сбоях сохранения, требующих его внимания.
+     */
+    private fun notifySaveFailure(reason: MediaStoreUtil.SaveFailure) {
+        val message = when (reason) {
+            MediaStoreUtil.SaveFailure.CORRUPTED_OUTPUT ->
+                "Сжатый файл был повреждён и удалён"
+            MediaStoreUtil.SaveFailure.ROLLBACK_FAILED ->
+                "Не удалось восстановить оригинал. Копия сохранена и будет восстановлена при следующем запуске приложения."
+            MediaStoreUtil.SaveFailure.OTHER -> return
+        }
+        NotificationUtil.showErrorNotification(appContext, "Ошибка сохранения", message)
+    }
 
     /**
      * Получает имя файла из URI с проверкой на null

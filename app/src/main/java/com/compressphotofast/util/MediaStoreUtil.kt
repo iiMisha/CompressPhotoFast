@@ -25,6 +25,27 @@ import java.util.concurrent.ConcurrentHashMap
 object MediaStoreUtil {
 
     /**
+     * Причина неудачного сохранения. Уведомление пользователю показывает
+     * вызывающая сторона: слой хранения не знает о UI.
+     */
+    enum class SaveFailure {
+        /** Новый файл не прошёл верификацию и удалён. */
+        CORRUPTED_OUTPUT,
+        /** Откат перезаписи не удался — backup остаётся для recovery при следующем старте. */
+        ROLLBACK_FAILED,
+        /** Прочие ошибки: оригинал не изменён или восстановлен. */
+        OTHER
+    }
+
+    sealed interface SaveResult {
+        data class Saved(val uri: Uri) : SaveResult
+        data class Failed(val reason: SaveFailure) : SaveResult
+    }
+
+    /** Новый файл повреждён до снятия IS_PENDING. */
+    private class CorruptedOutputException(message: String) : IOException(message)
+
+    /**
      * Мьютексы по originalUri для предотвращения конкурентной записи
      * в один и тот же файл из разных потоков/путей обработки.
      * Ключ — строковое представление originalUri.
@@ -262,6 +283,7 @@ object MediaStoreUtil {
      * @param exifDataMemory EXIF данные для сохранения
      * @param mimeType MIME тип для сохранения (по умолчанию "image/jpeg")
      * @param originalFileSize Исходный размер файла до сжатия (для поля origSize маркера)
+     * @return [SaveResult.Saved] с URI сохранённого файла или [SaveResult.Failed] с причиной
      */
     suspend fun saveCompressedImageFromStream(
         context: Context,
@@ -273,7 +295,7 @@ object MediaStoreUtil {
         exifDataMemory: Map<String, Any>? = null,
         mimeType: String = "image/jpeg",
         originalFileSize: Long? = null
-    ): Uri? = withContext(Dispatchers.IO) {
+    ): SaveResult = withContext(Dispatchers.IO) {
         // ЗАЩИТА ОТ КОНКУРЕНТНОЙ ЗАПИСИ: Mutex по целевому пути гарантирует,
         // что два потока не будут одновременно записывать в один и тот же файл.
         // Это defense-in-depth на случай, если разные исходные файлы 
@@ -304,7 +326,7 @@ object MediaStoreUtil {
         exifDataMemory: Map<String, Any>? = null,
         mimeType: String = "image/jpeg",
         originalFileSize: Long? = null
-    ): Uri? = withContext(Dispatchers.IO) {
+    ): SaveResult = withContext(Dispatchers.IO) {
         var streamCacheFile: File? = null
         try {
             // Не материализуем JPEG в ByteArray. Дисковый spool нужен только
@@ -321,7 +343,7 @@ object MediaStoreUtil {
 
             if (uri == null) {
                 LogUtil.error(originalUri, "Сохранение", "Не удалось создать запись в MediaStore")
-                return@withContext null
+                return@withContext SaveResult.Failed(SaveFailure.OTHER)
             }
 
             if (!isUpdateMode) {
@@ -333,7 +355,7 @@ object MediaStoreUtil {
             // сжатая версия устарела — не перезаписываем.
             if (!isFileUnchanged(context, uri, originalFileSize)) {
                 LogUtil.warning(uri, "Replace", "Оригинал изменён во время обработки — перезапись отменена")
-                return@withContext null
+                return@withContext SaveResult.Failed(SaveFailure.OTHER)
             }
 
             // КРИТИЧЕСКО: перед перезаписью создаём durable backup оригинала в noBackupFilesDir,
@@ -355,7 +377,7 @@ object MediaStoreUtil {
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
-            return@withContext null
+            return@withContext SaveResult.Failed(SaveFailure.OTHER)
         } finally {
             streamCacheFile?.delete()
         }
@@ -381,7 +403,7 @@ object MediaStoreUtil {
      * В режиме замены оригинал будет удалён вызывающей стороной, поэтому провал
      * записи EXIF здесь фатален: иначе GPS/даты оригинала были бы потеряны.
      */
-    private suspend fun saveToNewEntry(context: Context, uri: Uri, request: SaveRequest): Uri? {
+    private suspend fun saveToNewEntry(context: Context, uri: Uri, request: SaveRequest): SaveResult {
         val backupsBefore = BackupRegistry.getRegisteredPathsFor(context, uri)
         try {
             val written = writeDurably(context, uri, request.cacheFile, "w")
@@ -392,8 +414,7 @@ object MediaStoreUtil {
             // ВЕРИФИКАЦИЯ ЦЕЛОСТНОСТИ перед снятием IS_PENDING
             // Повреждённый файл НЕ ДОЛЖЕН стать видимым в галерее
             if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                NotificationUtil.showErrorNotification(context, "Ошибка сохранения", "Сжатый файл был повреждён и удалён")
-                throw IOException("Записанный файл повреждён")
+                throw CorruptedOutputException("Записанный файл повреждён")
             }
 
             // Файл верифицирован — снимаем IS_PENDING, делая его видимым
@@ -415,7 +436,7 @@ object MediaStoreUtil {
             FileIoUtil.syncUri(context, uri)
             UriUtil.invalidateUriExistsCache(uri)
             BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
-            return uri
+            return SaveResult.Saved(uri)
         } catch (e: Exception) {
             LogUtil.error(request.originalUri, "Сохранение", "Ошибка записи нового файла: ${e.message}", e)
             withContext(NonCancellable) {
@@ -429,7 +450,8 @@ object MediaStoreUtil {
                 }
             }
             if (e is kotlinx.coroutines.CancellationException) throw e
-            return null
+            val reason = if (e is CorruptedOutputException) SaveFailure.CORRUPTED_OUTPUT else SaveFailure.OTHER
+            return SaveResult.Failed(reason)
         }
     }
 
@@ -447,8 +469,9 @@ object MediaStoreUtil {
         uri: Uri,
         backupFile: File,
         request: SaveRequest
-    ): Uri? {
+    ): SaveResult {
         var success = false
+        var rollbackFailed = false
         // Снимок включает backupFile; всё, что появится позже, — вложенные backup'ы EXIF-фазы
         val backupsBefore = BackupRegistry.getRegisteredPathsFor(context, uri)
         try {
@@ -486,11 +509,9 @@ object MediaStoreUtil {
             FileIoUtil.syncUri(context, uri)
             UriUtil.invalidateUriExistsCache(uri)
             success = true
-            return uri
         } catch (e: Exception) {
             LogUtil.error(uri, "Replace", "Перезапись не удалась: ${e.message}", e)
             if (e is kotlinx.coroutines.CancellationException) throw e
-            return null
         } finally {
             withContext(NonCancellable) {
                 if (success) {
@@ -506,13 +527,14 @@ object MediaStoreUtil {
                     UriUtil.invalidateUriExistsCache(uri)
                 } else {
                     LogUtil.error(uri, "Replace", "Не удалось восстановить оригинал — backup сохранён для восстановления при следующем запуске")
-                    NotificationUtil.showErrorNotification(
-                        context = context,
-                        title = "Ошибка сохранения",
-                        message = "Не удалось восстановить оригинал. Копия сохранена и будет восстановлена при следующем запуске приложения."
-                    )
+                    rollbackFailed = true
                 }
             }
+        }
+        return when {
+            success -> SaveResult.Saved(uri)
+            rollbackFailed -> SaveResult.Failed(SaveFailure.ROLLBACK_FAILED)
+            else -> SaveResult.Failed(SaveFailure.OTHER)
         }
     }
 
