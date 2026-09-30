@@ -415,8 +415,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             return Result.failure()
         }
 
+        // Перезапись на месте определяется по ID MediaStore: savedUri строится как
+        // content://media/external/..., а imageUri может прийти через external_primary.
+        val overwrittenInPlace = savedUri == imageUri || MediaStoreUtil.isSameMediaItem(savedUri, imageUri)
+
         uriProcessingTracker.setIgnorePeriod(savedUri)
-        if (savedUri != imageUri) {
+        if (!overwrittenInPlace) {
             uriProcessingTracker.setIgnorePeriod(imageUri)
         }
 
@@ -426,8 +430,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         if (!isSavedFileValid) {
             LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён!")
             // ИНВАРИАНТ БЕЗОПАСНОСТИ: удалять можно только новый файл. Если оригинал
-            // перезаписан на месте (savedUri == imageUri), это файл пользователя.
-            if (savedUri != imageUri) {
+            // перезаписан на месте (overwrittenInPlace), это файл пользователя.
+            if (!overwrittenInPlace) {
                 try {
                     appContext.contentResolver.delete(savedUri, null, null)
                     LogUtil.error(imageUri, "Верификация", "Повреждённый файл удалён из MediaStore: $savedUri")
@@ -441,7 +445,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
         // Защита от потери правок: если оригинал изменился за время сжатия,
         // сжатая копия устарела — удаляем её, оригинал не трогаем.
-        if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri &&
+        if (FileOperationsUtil.isSaveModeReplace(appContext) && !overwrittenInPlace &&
             !MediaStoreUtil.isFileUnchanged(appContext, imageUri, sourceSize)
         ) {
             LogUtil.warning(imageUri, "Replace", "Оригинал изменён во время сжатия — сжатая копия удалена, оригинал сохранён")
@@ -461,10 +465,10 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
 
         // Если режим замены включен, удаляем оригинальный файл ПОСЛЕ успешного сохранения нового
-        // НО: если savedUri == imageUri, значит файл был перезаписан на месте и удалять не нужно
+        // НО: если файл перезаписан на месте (overwrittenInPlace), удалять не нужно
         var deleteFailed = false
         var deleteErrorMessage: String? = null
-        if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri) {
+        if (FileOperationsUtil.isSaveModeReplace(appContext) && !overwrittenInPlace) {
             try {
                 if (UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                     val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)

@@ -74,6 +74,23 @@ class BackupSafetyTest : BaseUnitTest() {
     }
 
     @Test
+    fun `releaseBackupsCreatedSince releases only nested backups of the operation`() {
+        val outer = BackupRegistry.createBackup(context, targetUri, "replace_backup_")!!
+        val before = BackupRegistry.getRegisteredPathsFor(context, targetUri)
+        val nested = BackupRegistry.createBackup(context, targetUri, "exif_backup_")!!
+        val otherFile = File(context.filesDir, "other.jpg").apply { writeBytes(originalBytes) }
+        val otherBackup = BackupRegistry.createBackup(context, Uri.fromFile(otherFile), "exif_backup_")!!
+
+        BackupRegistry.releaseBackupsCreatedSince(context, targetUri, before)
+
+        val registered = BackupRegistry.getRegisteredBackupPaths(context)
+        assertTrue("Внешний backup не трогаем", outer.absolutePath in registered)
+        assertFalse("Вложенный backup освобождён", nested.absolutePath in registered)
+        assertFalse(nested.exists())
+        assertTrue("Backup другого URI не трогаем", otherBackup.absolutePath in registered)
+    }
+
+    @Test
     fun `rollback restores truncated file and skips identical file`() {
         val backup = BackupRegistry.createBackup(context, targetUri, "replace_backup_")!!
 

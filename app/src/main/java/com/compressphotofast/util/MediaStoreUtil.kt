@@ -382,6 +382,7 @@ object MediaStoreUtil {
      * записи EXIF здесь фатален: иначе GPS/даты оригинала были бы потеряны.
      */
     private suspend fun saveToNewEntry(context: Context, uri: Uri, request: SaveRequest): Uri? {
+        val backupsBefore = BackupRegistry.getRegisteredPathsFor(context, uri)
         try {
             val written = writeDurably(context, uri, request.cacheFile, "w")
             if (written != request.cacheFile.length()) {
@@ -413,6 +414,7 @@ object MediaStoreUtil {
             // вызывающая сторона удалит оригинал
             FileIoUtil.syncUri(context, uri)
             UriUtil.invalidateUriExistsCache(uri)
+            BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
             return uri
         } catch (e: Exception) {
             LogUtil.error(request.originalUri, "Сохранение", "Ошибка записи нового файла: ${e.message}", e)
@@ -420,6 +422,8 @@ object MediaStoreUtil {
                 try {
                     context.contentResolver.delete(uri, null, null)
                     LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
+                    // Новый файл удалён — вложенные backup'ы породили бы лишние Recovered-копии
+                    BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
                 } catch (deleteEx: Exception) {
                     LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
                 }
@@ -445,6 +449,8 @@ object MediaStoreUtil {
         request: SaveRequest
     ): Uri? {
         var success = false
+        // Снимок включает backupFile; всё, что появится позже, — вложенные backup'ы EXIF-фазы
+        val backupsBefore = BackupRegistry.getRegisteredPathsFor(context, uri)
         try {
             // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
             clearIsPendingFlag(context, uri)
@@ -488,9 +494,13 @@ object MediaStoreUtil {
         } finally {
             withContext(NonCancellable) {
                 if (success) {
+                    BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
                     BackupRegistry.releaseBackup(context, backupFile)
                 } else if (BackupRegistry.rollback(context, uri, backupFile)) {
                     LogUtil.warning(uri, "Replace", "Оригинал восстановлен из backup")
+                    // Иначе recovery при следующем старте запишет промежуточную
+                    // сжатую копию поверх восстановленного оригинала
+                    BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
                     BackupRegistry.releaseBackup(context, backupFile)
                     refreshMediaStoreEntry(context, uri, request.mimeType)
                     UriUtil.invalidateUriExistsCache(uri)

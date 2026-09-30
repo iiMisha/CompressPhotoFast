@@ -150,6 +150,30 @@ object BackupRegistry {
     }
 
     /**
+     * Пути backup'ов, зарегистрированных для [uri]. Снимок до операции передаётся
+     * в [releaseBackupsCreatedSince], чтобы после неё освободить вложенные backup'ы.
+     */
+    fun getRegisteredPathsFor(context: Context, uri: Uri): Set<String> {
+        val uriString = uri.toString()
+        return getPendingBackups(context).filterValues { it == uriString }.keys
+    }
+
+    /**
+     * Освобождает backup'ы [uri], зарегистрированные после снимка [existingBefore]
+     * (вложенные backup'ы EXIF-фазы, чей собственный откат не удался).
+     *
+     * ИНВАРИАНТ БЕЗОПАСНОСТИ: вызывать только когда внешняя операция завершилась
+     * успехом или успешным откатом (или файл удалён) — иначе recovery при следующем
+     * старте безусловно запишет устаревшую промежуточную копию поверх файла.
+     */
+    fun releaseBackupsCreatedSince(context: Context, uri: Uri, existingBefore: Set<String>) {
+        (getRegisteredPathsFor(context, uri) - existingBefore).forEach { path ->
+            LogUtil.warning(uri, "Backup", "Освобождаем вложенный backup после завершения операции: $path")
+            releaseBackup(context, File(path))
+        }
+    }
+
+    /**
      * Регистрирует backup-файл для URI синхронно (commit).
      * @return true, если запись сохранена на диск
      */
