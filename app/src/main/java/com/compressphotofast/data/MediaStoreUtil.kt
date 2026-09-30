@@ -9,7 +9,6 @@ import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -18,7 +17,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.FileIoUtil
 import com.compressphotofast.util.LogUtil
 
 /**
@@ -281,8 +279,8 @@ object MediaStoreUtil {
      * @param fileName Имя файла для сохранения
      * @param directory Директория для сохранения
      * @param originalUri URI исходного файла
-     * @param quality Качество сжатия
-     * @param exifDataMemory EXIF данные для сохранения
+     * @param quality Качество сжатия (поле маркера)
+     * @param exifDataMemory EXIF исходника, пишется в artifact до публикации
      * @param mimeType MIME тип для сохранения (по умолчанию "image/jpeg")
      * @param originalFileSize Исходный размер файла до сжатия (для поля origSize маркера)
      * @return [SaveResult.Saved] с URI сохранённого файла или [SaveResult.Failed] с причиной
@@ -330,8 +328,16 @@ object MediaStoreUtil {
         originalFileSize: Long? = null
     ): SaveResult = withContext(Dispatchers.IO) {
         try {
+            // EXIF и маркер (с точным размером) пишутся в локальный artifact до публикации:
+            // в MediaStore файл попадает одной durable-записью, без saveAttributes() поверх
+            val exifOk = ExifUtil.writeExifToArtifact(compressedFile, exifDataMemory ?: emptyMap(), quality, originalFileSize)
+            if (!exifOk && FileOperationsUtil.isSaveModeReplace(context)) {
+                // Оригинал с метаданными будет заменён/удалён — без EXIF это потеря GPS/дат
+                LogUtil.error(originalUri, "Сохранение", "EXIF не записан в artifact — замена оригинала отменена")
+                return@withContext SaveResult.Failed(SaveFailure.OTHER)
+            }
             // Artifact на диске читается повторно, если replace-mode уходит в fallback-запись
-            val request = SaveRequest(compressedFile, originalUri, quality, exifDataMemory, mimeType, originalFileSize)
+            val request = SaveRequest(compressedFile, originalUri, mimeType)
 
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
@@ -382,22 +388,15 @@ object MediaStoreUtil {
     private class SaveRequest(
         val cacheFile: File,
         val originalUri: Uri,
-        val quality: Int,
-        val exifDataMemory: Map<String, Any>?,
-        val mimeType: String,
-        val originalFileSize: Long?
+        val mimeType: String
     )
 
     /**
-     * Записывает сжатые данные в новую pending-запись: запись с fsync и сверкой
-     * длины → верификация → снятие IS_PENDING → EXIF → финальная верификация.
+     * Записывает готовый artifact (EXIF и маркер уже внутри) в новую pending-запись:
+     * запись с fsync и сверкой длины → верификация → снятие IS_PENDING.
      * При любой ошибке запись удаляется (это новый файл, не файл пользователя).
-     *
-     * В режиме замены оригинал будет удалён вызывающей стороной, поэтому провал
-     * записи EXIF здесь фатален: иначе GPS/даты оригинала были бы потеряны.
      */
     private suspend fun saveToNewEntry(context: Context, uri: Uri, request: SaveRequest): SaveResult {
-        val backupsBefore = BackupRegistry.getRegisteredPathsFor(context, uri)
         try {
             val written = writeDurably(context, uri, request.cacheFile, "w")
             if (written != request.cacheFile.length()) {
@@ -412,23 +411,7 @@ object MediaStoreUtil {
 
             // Файл верифицирован — снимаем IS_PENDING, делая его видимым
             clearIsPendingFlag(context, uri)
-            awaitAvailability(context, uri)
-
-            val exifOk = ExifUtil.handleExifForSavedImage(
-                context, request.originalUri, uri, request.quality, request.exifDataMemory, request.originalFileSize
-            )
-            if (!exifOk && FileOperationsUtil.isSaveModeReplace(context)) {
-                throw IOException("EXIF не записан — оригинал с метаданными не будет заменён")
-            }
-            if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                throw IOException("Файл повреждён после записи EXIF")
-            }
-
-            // EXIF-запись идёт без fsync: сбрасываем файл до того, как
-            // вызывающая сторона удалит оригинал
-            FileIoUtil.syncUri(context, uri)
             UriUtil.invalidateUriExistsCache(uri)
-            BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
             return SaveResult.Saved(uri)
         } catch (e: Exception) {
             LogUtil.error(request.originalUri, "Сохранение", "Ошибка записи нового файла: ${e.message}", e)
@@ -436,8 +419,6 @@ object MediaStoreUtil {
                 try {
                     context.contentResolver.delete(uri, null, null)
                     LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
-                    // Новый файл удалён — вложенные backup'ы породили бы лишние Recovered-копии
-                    BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
                 } catch (deleteEx: Exception) {
                     LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
                 }
@@ -451,8 +432,8 @@ object MediaStoreUtil {
     /**
      * Перезаписывает оригинал на месте под защитой [backupFile].
      *
-     * Backup освобождается только после полного успеха (запись, верификация,
-     * EXIF, повторная верификация). При любой ошибке файл откатывается к backup;
+     * Artifact уже содержит EXIF и маркер, поэтому перезапись — одна durable-запись.
+     * Backup освобождается только после полного успеха (запись, верификация). При любой ошибке файл откатывается к backup;
      * если откат не удался, backup остаётся в реестре и будет применён
      * [BackupRecoveryHelper] при следующем старте — файл пользователя
      * никогда не удаляется.
@@ -465,8 +446,6 @@ object MediaStoreUtil {
     ): SaveResult {
         var success = false
         var rollbackFailed = false
-        // Снимок включает backupFile; всё, что появится позже, — вложенные backup'ы EXIF-фазы
-        val backupsBefore = BackupRegistry.getRegisteredPathsFor(context, uri)
         try {
             // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
             clearIsPendingFlag(context, uri)
@@ -486,20 +465,6 @@ object MediaStoreUtil {
             // Принудительно синхронизируем запись MediaStore (размер, DATE_MODIFIED),
             // чтобы галереи инвалидировали кэш миниатюр.
             refreshMediaStoreEntry(context, uri, request.mimeType)
-            awaitAvailability(context, uri)
-
-            val exifOk = ExifUtil.handleExifForSavedImage(
-                context, request.originalUri, uri, request.quality, request.exifDataMemory, request.originalFileSize
-            )
-            if (!exifOk) {
-                throw IOException("EXIF не записан — откат, чтобы не потерять метаданные оригинала")
-            }
-            if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                throw IOException("Файл повреждён после записи EXIF")
-            }
-
-            // EXIF-запись идёт без fsync: сбрасываем файл до освобождения backup
-            FileIoUtil.syncUri(context, uri)
             UriUtil.invalidateUriExistsCache(uri)
             success = true
         } catch (e: Exception) {
@@ -508,13 +473,9 @@ object MediaStoreUtil {
         } finally {
             withContext(NonCancellable) {
                 if (success) {
-                    BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
                     BackupRegistry.releaseBackup(context, backupFile)
                 } else if (BackupRegistry.rollback(context, uri, backupFile)) {
                     LogUtil.warning(uri, "Replace", "Оригинал восстановлен из backup")
-                    // Иначе recovery при следующем старте запишет промежуточную
-                    // сжатую копию поверх восстановленного оригинала
-                    BackupRegistry.releaseBackupsCreatedSince(context, uri, backupsBefore)
                     BackupRegistry.releaseBackup(context, backupFile)
                     refreshMediaStoreEntry(context, uri, request.mimeType)
                     UriUtil.invalidateUriExistsCache(uri)
@@ -559,46 +520,6 @@ object MediaStoreUtil {
                 count
             }
         }
-    }
-
-    /**
-     * Ждёт доступности файла после снятия IS_PENDING/перезаписи.
-     */
-    private suspend fun awaitAvailability(context: Context, uri: Uri) {
-        waitForUriAvailability(context, uri, 2000L)
-        // Специальная обработка для Android 11
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-            delay(Constants.MEDIASTORE_ANDROID11_DELAY_MS)
-        }
-    }
-
-    /**
-     * Проверяет доступность URI для операций с файлом, ожидая в течение указанного времени
-     */
-    suspend fun waitForUriAvailability(
-        context: Context,
-        uri: Uri,
-        maxWaitTimeMs: Long = 1000
-    ): Boolean = withContext(Dispatchers.IO) {
-        val startTime = System.currentTimeMillis()
-        var isAvailable = false
-
-        while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    if (inputStream.read() != -1) {
-                        isAvailable = true
-                    }
-                }
-                if (isAvailable) break
-            } catch (e: Exception) {
-                LogUtil.warning(uri, "MediaStore", "Ошибка при проверке доступности URI: ${e.message}")
-            }
-
-            delay(100)
-        }
-
-        return@withContext isAvailable
     }
 
     /**

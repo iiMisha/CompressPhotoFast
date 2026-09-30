@@ -87,7 +87,6 @@ object Constants {
     
     // Задержки для EXIF и MediaStore операций (мс)
     const val EXIF_COPY_DELAY_MS = 300L
-    const val MEDIASTORE_ANDROID11_DELAY_MS = 300L
 
     // Пресеты максимального разрешения (по большей стороне). 0 — сохранить исходное разрешение
     const val RESOLUTION_ORIGINAL = 0

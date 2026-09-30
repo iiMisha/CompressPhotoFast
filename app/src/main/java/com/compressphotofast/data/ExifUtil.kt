@@ -27,6 +27,10 @@ import com.compressphotofast.util.FileIoUtil
  */
 object ExifUtil {
 
+    // Фаза 2 маркера на локальном artifact: запись фиксированной ширины обычно
+    // стабилизирует длину с первой попытки
+    private const val MAX_ARTIFACT_MARKER_WRITES = 3
+
     // GPS-теги для копирования/проверки/применения
     private val GPS_TAGS = arrayOf(
         ExifInterface.TAG_GPS_LATITUDE,
@@ -724,90 +728,8 @@ object ExifUtil {
             context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 val exif = ExifInterface(pfd.fileDescriptor)
                 
-                // Применяем все текстовые теги
-                var appliedTags = 0
-                for ((tag, value) in exifData) {
-                    if (value is String) {
-                        exif.setAttribute(tag, value)
-                        appliedTags++
-                    }
-                }
-                
-                // После трансформации пикселей в compressImageToStream устанавливаем orientation = NORMAL.
-                // ИНВАРИАНТ: для нетронутого оригинала (маркер пропуска/неудалённый оригинал)
-                // ориентацию менять нельзя — иначе фото будет отображаться повёрнутым.
-                if (pixelsTransformed) {
-                    exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
-                    LogUtil.debug("EXIF", "Ориентация установлена в NORMAL (изображение трансформировано)")
-                }
-                
-                // Применяем GPS-данные, если они есть
-                var gpsTagsApplied = 0
-                // LogUtil.processInfo("Начинаем применение GPS данных из памяти")
-                
-                if (exifData.containsKey("HAS_GPS") && exifData.containsKey("GPS_LAT") && exifData.containsKey("GPS_LONG")) {
-                    // Метод 1: Используем setLatLong API (если latLong работал при чтении)
-                    val lat = exifData["GPS_LAT"] as Double
-                    val lng = exifData["GPS_LONG"] as Double
-                    exif.setLatLong(lat, lng)
-                    
-                    if (exifData.containsKey("GPS_ALT")) {
-                        val alt = exifData["GPS_ALT"] as Double
-                        exif.setAltitude(alt)
-                    }
-                    
-                    // УЛУЧШЕНИЕ: применяем также reference теги, если они были получены через metadata-extractor
-                    if (exifData.containsKey("GPS_LAT_REF")) {
-                        val latRef = exifData["GPS_LAT_REF"] as String
-                        exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, latRef)
-                        LogUtil.processInfo("Применен GPS latitude reference: $latRef")
-                    }
-                    if (exifData.containsKey("GPS_LONG_REF")) {
-                        val lngRef = exifData["GPS_LONG_REF"] as String
-                        exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, lngRef)
-                        LogUtil.processInfo("Применен GPS longitude reference: $lngRef")
-                    }
-                    if (exifData.containsKey("GPS_ALT_REF")) {
-                        val altRef = exifData["GPS_ALT_REF"] as String
-                        exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE_REF, altRef)
-                        LogUtil.processInfo("Применен GPS altitude reference: $altRef")
-                    }
-                    if (exifData.containsKey("GPS_TIMESTAMP")) {
-                        val timestamp = exifData["GPS_TIMESTAMP"] as String
-                        exif.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, timestamp)
-                        LogUtil.processInfo("Применен GPS timestamp: $timestamp")
-                    }
-                    if (exifData.containsKey("GPS_DATESTAMP")) {
-                        val datestamp = exifData["GPS_DATESTAMP"] as String
-                        exif.setAttribute(ExifInterface.TAG_GPS_DATESTAMP, datestamp)
-                        LogUtil.processInfo("Применен GPS datestamp: $datestamp")
-                    }
-                    if (exifData.containsKey("GPS_PROCESSING_METHOD")) {
-                        val processingMethod = exifData["GPS_PROCESSING_METHOD"] as String
-                        exif.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, processingMethod)
-                        LogUtil.processInfo("Применен GPS processing method: $processingMethod")
-                    }
-                    
-                    LogUtil.processInfo("Применены GPS-данные через setLatLong API + reference теги: lat=$lat, lng=$lng")
-                    gpsTagsApplied++
-                } else {
-                    // Метод 2: Применяем отдельные GPS теги
-                    for (tag in GPS_TAGS) {
-                        if (exifData.containsKey(tag)) {
-                            val value = exifData[tag] as String
-                            exif.setAttribute(tag, value)
-                            gpsTagsApplied++
-                            LogUtil.processInfo("GPS тег применен: $tag = $value")
-                        }
-                    }
-                    
-                    if (gpsTagsApplied > 0) {
-                        LogUtil.processInfo("Применено $gpsTagsApplied GPS-тегов через setAttribute")
-                    } else {
-                        // LogUtil.processInfo("GPS данные отсутствуют в памяти")
-                    }
-                }
-                
+                val appliedTags = applyTags(exif, exifData, pixelsTransformed)
+
                 // Добавляем маркер сжатия, если нужно.
                 // Фаза 1: маркер с нулевой заглушкой размера фиксированной ширины;
                 // фактический размер дописывается второй фазой после saveAttributes().
@@ -890,6 +812,158 @@ object ExifUtil {
             }
 
             return@withContext false
+        }
+    }
+
+    /**
+     * Переносит теги из [exifData] (результат [readExifDataToMemory]) в [exif]:
+     * строковые теги, GPS и, при [pixelsTransformed], Orientation=NORMAL.
+     * @return число применённых строковых тегов
+     */
+    private fun applyTags(exif: ExifInterface, exifData: Map<String, Any>, pixelsTransformed: Boolean): Int {
+        // Применяем все текстовые теги
+        var appliedTags = 0
+        for ((tag, value) in exifData) {
+            if (value is String) {
+                exif.setAttribute(tag, value)
+                appliedTags++
+            }
+        }
+        
+        // После трансформации пикселей в compressImageToStream устанавливаем orientation = NORMAL.
+        // ИНВАРИАНТ: для нетронутого оригинала (маркер пропуска/неудалённый оригинал)
+        // ориентацию менять нельзя — иначе фото будет отображаться повёрнутым.
+        if (pixelsTransformed) {
+            exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
+            LogUtil.debug("EXIF", "Ориентация установлена в NORMAL (изображение трансформировано)")
+        }
+        
+        // Применяем GPS-данные, если они есть
+        var gpsTagsApplied = 0
+        // LogUtil.processInfo("Начинаем применение GPS данных из памяти")
+        
+        if (exifData.containsKey("HAS_GPS") && exifData.containsKey("GPS_LAT") && exifData.containsKey("GPS_LONG")) {
+            // Метод 1: Используем setLatLong API (если latLong работал при чтении)
+            val lat = exifData["GPS_LAT"] as Double
+            val lng = exifData["GPS_LONG"] as Double
+            exif.setLatLong(lat, lng)
+            
+            if (exifData.containsKey("GPS_ALT")) {
+                val alt = exifData["GPS_ALT"] as Double
+                exif.setAltitude(alt)
+            }
+            
+            // УЛУЧШЕНИЕ: применяем также reference теги, если они были получены через metadata-extractor
+            if (exifData.containsKey("GPS_LAT_REF")) {
+                val latRef = exifData["GPS_LAT_REF"] as String
+                exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, latRef)
+                LogUtil.processInfo("Применен GPS latitude reference: $latRef")
+            }
+            if (exifData.containsKey("GPS_LONG_REF")) {
+                val lngRef = exifData["GPS_LONG_REF"] as String
+                exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, lngRef)
+                LogUtil.processInfo("Применен GPS longitude reference: $lngRef")
+            }
+            if (exifData.containsKey("GPS_ALT_REF")) {
+                val altRef = exifData["GPS_ALT_REF"] as String
+                exif.setAttribute(ExifInterface.TAG_GPS_ALTITUDE_REF, altRef)
+                LogUtil.processInfo("Применен GPS altitude reference: $altRef")
+            }
+            if (exifData.containsKey("GPS_TIMESTAMP")) {
+                val timestamp = exifData["GPS_TIMESTAMP"] as String
+                exif.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, timestamp)
+                LogUtil.processInfo("Применен GPS timestamp: $timestamp")
+            }
+            if (exifData.containsKey("GPS_DATESTAMP")) {
+                val datestamp = exifData["GPS_DATESTAMP"] as String
+                exif.setAttribute(ExifInterface.TAG_GPS_DATESTAMP, datestamp)
+                LogUtil.processInfo("Применен GPS datestamp: $datestamp")
+            }
+            if (exifData.containsKey("GPS_PROCESSING_METHOD")) {
+                val processingMethod = exifData["GPS_PROCESSING_METHOD"] as String
+                exif.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, processingMethod)
+                LogUtil.processInfo("Применен GPS processing method: $processingMethod")
+            }
+            
+            LogUtil.processInfo("Применены GPS-данные через setLatLong API + reference теги: lat=$lat, lng=$lng")
+            gpsTagsApplied++
+        } else {
+            // Метод 2: Применяем отдельные GPS теги
+            for (tag in GPS_TAGS) {
+                if (exifData.containsKey(tag)) {
+                    val value = exifData[tag] as String
+                    exif.setAttribute(tag, value)
+                    gpsTagsApplied++
+                    LogUtil.processInfo("GPS тег применен: $tag = $value")
+                }
+            }
+            
+            if (gpsTagsApplied > 0) {
+                LogUtil.processInfo("Применено $gpsTagsApplied GPS-тегов через setAttribute")
+            } else {
+                // LogUtil.processInfo("GPS данные отсутствуют в памяти")
+            }
+        }
+        return appliedTags
+    }
+
+    /**
+     * Записывает EXIF и маркер сжатия в локальный JPEG-artifact до его публикации
+     * в MediaStore. Двухфазная запись маркера выполняется на локальном файле:
+     * фаза 1 — теги и заглушка размера, фаза 2 — фактический [File.length], пока
+     * длина не стабилизируется (строка маркера фиксированной ширины, обычно одна
+     * запись). Artifact затем копируется в MediaStore байт-в-байт, поэтому size в
+     * маркере совпадает с размером опубликованного файла без backup и fsync на
+     * каждую запись EXIF.
+     *
+     * При сбое ExifInterface восстанавливает исходный файл, artifact остаётся
+     * валидным JPEG без EXIF.
+     *
+     * @return true, если маркер записан и его size в пределах допуска от длины файла
+     */
+    suspend fun writeExifToArtifact(
+        file: File,
+        exifData: Map<String, Any>,
+        quality: Int,
+        originalFileSize: Long?
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val markerTimestamp = System.currentTimeMillis()
+            val exif = ExifInterface(file)
+            val appliedTags = applyTags(exif, exifData, pixelsTransformed = true)
+            exif.setAttribute(
+                ExifInterface.TAG_USER_COMMENT,
+                CompressionMarker.build(quality, markerTimestamp, null, originalFileSize)
+            )
+            exif.saveAttributes()
+
+            var size = file.length()
+            repeat(MAX_ARTIFACT_MARKER_WRITES) {
+                val sized = ExifInterface(file)
+                sized.setAttribute(
+                    ExifInterface.TAG_USER_COMMENT,
+                    CompressionMarker.build(quality, markerTimestamp, size, originalFileSize)
+                )
+                sized.saveAttributes()
+                val actual = file.length()
+                if (actual == size) {
+                    LogUtil.processInfo("EXIF artifact: $appliedTags тегов, маркер с размером $size")
+                    return@withContext true
+                }
+                size = actual
+            }
+            val marker = CompressionMarker.parse(ExifInterface(file).getAttribute(ExifInterface.TAG_USER_COMMENT))
+            val markerSize = marker?.fileSize
+            val ok = markerSize != null &&
+                kotlin.math.abs(file.length() - markerSize) <= Constants.MARKER_SIZE_TOLERANCE_BYTES
+            if (!ok) {
+                LogUtil.processWarning("EXIF artifact: размер в маркере ($markerSize) не сошёлся с ${file.length()}")
+            }
+            ok
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            LogUtil.errorWithException("EXIF artifact", e)
+            false
         }
     }
 
