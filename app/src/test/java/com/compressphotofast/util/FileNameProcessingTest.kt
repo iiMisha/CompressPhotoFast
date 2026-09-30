@@ -2,7 +2,6 @@ package com.compressphotofast.util
 
 import org.junit.Test
 import org.junit.Assert.*
-import org.junit.Before
 
 /**
  * Unit тесты для проверки логики обработки имен файлов и MIME типов

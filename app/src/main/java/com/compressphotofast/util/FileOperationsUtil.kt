@@ -9,7 +9,6 @@ import android.os.Build
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.text.DecimalFormat
 
 /**
@@ -136,59 +135,37 @@ object FileOperationsUtil {
                 uri
             }
 
-            // Проверка разрешений и выбор способа удаления в зависимости от версии Android
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                try {
-                    LogUtil.processInfo("Удаляем файл через MediaStore (Android 10+)")
-                    val result = context.contentResolver.delete(cleanUri, null, null) > 0
-                    LogUtil.processInfo("Результат удаления через MediaStore: $result")
-                    if (!result) {
-                        LogUtil.processWarning("Удаление через MediaStore не удалось для URI: $cleanUri")
-                    } else {
-                        // Инвалидируем кэш URI после успешного удаления
-                        UriUtil.invalidateUriExistsCache(cleanUri)
-                    }
-                    return result
-                } catch (e: SecurityException) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        LogUtil.processInfo("Android 11+: Запрашиваем разрешение на удаление через createDeleteRequest: $cleanUri")
-                        try {
-                            val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(cleanUri))
-                            return pendingIntent.intentSender
-                        } catch (ex: Exception) {
-                            LogUtil.error(cleanUri, "Удаление", "Ошибка при создании createDeleteRequest", ex)
-                            throw e
-                        }
-                    } else if (e is android.app.RecoverableSecurityException) {
-                        LogUtil.processInfo("Требуется разрешение пользователя для удаления файла: $cleanUri")
-                        return e.userAction.actionIntent.intentSender
-                    } else {
-                        LogUtil.error(cleanUri, "Удаление", "SecurityException при удалении файла", e)
+            try {
+                LogUtil.processInfo("Удаляем файл через MediaStore (Android 10+)")
+                val result = context.contentResolver.delete(cleanUri, null, null) > 0
+                LogUtil.processInfo("Результат удаления через MediaStore: $result")
+                if (!result) {
+                    LogUtil.processWarning("Удаление через MediaStore не удалось для URI: $cleanUri")
+                } else {
+                    // Инвалидируем кэш URI после успешного удаления
+                    UriUtil.invalidateUriExistsCache(cleanUri)
+                }
+                return result
+            } catch (e: SecurityException) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    LogUtil.processInfo("Android 11+: Запрашиваем разрешение на удаление через createDeleteRequest: $cleanUri")
+                    try {
+                        val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(cleanUri))
+                        return pendingIntent.intentSender
+                    } catch (ex: Exception) {
+                        LogUtil.error(cleanUri, "Удаление", "Ошибка при создании createDeleteRequest", ex)
                         throw e
                     }
-                } catch (e: Exception) {
-                    LogUtil.error(cleanUri, "Удаление", "Ошибка при удалении файла через MediaStore", e)
-                    return false
-                }
-            } else {
-                // Для более старых версий получаем путь к файлу и удаляем его напрямую
-                val path = UriUtil.getFilePathFromUri(context, cleanUri)
-                if (path != null) {
-                    LogUtil.processInfo("Удаляем файл по пути (старый API): $path")
-                    val file = File(path)
-                    val result = file.delete()
-                    LogUtil.processInfo("Результат удаления файла: $result")
-                    if (!result) {
-                        LogUtil.processWarning("Удаление файла по пути не удалось: $path")
-                    } else {
-                        // Инвалидируем кэш URI после успешного удаления
-                        UriUtil.invalidateUriExistsCache(cleanUri)
-                    }
-                    return result
+                } else if (e is android.app.RecoverableSecurityException) {
+                    LogUtil.processInfo("Требуется разрешение пользователя для удаления файла: $cleanUri")
+                    return e.userAction.actionIntent.intentSender
                 } else {
-                    LogUtil.processWarning("Не удалось получить путь к файлу для URI: $cleanUri")
-                    return false
+                    LogUtil.error(cleanUri, "Удаление", "SecurityException при удалении файла", e)
+                    throw e
                 }
+            } catch (e: Exception) {
+                LogUtil.error(cleanUri, "Удаление", "Ошибка при удалении файла через MediaStore", e)
+                return false
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e

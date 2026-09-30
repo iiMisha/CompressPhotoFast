@@ -27,7 +27,6 @@ data class DailyCompressionStats(
 object StatsTracker {
     private val dailyStatsLock = Any()
     // Константы статусов сжатия
-    const val COMPRESSION_STATUS_NONE = 0
     const val COMPRESSION_STATUS_PROCESSING = 1
     const val COMPRESSION_STATUS_COMPLETED = 2
     const val COMPRESSION_STATUS_FAILED = 3

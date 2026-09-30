@@ -70,7 +70,7 @@ object MediaStoreUtil {
      * @param isReplaceMode Режим замены оригинала
      * @param originalUri URI оригинального файла (для режима замены)
      * @param directory Базовая директория для сохранения
-     * @return Относительный путь для Android 10+, пустая строка для Android < 10
+     * @return Относительный путь (RELATIVE_PATH) с завершающим слешем
      */
     private fun buildTargetRelativePath(
         context: Context,
@@ -78,10 +78,6 @@ object MediaStoreUtil {
         originalUri: Uri?,
         directory: String
     ): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            return ""
-        }
-
         var path = if (isReplaceMode && originalUri != null) {
             // В режиме замены используем оригинальную директорию файла
             UriUtil.getDirectoryFromUri(context, originalUri)
@@ -108,16 +104,15 @@ object MediaStoreUtil {
     }
 
     /**
-     * Обрабатывает конфликты имен файлов, генерируя уникальное имя
+     * Подбирает свободное имя файла в целевой директории и записывает его в DISPLAY_NAME.
      *
-     * Использует пакетную проверку с IN clause для оптимизации запросов к MediaStore.
-     * Генерирует имена вида "имя_1.ext", "имя_2.ext" до "имя_99.ext".
-     * Если все индексы заняты, использует временную метку.
+     * Одним запросом с IN clause проверяет исходное имя и варианты "имя_1.ext" … "имя_99.ext";
+     * выбирается первое свободное. Если все заняты, используется временная метка.
      *
      * @param context Контекст приложения
-     * @param fileName Имя файла для проверки
+     * @param fileName Желаемое имя файла
      * @param contentValues ContentValues для обновления DISPLAY_NAME
-     * @param targetRelativePath Целевой относительный путь (для Android 10+)
+     * @param targetRelativePath Целевой относительный путь
      */
     private suspend fun handleFileNameConflict(
         context: Context,
@@ -126,101 +121,65 @@ object MediaStoreUtil {
         targetRelativePath: String
     ) = withContext(Dispatchers.IO) {
         try {
-            var existingUri: Uri? = null
-
-            // Проверяем наличие файла с таким же именем
             val (pathWithSlash, pathWithoutSlash) = buildPathVariants(targetRelativePath)
-            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // ИСПРАВЛЕНИЕ: Используем OR условие для проверки обоих вариантов пути
-                "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-            } else {
-                "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
+            val (fileNameWithoutExt, extension) = FileOperationsUtil.splitNameAndExtension(fileName)
+
+            val fileNamesToCheck = mutableListOf(fileName)
+            for (i in 1 until 100) {
+                fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
             }
 
-            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                arrayOf(fileName, pathWithSlash, pathWithoutSlash)
-            } else {
-                arrayOf(fileName)
-            }
-
+            val placeholders = fileNamesToCheck.joinToString(",") { "?" }
+            val existingNames = mutableSetOf<String>()
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                arrayOf(MediaStore.Images.Media._ID),
-                selection,
-                selectionArgs,
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)",
+                fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash),
                 null
             )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idColumn = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                    if (idColumn != -1 && !cursor.isNull(idColumn)) {
-                        val id = cursor.getLong(idColumn)
-                        existingUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    }
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                while (cursor.moveToNext()) {
+                    existingNames.add(cursor.getString(nameColumn))
                 }
             }
 
-            if (existingUri != null) {
-                val fileNameWithoutExt = fileName.substringBeforeLast(".")
-                val extension = if (fileName.contains(".")) ".${fileName.substringAfterLast(".")}" else ""
-
-                // OPTIMIZED: Генерируем ВСЕ возможные имена для проверки (до 100)
-                val fileNamesToCheck = mutableListOf(fileName)
-                for (i in 1 until 100) {
-                    fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
-                }
-
-                // OPTIMIZED: ОДИН запрос с IN clause для проверки всех имён сразу
-                val placeholders = fileNamesToCheck.map { "?" }.joinToString(",")
-                val batchSelection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
-                } else {
-                    "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
-                }
-
-                val batchArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash)
-                } else {
-                    fileNamesToCheck.toTypedArray()
-                }
-
-                val existingNames = mutableSetOf<String>()
-                context.contentResolver.query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                    batchSelection,
-                    batchArgs,
-                    null
-                )?.use { cursor ->
-                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                    while (cursor.moveToNext()) {
-                        existingNames.add(cursor.getString(nameColumn))
-                    }
-                }
-
-                // Находим первый свободный индекс
-                var foundFreeName = false
-                for (name in fileNamesToCheck) {
-                    if (!existingNames.contains(name)) {
-                        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                        foundFreeName = true
-                        break
-                    }
-                }
-
-                // Если все 100 индексов заняты, используем временную метку
-                if (!foundFreeName) {
-                    val timestamp = System.currentTimeMillis()
-                    val timeBasedName = "${fileNameWithoutExt}_${timestamp}${extension}"
-                    contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, timeBasedName)
-                }
-            }
+            val freeName = fileNamesToCheck.firstOrNull { it !in existingNames }
+                ?: "${fileNameWithoutExt}_${System.currentTimeMillis()}${extension}"
+            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, freeName)
         } catch (e: Exception) {
             LogUtil.errorWithException("Обработка конфликта имен", e)
         }
     }
 
     /**
-     * Вставляет запись в MediaStore для изображения с проверкой существующих файлов
+     * Вставляет новую pending-запись в MediaStore.
+     * ИНВАРИАНТ БЕЗОПАСНОСТИ: существующий файл никогда не удаляется до записи новых
+     * данных — при конфликте имён генерируется уникальное имя.
+     */
+    private suspend fun insertPendingEntry(
+        context: Context,
+        fileName: String,
+        mimeType: String,
+        targetRelativePath: String
+    ): Uri {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+            put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+            // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
+            MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
+        }
+
+        handleFileNameConflict(context, fileName, contentValues, targetRelativePath)
+
+        return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw IOException("Не удалось создать запись MediaStore")
+    }
+
+    /**
+     * Вставляет новую запись в MediaStore для изображения (всегда создаёт новый файл)
      */
     suspend fun createMediaStoreEntry(
         context: Context,
@@ -232,66 +191,10 @@ object MediaStoreUtil {
         try {
             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
             val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
-
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                } else {
-                    // Для API < 29 нужно указать полный путь к файлу
-                    val targetDir = if (isReplaceMode && originalUri != null) {
-                        // В режиме замены используем оригинальную директорию
-                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                        File(Environment.getExternalStorageDirectory(), originalDirectory)
-                    } else {
-                        File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                            directory
-                        )
-                    }
-
-                    if (!targetDir.exists()) {
-                        targetDir.mkdirs()
-                    }
-                    val filePath = File(targetDir, fileName).absolutePath
-                    LogUtil.processInfo("Использую полный путь для сохранения (API < 29): $filePath")
-                    put(MediaStore.Images.Media.DATA, filePath)
-                }
-
-                // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
-                MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
-            }
-
-            // Проверяем нужно ли обрабатывать конфликты имен файлов
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                try {
-                    // ИНВАРИАНТ БЕЗОПАСНОСТИ: не удаляем существующий файл до того,
-                    // как новые данные успешно записаны. Delete-then-insert оставлял
-                    // окно потери данных при неудачном insert. Вместо удаления
-                    // генерируем уникальное имя — существующий файл остаётся нетронутым.
-                    val existingFiles = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)
-                    if (existingFiles[fileName] != null) {
-                        handleFileNameConflict(context, fileName, contentValues, targetRelativePath)
-                    }
-                } catch (e: Exception) {
-                    LogUtil.errorWithException("Проверка существующего файла", e)
-                }
-            }
-
-            // Создаем новую запись
-            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-            if (uri == null) {
-                throw IOException("Не удалось создать запись MediaStore")
-            }
-
-            return@withContext uri
+            insertPendingEntry(context, fileName, mimeType, targetRelativePath)
         } catch (e: Exception) {
             LogUtil.errorWithException("Создание записи в MediaStore", e)
-            return@withContext null
+            null
         }
     }
 
@@ -315,80 +218,21 @@ object MediaStoreUtil {
             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
             val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
 
-            // Проверяем наличие файла с таким же именем (только для Android 10+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                try {
-                    // Пакетная проверка (группируем с другими файлами из той же директории)
-                    val existingFiles = batchCheckFilesExist(
-                        context,
-                        listOf(fileName),
-                        targetRelativePath
-                    )
-                    val existingUri = existingFiles[fileName]
-
-                    // Если файл существует И режим замены: возвращаем existingUri с флагом true
-                    // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
-                    if (shouldUseUpdatePath(existingUri, isReplaceMode)) {
-                        return@withContext Pair(existingUri, true) // true = режим обновления
-                    }
-
-                    // Если файл существует, но режим НЕ замены: добавляем числовой индекс
-                    // (будет обработано ниже при создании contentValues)
-
-                } catch (e: Exception) {
-                    LogUtil.errorWithException("Проверка существующего файла", e)
+            try {
+                val existingUri = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)[fileName]
+                // Файл существует И режим замены: возвращаем existingUri с флагом true.
+                // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
+                if (shouldUseUpdatePath(existingUri, isReplaceMode)) {
+                    return@withContext Pair(existingUri, true) // true = режим обновления
                 }
+            } catch (e: Exception) {
+                LogUtil.errorWithException("Проверка существующего файла", e)
             }
 
-            // Создаем contentValues для нового файла
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, targetRelativePath)
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                } else {
-                    // Для API < 29
-                    val targetDir = if (isReplaceMode && originalUri != null) {
-                        val originalDirectory = UriUtil.getDirectoryFromUri(context, originalUri)
-                        File(Environment.getExternalStorageDirectory(), originalDirectory)
-                    } else {
-                        File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                            directory
-                        )
-                    }
-
-                    if (!targetDir.exists()) {
-                        targetDir.mkdirs()
-                    }
-                    val filePath = File(targetDir, fileName).absolutePath
-                    LogUtil.processInfo("Использую полный путь для сохранения (API < 29): $filePath")
-                    put(MediaStore.Images.Media.DATA, filePath)
-                }
-
-                // Устанавливаем DATE_ADDED и DATE_MODIFIED для корректной работы на всех устройствах
-                MediaStoreDateUtil.setCreationTimestamp(this, System.currentTimeMillis())
-            }
-
-            // Обработка конфликта имен для режима отдельной папки (Android 10+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isReplaceMode) {
-                handleFileNameConflict(context, fileName, contentValues, targetRelativePath)
-            }
-
-            // Создаем новую запись
-            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-            if (uri == null) {
-                throw IOException("Не удалось создать запись MediaStore")
-            }
-
-            return@withContext Pair(uri, false) // false = режим создания
-
+            Pair(insertPendingEntry(context, fileName, mimeType, targetRelativePath), false) // false = режим создания
         } catch (e: Exception) {
             LogUtil.errorWithException("Создание записи в MediaStore V2", e)
-            return@withContext Pair(null, false)
+            Pair(null, false)
         }
     }
 
@@ -396,11 +240,9 @@ object MediaStoreUtil {
      * Сбрасывает флаг IS_PENDING
      */
     suspend fun clearIsPendingFlag(context: Context, uri: Uri) = withContext(Dispatchers.IO) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val contentValues = ContentValues()
-            contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-            context.contentResolver.update(uri, contentValues, null, null)
-        }
+        val contentValues = ContentValues()
+        contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+        context.contentResolver.update(uri, contentValues, null, null)
     }
 
     /**
@@ -598,7 +440,7 @@ object MediaStoreUtil {
 
                 // ВЕРИФИКАЦИЯ ЦЕЛОСТНОСТИ перед снятием IS_PENDING
                 // Повреждённый файл НЕ ДОЛЖЕН стать видимым в галерее
-                val isValid = verifyImageIntegrity(context, uri)
+                val isValid = ImageIntegrityUtil.verifyImageIntegrity(context, uri)
                 if (!isValid) {
                     LogUtil.error(originalUri, "Сохранение", "КРИТИЧЕСКАЯ ОШИБКА: Записанный файл повреждён, удаляем из MediaStore: $uri")
                     try {
@@ -671,18 +513,6 @@ object MediaStoreUtil {
             streamCacheFile?.delete()
         }
     }
-
-    /**
-     * Верифицирует целостность сохранённого изображения
-     * Использует BitmapFactory.decodeStream с inJustDecodeBounds=true для проверки
-     * что файл содержит валидное изображение (корректные заголовки JPEG/PNG)
-     *
-     * @param context Контекст приложения
-     * @param uri URI сохранённого файла
-     * @return true если изображение корректно декодируется, false если повреждено
-     */
-    private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean =
-        ImageIntegrityUtil.verifyImageIntegrity(context, uri)
 
     /**
      * Проверяет доступность URI для операций с файлом, ожидая в течение указанного времени
@@ -849,7 +679,7 @@ object MediaStoreUtil {
      *
      * @param context Контекст приложения
      * @param fileNames Список имен файлов для проверки
-     * @param relativePath Относительный путь для фильтрации (только для Android 10+)
+     * @param relativePath Относительный путь для фильтрации
      * @return Map где ключ = имя файла, значение = Uri (существующий) или null
      */
     suspend fun batchCheckFilesExist(
@@ -860,27 +690,19 @@ object MediaStoreUtil {
         if (fileNames.isEmpty()) return@withContext emptyMap<String, Uri?>()
 
         try {
-            val pathWithoutSlash = relativePath?.trimEnd('/')
-            val pathWithSlash = if (!pathWithoutSlash.isNullOrEmpty() && !pathWithoutSlash.endsWith("/")) {
-                "$pathWithoutSlash/"
-            } else {
-                pathWithoutSlash ?: ""
-            }
+            val placeholders = fileNames.joinToString(",") { "?" }
 
-            val placeholders = fileNames.map { "?" }.joinToString(",")
-
-            val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
-                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND " +
-                "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR " +
-                "${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+            val selection: String
+            val selectionArgs: Array<String>
+            if (relativePath != null) {
+                val (pathWithSlash, pathWithoutSlash) = buildPathVariants(relativePath)
+                selection = "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND " +
+                    "(${MediaStore.Images.Media.RELATIVE_PATH} = ? OR " +
+                    "${MediaStore.Images.Media.RELATIVE_PATH} = ?)"
+                selectionArgs = (fileNames + listOf(pathWithSlash, pathWithoutSlash)).toTypedArray()
             } else {
-                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
-            }
-
-            val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && relativePath != null) {
-                (fileNames + listOf(pathWithSlash, pathWithoutSlash)).toTypedArray()
-            } else {
-                fileNames.toTypedArray()
+                selection = "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders)"
+                selectionArgs = fileNames.toTypedArray()
             }
 
             val results = mutableMapOf<String, Uri?>()
@@ -927,8 +749,6 @@ object MediaStoreUtil {
      * Вызывается при запуске BackgroundMonitoringService.
      */
     suspend fun cleanupStalePendingEntries(context: Context) = withContext(Dispatchers.IO) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext
-
         try {
             val fiveMinutesAgo = (System.currentTimeMillis() / 1000) - 300
 

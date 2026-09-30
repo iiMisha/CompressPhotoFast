@@ -15,7 +15,6 @@ import androidx.core.content.ContextCompat
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.compressphotofast.R
-import com.compressphotofast.util.LogUtil
 
 /**
  * Менеджер разрешений для централизованного управления запросами и проверками разрешений.
@@ -24,12 +23,6 @@ import com.compressphotofast.util.LogUtil
 class PermissionsManager(
     private val activity: AppCompatActivity
 ) : IPermissionsManager {
-
-    // Константы
-    companion object {
-        private const val PREF_PERMISSION_SKIPPED = Constants.PREF_PERMISSION_SKIPPED
-        private const val PREF_NOTIFICATION_PERMISSION_SKIPPED = Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED
-    }
 
     private var onPermissionsGrantedCallback: (() -> Unit)? = null
 
@@ -45,13 +38,9 @@ class PermissionsManager(
     private val storagePermissionLauncher: ActivityResultLauncher<Intent> = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-            LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE получено")
-            requestOtherPermissions(onPermissionsGrantedCallback!!)
-        } else {
-            LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE не получено")
-            requestOtherPermissions(onPermissionsGrantedCallback!!)
-        }
+        val granted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+        LogUtil.processDebug("Разрешение MANAGE_EXTERNAL_STORAGE ${if (granted) "получено" else "не получено"}")
+        requestOtherPermissions(onPermissionsGrantedCallback!!)
     }
 
     /**
@@ -89,18 +78,7 @@ class PermissionsManager(
     override fun requestStartupPermissions(onComplete: () -> Unit) {
         this.onPermissionsGrantedCallback = onComplete
 
-        val permissions = mutableListOf<String>()
-        permissions.addAll(getRequiredStoragePermissions())
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasMediaLocationPermission()) {
-            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
-            LogUtil.processDebug("Запрашиваем разрешение ACCESS_MEDIA_LOCATION для GPS данных в EXIF")
-        }
+        val permissions = getMissingRuntimePermissions()
 
         if (permissions.isEmpty()) {
             LogUtil.processDebug("Все runtime-разрешения уже предоставлены")
@@ -110,6 +88,25 @@ class PermissionsManager(
 
         LogUtil.processDebug("Запрашиваем runtime-разрешения при запуске: ${permissions.joinToString()}")
         requestPermissionLauncher.launch(permissions.toTypedArray())
+    }
+
+    /**
+     * Все отсутствующие runtime-разрешения: хранилище, уведомления (Android 13+), геолокация EXIF
+     */
+    private fun getMissingRuntimePermissions(): List<String> {
+        val permissions = getRequiredStoragePermissions()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
+        }
+
+        if (!hasMediaLocationPermission()) {
+            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+            LogUtil.processDebug("Запрашиваем разрешение ACCESS_MEDIA_LOCATION для GPS данных в EXIF")
+        }
+
+        return permissions
     }
 
     /**
@@ -163,19 +160,7 @@ class PermissionsManager(
      */
     override fun requestOtherPermissions(onPermissionsGranted: () -> Unit): Boolean {
         this.onPermissionsGrantedCallback = onPermissionsGranted
-        val permissions = mutableListOf<String>()
-        
-        permissions.addAll(getRequiredStoragePermissions())
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission()) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            LogUtil.processDebug("Запрашиваем разрешение POST_NOTIFICATIONS")
-        }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasMediaLocationPermission()) {
-            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
-            LogUtil.processDebug("Запрашиваем разрешение ACCESS_MEDIA_LOCATION для GPS данных в EXIF")
-        }
+        val permissions = getMissingRuntimePermissions()
 
         if (permissions.isEmpty()) {
             LogUtil.processDebug("Все необходимые разрешения уже предоставлены")
@@ -203,11 +188,8 @@ class PermissionsManager(
      * Проверка разрешения ACCESS_MEDIA_LOCATION для доступа к GPS данным в EXIF
      */
     override fun hasMediaLocationPermission(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_MEDIA_LOCATION) == 
-                    PackageManager.PERMISSION_GRANTED
-        }
-        return true // На более старых версиях Android разрешение не требуется
+        return ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_MEDIA_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
     }
 
     /**
@@ -304,9 +286,9 @@ class PermissionsManager(
                 when (permissionType) {
                     IPermissionsManager.PermissionType.STORAGE, 
                     IPermissionsManager.PermissionType.ALL -> 
-                        prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
+                        prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
                     IPermissionsManager.PermissionType.NOTIFICATIONS -> 
-                        prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
+                        prefs.edit().putBoolean(Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
                 }
                 
                 // Вызываем колбэк
@@ -330,20 +312,6 @@ class PermissionsManager(
         return !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
     }
     
-    /**
-     * Обработка результата запроса разрешений
-     */
-    override fun handlePermissionResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray,
-        onAllGranted: () -> Unit,
-        onSomePermissionsDenied: () -> Unit
-    ) {
-        val permissionResults = permissions.zip(grantResults.map { it == PackageManager.PERMISSION_GRANTED }).toMap()
-        handlePermissionResult(permissionResults, onAllGranted)
-    }
-
     private fun handlePermissionResult(
         permissions: Map<String, Boolean>,
         onAllGranted: () -> Unit
@@ -354,7 +322,7 @@ class PermissionsManager(
             LogUtil.processDebug("Все разрешения предоставлены")
             prefs.edit()
                 .putBoolean("has_storage_permission_granted", true)
-                .putBoolean(PREF_PERMISSION_SKIPPED, false)
+                .putBoolean(Constants.PREF_PERMISSION_SKIPPED, false)
                 .apply()
             onAllGranted()
             return
@@ -386,7 +354,7 @@ class PermissionsManager(
         LogUtil.processDebug("Разрешение на уведомления было отклонено")
         if (isPermissionPermanentlyDenied(Manifest.permission.POST_NOTIFICATIONS)) {
             LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для уведомлений")
-            prefs.edit().putBoolean(PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
+            prefs.edit().putBoolean(Constants.PREF_NOTIFICATION_PERMISSION_SKIPPED, true).apply()
         } else {
             showNotificationPermissionExplanation(
                 onRetry = { requestNotificationPermission(onAllGranted) },
@@ -401,7 +369,7 @@ class PermissionsManager(
 
         if (isPermanentlyDenied) {
             LogUtil.processDebug("Пользователь выбрал 'больше не спрашивать' для доступа к файлам")
-            prefs.edit().putBoolean(PREF_PERMISSION_SKIPPED, true).apply()
+            prefs.edit().putBoolean(Constants.PREF_PERMISSION_SKIPPED, true).apply()
             onAllGranted()
         } else {
             showPermissionExplanationDialog(

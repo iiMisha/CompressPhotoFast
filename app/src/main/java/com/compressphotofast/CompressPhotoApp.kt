@@ -2,10 +2,7 @@ package com.compressphotofast
 
 import android.app.Application
 import android.app.ActivityManager
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.ApplicationExitInfo
-import android.content.Context
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration

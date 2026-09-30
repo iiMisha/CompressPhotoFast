@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import android.content.Context
 import com.compressphotofast.BaseUnitTest
 import io.mockk.mockk
-import org.junit.After
 import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -37,7 +36,6 @@ class StatsTrackerTest : BaseUnitTest() {
     fun `Инициализация с нулевыми значениями`() {
         // Arrange & Act & Assert
         // Проверяем, что константы статусов имеют правильные значения
-        assert(StatsTracker.COMPRESSION_STATUS_NONE == 0)
         assert(StatsTracker.COMPRESSION_STATUS_PROCESSING == 1)
         assert(StatsTracker.COMPRESSION_STATUS_COMPLETED == 2)
         assert(StatsTracker.COMPRESSION_STATUS_FAILED == 3)

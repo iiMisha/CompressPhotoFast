@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 
@@ -26,7 +25,6 @@ object BatteryOptimizationHelper {
      * @return `true`, если приложение уже в списке исключений (или оптимизация неприменима).
      */
     fun isExempted(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return false
         return powerManager.isIgnoringBatteryOptimizations(context.packageName)
     }

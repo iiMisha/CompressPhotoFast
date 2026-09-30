@@ -48,16 +48,6 @@ class LogUtilTest : BaseUnitTest() {
     // ========== Тесты логирования ошибок ==========
 
     @Test
-    fun `errorSimple с операцией и сообщением`() {
-        // Arrange
-        val operation = "compression"
-        val message = "Compression failed"
-
-        // Act & Assert
-        LogUtil.errorSimple(operation, message)
-    }
-
-    @Test
     fun `errorWithException с операцией и исключением`() {
         // Arrange
         val operation = "compression"

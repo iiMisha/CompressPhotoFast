@@ -9,7 +9,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ImageProcessingChecker
@@ -47,10 +46,6 @@ class MainViewModel @Inject constructor(
     private val imageProcessingChecker: ImageProcessingChecker
 ) : ViewModel() {
 
-    // LiveData для URI выбранного изображения
-    private val _selectedImageUri = MutableLiveData<Uri?>()
-    val selectedImageUri: LiveData<Uri?> = _selectedImageUri
-
     // LiveData для уровня сжатия
     private val _compressionQuality = MutableLiveData<Int>()
     val compressionQuality: LiveData<Int> = _compressionQuality
@@ -68,13 +63,6 @@ class MainViewModel @Inject constructor(
         // Загрузить сохраненный уровень сжатия
         _compressionQuality.value = getCompressionQuality()
         _maxResolution.value = getMaxResolution()
-    }
-
-    /**
-     * Установка URI выбранного изображения
-     */
-    fun setSelectedImageUri(uri: Uri) {
-        _selectedImageUri.value = uri
     }
 
     /**
@@ -100,7 +88,6 @@ class MainViewModel @Inject constructor(
             LogUtil.processWarning("compressSharedImages: Нет валидных URI для обработки")
             return 0
         }
-        setSelectedImageUri(validUris[0])
         return withContext(Dispatchers.IO) {
             validUris.forEach { logFileDetails(it) }
             enqueueManualBatch(validUris)

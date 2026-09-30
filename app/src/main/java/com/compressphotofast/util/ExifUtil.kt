@@ -15,7 +15,6 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.FileOutputStream
 import java.util.Date
-import java.util.HashMap
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.compressphotofast.util.LogUtil
@@ -210,13 +209,6 @@ object ExifUtil {
         ExifInterface.TAG_SUBJECT_DISTANCE_RANGE
     )
 
-    // Кэш для результатов проверки EXIF-маркеров (URI -> результат проверки)
-    // Используем TtlLruCache для ограничения размера, предотвращения утечек памяти и автоматического устаревания
-    private val exifCheckCache = TtlLruCache<String, Boolean>(
-        maxSize = 100,
-        ttlMs = 10 * 60 * 1000L // 10 минут
-    )
-
     // Суффикс для HEIC файлов, которым не удалось добавить EXIF-маркер
     private const val HEIC_COMPRESSED_SUFFIX = "_compressed"
 
@@ -337,8 +329,7 @@ object ExifUtil {
         try {
             // ANDROID 10+ FIX: используем MediaStore.setRequireOriginal() для получения оригинальных EXIF данных
             val finalUri = try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    uri.toString().startsWith("content://media/")) {
+                if (uri.toString().startsWith("content://media/")) {
                     MediaStore.setRequireOriginal(uri)
                 } else {
                     uri
@@ -699,19 +690,16 @@ object ExifUtil {
             
             // === ДИАГНОСТИКА РАЗРЕШЕНИЙ ===
             try {
-                val hasMediaLocationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val hasMediaLocationPermission =
                     context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
                         android.content.pm.PackageManager.PERMISSION_GRANTED
-                } else {
-                    true
-                }
                 
                 LogUtil.permissionsInfo("📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для $uri:")
                 LogUtil.permissionsInfo("  - Android версия: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
                 LogUtil.permissionsInfo("  - ACCESS_MEDIA_LOCATION: ${if (hasMediaLocationPermission) "✅ ПРЕДОСТАВЛЕНО" else "❌ ОТСУТСТВУЕТ"}")
                 LogUtil.permissionsInfo("  - URI тип: ${if (uri.toString().startsWith("content://media/")) "MediaStore" else "Другой"}")
                 
-                if (!hasMediaLocationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (!hasMediaLocationPermission) {
                     LogUtil.permissionsWarning("⚠️ КРИТИЧНО: Разрешение ACCESS_MEDIA_LOCATION отсутствует - GPS данные будут скрыты системой!")
                 }
             } catch (e: Exception) {
@@ -923,12 +911,12 @@ object ExifUtil {
                     exif.saveAttributes()
                     LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
 
-                    if (!verifyImageIntegrity(context, uri)) {
+                    if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
                         LogUtil.error(uri, "EXIF верификация", "Файл повреждён после saveAttributes(), восстанавливаем из backup")
                         if (backupFile.exists() && backupFile.length() > 0) {
                             if (restoreFileFromBackup(context, uri, backupFile)) {
                                 // Верифицируем что restore прошёл успешно
-                                if (verifyImageIntegrity(context, uri)) {
+                                if (ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
                                     LogUtil.processInfo("✅ Файл успешно восстановлен из backup после повреждения saveAttributes()")
                                 } else {
                                     LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым даже после восстановления из backup")
@@ -943,7 +931,7 @@ object ExifUtil {
                     LogUtil.error(uri, "EXIF save", "saveAttributes() упал, восстанавливаем файл из backup", e)
                     if (backupFile.exists() && backupFile.length() > 0) {
                         if (restoreFileFromBackup(context, uri, backupFile)) {
-                            if (verifyImageIntegrity(context, uri)) {
+                            if (ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
                                 LogUtil.processInfo("✅ Файл успешно восстановлен из backup после ошибки saveAttributes()")
                             } else {
                                 LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым после restore")
@@ -1057,16 +1045,7 @@ object ExifUtil {
 
         // Финальный fallback: подсчёт чтением потока (медленный, но универсальный)
         return try {
-            var total = 0L
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    total += read
-                }
-            }
-            total.takeIf { it > 0L }
+            UriUtil.countStreamBytes(context, uri)?.takeIf { it > 0L }
         } catch (e: Exception) {
             LogUtil.warning(uri, "Маркер сжатия", "Не удалось определить фактический размер файла: ${e.message}")
             null
@@ -1205,10 +1184,10 @@ object ExifUtil {
                     exif.saveAttributes()
                 }
 
-                if (!verifyImageIntegrity(context, uri)) {
+                if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
                     LogUtil.error(uri, "Маркер сжатия", "Файл повреждён после записи размера маркера, восстанавливаем из backup")
                     if (restoreFileFromBackup(context, uri, backupFile) &&
-                        verifyImageIntegrity(context, uri)
+                        ImageIntegrityUtil.verifyImageIntegrity(context, uri)
                     ) {
                         LogUtil.processInfo("✅ Файл восстановлен из backup после сбоя записи размера маркера")
                     }
@@ -1386,7 +1365,7 @@ object ExifUtil {
                     LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
 
                     if (exifSuccess) {
-                        val isValid = verifyImageIntegrity(context, destinationUri)
+                        val isValid = ImageIntegrityUtil.verifyImageIntegrity(context, destinationUri)
                         if (!isValid) {
                             LogUtil.error(destinationUri, "EXIF", "Файл повреждён после saveAttributes()")
                             exifSuccess = false
@@ -1527,7 +1506,4 @@ object ExifUtil {
             LogUtil.error(uri, "Добавление даты оцифровки из метаданных файла", e)
         }
     }
-
-    private suspend fun verifyImageIntegrity(context: Context, uri: Uri): Boolean =
-        ImageIntegrityUtil.verifyImageIntegrity(context, uri)
 } 

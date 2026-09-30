@@ -8,15 +8,11 @@ object Constants {
     const val PREF_FILE_NAME = "compress_photo_prefs"
     const val PREF_AUTO_COMPRESSION = "auto_compression"
     const val PREF_COMPRESSION_QUALITY = "compression_quality"
-    const val PREF_COMPRESSION_PRESET = "compression_preset"
     const val PREF_MAX_RESOLUTION = "max_resolution"
     const val PREF_SAVE_MODE = "save_mode"
     const val PREF_PENDING_DELETE_URIS = "pending_delete_uris"
-    const val PREF_FIRST_LAUNCH = "first_launch"
-    const val PREF_DELETE_PERMISSION_REQUESTED = "delete_permission_requested"
     const val PREF_PERMISSION_SKIPPED = "permission_skipped"
     const val PREF_NOTIFICATION_PERMISSION_SKIPPED = "notification_permission_skipped"
-    const val PREF_PERMISSION_REQUEST_COUNT = "permission_request_count"
     const val PREF_PROCESS_SCREENSHOTS = "process_screenshots"
     const val PREF_SHOW_COMPRESSION_TOAST = "show_compression_toast"
     const val PREF_LAST_SCAN_TIMESTAMP = "last_scan_timestamp"
@@ -29,11 +25,7 @@ object Constants {
     const val PREF_DAILY_STATS_SUCCESSFUL_COUNT = "daily_stats_successful_count"
     const val PREF_DAILY_STATS_ORIGINAL_BYTES = "daily_stats_original_bytes"
     const val PREF_DAILY_STATS_COMPRESSED_BYTES = "daily_stats_compressed_bytes"
-    
-    // Режимы сохранения
-    const val SAVE_MODE_REPLACE = 1
-    const val SAVE_MODE_SEPARATE = 2
-    
+
     // Ограничения размера файлов
     const val MIN_FILE_SIZE = 50 * 1024L // 50 KB
     const val MAX_FILE_SIZE = 100 * 1024 * 1024L // 100 MB
@@ -55,7 +47,6 @@ object Constants {
     const val WORK_MAX_RESOLUTION = "max_resolution"
     
     // Уведомления
-    const val NOTIFICATION_CHANNEL_ID = "compression_channel"
     const val NOTIFICATION_ID_COMPRESSION = 1
     const val NOTIFICATION_ID_BACKGROUND_SERVICE = 2
     const val NOTIFICATION_ID_COMPRESSION_RESULT = 4
@@ -84,9 +75,6 @@ object Constants {
     const val CONTENT_OBSERVER_DELAY_SECONDS = 10L // 10 секунд задержки при обнаружении файла
     const val AUTO_COMPRESSION_INITIAL_DELAY_SECONDS = 30L
     
-    // Коды запросов
-    const val REQUEST_CODE_DELETE_FILE = 12345
-    const val REQUEST_CODE_DELETE_PERMISSION = 12346
     
     // BroadcastReceiver actions
     const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.REQUEST_DELETE_PERMISSION"
@@ -111,28 +99,10 @@ object Constants {
     const val EXIF_COPY_DELAY_MS = 300L
     const val EXIF_VERIFY_DELAY_MS = 100L
     const val MEDIASTORE_ANDROID11_DELAY_MS = 300L
-    
-    /** Минимальный размер файла для обработки (100 КБ) */
-    const val MIN_PROCESSABLE_FILE_SIZE = 100 * 1024L
-    
-    // Параметры для сжатия
-    const val DEFAULT_COMPRESSION_QUALITY = 85
-    const val MIN_COMPRESSION_QUALITY = 50
-    const val MAX_COMPRESSION_QUALITY = 100
-    
-    // Обычно мы хотим сжать изображение как минимум на 20% от исходного размера
-    const val MIN_COMPRESSION_RATIO = 0.8f
 
     // Пресеты максимального разрешения (по большей стороне). 0 — сохранить исходное разрешение
     const val RESOLUTION_ORIGINAL = 0
     const val RESOLUTION_2560 = 2560
     const val RESOLUTION_1920 = 1920
     const val DEFAULT_MAX_RESOLUTION = RESOLUTION_ORIGINAL
-
-    // Совместимые имена без фактического ограничения разрешения. Декодирование
-    // всегда сохраняет исходные pixel dimensions; admission контролирует память.
-    @Deprecated("Разрешение больше не ограничивается, используйте memory admission")
-    const val MAX_IMAGE_WIDTH = Int.MAX_VALUE
-    @Deprecated("Разрешение больше не ограничивается, используйте memory admission")
-    const val MAX_IMAGE_HEIGHT = Int.MAX_VALUE
 }

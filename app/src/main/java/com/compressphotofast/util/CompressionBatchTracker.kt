@@ -26,112 +26,18 @@ class CompressionBatchTracker @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) {
 
-    init {
-        // Инициализируем статический экземпляр при создании DI-синглтона
-        // Это гарантирует, что staticInstance будет доступен после ребута устройства
-        staticInstance = this
-    }
-
     companion object {
         // Shared CoroutineScope для всех экземпляров
         private val sharedMainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         /**
-         * Очищает статические ресурсы (sharedMainScope и staticInstance)
+         * Очищает статические ресурсы (sharedMainScope)
          * Должен вызываться при уничтожении приложения
          */
         @JvmStatic
         fun destroyStatic() {
             sharedMainScope.cancel()
-            staticInstance = null
             LogUtil.processDebug("CompressionBatchTracker статические ресурсы очищены")
-        }
-
-        /**
-         * Статический экземпляр для обратной совместимости
-         * Используется только Compat-API (тесты)
-         *
-         * IMPORTANT: staticInstance инициализируется при создании DI-экземпляра через init-блок
-         */
-        @Volatile
-        private var staticInstance: CompressionBatchTracker? = null
-
-        /**
-         * Получает экземпляр CompressionBatchTracker
-         * Для использования в object классах которые не поддерживают DI
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead", ReplaceWith("injectedInstance"))
-        @JvmStatic
-        fun getInstance(context: Context): CompressionBatchTracker {
-            return staticInstance ?: synchronized(this) {
-                staticInstance ?: CompressionBatchTracker(context.applicationContext).also {
-                    staticInstance = it
-                }
-            }
-        }
-
-        /**
-         * Создает Intent батч (статический метод для обратной совместимости)
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead")
-        fun createIntentBatchCompat(context: Context, expectedCount: Int): String {
-            return getInstance(context).createIntentBatch(expectedCount)
-        }
-
-        /**
-         * Создает или получает автобатч (статический метод для обратной совместимости)
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead")
-        fun getOrCreateAutoBatchCompat(context: Context): String {
-            return getInstance(context).getOrCreateAutoBatch()
-        }
-
-        /**
-         * Добавляет результат в батч (статический метод для обратной совместимости)
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead")
-        fun addResultCompat(
-            batchId: String,
-            fileName: String,
-            originalSize: Long,
-            compressedSize: Long,
-            sizeReduction: Float,
-            skipped: Boolean,
-            skipReason: String? = null
-        ) {
-            // Находим любой существующий экземпляр
-            staticInstance?.addResult(batchId, fileName, originalSize, compressedSize, sizeReduction, skipped, skipReason)
-        }
-
-        /**
-         * Завершает батч (статический метод для обратной совместимости)
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead")
-        fun finalizeBatchCompat(batchId: String) {
-            staticInstance?.finalizeBatch(batchId)
-        }
-
-        /**
-         * Возвращает количество активных батчей (для отладки)
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead")
-        fun getActiveBatchCountCompat(): Int {
-            return staticInstance?.getActiveBatchCount() ?: 0
-        }
-
-        /**
-         * Очищает все батчи (для тестирования)
-         * @deprecated Используйте инжектируемый экземпляр через Hilt
-         */
-        @Deprecated("Use injected instance via Hilt instead")
-        fun clearAllBatchesCompat() {
-            staticInstance?.clearAllBatches()
         }
     }
 
@@ -143,8 +49,6 @@ class CompressionBatchTracker @Inject constructor(
     private val batchScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     // Константы таймаутов
-    private val AUTO_BATCH_IDLE_TIMEOUT_MS = 20000L    // 20 сек idle после последнего addResult()
-    private val AUTO_BATCH_MAX_LIFETIME_MS = 600000L   // 10 мин максимальное время жизни автобатча
     private val INTENT_BATCH_TIMEOUT_MS = 30000L       // 30 сек таймаут безопасности для Intent-батчей
     private val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
 
@@ -165,19 +69,12 @@ class CompressionBatchTracker @Inject constructor(
      */
     private data class CompressionBatch(
         val batchId: String,
-        val expectedCount: Int?, // Если null - автобатч, количество неизвестно
-        val isIntentBatch: Boolean,
+        val expectedCount: Int,
         var results: MutableList<CompressionResult> = Collections.synchronizedList(mutableListOf()),
         var timeoutJob: Job? = null,
         val createdAt: Long = System.currentTimeMillis()
     ) {
-        fun isComplete(): Boolean {
-            return if (expectedCount != null) {
-                results.size >= expectedCount
-            } else {
-                false // Автобатчи завершаются только по таймауту
-            }
-        }
+        fun isComplete(): Boolean = results.size >= expectedCount
     }
 
     /**
@@ -188,8 +85,7 @@ class CompressionBatchTracker @Inject constructor(
         // Application Context инжектируется через конструктор
         val batch = CompressionBatch(
             batchId = batchId,
-            expectedCount = expectedCount,
-            isIntentBatch = true
+            expectedCount = expectedCount
         )
 
         batches[batchId] = batch
@@ -200,40 +96,6 @@ class CompressionBatchTracker @Inject constructor(
 
         cleanupOldBatches()
         return batchId
-    }
-
-    /**
-     * Получает или создает автобатч для автоматического сжатия
-     */
-    fun getOrCreateAutoBatch(): String {
-        synchronized(batches) {
-            // Ищем активный автобатч, не превышший максимальное время жизни
-            val activeBatch = batches.values.find {
-                !it.isIntentBatch &&
-                (System.currentTimeMillis() - it.createdAt) < AUTO_BATCH_MAX_LIFETIME_MS
-            }
-
-            if (activeBatch != null) {
-                LogUtil.processDebug("Используется существующий автобатч: ${activeBatch.batchId}")
-                return activeBatch.batchId
-            }
-
-            // Создаем новый автобатч
-            val batchId = "auto_batch_${batchIdCounter.getAndIncrement()}_${System.currentTimeMillis()}"
-            // Application Context инжектируется через конструктор
-            val batch = CompressionBatch(
-                batchId = batchId,
-                expectedCount = null,
-                isIntentBatch = false
-            )
-
-            batches[batchId] = batch
-            LogUtil.processDebug("Создан автобатч: $batchId")
-
-            scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
-            cleanupOldBatches()
-            return batchId
-        }
     }
 
     /**
@@ -261,23 +123,11 @@ class CompressionBatchTracker @Inject constructor(
             )
             
             batch.results.add(result)
-            LogUtil.processDebug("Добавлен результат в батч $batchId: $fileName (${batch.results.size}${if (batch.expectedCount != null) "/${batch.expectedCount}" else ""})")
+            LogUtil.processDebug("Добавлен результат в батч $batchId: $fileName (${batch.results.size}/${batch.expectedCount})")
             
             // Проверяем, завершен ли батч
             if (batch.isComplete()) {
                 processBatch(batchId)
-                return
-            }
-
-            // Для автобатчей продлеваем таймаут при каждом добавлении результата
-            // Это гарантирует, что батч дождётся завершения всех Worker'ов
-            if (batch.expectedCount == null) {
-                val lifetime = System.currentTimeMillis() - batch.createdAt
-                if (lifetime < AUTO_BATCH_MAX_LIFETIME_MS) {
-                    scheduleTimeout(batchId, AUTO_BATCH_IDLE_TIMEOUT_MS)
-                }
-                // Если превысил максимальное время жизни — таймаут не продлевается,
-                // батч будет финализирован по текущему таймауту
             }
         }
     }
@@ -313,7 +163,7 @@ class CompressionBatchTracker @Inject constructor(
                 showIndividualResult(appContext, results[0])
             } else {
                 // Показываем групповой результат
-                showBatchResult(appContext, results, batch.isIntentBatch)
+                showBatchResult(appContext, results)
             }
         }
 
@@ -331,7 +181,7 @@ class CompressionBatchTracker @Inject constructor(
         } else {
             NotificationUtil.showCompressionResultToast(
                 context = context,
-                fileName = FileOperationsUtil.truncateFileName(result.fileName),
+                fileName = result.fileName,
                 originalSize = result.originalSize,
                 compressedSize = result.compressedSize,
                 reduction = result.sizeReduction
@@ -343,7 +193,7 @@ class CompressionBatchTracker @Inject constructor(
     /**
      * Показывает групповой результат для нескольких файлов
      */
-    private fun showBatchResult(context: Context, results: List<CompressionResult>, isIntentBatch: Boolean) {
+    private fun showBatchResult(context: Context, results: List<CompressionResult>) {
         val successfulResults = results.filter { !it.skipped }
         val skippedCount = results.count { it.skipped }
         

@@ -68,11 +68,6 @@ sealed class CompressionException(
  */
 object ImageCompressionUtil {
 
-    /**
-     * Проверяет, является ли MIME тип HEIC/HEIF
-     */
-    private fun isHeicFormat(mimeType: String?): Boolean = UriUtil.isHeicMimeType(mimeType)
-
     private data class OrientationTransform(
         val rotationDegrees: Int = 0,
         val flipHorizontal: Boolean = false,
@@ -138,7 +133,7 @@ object ImageCompressionUtil {
         var width = 0
         var height = 0
         try {
-                if (isHeicFormat(mimeType)) {
+                if (UriUtil.isHeicMimeType(mimeType)) {
                     // Используем ImageDecoder для HEIC/HEIF (API 28+)
                     val source = ImageDecoder.createSource(context.contentResolver, uri)
 
@@ -241,7 +236,7 @@ object ImageCompressionUtil {
     ): Bitmap? = withContext(Dispatchers.IO) {
         var bitmap: Bitmap? = null
         try {
-            if (isHeicFormat(mimeType)) {
+            if (UriUtil.isHeicMimeType(mimeType)) {
                 // Используем ImageDecoder для HEIC/HEIF (API 28+)
                 // OPTIMIZED: single-pass decode - получаем bounds и bitmap за один раз
                 val source = ImageDecoder.createSource(context.contentResolver, uri)
@@ -335,7 +330,7 @@ object ImageCompressionUtil {
                     // Масштабирование применяется только при явном выборе пресета;
                     // по умолчанию (RESOLUTION_ORIGINAL) разрешение сохраняется.
                     val scalePlan = computeScalePlan(width, height, maxDimension)
-                    val transform = if (isHeicFormat(mimeType)) OrientationTransform() else getOrientationTransform(context, uri)
+                    val transform = if (UriUtil.isHeicMimeType(mimeType)) OrientationTransform() else getOrientationTransform(context, uri)
                     val requiresSecondBitmap = transform.rotationDegrees != 0 ||
                         transform.flipHorizontal || transform.flipVertical
                     val requiredBytes = estimatePeakMemoryBytes(width, height, mimeType, requiresSecondBitmap)
@@ -441,7 +436,7 @@ object ImageCompressionUtil {
         requiresSecondBitmap: Boolean = false
     ): Long {
         val pixels = width.toLong().coerceAtLeast(0L) * height.toLong().coerceAtLeast(0L)
-        val decodedBytes = pixels * if (isHeicFormat(mimeType)) 4L else 2L
+        val decodedBytes = pixels * if (UriUtil.isHeicMimeType(mimeType)) 4L else 2L
         val secondBitmapBytes = if (requiresSecondBitmap) pixels * 4L else 0L
         val jpegBytes = maxOf(1L * 1024 * 1024, pixels)
         return decodedBytes + secondBitmapBytes + jpegBytes
@@ -557,14 +552,6 @@ object ImageCompressionUtil {
             return isImageProcessingEfficient(originalSize, compressedSize)
         }
     }
-    
-    /** Full-resolution compatibility helper retained for old unit callers. */
-    private fun calculateInSampleSize(
-        width: Int,
-        height: Int,
-        reqWidth: Int,
-        reqHeight: Int
-    ): Int = 1
 }
 
 private class StopDecodingException : RuntimeException()

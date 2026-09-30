@@ -3,7 +3,6 @@ package com.compressphotofast.util
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
-import android.os.Build
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -123,28 +122,6 @@ object BatchMediaStoreUtil {
         val result = mutableMapOf<Uri, FileMetadata?>()
         
         try {
-            // Определяем необходимые колонки в зависимости от версии Android
-            val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                arrayOf(
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.Images.Media.IS_PENDING,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.MIME_TYPE,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.MediaColumns.RELATIVE_PATH
-                )
-            } else {
-                arrayOf(
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.MIME_TYPE,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.Images.Media.DATA // Для старых версий Android
-                )
-            }
-            
             // Извлекаем ID из URI для создания WHERE условия
             val ids = uris.mapNotNull { uri ->
                 try {
@@ -167,77 +144,20 @@ object BatchMediaStoreUtil {
             
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
+                METADATA_PROJECTION,
                 selection,
                 selectionArgs,
                 null
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
-                val sizeColumn = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
-                val displayNameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-                val modifiedColumn = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
-                
-                val pendingColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    cursor.getColumnIndex(MediaStore.Images.Media.IS_PENDING)
-                } else -1
-                
-                val relativePathColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
-                } else -1
-                
-                val dataColumn = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                    cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                } else -1
-                
                 while (cursor.moveToNext()) {
-                    val id = if (idColumn != -1 && !cursor.isNull(idColumn)) {
-                        cursor.getLong(idColumn)
-                    } else continue
+                    if (cursor.isNull(idColumn)) continue
+                    val id = cursor.getLong(idColumn).toString()
 
                     // Находим соответствующий URI
-                    val matchingUri = uris.find { uri ->
-                        uri.lastPathSegment == id.toString()
-                    }
-                    
+                    val matchingUri = uris.find { uri -> uri.lastPathSegment == id }
                     if (matchingUri != null) {
-                        val size = if (sizeColumn != -1 && !cursor.isNull(sizeColumn)) {
-                            cursor.getLong(sizeColumn)
-                        } else -1L
-                        
-                        val displayName = if (displayNameColumn != -1 && !cursor.isNull(displayNameColumn)) {
-                            cursor.getString(displayNameColumn)
-                        } else null
-                        
-                        val mimeType = if (mimeTypeColumn != -1 && !cursor.isNull(mimeTypeColumn)) {
-                            cursor.getString(mimeTypeColumn)
-                        } else null
-                        
-                        val lastModified = if (modifiedColumn != -1 && !cursor.isNull(modifiedColumn)) {
-                            cursor.getLong(modifiedColumn).secondsToMillis() // Конвертируем в миллисекунды
-                        } else 0L
-                        
-                        val isPending = if (pendingColumn != -1 && !cursor.isNull(pendingColumn)) {
-                            cursor.getInt(pendingColumn) == 1
-                        } else false
-                        
-                        val relativePath = if (relativePathColumn != -1 && !cursor.isNull(relativePathColumn)) {
-                            cursor.getString(relativePathColumn)
-                        } else if (dataColumn != -1 && !cursor.isNull(dataColumn)) {
-                            // Для старых версий Android извлекаем путь из DATA колонки
-                            val dataPath = cursor.getString(dataColumn)
-                            extractRelativePathFromData(dataPath)
-                        } else null
-                        
-                        result[matchingUri] = FileMetadata(
-                            uri = matchingUri,
-                            size = size,
-                            isPending = isPending,
-                            displayName = displayName,
-                            mimeType = mimeType,
-                            lastModified = lastModified,
-                            relativePath = relativePath
-                        )
+                        result[matchingUri] = cursor.toFileMetadata(matchingUri)
                     }
                 }
             }
@@ -289,74 +209,9 @@ object BatchMediaStoreUtil {
         uri: Uri
     ): FileMetadata? = withContext(Dispatchers.IO) {
         try {
-            val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                arrayOf(
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.Images.Media.IS_PENDING,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.MIME_TYPE,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.MediaColumns.RELATIVE_PATH
-                )
-            } else {
-                arrayOf(
-                    MediaStore.MediaColumns.SIZE,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.MIME_TYPE,
-                    MediaStore.MediaColumns.DATE_MODIFIED,
-                    MediaStore.Images.Media.DATA
-                )
-            }
-            
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            context.contentResolver.query(uri, METADATA_PROJECTION, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val sizeColumn = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
-                    val displayNameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
-                    val modifiedColumn = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
-                    
-                    val size = if (sizeColumn != -1 && !cursor.isNull(sizeColumn)) {
-                        cursor.getLong(sizeColumn)
-                    } else -1L
-                    
-                    val displayName = if (displayNameColumn != -1 && !cursor.isNull(displayNameColumn)) {
-                        cursor.getString(displayNameColumn)
-                    } else null
-                    
-                    val mimeType = if (mimeTypeColumn != -1 && !cursor.isNull(mimeTypeColumn)) {
-                        cursor.getString(mimeTypeColumn)
-                    } else null
-                    
-                    val lastModified = if (modifiedColumn != -1 && !cursor.isNull(modifiedColumn)) {
-                        cursor.getLong(modifiedColumn).secondsToMillis()
-                    } else 0L
-                    
-                    val isPending = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val pendingColumn = cursor.getColumnIndex(MediaStore.Images.Media.IS_PENDING)
-                        pendingColumn != -1 && !cursor.isNull(pendingColumn) && cursor.getInt(pendingColumn) == 1
-                    } else false
-                    
-                    val relativePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val relativePathColumn = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
-                        if (relativePathColumn != -1 && !cursor.isNull(relativePathColumn)) {
-                            cursor.getString(relativePathColumn)
-                        } else null
-                    } else {
-                        val dataColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                        if (dataColumn != -1 && !cursor.isNull(dataColumn)) {
-                            extractRelativePathFromData(cursor.getString(dataColumn))
-                        } else null
-                    }
-                    
-                    return@withContext FileMetadata(
-                        uri = uri,
-                        size = size,
-                        isPending = isPending,
-                        displayName = displayName,
-                        mimeType = mimeType,
-                        lastModified = lastModified,
-                        relativePath = relativePath
-                    )
+                    return@withContext cursor.toFileMetadata(uri)
                 }
             }
             
@@ -368,50 +223,38 @@ object BatchMediaStoreUtil {
         }
     }
 
-    /**
-     * Извлекает относительный путь из полного пути (для Android < Q)
-     */
-    private fun extractRelativePathFromData(dataPath: String?): String? {
-        if (dataPath.isNullOrEmpty()) return null
-        
-        return try {
-            // Пытаемся найти стандартные папки Android
-            val patterns = listOf(
-                "/storage/emulated/0/",
-                "/storage/self/primary/",
-                "/sdcard/"
-            )
-            
-            for (pattern in patterns) {
-                if (dataPath.startsWith(pattern)) {
-                    val relativePath = dataPath.removePrefix(pattern)
-                    val lastSlash = relativePath.lastIndexOf('/')
-                    return if (lastSlash > 0) {
-                        relativePath.substring(0, lastSlash + 1)
-                    } else {
-                        ""
-                    }
-                }
-            }
-            
-            // Fallback: берем путь после последнего /Android/
-            val androidIndex = dataPath.lastIndexOf("/Android/")
-            if (androidIndex != -1) {
-                val afterAndroid = dataPath.substring(androidIndex + "/Android/".length)
-                val lastSlash = afterAndroid.lastIndexOf('/')
-                return if (lastSlash > 0) {
-                    afterAndroid.substring(0, lastSlash + 1)
-                } else {
-                    ""
-                }
-            }
-            
-            null
-        } catch (e: Exception) {
-            LogUtil.processDebug("Ошибка при извлечении относительного пути из: $dataPath")
-            null
-        }
+    private val METADATA_PROJECTION = arrayOf(
+        MediaStore.MediaColumns._ID,
+        MediaStore.MediaColumns.SIZE,
+        MediaStore.Images.Media.IS_PENDING,
+        MediaStore.Images.Media.DISPLAY_NAME,
+        MediaStore.Images.Media.MIME_TYPE,
+        MediaStore.MediaColumns.DATE_MODIFIED,
+        MediaStore.MediaColumns.RELATIVE_PATH
+    )
+
+    private fun Cursor.stringOrNull(column: String): String? {
+        val index = getColumnIndex(column)
+        return if (index != -1 && !isNull(index)) getString(index) else null
     }
+
+    private fun Cursor.longOrNull(column: String): Long? {
+        val index = getColumnIndex(column)
+        return if (index != -1 && !isNull(index)) getLong(index) else null
+    }
+
+    /**
+     * Читает [FileMetadata] из текущей строки курсора, полученного с [METADATA_PROJECTION]
+     */
+    private fun Cursor.toFileMetadata(uri: Uri): FileMetadata = FileMetadata(
+        uri = uri,
+        size = longOrNull(MediaStore.MediaColumns.SIZE) ?: -1L,
+        isPending = longOrNull(MediaStore.Images.Media.IS_PENDING) == 1L,
+        displayName = stringOrNull(MediaStore.Images.Media.DISPLAY_NAME),
+        mimeType = stringOrNull(MediaStore.Images.Media.MIME_TYPE),
+        lastModified = longOrNull(MediaStore.MediaColumns.DATE_MODIFIED)?.secondsToMillis() ?: 0L,
+        relativePath = stringOrNull(MediaStore.MediaColumns.RELATIVE_PATH)
+    )
 
     /**
      * Кэширование метаданных файла

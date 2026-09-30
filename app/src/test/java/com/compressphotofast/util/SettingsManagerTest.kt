@@ -151,31 +151,7 @@ class SettingsManagerTest : BaseUnitTest() {
         verify { mockEditor.putBoolean(Constants.PREF_SAVE_MODE, false) }
         verify { mockEditor.apply() }
     }
-    
-    @Test
-    fun `getSaveMode returns REPLACE when replace mode is enabled`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, false) } returns true
         
-        // Act
-        val result = settingsManager.getSaveMode()
-        
-        // Assert
-        assertEquals(Constants.SAVE_MODE_REPLACE, result)
-    }
-    
-    @Test
-    fun `getSaveMode returns SEPARATE when replace mode is disabled`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, false) } returns false
-        
-        // Act
-        val result = settingsManager.getSaveMode()
-        
-        // Assert
-        assertEquals(Constants.SAVE_MODE_SEPARATE, result)
-    }
-
     // ==================== Исключение из оптимизации батареи ====================
 
     @Test
@@ -443,144 +419,9 @@ class SettingsManagerTest : BaseUnitTest() {
         verify { mockEditor.putStringSet(Constants.PREF_PENDING_DELETE_URIS, remainingUris) }
         verify { mockEditor.apply() }
     }
-    
-    @Test
-    fun `getPendingDeleteUris returns empty set when not set`() {
-        // Arrange
-        every { mockSharedPreferences.getStringSet(Constants.PREF_PENDING_DELETE_URIS, emptySet()) } returns null
-        
-        // Act
-        val result = settingsManager.getPendingDeleteUris()
-        
-        // Assert
-        assertTrue(result.isEmpty())
-    }
-    
-    @Test
-    fun `getPendingDeleteUris returns all pending URIs`() {
-        // Arrange
-        val uris = mutableSetOf(
-            "content://media/external/images/media/123",
-            "content://media/external/images/media/456",
-            "content://media/external/images/media/789"
-        )
-        every { mockSharedPreferences.getStringSet(Constants.PREF_PENDING_DELETE_URIS, emptySet()) } returns uris
-        
-        // Act
-        val result = settingsManager.getPendingDeleteUris()
-        
-        // Assert
-        assertEquals(uris, result)
-    }
-    
-    // ==================== Первый запуск ====================
-    
-    @Test
-    fun `isFirstLaunch returns true when not set`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_FIRST_LAUNCH, true) } returns true
-        
-        // Act
-        val result = settingsManager.isFirstLaunch()
-        
-        // Assert
-        assertTrue(result)
-    }
-    
-    @Test
-    fun `isFirstLaunch returns false when already launched`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_FIRST_LAUNCH, true) } returns false
-        
-        // Act
-        val result = settingsManager.isFirstLaunch()
-        
-        // Assert
-        assertFalse(result)
-    }
-    
-    @Test
-    fun `setFirstLaunch sets to false after first launch`() {
-        // Arrange
-        every { mockSharedPreferences.edit() } returns mockEditor
-        every { mockEditor.putBoolean(Constants.PREF_FIRST_LAUNCH, false) } returns mockEditor
-        
-        // Act
-        settingsManager.setFirstLaunch(false)
-        
-        // Assert
-        verify { mockEditor.putBoolean(Constants.PREF_FIRST_LAUNCH, false) }
-        verify { mockEditor.apply() }
-    }
-    
-    @Test
-    fun `setFirstLaunch can be reset to true`() {
-        // Arrange
-        every { mockSharedPreferences.edit() } returns mockEditor
-        every { mockEditor.putBoolean(Constants.PREF_FIRST_LAUNCH, true) } returns mockEditor
-        
-        // Act
-        settingsManager.setFirstLaunch(true)
-        
-        // Assert
-        verify { mockEditor.putBoolean(Constants.PREF_FIRST_LAUNCH, true) }
-        verify { mockEditor.apply() }
-    }
-    
-    // ==================== Разрешение на удаление ====================
-    
-    @Test
-    fun `isDeletePermissionRequested returns false when not set`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false) } returns false
-        
-        // Act
-        val result = settingsManager.isDeletePermissionRequested()
-        
-        // Assert
-        assertFalse(result)
-    }
-    
-    @Test
-    fun `isDeletePermissionRequested returns true when requested`() {
-        // Arrange
-        every { mockSharedPreferences.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false) } returns true
-        
-        // Act
-        val result = settingsManager.isDeletePermissionRequested()
-        
-        // Assert
-        assertTrue(result)
-    }
-    
-    @Test
-    fun `setDeletePermissionRequested marks as requested`() {
-        // Arrange
-        every { mockSharedPreferences.edit() } returns mockEditor
-        every { mockEditor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true) } returns mockEditor
-        
-        // Act
-        settingsManager.setDeletePermissionRequested(true)
-        
-        // Assert
-        verify { mockEditor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, true) }
-        verify { mockEditor.apply() }
-    }
-    
-    @Test
-    fun `setDeletePermissionRequested can be reset to false`() {
-        // Arrange
-        every { mockSharedPreferences.edit() } returns mockEditor
-        every { mockEditor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false) } returns mockEditor
-        
-        // Act
-        settingsManager.setDeletePermissionRequested(false)
-        
-        // Assert
-        verify { mockEditor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false) }
-        verify { mockEditor.apply() }
-    }
-    
+            
+                    
+                    
     // ==================== Обработка скриншотов ====================
     
     @Test

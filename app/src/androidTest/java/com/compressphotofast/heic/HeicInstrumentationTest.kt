@@ -16,8 +16,6 @@ import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.compressphotofast.BaseInstrumentedTest
-import com.compressphotofast.util.Constants
 import com.compressphotofast.util.ExifUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.ImageCompressionUtil

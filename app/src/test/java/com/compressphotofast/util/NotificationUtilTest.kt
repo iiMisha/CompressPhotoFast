@@ -6,7 +6,6 @@ import android.content.Context
 import androidx.core.app.NotificationCompat
 import com.compressphotofast.BaseUnitTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,7 +45,7 @@ class NotificationUtilTest : BaseUnitTest() {
         assertTrue((first.flags and Notification.FLAG_ONLY_ALERT_ONCE) != 0)
         assertEquals(NotificationCompat.PRIORITY_LOW, first.priority)
         assertEquals(null, shadowOf(manager).getNotification(10))
-        val mainChannel = manager.getNotificationChannel(Constants.NOTIFICATION_CHANNEL_ID)
+        val mainChannel = manager.getNotificationChannel(context.getString(com.compressphotofast.R.string.notification_channel_id))
         requireNotNull(mainChannel)
 
         NotificationUtil.updateBackgroundServiceNotification(

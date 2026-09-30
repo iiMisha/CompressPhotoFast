@@ -8,7 +8,6 @@ import android.os.Looper
 import android.provider.MediaStore
 import com.compressphotofast.util.LogUtil
 import java.util.concurrent.ConcurrentHashMap
-import java.io.File
 import com.compressphotofast.util.UriUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 
 /**
  * Класс для централизованной работы с ContentObserver для отслеживания изменений в MediaStore

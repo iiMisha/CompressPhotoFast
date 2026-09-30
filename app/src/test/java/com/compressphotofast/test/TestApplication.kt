@@ -1,7 +1,6 @@
 package com.compressphotofast.test
 
 import android.app.Application
-import android.content.Context
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper

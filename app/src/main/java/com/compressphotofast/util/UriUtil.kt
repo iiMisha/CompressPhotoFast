@@ -42,7 +42,6 @@ object UriUtil {
     private val uriExistsCache = ConcurrentHashMap<String, UriExistsResult>()
 
     private const val URI_EXISTS_CACHE_TTL = 10_000L // 10 секунд
-    private const val URI_EXISTS_CACHE_SIZE = 100 // максимум 100 URI в кэше
 
     /**
      * Проверяет, является ли MIME-тип HEIC/HEIF форматом
@@ -53,6 +52,31 @@ object UriUtil {
     }
 
     /**
+     * Читает строковые колонки [projection] для [uri]: сначала прямым запросом,
+     * затем (только Android 11) запросом по ID через [queryMediaStoreWithIdFallbackApi30].
+     * @return значения колонок в порядке [projection] или null, если хотя бы одна пустая
+     */
+    private fun queryNonEmptyStrings(context: Context, uri: Uri, projection: Array<String>): List<String>? {
+        fun Cursor.readRow(): List<String>? {
+            if (!moveToFirst()) return null
+            return projection.map { column ->
+                val index = getColumnIndex(column)
+                if (index == -1 || isNull(index)) return null
+                getString(index).takeUnless { it.isNullOrEmpty() } ?: return null
+            }
+        }
+
+        try {
+            context.contentResolver.query(uri, projection, null, null, null)
+                ?.use { it.readRow() }
+                ?.let { return it }
+        } catch (e: Exception) {
+            LogUtil.warning(uri, "UriUtil", "Ошибка запроса ${projection.joinToString()} через MediaStore: ${e.message}")
+        }
+        return queryMediaStoreWithIdFallbackApi30(context, uri, projection)?.use { it.readRow() }
+    }
+
+    /**
      * Получает полный путь к файлу из URI
      */
     fun getFilePathFromUri(context: Context, uri: Uri): String? {
@@ -60,97 +84,27 @@ object UriUtil {
             // Преобразуем MediaDocumentsUri, если необходимо
             val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
 
-            // На Android 10 (API 29) и выше MediaStore.Images.Media.DATA считается устаревшим
-            // и может возвращать null, поэтому используем другой подход
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Для Android 10+ используем относительный путь и имя файла
-                val projection = arrayOf(
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.RELATIVE_PATH
-                )
-                
-                try {
-                    context.contentResolver.query(
-                        effectiveUri,
-                        projection,
-                        null,
-                        null,
-                        null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                            val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                            
-                            if (nameIndex != -1 && pathIndex != -1) {
-                                // Проверяем на null, чтобы избежать ошибки "Reading a NULL string not supported here"
-                                val fileName = if (cursor.isNull(nameIndex)) null else cursor.getString(nameIndex)
-                                val relativePath = if (cursor.isNull(pathIndex)) null else cursor.getString(pathIndex)
-                                
-                                // Проверяем, что получили непустые значения
-                                if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
-                                    return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    LogUtil.warning(uri, "UriUtil", "Ошибка при получении пути через MediaStore: ${e.message}")
-                }
-                
-                // Специальная обработка для Android 11 (API 30) - используем хелпер
-                queryMediaStoreWithIdFallbackApi30(context, effectiveUri, projection)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                         val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                         val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            // MediaStore.Images.Media.DATA устарел и может возвращать null —
+            // собираем путь из RELATIVE_PATH и DISPLAY_NAME
+            queryNonEmptyStrings(
+                context,
+                effectiveUri,
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.RELATIVE_PATH)
+            )?.let { (fileName, relativePath) ->
+                return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
+            }
 
-                         if (nameIndex != -1 && pathIndex != -1 &&
-                             !cursor.isNull(nameIndex) && !cursor.isNull(pathIndex)) {
-                             val fileName = cursor.getString(nameIndex)
-                             val relativePath = cursor.getString(pathIndex)
-
-                             if (!fileName.isNullOrEmpty() && !relativePath.isNullOrEmpty()) {
-                                 return "${Environment.getExternalStorageDirectory()}/$relativePath$fileName"
-                             }
-                         }
-                     }
-                }
-                
-                // Если не удалось получить путь через MediaStore, пробуем через lastPathSegment
-                effectiveUri.lastPathSegment?.let { segment ->
-                    if (segment.contains("/")) {
-                        return segment
-                    }
-                }
-                
-                // Не удалось определить путь файловой системы
-                return null
-            } else {
-                // Для Android 9 и ниже используем старый подход
-                val projection = arrayOf(MediaStore.Images.Media.DATA)
-                context.contentResolver.query(
-                    effectiveUri,
-                    projection,
-                    null,
-                    null,
-                    null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                        if (columnIndex != -1) {
-                            // Проверяем на null, чтобы избежать ошибки "Reading a NULL string not supported here"
-                            val path = if (cursor.isNull(columnIndex)) null else cursor.getString(columnIndex)
-                            if (!path.isNullOrEmpty()) {
-                                return path
-                            }
-                        }
-                    }
+            // Если не удалось получить путь через MediaStore, пробуем через lastPathSegment
+            effectiveUri.lastPathSegment?.let { segment ->
+                if (segment.contains("/")) {
+                    return segment
                 }
             }
         } catch (e: Exception) {
             LogUtil.error(uri, "Получение пути", "Ошибка при получении пути к файлу из URI", e)
         }
-        
-        // Если все методы не сработали, возвращаем null
+
+        // Не удалось определить путь файловой системы
         return null
     }
     
@@ -162,49 +116,11 @@ object UriUtil {
             // Преобразуем MediaDocumentsUri, если необходимо
             val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
 
-            // Пробуем получить имя через contentResolver
-            var fileName: String? = null
-            context.contentResolver.query(effectiveUri, null, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val displayNameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    if (displayNameIndex != -1 && !cursor.isNull(displayNameIndex)) {
-                        fileName = cursor.getString(displayNameIndex)
-                    }
-                }
-            }
-
-            // Специальная обработка для Android 11 (API 30) - используем хелпер
-            if (fileName == null) {
-                queryMediaStoreWithIdFallbackApi30(context, effectiveUri, arrayOf(MediaStore.Images.Media.DISPLAY_NAME))?.use { cursor ->
-                     if (cursor.moveToFirst()) {
-                         val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                         if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
-                             fileName = cursor.getString(nameIndex)
-                         }
-                     }
-                }
-            }
+            queryNonEmptyStrings(context, effectiveUri, arrayOf(MediaStore.Images.Media.DISPLAY_NAME))
+                ?.let { return it.first() }
 
             // Если не удалось, пробуем через lastPathSegment
-            if (fileName == null) {
-                effectiveUri.lastPathSegment?.let { segment ->
-                    if (segment.contains(".")) {
-                        fileName = segment
-                    } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && segment.toLongOrNull() != null) {
-                        // Для Android 11, если lastPathSegment - это ID, пробуем получить имя через ID (вторая попытка через хелпер)
-                         queryMediaStoreWithIdFallbackApi30(context, effectiveUri, arrayOf(MediaStore.Images.Media.DISPLAY_NAME))?.use { cursor ->
-                             if (cursor.moveToFirst()) {
-                                 val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                                 if (nameIndex != -1 && !cursor.isNull(nameIndex)) {
-                                     fileName = cursor.getString(nameIndex)
-                                 }
-                             }
-                         }
-                    }
-                }
-            }
-            
-            return fileName
+            return effectiveUri.lastPathSegment?.takeIf { it.contains(".") }
         } catch (e: Exception) {
             LogUtil.warning(uri, "UriUtil", "Ошибка при получении имени файла из URI: ${e.message}")
             return null
@@ -215,38 +131,12 @@ object UriUtil {
      * Получает относительный путь из URI
      */
     fun getRelativePathFromUri(context: Context, uri: Uri): String? {
-        try {
-            val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
-            context.contentResolver.query(
-                uri,
-                projection,
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                    if (columnIndex != -1) {
-                        return cursor.getString(columnIndex)
-                    }
-                }
-            }
-            
-            // Попытка через fallback для Android 11
-            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                queryMediaStoreWithIdFallbackApi30(context, uri, arrayOf(MediaStore.Images.Media.RELATIVE_PATH))?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
-                        if (pathIndex != -1 && !cursor.isNull(pathIndex)) {
-                            return cursor.getString(pathIndex)
-                        }
-                    }
-                }
-            }
+        return try {
+            queryNonEmptyStrings(context, uri, arrayOf(MediaStore.Images.Media.RELATIVE_PATH))?.first()
         } catch (e: Exception) {
             LogUtil.warning(uri, "UriUtil", "Ошибка при получении относительного пути из URI: ${e.message}")
+            null
         }
-        return null
     }
     
     /**
@@ -257,12 +147,9 @@ object UriUtil {
             // Преобразуем MediaDocumentsUri, если необходимо
             val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
 
-            // Пытаемся получить RELATIVE_PATH для Android 10+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val relativePath = getRelativePathFromUri(context, effectiveUri)
-                if (!relativePath.isNullOrEmpty()) {
-                    return getFormattedPathFromRelativePath(relativePath)
-                }
+            val relativePath = getRelativePathFromUri(context, effectiveUri)
+            if (!relativePath.isNullOrEmpty()) {
+                return getFormattedPathFromRelativePath(relativePath)
             }
             
             // Если не удалось получить RELATIVE_PATH, пытаемся получить полный путь
@@ -321,36 +208,22 @@ object UriUtil {
         uri: Uri
     ): UriExistsResult = withContext(Dispatchers.IO) {
         // Единый запрос для получения всех метаданных
-        val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            arrayOf(
-                MediaStore.Images.Media.IS_PENDING,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media._ID
-            )
-        } else {
-            arrayOf(
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media._ID
-            )
-        }
+        val projection = arrayOf(
+            MediaStore.Images.Media.IS_PENDING,
+            MediaStore.Images.Media.SIZE,
+            MediaStore.Images.Media._ID
+        )
 
         context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
             if (!cursor.moveToFirst()) {
                 return@withContext UriExistsResult(false, reason = "not_found")
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val isPending = cursor.getInt(0) == 1
-                if (isPending) {
-                    return@withContext UriExistsResult(false, reason = "pending")
-                }
+            if (cursor.getInt(0) == 1) {
+                return@withContext UriExistsResult(false, reason = "pending")
             }
 
-            val size = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                cursor.getLong(1)
-            } else {
-                cursor.getLong(0)
-            }
+            val size = cursor.getLong(1)
 
             if (size < 0) {
                 return@withContext UriExistsResult(false, reason = "negative_size")
@@ -450,15 +323,7 @@ object UriUtil {
                         return@withContext docFileLength
                     }
 
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        var totalBytes = 0L
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                            totalBytes += bytesRead
-                        }
-                        return@withContext totalBytes
-                    }
+                    countStreamBytes(context, uri)?.let { return@withContext it }
                 } catch (e: java.io.FileNotFoundException) {
                     LogUtil.error(uri, "Получение размера", "Файл не найден при открытии потока: ${e.message}")
                     return@withContext 0L
@@ -484,15 +349,27 @@ object UriUtil {
     }
     
     /**
+     * Подсчитывает размер содержимого URI чтением потока (медленно, но универсально).
+     * @return число байт или null, если поток не удалось открыть; ошибки чтения пробрасываются
+     */
+    fun countStreamBytes(context: Context, uri: Uri): Long? =
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            var total = 0L
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+            }
+            total
+        }
+
+    /**
      * Проверяет, находится ли файл в состоянии IS_PENDING
      * Если флаг установлен, но файл был добавлен давно (более 2 минут назад),
      * считаем что файл готов к обработке (игнорируем устаревший флаг)
      */
     fun isFilePending(context: Context, uri: Uri): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            return false
-        }
-
         try {
             // Получаем и IS_PENDING, и дату добавления файла, и размер
             val projection = arrayOf(
@@ -571,49 +448,10 @@ object UriUtil {
         try {
             when (uri.scheme) {
                 "content" -> {
-                    // Специальная обработка для URI документов из галереи
-                    if (uri.toString().startsWith("content://com.android.providers.media.documents/")) {
-                        LogUtil.processDebug("Обнаружен URI документа медиа-провайдера, используем специальную обработку")
-                        
-                        // Получаем ID документа
-                        try {
-                            val docId = DocumentsContract.getDocumentId(uri)
-                            val split = docId.split(":")
-                            if (split.size >= 2) {
-                                val type = split[0]
-                                val id = split[1]
-                                
-                                // Для изображений
-                                if (type == "image") {
-                                    val contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                                    val selection = MediaStore.Images.Media._ID + "=?"
-                                    val selectionArgs = arrayOf(id)
-                                    
-                                    context.contentResolver.query(
-                                        contentUri,
-                                        arrayOf(MediaStore.Images.Media.DATE_MODIFIED),
-                                        selection,
-                                        selectionArgs,
-                                        null
-                                    )?.use { cursor ->
-                                        if (cursor.moveToFirst()) {
-                                            val dateModifiedColumnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
-                                            // DATE_MODIFIED хранится в секундах, умножаем на 1000 для миллисекунд
-                                            val dateModified = cursor.getLong(dateModifiedColumnIndex).secondsToMillis()
-                                            LogUtil.processDebug("Дата модификации файла из MediaStore: ${Date(dateModified)} (${dateModified}ms)")
-                                            return@withContext dateModified
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            LogUtil.error(null, "Получение docId", e)
-                        }
-                    }
-                    
-                    // Пробуем получить дату через MediaStore
+                    // URI документов медиа-провайдера преобразуем в MediaStore URI
+                    val effectiveUri = convertMediaDocumentsUri(uri) ?: uri
                     val projection = arrayOf(MediaStore.MediaColumns.DATE_MODIFIED)
-                    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    context.contentResolver.query(effectiveUri, projection, null, null, null)?.use { cursor ->
                         if (cursor.moveToFirst()) {
                             val dateIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
                             if (dateIndex != -1) {

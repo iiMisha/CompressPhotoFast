@@ -17,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.ForegroundInfo
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -185,10 +184,8 @@ object NotificationUtil {
     private fun workerForegroundType(): Int {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         } else {
-            0
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         }
     }
     
@@ -197,64 +194,62 @@ object NotificationUtil {
      * Централизованный метод, используемый во всем приложении
      */
     fun createDefaultNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = context.getString(R.string.notification_channel_name)
-            val description = context.getString(R.string.notification_channel_description)
-            // Изменено с IMPORTANCE_LOW на IMPORTANCE_DEFAULT для лучшей совместимости с Android 13+
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            
-            createNotificationChannel(
-                context,
-                context.getString(R.string.notification_channel_id),
-                name,
-                description,
-                importance,
-                showBadge = false,
-                enableLights = false,
-                enableVibration = false
-            )
-            
-            // Создаем дополнительный канал для уведомлений о завершении сжатия
-            createNotificationChannel(
-                context,
-                "compression_completion_channel",
-                context.getString(R.string.notification_completion_channel_name),
-                context.getString(R.string.notification_completion_channel_description),
-                NotificationManager.IMPORTANCE_HIGH,
-                showBadge = true,
-                enableLights = true,
-                enableVibration = true
-            )
-            
-            // Создаем тихий канал для batch-обработки (без звука и вибрации)
-            createNotificationChannel(
-                context,
-                "compression_silent_channel",
-                "Фоновая обработка",
-                "Канал для пакетной обработки изображений без уведомлений",
-                NotificationManager.IMPORTANCE_MIN,
-                showBadge = false,
-                enableLights = false,
-                enableVibration = false
-            )
+        val name = context.getString(R.string.notification_channel_name)
+        val description = context.getString(R.string.notification_channel_description)
+        // Изменено с IMPORTANCE_LOW на IMPORTANCE_DEFAULT для лучшей совместимости с Android 13+
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        
+        createNotificationChannel(
+            context,
+            context.getString(R.string.notification_channel_id),
+            name,
+            description,
+            importance,
+            showBadge = false,
+            enableLights = false,
+            enableVibration = false
+        )
+        
+        // Создаем дополнительный канал для уведомлений о завершении сжатия
+        createNotificationChannel(
+            context,
+            "compression_completion_channel",
+            context.getString(R.string.notification_completion_channel_name),
+            context.getString(R.string.notification_completion_channel_description),
+            NotificationManager.IMPORTANCE_HIGH,
+            showBadge = true,
+            enableLights = true,
+            enableVibration = true
+        )
+        
+        // Создаем тихий канал для batch-обработки (без звука и вибрации)
+        createNotificationChannel(
+            context,
+            "compression_silent_channel",
+            "Фоновая обработка",
+            "Канал для пакетной обработки изображений без уведомлений",
+            NotificationManager.IMPORTANCE_MIN,
+            showBadge = false,
+            enableLights = false,
+            enableVibration = false
+        )
 
-            // Создаем канал для ошибок сжатия (OOM и др.)
-            createNotificationChannel(
-                context,
-                "compression_errors",
-                "Ошибки сжатия",
-                "Канал для уведомлений об ошибках при сжатии изображений",
-                NotificationManager.IMPORTANCE_HIGH,
-                showBadge = true,
-                enableLights = true,
-                enableVibration = true
-            )
+        // Создаем канал для ошибок сжатия (OOM и др.)
+        createNotificationChannel(
+            context,
+            "compression_errors",
+            "Ошибки сжатия",
+            "Канал для уведомлений об ошибках при сжатии изображений",
+            NotificationManager.IMPORTANCE_HIGH,
+            showBadge = true,
+            enableLights = true,
+            enableVibration = true
+        )
 
-            // Удаляем уведомление статистики, созданное версиями до объединения.
-            getNotificationManager(context).cancel(LEGACY_DAILY_STATS_NOTIFICATION_ID)
-            
-            // LogUtil.notification("Уведомления: каналы уведомлений созданы")
-        }
+        // Удаляем уведомление статистики, созданное версиями до объединения.
+        getNotificationManager(context).cancel(LEGACY_DAILY_STATS_NOTIFICATION_ID)
+        
+        // LogUtil.notification("Уведомления: каналы уведомлений созданы")
     }
     
     /**
@@ -271,21 +266,19 @@ object NotificationUtil {
         enableLights: Boolean = true,
         enableVibration: Boolean = true
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                channelName,
-                importance
-            ).apply {
-                this.description = description
-                setShowBadge(showBadge)
-                enableLights(enableLights)
-                enableVibration(enableVibration)
-            }
-            
-            getNotificationManager(context).createNotificationChannel(channel)
-            // LogUtil.notification("Уведомления: создан канал $channelName (id=$channelId)")
+        val channel = NotificationChannel(
+            channelId,
+            channelName,
+            importance
+        ).apply {
+            this.description = description
+            setShowBadge(showBadge)
+            enableLights(enableLights)
+            enableVibration(enableVibration)
         }
+        
+        getNotificationManager(context).createNotificationChannel(channel)
+        // LogUtil.notification("Уведомления: создан канал $channelName (id=$channelId)")
     }
     
     /** 
@@ -306,26 +299,6 @@ object NotificationUtil {
 
         val message = "🖼️ $truncatedFileName: $originalSizeStr→$compressedSizeStr (-$reductionStr%)"
         showToast(context, message, Toast.LENGTH_LONG)
-    }
-    
-    /**
-     * Показывает Toast с результатом сжатия (вариант с вычислением процента сокращения)
-     */
-    fun showCompressionResultToast(context: Context, fileName: String, originalSize: Long, compressedSize: Long, duration: Int = Toast.LENGTH_LONG) {
-        // Проверяем настройку перед показом Toast
-        val settingsManager = SettingsManager.getInstance(context)
-        if (!settingsManager.shouldShowCompressionToast()) {
-            LogUtil.debug("NotificationUtil", "Toast о сжатии отключен в настройках")
-            return
-        }
-
-        val originalSizeStr = FileOperationsUtil.formatFileSizeCompact(originalSize)
-        val compressedSizeStr = FileOperationsUtil.formatFileSizeCompact(compressedSize)
-
-        val reductionPercent = FileOperationsUtil.computeSizeReductionPercent(originalSize, compressedSize).roundToInt()
-
-        val message = "$fileName: $originalSizeStr→$compressedSizeStr (-$reductionPercent%)"
-        showToast(context, message, duration)
     }
     
     /**

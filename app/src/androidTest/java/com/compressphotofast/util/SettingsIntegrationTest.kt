@@ -123,23 +123,6 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 6: Проверка сохранения и чтения первой загрузки
-     */
-    @Test
-    fun test_firstLaunch_saveAndRead() {
-        // Тестируем сохранение false (приложение уже запускалось)
-        editor.putBoolean(Constants.PREF_FIRST_LAUNCH, false)
-        val result = editor.commit()
-
-        org.junit.Assert.assertTrue("Настройка должна сохраниться", result)
-        org.junit.Assert.assertEquals(
-            "Значение должно быть false",
-            false,
-            sharedPreferences.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
-        )
-    }
-
-    /**
      * Тест 7: Проверка сохранения нескольких настроек одновременно
      */
     @Test
@@ -196,45 +179,6 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
     }
 
     /**
-     * Тест 9: Проверка сохранения пресета сжатия
-     */
-    @Test
-    fun test_compressionPreset_saveAndRead() {
-        // Тестируем сохранение пресета
-        editor.putString(Constants.PREF_COMPRESSION_PRESET, "medium")
-        val result = editor.commit()
-
-        org.junit.Assert.assertTrue("Пресет должен сохраниться", result)
-        org.junit.Assert.assertEquals(
-            "Пресет должен быть 'medium'",
-            "medium",
-            sharedPreferences.getString(Constants.PREF_COMPRESSION_PRESET, "")
-        )
-    }
-
-    /**
-     * Тест 10: Проверка счетчика запросов разрешений
-     */
-    @Test
-    fun test_permissionRequestCount_increment() {
-        // Очищаем счетчик
-        editor.putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
-        editor.commit()
-
-        // Читаем текущее значение
-        val count1 = sharedPreferences.getInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
-        org.junit.Assert.assertEquals("Начальное значение должно быть 0", 0, count1)
-
-        // Увеличиваем счетчик
-        editor.putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, count1 + 1)
-        editor.commit()
-
-        // Проверяем увеличение
-        val count2 = sharedPreferences.getInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
-        org.junit.Assert.assertEquals("Значение должно быть 1", 1, count2)
-    }
-
-    /**
      * Очистка после тестов
      */
     @After
@@ -244,7 +188,6 @@ class SettingsIntegrationTest : BaseInstrumentedTest() {
         editor.putInt(Constants.PREF_COMPRESSION_QUALITY, 80)
         editor.putBoolean(Constants.PREF_SAVE_MODE, false)
         editor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, false)
-        editor.putInt(Constants.PREF_PERMISSION_REQUEST_COUNT, 0)
         editor.commit()
     }
 }

@@ -36,20 +36,6 @@ class ConstantsTest : BaseUnitTest() {
         assertEquals("save_mode", Constants.PREF_SAVE_MODE)
     }
 
-    // ========== Тесты режимов сохранения ==========
-
-    @Test
-    fun `проверка режима сохранения - замена`() {
-        // Arrange & Act & Assert
-        assertEquals(1, Constants.SAVE_MODE_REPLACE)
-    }
-
-    @Test
-    fun `проверка режима сохранения - отдельная папка`() {
-        // Arrange & Act & Assert
-        assertEquals(2, Constants.SAVE_MODE_SEPARATE)
-    }
-
     // ========== Тесты ограничений размера файлов ==========
 
     @Test
@@ -74,12 +60,6 @@ class ConstantsTest : BaseUnitTest() {
         assertTrue(Constants.OPTIMUM_FILE_SIZE > 100000L && Constants.OPTIMUM_FILE_SIZE < 110000L)
     }
 
-    @Test
-    fun `проверка минимального обрабатываемого размера файла`() {
-        // Arrange & Act & Assert
-        assertEquals(100 * 1024L, Constants.MIN_PROCESSABLE_FILE_SIZE)
-    }
-
     // ========== Тесты качества сжатия ==========
 
     @Test
@@ -100,50 +80,12 @@ class ConstantsTest : BaseUnitTest() {
         assertEquals(80, Constants.COMPRESSION_QUALITY_HIGH)
     }
 
-    @Test
-    fun `проверка качества сжатия по умолчанию`() {
-        // Arrange & Act & Assert
-        assertEquals(85, Constants.DEFAULT_COMPRESSION_QUALITY)
-    }
-
-    @Test
-    fun `проверка минимального качества сжатия`() {
-        // Arrange & Act & Assert
-        assertEquals(50, Constants.MIN_COMPRESSION_QUALITY)
-    }
-
-    @Test
-    fun `проверка максимального качества сжатия`() {
-        // Arrange & Act & Assert
-        assertEquals(100, Constants.MAX_COMPRESSION_QUALITY)
-    }
-
-    // ========== Тесты лимитов разрешения ==========
-
-    @Test
-    fun `проверка максимальной ширины изображения`() {
-        // Arrange & Act & Assert
-        assertEquals(Int.MAX_VALUE, Constants.MAX_IMAGE_WIDTH)
-    }
-
-    @Test
-    fun `проверка максимальной высоты изображения`() {
-        // Arrange & Act & Assert
-        assertEquals(Int.MAX_VALUE, Constants.MAX_IMAGE_HEIGHT)
-    }
-
     // ========== Тесты экономии при сжатии ==========
 
     @Test
     fun `проверка минимального процента экономии`() {
         // Arrange & Act & Assert
         assertEquals(30f, Constants.MIN_COMPRESSION_SAVING_PERCENT)
-    }
-
-    @Test
-    fun `проверка минимального коэффициента сжатия`() {
-        // Arrange & Act & Assert
-        assertEquals(0.8f, Constants.MIN_COMPRESSION_RATIO)
     }
 
     // ========== Тесты интервалов ==========
@@ -167,12 +109,6 @@ class ConstantsTest : BaseUnitTest() {
     }
 
     // ========== Тесты уведомлений ==========
-
-    @Test
-    fun `проверка ID канала уведомлений`() {
-        // Arrange & Act & Assert
-        assertEquals("compression_channel", Constants.NOTIFICATION_CHANNEL_ID)
-    }
 
     @Test
     fun `проверка ID уведомления сжатия`() {
@@ -224,20 +160,6 @@ class ConstantsTest : BaseUnitTest() {
     fun `проверка ключа batch ID в WorkManager`() {
         // Arrange & Act & Assert
         assertEquals("batch_id", Constants.WORK_BATCH_ID)
-    }
-
-    // ========== Тесты кодов запросов ==========
-
-    @Test
-    fun `проверка кода запроса удаления файла`() {
-        // Arrange & Act & Assert
-        assertEquals(12345, Constants.REQUEST_CODE_DELETE_FILE)
-    }
-
-    @Test
-    fun `проверка кода запроса разрешения на удаление`() {
-        // Arrange & Act & Assert
-        assertEquals(12346, Constants.REQUEST_CODE_DELETE_PERMISSION)
     }
 
     // ========== Тесты действий BroadcastReceiver ==========

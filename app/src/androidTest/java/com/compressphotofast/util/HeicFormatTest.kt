@@ -1,6 +1,5 @@
 package com.compressphotofast.util
 
-import android.content.Context
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry

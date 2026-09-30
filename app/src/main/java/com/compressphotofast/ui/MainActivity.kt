@@ -122,14 +122,13 @@ class MainActivity : AppCompatActivity() {
      * Показывает Toast с результатами сжатия
      */
     private fun showCompressionResult(fileName: String, originalSize: Long, compressedSize: Long) {
-        // Проверяем настройку перед показом Toast
-        if (!settingsManager.shouldShowCompressionToast()) {
-            LogUtil.debug("MainActivity", "Toast о сжатии отключен в настройках")
-            return
-        }
-
-        val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
-        NotificationUtil.showCompressionResultToast(this, "🖼️ $truncatedFileName", originalSize, compressedSize)
+        NotificationUtil.showCompressionResultToast(
+            this,
+            fileName,
+            originalSize,
+            compressedSize,
+            FileOperationsUtil.computeSizeReductionPercent(originalSize, compressedSize)
+        )
     }
 
     /**

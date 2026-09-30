@@ -22,7 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Instrumentation тесты для проверки режима замены (SAVE_MODE_REPLACE)
+ * Instrumentation тесты для проверки режима замены (PREF_SAVE_MODE = true)
  *
  * Критические тесты для проверки исправления бага с "~2" в именах файлов.
  * Упрощенная версия с использованием только JUnit assertions.

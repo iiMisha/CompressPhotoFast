@@ -1,6 +1,5 @@
 package com.compressphotofast.util
 
-import android.content.ContentUris
 import android.content.ContentResolver
 import android.content.Context
 import android.database.MatrixCursor

@@ -3,8 +3,6 @@ package com.compressphotofast.util
 import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
-import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Утилитарный класс для очистки временных файлов

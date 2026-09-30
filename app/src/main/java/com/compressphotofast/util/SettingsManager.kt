@@ -2,8 +2,6 @@ package com.compressphotofast.util
 
 import android.content.Context
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,18 +34,6 @@ class SettingsManager @Inject constructor(
      */
     fun isSaveModeReplace(): Boolean {
         return sharedPreferences.getBoolean(Constants.PREF_SAVE_MODE, false)
-    }
-
-    /**
-     * Получение режима сохранения
-     * @return SAVE_MODE_REPLACE если включён режим замены, SAVE_MODE_SEPARATE в противном случае
-     */
-    fun getSaveMode(): Int {
-        return if (isSaveModeReplace()) {
-            Constants.SAVE_MODE_REPLACE
-        } else {
-            Constants.SAVE_MODE_SEPARATE
-        }
     }
 
     /**
@@ -167,45 +153,6 @@ class SettingsManager @Inject constructor(
     }
     
     /**
-     * Получение всех отложенных запросов на удаление
-     */
-    fun getPendingDeleteUris(): Set<String> {
-        return sharedPreferences.getStringSet(Constants.PREF_PENDING_DELETE_URIS, emptySet()) ?: emptySet()
-    }
-    
-    /**
-     * Проверка и установка статуса первого запуска
-     */
-    fun isFirstLaunch(): Boolean {
-        return sharedPreferences.getBoolean(Constants.PREF_FIRST_LAUNCH, true)
-    }
-    
-    /**
-     * Установка флага первого запуска
-     */
-    fun setFirstLaunch(isFirst: Boolean) {
-        sharedPreferences.edit()
-            .putBoolean(Constants.PREF_FIRST_LAUNCH, isFirst)
-            .apply()
-    }
-    
-    /**
-     * Проверка запрашивалось ли разрешение на удаление
-     */
-    fun isDeletePermissionRequested(): Boolean {
-        return sharedPreferences.getBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, false)
-    }
-    
-    /**
-     * Установка флага запроса разрешения на удаление
-     */
-    fun setDeletePermissionRequested(requested: Boolean) {
-        sharedPreferences.edit()
-            .putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, requested)
-            .apply()
-    }
-    
-    /**
      * Проверяет, нужно ли обрабатывать скриншоты
      * @return true если нужно обрабатывать скриншоты, false в противном случае
      */
@@ -247,29 +194,6 @@ class SettingsManager @Inject constructor(
             .apply()
     }
 
-    /**
-     * Выполняет пакетное обновление нескольких настроек за одну операцию I/O
-     *
-     * Используйте этот метод когда нужно обновить несколько настроек одновременно.
-     * Это более эффективно чем множественные вызовы отдельных set* методов.
-     *
-     * Пример использования:
-     * ```kotlin
-     * settingsManager.batchUpdate {
-     *     setAutoCompression(true)
-     *     setCompressionQuality(85)
-     *     setSaveMode(false)
-     * }
-     * ```
-     *
-     * @param updates Лямбда с вызовами методов SettingsEditor для обновления настроек
-     */
-    suspend fun batchUpdate(updates: SettingsEditor.() -> Unit) = withContext(Dispatchers.IO) {
-        val editor = sharedPreferences.edit()
-        updates(SettingsEditor(editor))
-        editor.apply()
-    }
-
     companion object {
         /**
          * Создает экземпляр SettingsManager без внедрения зависимостей (для классов без Hilt)
@@ -278,98 +202,5 @@ class SettingsManager @Inject constructor(
             val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
             return SettingsManager(prefs)
         }
-    }
-}
-
-/**
- * Editor для пакетного обновления настроек
- *
- * Используется внутри метода [SettingsManager.batchUpdate] для эффективного
- * обновления нескольких настроек за одну операцию I/O.
- *
- * Пример использования:
- * ```kotlin
- * settingsManager.batchUpdate {
- *     setAutoCompression(true)
- *     setCompressionQuality(85)
- *     setSaveMode(false)
- * }
- * ```
- */
-class SettingsEditor(private val editor: SharedPreferences.Editor) {
-
-    /**
-     * Установка статуса автоматического сжатия
-     */
-    fun setAutoCompression(enabled: Boolean) {
-        editor.putBoolean(Constants.PREF_AUTO_COMPRESSION, enabled)
-    }
-
-    /**
-     * Установка режима сохранения
-     * @param replace true - заменять оригинальные файлы, false - сохранять в отдельной папке
-     */
-    fun setSaveMode(replace: Boolean) {
-        editor.putBoolean(Constants.PREF_SAVE_MODE, replace)
-    }
-
-    /**
-     * Установка уровня сжатия
-     */
-    fun setCompressionQuality(quality: Int) {
-        editor.putInt(Constants.PREF_COMPRESSION_QUALITY, quality)
-    }
-
-    /**
-     * Установка уровня сжатия по предустановке (низкий, средний, высокий)
-     */
-    fun setCompressionPreset(preset: CompressionPreset) {
-        val quality = when (preset) {
-            CompressionPreset.LOW -> Constants.COMPRESSION_QUALITY_LOW
-            CompressionPreset.MEDIUM -> Constants.COMPRESSION_QUALITY_MEDIUM
-            CompressionPreset.HIGH -> Constants.COMPRESSION_QUALITY_HIGH
-        }
-        setCompressionQuality(quality)
-    }
-
-    /**
-     * Устанавливает настройку обработки скриншотов
-     * @param processScreenshots true если нужно обрабатывать скриншоты, false в противном случае
-     */
-    fun setProcessScreenshots(processScreenshots: Boolean) {
-        editor.putBoolean(Constants.PREF_PROCESS_SCREENSHOTS, processScreenshots)
-    }
-
-    /**
-     * Устанавливает настройку показа Toast сообщений о результатах сжатия
-     * @param show true если нужно показывать Toast, false в противном случае
-     */
-    fun setShowCompressionToast(show: Boolean) {
-        editor.putBoolean(Constants.PREF_SHOW_COMPRESSION_TOAST, show)
-    }
-
-    /**
-     * Установка флага первого запуска
-     */
-    fun setFirstLaunch(isFirst: Boolean) {
-        editor.putBoolean(Constants.PREF_FIRST_LAUNCH, isFirst)
-    }
-
-    /**
-     * Установка флага запроса разрешения на удаление
-     */
-    fun setDeletePermissionRequested(requested: Boolean) {
-        editor.putBoolean(Constants.PREF_DELETE_PERMISSION_REQUESTED, requested)
-    }
-
-    /**
-     * Установка максимального разрешения (по большей стороне)
-     */
-    fun setMaxResolution(maxDimension: Int) {
-        editor.putInt(Constants.PREF_MAX_RESOLUTION, maxDimension)
-    }
-
-    fun setLastScanTimestamp(timestamp: Long) {
-        editor.putLong(Constants.PREF_LAST_SCAN_TIMESTAMP, timestamp)
     }
 }

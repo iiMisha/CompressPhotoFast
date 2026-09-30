@@ -8,7 +8,6 @@ import org.junit.Test
 import org.junit.Assert.*
 import org.robolectric.annotation.Config
 import java.io.File
-import androidx.work.testing.WorkManagerTestInitHelper
 import com.compressphotofast.test.TestApplication
 
 /**

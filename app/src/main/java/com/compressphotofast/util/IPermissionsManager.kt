@@ -74,17 +74,4 @@ interface IPermissionsManager {
      * Показать диалог с объяснением необходимости разрешения для уведомлений
      */
     fun showNotificationPermissionExplanation(onRetry: () -> Unit, onSkip: () -> Unit)
-    
-    /**
-     * Обработка результата запроса разрешений
-     * Должна вызываться из onRequestPermissionsResult активити
-     */
-    fun handlePermissionResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray,
-        onAllGranted: () -> Unit,
-        onSomePermissionsDenied: () -> Unit
-    )
-    
 }

@@ -59,9 +59,6 @@ class UriProcessingTracker private constructor(
     // Карта для отслеживания времени добавления URI
     private val uriProcessingTime = ConcurrentHashMap<String, Long>()
 
-    // Максимальное количество URI в обработке
-    private val MAX_PROCESSING_URIS = 50
-
     // Время после которого URI считается stale (30 минут).
     // Блокировка, висящая дольше этого порога, считается залипшей (Worker не доработал
     // и не снял её в finally) и принудительно снимается/перевыдаётся при следующей попытке.

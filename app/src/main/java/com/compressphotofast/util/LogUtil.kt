@@ -14,7 +14,6 @@ object LogUtil {
     private const val CATEGORY_FILE = "ФАЙЛ"
     private const val CATEGORY_COMPRESSION = "СЖАТИЕ"
     private const val CATEGORY_PROCESS = "ПРОЦЕСС"
-    private const val CATEGORY_EXIF = "EXIF"
     private const val CATEGORY_ERROR = "ОШИБКА"
     private const val CATEGORY_NOTIFICATION = "УВЕДОМЛЕНИЕ"
     private const val CATEGORY_URI = "URI"
@@ -94,10 +93,6 @@ object LogUtil {
 
     // ========== Логирование ошибок (без дедупликации для критичности) ==========
     
-    fun errorSimple(operation: String, message: String) {
-        Timber.e("[$CATEGORY_ERROR:$operation] $message")
-    }
-
     fun errorWithException(operation: String, throwable: Throwable) {
         Timber.e(throwable, "[$CATEGORY_ERROR:$operation]")
     }
