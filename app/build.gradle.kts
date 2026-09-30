@@ -60,6 +60,8 @@ android {
         applicationId = "com.compressphotofast"
         minSdk = 29
         targetSdk = 36
+        // Строки приложения только русские: не тащим переводы библиотек на ~80 языков
+        androidResources.localeFilters += listOf("ru")
         versionCode = 2
 
         // Динамическое формирование версии с датой, временем и хешем коммита
@@ -99,6 +101,7 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -178,13 +181,6 @@ dependencies {
     
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    
-    // Coil для загрузки изображений
-    implementation("io.coil-kt.coil3:coil:3.3.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
-    
-    // Compressor для сжатия изображений
-    implementation("id.zelory:compressor:3.0.1")
     
     // ExifInterface для работы с метаданными
     implementation("androidx.exifinterface:exifinterface:1.4.1")

@@ -45,12 +45,10 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         super.onCreate()
 
         // Настройка логирования
+        // В релизе дерево не сажаем: Timber без деревьев — no-op, а вызовы
+        // LogUtil вырезаются R8 (-assumenosideeffects в proguard-rules.pro)
         if (BuildConfig.DEBUG) {
-            // В режиме отладки показываем все логи
             Timber.plant(Timber.DebugTree())
-        } else {
-            // В релизной версии полностью отключаем логирование
-            Timber.plant(ReleaseTree())
         }
 
         // Создание канала уведомлений (для Android 8.0+)
@@ -163,14 +161,5 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             .setExecutor(Executors.newFixedThreadPool(2))
             .setTaskExecutor(Executors.newFixedThreadPool(2))
             .build()
-    }
-
-    /**
-     * Дерево логирования для релизной версии, полностью отключает все логи
-     */
-    private class ReleaseTree : Timber.Tree() {
-        override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-            // Пустая реализация - не логируем ничего в релизе
-        }
     }
 }
