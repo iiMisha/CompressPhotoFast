@@ -26,58 +26,6 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object ExifUtil {
 
-    // Константы для EXIF маркировки
-    private const val EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
-
-    // Фиксированная ширина поля размера в маркере (ведущие нули).
-    // Фаза 1 пишет заглушку из нулей, фаза 2 — реальный размер той же длины:
-    // длина строки маркера не меняется, поэтому размер заглушки и финального
-    // размера всегда укладываются в одно поле фиксированной ширины.
-    private const val MARKER_SIZE_FIELD_WIDTH = 15
-
-    // Фиксированная ширина поля исходного размера (до сжатия). Известен до
-    // начала сжатия, поэтому пишется уже в фазе 1; фаза 2 перезаписывает
-    // только поле [MARKER_SIZE_FIELD_WIDTH], не трогая это поле.
-    private const val MARKER_ORIG_SIZE_FIELD_WIDTH = 15
-
-    /**
-     * Информация о маркере сжатия из EXIF UserComment.
-     * Формат: CompressPhotoFast_Compressed:quality:timestamp:size:origSize
-     *
-     * @param isCompressed изображение было сжато ранее
-     * @param quality качество сжатия или -1, если неизвестно
-     * @param timestamp временная метка сжатия в миллисекундах или 0L, если неизвестна
-     * @param fileSize размер файла в байтах на момент записи маркера;
-     *                 null — старый формат маркера без размера, HEIC-маркер
-     *                 или незавершённая двухфазная запись (заглушка)
-     * @param originalFileSize исходный размер файла в байтах до сжатия;
-     *                 null — старый формат маркера (без поля), HEIC-маркер
-     *                 или неизвестный на момент записи размер
-     */
-    data class CompressionMarkerInfo(
-        val isCompressed: Boolean,
-        val quality: Int,
-        val timestamp: Long,
-        val fileSize: Long?,
-        val originalFileSize: Long? = null
-    )
-
-    /**
-     * Собирает строку маркера сжатия. При size == null используется заглушка
-     * из нулей фиксированной ширины [MARKER_SIZE_FIELD_WIDTH].
-     * При originalSize == null — заглушка [MARKER_ORIG_SIZE_FIELD_WIDTH].
-     */
-    private fun buildCompressionMarker(
-        quality: Int,
-        timestamp: Long,
-        size: Long?,
-        originalSize: Long?
-    ): String {
-        val sizeField = (size ?: 0L).toString().padStart(MARKER_SIZE_FIELD_WIDTH, '0')
-        val origSizeField = (originalSize ?: 0L).toString().padStart(MARKER_ORIG_SIZE_FIELD_WIDTH, '0')
-        return "$EXIF_COMPRESSION_MARKER:$quality:$timestamp:$sizeField:$origSizeField"
-    }
-
     // GPS-теги для копирования/проверки/применения
     private val GPS_TAGS = arrayOf(
         ExifInterface.TAG_GPS_LATITUDE,
@@ -209,7 +157,6 @@ object ExifUtil {
     )
 
     // Суффикс для HEIC файлов, которым не удалось добавить EXIF-маркер
-    private const val HEIC_COMPRESSED_SUFFIX = "_compressed"
 
     /**
      * Проверяет, является ли файл HEIC/HEIF форматом
@@ -253,18 +200,6 @@ object ExifUtil {
     }
 
     /**
-     * Проверяет, есть ли у HEIC файла суффикс _compressed
-     * @param displayName Имя файла (displayName из MediaStore)
-     * @return true если имя содержит суффикс _compressed перед расширением
-     */
-    private fun hasHeicCompressedSuffix(displayName: String?): Boolean {
-        if (displayName == null) return false
-
-        // Проверяем наличие суффикса _compressed перед расширением .heic или .heif
-        return displayName.contains(Regex("""_compressed\.(heic|heif)$""", RegexOption.IGNORE_CASE))
-    }
-
-    /**
      * Добавляет суффикс _compressed к имени HEIC файла через MediaStore
      * Используется как fallback, когда не удается сохранить EXIF-маркер в HEIC
      * @param context Контекст приложения
@@ -284,7 +219,7 @@ object ExifUtil {
             }
 
             // Проверяем, нет ли уже суффикса
-            if (hasHeicCompressedSuffix(currentDisplayName)) {
+            if (CompressionMarker.hasHeicCompressedSuffix(currentDisplayName)) {
                 LogUtil.processInfo("У файла уже есть суффикс _compressed: $currentDisplayName")
                 return@withContext true
             }
@@ -292,9 +227,9 @@ object ExifUtil {
             // Формируем новое имя: добавляем _compressed перед расширением
             val (nameWithoutExt, extension) = FileOperationsUtil.splitNameAndExtension(currentDisplayName!!)
             val newDisplayName = if (extension.isNotEmpty()) {
-                "$nameWithoutExt$HEIC_COMPRESSED_SUFFIX$extension"
+                "$nameWithoutExt${CompressionMarker.HEIC_COMPRESSED_SUFFIX}$extension"
             } else {
-                "$currentDisplayName$HEIC_COMPRESSED_SUFFIX"
+                "$currentDisplayName${CompressionMarker.HEIC_COMPRESSED_SUFFIX}"
             }
 
             LogUtil.processInfo("Переименование: $currentDisplayName -> $newDisplayName")
@@ -878,7 +813,7 @@ object ExifUtil {
                 var markerTimestamp = 0L
                 if (quality != null) {
                     markerTimestamp = System.currentTimeMillis()
-                    val compressionInfo = buildCompressionMarker(quality, markerTimestamp, null, originalFileSize)
+                    val compressionInfo = CompressionMarker.build(quality, markerTimestamp, null, originalFileSize)
                     exif.setAttribute(ExifInterface.TAG_USER_COMMENT, compressionInfo)
                     LogUtil.processInfo("Добавлен маркер сжатия: $compressionInfo")
                 }
@@ -1054,7 +989,7 @@ object ExifUtil {
         originalFileSize: Long?
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val markerWithSize = buildCompressionMarker(quality, markerTimestamp, size, originalFileSize)
+            val markerWithSize = CompressionMarker.build(quality, markerTimestamp, size, originalFileSize)
             guardedExifWrite(context, uri) {
                 // Дескриптор не открыт — маркер не записан: обязаны вернуть false
                 // (через исключение), иначе вызывающий код сочтёт запись успешной
@@ -1139,7 +1074,7 @@ object ExifUtil {
                 val exif = ExifInterface(pfd.fileDescriptor)
 
                 // Фаза 1: маркер с нулевой заглушкой размера фиксированной ширины
-                val markerPlaceholder = buildCompressionMarker(quality, markerTimestamp, null, originalFileSize)
+                val markerPlaceholder = CompressionMarker.build(quality, markerTimestamp, null, originalFileSize)
 
                 exif.setAttribute(ExifInterface.TAG_USER_COMMENT, markerPlaceholder)
                 if (!guardedExifWrite(context, uri) { exif.saveAttributes() }) {
@@ -1180,7 +1115,7 @@ object ExifUtil {
                 }
 
                 // Проверяем суффикс _compressed в имени HEIC файла
-                if (hasHeicCompressedSuffix(displayName)) {
+                if (CompressionMarker.hasHeicCompressedSuffix(displayName)) {
                     LogUtil.processDebug("Найден HEIC маркер сжатия в имени файла: $displayName для URI: $uri")
                     // Для HEIC с суффиксом возвращаем качество по умолчанию (85) и дату модификации
                     return CompressionMarkerInfo(true, 85, dateModified ?: System.currentTimeMillis(), null)
@@ -1188,42 +1123,24 @@ object ExifUtil {
             }
 
             // Стандартная проверка EXIF маркера для всех форматов
-            val exifInterface = getExifInterface(context, uri) ?: return CompressionMarkerInfo(false, -1, 0L, null)
-
-            // Получаем UserComment
+            val exifInterface = getExifInterface(context, uri) ?: return CompressionMarkerInfo.NOT_COMPRESSED
             val userComment = exifInterface.getAttribute(ExifInterface.TAG_USER_COMMENT)
-            if (userComment.isNullOrEmpty()) {
-                return CompressionMarkerInfo(false, -1, 0L, null)
-            }
-
-            // Проверяем, содержит ли UserComment наш маркер
-            if (userComment.startsWith(EXIF_COMPRESSION_MARKER)) {
-                // Разбираем информацию из маркера:
-                // CompressPhotoFast_Compressed:70:1742629672908:000000123456789:000000123456789
-                val parts = userComment.split(":")
-                if (parts.size >= 3) {
-                    try {
-                        val quality = parts[1].toInt()
-                        val timestamp = parts[2].toLong()
-                        // Размер: заглушка из нулей, мусор или отсутствие поля трактуется как null
-                        val fileSize = parts.getOrNull(3)?.toLongOrNull()?.takeIf { it > 0L }
-                        // Исходный размер: только в расширенном формате (5-е поле);
-                        // в старом 4-полевом формате отсутствует — null
-                        val originalFileSize = parts.getOrNull(4)?.toLongOrNull()?.takeIf { it > 0L }
-                        LogUtil.processDebug(
-                            "Найден EXIF маркер с timestamp: $timestamp, размер: $fileSize, исходный размер: $originalFileSize для URI: $uri"
-                        )
-                        return CompressionMarkerInfo(true, quality, timestamp, fileSize, originalFileSize)
-                    } catch (e: NumberFormatException) {
-                        LogUtil.error(uri, "Парсинг маркера", "Ошибка при парсинге маркера сжатия: $userComment", e)
-                    }
+            try {
+                CompressionMarker.parse(userComment)?.let { marker ->
+                    LogUtil.processDebug(
+                        "Найден EXIF маркер с timestamp: ${marker.timestamp}, размер: ${marker.fileSize}, " +
+                            "исходный размер: ${marker.originalFileSize} для URI: $uri"
+                    )
+                    return marker
                 }
+            } catch (e: NumberFormatException) {
+                LogUtil.error(uri, "Парсинг маркера", "Ошибка при парсинге маркера сжатия: $userComment", e)
             }
         } catch (e: Exception) {
             LogUtil.error(uri, "EXIF", "Ошибка при получении маркера сжатия", e)
         }
 
-        return CompressionMarkerInfo(false, -1, 0L, null)
+        return CompressionMarkerInfo.NOT_COMPRESSED
     }
 
     /**
@@ -1290,7 +1207,7 @@ object ExifUtil {
                 context.contentResolver.openInputStream(destinationUri)?.use { input ->
                     val exif = ExifInterface(input)
                     val userComment = exif.getAttribute(ExifInterface.TAG_USER_COMMENT)
-                    if (userComment?.contains("$EXIF_COMPRESSION_MARKER:$quality") == true) {
+                    if (CompressionMarker.hasMarkerWithQuality(userComment, quality)) {
                         LogUtil.processDebug("Финальная верификация успешна: маркер сжатия присутствует в URI")
                     } else {
                         LogUtil.processWarning("Финальная верификация не удалась: маркер сжатия отсутствует в URI. UserComment: $userComment")

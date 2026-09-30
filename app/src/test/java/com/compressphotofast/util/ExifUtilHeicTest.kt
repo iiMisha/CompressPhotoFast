@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
 class ExifUtilHeicTest : BaseUnitTest() {
 
     /**
-     * Тест 1: Проверка логики hasHeicCompressedSuffix через mock
+     * Тест 1: Проверка логики CompressionMarker.hasHeicCompressedSuffix
      *
      * Проверяет различные варианты имен файлов:
      * - image_compressed.heic - имеет суффикс
@@ -38,71 +38,20 @@ class ExifUtilHeicTest : BaseUnitTest() {
      * - photo_compressed.heif - имеет суффикс
      */
     @Test
-    fun `test hasHeicCompressedSuffix logic through reflection`() {
-        // Создаем экземпляр ExifUtil через отражение для тестирования private метода
-
-        val exifUtilClass = ExifUtil.javaClass
-        val hasHeicCompressedSuffixMethod = exifUtilClass.getDeclaredMethod(
-            "hasHeicCompressedSuffix",
-            String::class.java
+    fun `test hasHeicCompressedSuffix logic`() {
+        val cases = mapOf(
+            "image_compressed.heic" to true,
+            "image.heic" to false,
+            "IMAGE.HEIC" to false,
+            "photo_compressed.heif" to true,
+            "photo.heif" to false,
+            null to false,
+            "" to false,
+            "image_compressed.jpg" to false
         )
-        hasHeicCompressedSuffixMethod.isAccessible = true
-
-        // Test Case 1: HEIC файл с суффиксом _compressed
-        val result1 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            "image_compressed.heic"
-        ) as Boolean
-        assertTrue("image_compressed.heic should have _compressed suffix", result1)
-
-        // Test Case 2: HEIC файл без суффикса
-        val result2 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            "image.heic"
-        ) as Boolean
-        assertFalse("image.heic should not have _compressed suffix", result2)
-
-        // Test Case 3: HEIC файл в uppercase
-        val result3 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            "IMAGE.HEIC"
-        ) as Boolean
-        assertFalse("IMAGE.HEIC (uppercase) should not have _compressed suffix", result3)
-
-        // Test Case 4: HEIF файл с суффиксом
-        val result4 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            "photo_compressed.heif"
-        ) as Boolean
-        assertTrue("photo_compressed.heif should have _compressed suffix", result4)
-
-        // Test Case 5: HEIF файл без суффикса
-        val result5 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            "photo.heif"
-        ) as Boolean
-        assertFalse("photo.heif should not have _compressed suffix", result5)
-
-        // Test Case 6: null значение
-        val result6 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            null
-        ) as Boolean
-        assertFalse("null should return false", result6)
-
-        // Test Case 7: Пустая строка
-        val result7 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            ""
-        ) as Boolean
-        assertFalse("empty string should return false", result7)
-
-        // Test Case 8: JPEG файл (не HEIC)
-        val result8 = hasHeicCompressedSuffixMethod.invoke(
-            ExifUtil,
-            "image_compressed.jpg"
-        ) as Boolean
-        assertFalse("image_compressed.jpg should not match HEIC/HEIF pattern", result8)
+        cases.forEach { (name, expected) ->
+            assertEquals("hasHeicCompressedSuffix($name)", expected, CompressionMarker.hasHeicCompressedSuffix(name))
+        }
     }
 
     /**

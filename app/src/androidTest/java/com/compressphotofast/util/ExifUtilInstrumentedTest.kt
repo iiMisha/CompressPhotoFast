@@ -577,18 +577,10 @@ class ExifUtilInstrumentedTest {
     /**
      * Тест 21: Проверка суффикса _compressed для HEIC файлов (именование)
      *
-     * Проверяет логику определения суффикса через отражение
+     * Проверяет логику определения суффикса
      */
     @Test
     fun test21_hasHeicCompressedSuffix_detectsSuffixCorrectly() {
-        // Arrange
-        val exifUtilClass = ExifUtil.javaClass
-        val hasHeicCompressedSuffixMethod = exifUtilClass.getDeclaredMethod(
-            "hasHeicCompressedSuffix",
-            String::class.java
-        )
-        hasHeicCompressedSuffixMethod.isAccessible = true
-
         val testCases = mapOf(
             "image_compressed.heic" to true,
             "image.heic" to false,
@@ -604,7 +596,7 @@ class ExifUtilInstrumentedTest {
 
         // Act & Assert
         testCases.forEach { (fileName, expectedResult) ->
-            val result = hasHeicCompressedSuffixMethod.invoke(ExifUtil, fileName) as Boolean
+            val result = CompressionMarker.hasHeicCompressedSuffix(fileName)
             assertThat(result).isEqualTo(expectedResult)
         }
     }

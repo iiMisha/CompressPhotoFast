@@ -137,17 +137,12 @@ class CompressionMarkerSizeTest : BaseUnitTest() {
     }
 
     /**
-     * Хелпер buildCompressionMarker фиксированной ширины поля размера
+     * CompressionMarker.build: фиксированной ширины поля размера
      */
     @Test
     fun `marker size field has fixed width`() {
-        val buildMethod = ExifUtil.javaClass.getDeclaredMethod(
-            "buildCompressionMarker", Int::class.java, Long::class.java, Long::class.javaObjectType, Long::class.javaObjectType
-        )
-        buildMethod.isAccessible = true
-
-        val placeholder = buildMethod.invoke(ExifUtil, 85, 1704067200000L, null, null) as String
-        val withSize = buildMethod.invoke(ExifUtil, 85, 1704067200000L, 12345678L, null) as String
+        val placeholder = CompressionMarker.build(85, 1704067200000L, null, null)
+        val withSize = CompressionMarker.build(85, 1704067200000L, 12345678L, null)
 
         assertEquals("Placeholder and sized marker must have equal length", placeholder.length, withSize.length)
         assertTrue("Sized marker must contain padded size", withSize.contains(":000000012345678:000000000000000"))
@@ -155,18 +150,13 @@ class CompressionMarkerSizeTest : BaseUnitTest() {
     }
 
     /**
-     * Хелпер buildCompressionMarker записывает исходный размер (origSize)
+     * CompressionMarker.build: записывает исходный размер (origSize)
      * пятым полем фиксированной ширины, в том числе в заглушке фазы 1
      */
     @Test
     fun `marker carries original size in fifth field`() {
-        val buildMethod = ExifUtil.javaClass.getDeclaredMethod(
-            "buildCompressionMarker", Int::class.java, Long::class.java, Long::class.javaObjectType, Long::class.javaObjectType
-        )
-        buildMethod.isAccessible = true
-
-        val phase1 = buildMethod.invoke(ExifUtil, 85, 1704067200000L, null, 5000000L) as String
-        val phase2 = buildMethod.invoke(ExifUtil, 85, 1704067200000L, 12345678L, 5000000L) as String
+        val phase1 = CompressionMarker.build(85, 1704067200000L, null, 5000000L)
+        val phase2 = CompressionMarker.build(85, 1704067200000L, 12345678L, 5000000L)
 
         assertEquals("Phase 1 and phase 2 markers must have equal length", phase1.length, phase2.length)
         assertEquals(5, phase1.split(":").size)
