@@ -85,7 +85,7 @@ def clean_double_extensions(file_name: str) -> str:
         Имя файла без двойных расширений (только базовое имя)
     """
     last_dot_index = file_name.rfind('.')
-    if last_dot_index < 0:
+    if last_dot_index <= 0:
         return file_name
 
     before_last_dot = file_name[:last_dot_index]

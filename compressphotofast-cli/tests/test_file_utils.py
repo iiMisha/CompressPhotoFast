@@ -56,8 +56,8 @@ class TestCleanDoubleExtensions:
         assert clean_double_extensions(".hidden.jpg") == ".hidden"
 
     def test_only_extension(self):
-        """Только расширение без имени"""
-        assert clean_double_extensions(".jpg") == ""
+        """Только расширение без имени — имя не меняется (как lastDotIndex <= 0 в Android)"""
+        assert clean_double_extensions(".jpg") == ".jpg"
 
     def test_empty_string(self):
         """Пустая строка"""
