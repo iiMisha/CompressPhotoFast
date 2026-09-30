@@ -1,10 +1,11 @@
-package com.compressphotofast.util
+package com.compressphotofast.platform
 
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import com.compressphotofast.util.LogUtil
 
 /**
  * Помощник для запроса исключения приложения из системной оптимизации батареи (Doze).

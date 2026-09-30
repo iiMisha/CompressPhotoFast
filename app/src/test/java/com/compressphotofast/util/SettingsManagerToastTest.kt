@@ -9,6 +9,7 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import com.compressphotofast.data.SettingsManager
 
 /**
  * Unit тесты для функциональности отключения Toast сообщений о сжатии

@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.ContentUris
 import android.content.ContentValues
@@ -18,6 +18,9 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.FileIoUtil
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для работы с MediaStore и сохранением файлов

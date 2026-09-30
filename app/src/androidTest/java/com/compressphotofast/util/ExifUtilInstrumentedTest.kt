@@ -8,7 +8,7 @@ import android.graphics.Color
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.compressphotofast.util.UriUtil
+import com.compressphotofast.data.UriUtil
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -17,6 +17,8 @@ import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.CompressionMarker
 
 /**
  * Instrumentation тесты для ExifUtil.

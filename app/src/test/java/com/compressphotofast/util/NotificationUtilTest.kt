@@ -13,6 +13,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import com.compressphotofast.data.DailyCompressionStats
+import com.compressphotofast.platform.NotificationUtil
 
 @RunWith(RobolectricTestRunner::class)
 class NotificationUtilTest : BaseUnitTest() {

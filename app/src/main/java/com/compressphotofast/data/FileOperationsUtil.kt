@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.app.ActivityManager
 import android.content.ContentUris
@@ -10,6 +10,8 @@ import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.DecimalFormat
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для работы с файлами и файловыми операциями

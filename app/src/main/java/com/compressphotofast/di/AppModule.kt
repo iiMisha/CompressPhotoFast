@@ -41,7 +41,7 @@ object AppModule {
      */
     @Provides
     @Singleton
-    fun provideUriProcessingTracker(@ApplicationContext context: Context): com.compressphotofast.util.UriProcessingTracker {
-        return com.compressphotofast.util.UriProcessingTracker.getInstance(context)
+    fun provideUriProcessingTracker(@ApplicationContext context: Context): com.compressphotofast.data.UriProcessingTracker {
+        return com.compressphotofast.data.UriProcessingTracker.getInstance(context)
     }
 }

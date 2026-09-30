@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import android.content.ContentUris
 import android.content.Context
@@ -9,6 +9,10 @@ import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.BatchMediaStoreUtil
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 /**
  * Класс для централизованной работы со сканированием галереи

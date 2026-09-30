@@ -1,10 +1,13 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import android.net.Uri
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 /**
  * Единая точка сканирования галереи для FGS, content-trigger Job и reconciliation Worker:

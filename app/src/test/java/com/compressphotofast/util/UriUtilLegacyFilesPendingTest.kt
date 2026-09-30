@@ -15,6 +15,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import com.compressphotofast.data.UriUtil
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [Build.VERSION_CODES.Q])

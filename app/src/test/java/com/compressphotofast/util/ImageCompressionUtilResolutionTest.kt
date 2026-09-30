@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import com.compressphotofast.domain.ImageCompressionUtil
 
 /**
  * Unit тесты для логики выбора разрешения (computeScalePlan)

@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.compressphotofast.data.CompressionMarker
+import com.compressphotofast.data.CompressionMarkerInfo
 
 class CompressionMarkerTest {
 

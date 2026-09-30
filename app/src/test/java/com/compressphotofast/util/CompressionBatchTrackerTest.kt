@@ -13,6 +13,8 @@ import kotlinx.coroutines.SupervisorJob
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import com.compressphotofast.domain.CompressionBatchTracker
+import com.compressphotofast.platform.NotificationUtil
 
 /**
  * Unit тесты для класса CompressionBatchTracker

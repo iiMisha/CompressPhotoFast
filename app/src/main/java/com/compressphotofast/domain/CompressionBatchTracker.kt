@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import android.content.Context
 import com.compressphotofast.di.ApplicationScope
@@ -12,6 +12,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.platform.NotificationUtil
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилита для группировки результатов сжатия изображений

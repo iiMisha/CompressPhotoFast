@@ -11,6 +11,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import android.content.Context
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.SettingsManager
 
 /**
  * Unit тесты для FileOperationsUtil

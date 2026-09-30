@@ -17,6 +17,7 @@ import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import com.compressphotofast.domain.ImageCompressionUtil
 
 @RunWith(AndroidJUnit4::class)
 class ImageCompressionOrientationTest {

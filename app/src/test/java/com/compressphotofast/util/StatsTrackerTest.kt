@@ -10,6 +10,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import kotlin.concurrent.thread
+import com.compressphotofast.data.StatsTracker
 
 /**
  * Unit тесты для класса StatsTracker

@@ -16,11 +16,11 @@ import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.compressphotofast.util.ExifUtil
-import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.ImageCompressionUtil
-import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.UriUtil
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.domain.ImageCompressionUtil
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.UriUtil
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -49,9 +49,9 @@ import java.util.Locale
  * - Режимы сохранения файлов
  * - Нагрузочное тестирование 100+ файлов
  *
- * @see com.compressphotofast.util.ImageCompressionUtil
- * @see com.compressphotofast.util.FileOperationsUtil
- * @see com.compressphotofast.util.ExifUtil
+ * @see com.compressphotofast.domain.ImageCompressionUtil
+ * @see com.compressphotofast.data.FileOperationsUtil
+ * @see com.compressphotofast.data.ExifUtil
  */
 @RunWith(AndroidJUnit4::class)
 class HeicInstrumentationTest {

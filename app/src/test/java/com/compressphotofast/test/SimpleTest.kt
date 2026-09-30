@@ -5,7 +5,6 @@ import org.robolectric.RobolectricTestRunner
 import org.junit.Test
 import org.junit.Assert.*
 import org.robolectric.annotation.Config
-import com.compressphotofast.test.TestApplication
 
 /**
  * Простой тест в другом пакете для проверки проблемы

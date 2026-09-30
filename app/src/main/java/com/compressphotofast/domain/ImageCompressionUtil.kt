@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -16,9 +16,11 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import android.graphics.Matrix
 import androidx.exifinterface.media.ExifInterface
-import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.UriUtil
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.UriUtil
 import com.compressphotofast.util.Constants
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.util.LogUtil
 
 /**
  * Базовый класс исключений сжатия изображения

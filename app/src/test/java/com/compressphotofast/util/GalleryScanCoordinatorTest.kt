@@ -13,6 +13,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.domain.CompressionEnqueueResult
+import com.compressphotofast.domain.CompressionOrigin
+import com.compressphotofast.domain.CompressionWorkScheduler
+import com.compressphotofast.domain.GalleryScanCoordinator
+import com.compressphotofast.domain.GalleryScanUtil
 
 class GalleryScanCoordinatorTest {
     private val settings = mockk<SettingsManager>(relaxed = true)

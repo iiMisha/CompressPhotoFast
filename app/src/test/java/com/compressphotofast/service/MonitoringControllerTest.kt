@@ -5,7 +5,7 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.compressphotofast.BaseUnitTest
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.data.SettingsManager
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.After

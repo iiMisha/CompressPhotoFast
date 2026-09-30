@@ -13,6 +13,9 @@ import org.junit.After
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.domain.GalleryScanUtil
+import com.compressphotofast.domain.ImageProcessingChecker
 
 /**
  * Unit тесты для GalleryScanUtil, проверяющие обработку старых файлов,

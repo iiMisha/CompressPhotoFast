@@ -8,8 +8,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.provider.MediaStore
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.GalleryScanCoordinator
-import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.domain.GalleryScanCoordinator
+import com.compressphotofast.data.SettingsManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

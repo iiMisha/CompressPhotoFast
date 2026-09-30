@@ -1,8 +1,9 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.net.Uri
 import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.Constants
 
 /**
  * Утилитарный класс для очистки временных файлов

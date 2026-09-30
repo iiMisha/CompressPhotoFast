@@ -7,6 +7,7 @@ import com.compressphotofast.BaseInstrumentedTest
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.compressphotofast.data.FileOperationsUtil
 
 /**
  * Instrumentation тесты для проверки обработки имен файлов и MIME типов

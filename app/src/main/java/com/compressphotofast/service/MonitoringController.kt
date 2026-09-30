@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.data.SettingsManager
 
 /**
  * Результат попытки запуска постоянной службы мониторинга.

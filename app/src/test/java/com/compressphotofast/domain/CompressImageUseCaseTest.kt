@@ -5,16 +5,13 @@ import android.content.Context
 import android.content.IntentSender
 import android.net.Uri
 import com.compressphotofast.BaseUnitTest
-import com.compressphotofast.util.CompressionEvents
-import com.compressphotofast.util.ExifUtil
-import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.ImageCompressionUtil
-import com.compressphotofast.util.ImageIntegrityUtil
-import com.compressphotofast.util.MediaStoreUtil
-import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.StatsTracker
-import com.compressphotofast.util.UriProcessingTracker
-import com.compressphotofast.util.UriUtil
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.ImageIntegrityUtil
+import com.compressphotofast.data.MediaStoreUtil
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.StatsTracker
+import com.compressphotofast.data.UriUtil
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -31,6 +28,7 @@ import org.junit.Before
 import org.junit.Test
 import java.io.File
 import java.io.FileNotFoundException
+import com.compressphotofast.data.UriProcessingTracker
 
 class CompressImageUseCaseTest : BaseUnitTest() {
 

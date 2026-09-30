@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.net.Uri
@@ -7,6 +7,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.FileIoUtil
+import com.compressphotofast.util.LogUtil
 
 /**
  * Персистентный реестр backup-файлов для восстановления после непредвиденного

@@ -3,29 +3,27 @@ package com.compressphotofast.domain
 import android.content.Context
 import android.content.IntentSender
 import android.net.Uri
-import com.compressphotofast.util.CompressionEvents
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.DailyCompressionStats
-import com.compressphotofast.util.ExifUtil
-import com.compressphotofast.util.FileOperationsUtil
-import com.compressphotofast.util.ImageCompressionUtil
-import com.compressphotofast.util.ImageIntegrityUtil
+import com.compressphotofast.data.DailyCompressionStats
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.ImageIntegrityUtil
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.MediaStoreUtil
-import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.StatsTracker
-import com.compressphotofast.util.UriProcessingTracker
-import com.compressphotofast.util.UriUtil
+import com.compressphotofast.data.MediaStoreUtil
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.StatsTracker
+import com.compressphotofast.data.UriUtil
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.FileInputStream
 import javax.inject.Inject
+import com.compressphotofast.data.UriProcessingTracker
 
 /**
  * Сжатие одного изображения: EXIF → тестовое сжатие → сохранение → верификация →
  * удаление оригинала в режиме замены (или маркер для неэффективного сжатия).
  *
  * Не знает о WorkManager и UI: вызывающая сторона отвечает за блокировку URI,
- * [com.compressphotofast.util.CompressionExecutionGate], foreground-уведомления,
+ * [com.compressphotofast.domain.CompressionExecutionGate], foreground-уведомления,
  * retry-политику и показ результата. Исключения (IO, память, безопасность)
  * пробрасываются — их классифицирует вызывающая сторона.
  */

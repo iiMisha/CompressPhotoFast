@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import android.content.Context
 import android.net.Uri
@@ -8,6 +8,13 @@ import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.OptimizedCacheUtil
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.UriUtil
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 /**
  * Централизованный класс для проверки необходимости обработки изображений

@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap

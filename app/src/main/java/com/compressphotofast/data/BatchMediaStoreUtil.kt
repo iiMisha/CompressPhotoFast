@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.database.Cursor
@@ -7,6 +7,7 @@ import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для эффективной пакетной работы с MediaStore

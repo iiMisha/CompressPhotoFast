@@ -1,10 +1,11 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.compressphotofast.util.LogUtil
 
 /**
  * Проверка целостности изображения по заголовку (inJustDecodeBounds).

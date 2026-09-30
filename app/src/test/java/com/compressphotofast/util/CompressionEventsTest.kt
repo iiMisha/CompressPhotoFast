@@ -10,6 +10,7 @@ import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.compressphotofast.domain.CompressionEvents
 
 class CompressionEventsTest : BaseUnitTest() {
 

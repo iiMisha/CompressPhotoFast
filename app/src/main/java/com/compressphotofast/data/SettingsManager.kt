@@ -1,9 +1,10 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.content.SharedPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.util.Constants
 
 /**
  * Централизованный менеджер настроек приложения

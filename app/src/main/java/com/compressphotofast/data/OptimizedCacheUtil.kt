@@ -1,10 +1,11 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.net.Uri
 import android.util.LruCache
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import com.compressphotofast.util.LogUtil
 
 /**
  * Оптимизированные кэши для улучшения производительности обработки изображений

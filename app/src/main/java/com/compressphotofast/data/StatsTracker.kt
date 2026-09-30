@@ -1,7 +1,9 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import java.time.LocalDate
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 data class DailyCompressionStats(
     val epochDay: Long,

@@ -15,6 +15,8 @@ import kotlinx.coroutines.runBlocking
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.CompressionMarker
 
 /**
  * Unit тесты для функционала HEIC файлов в ExifUtil

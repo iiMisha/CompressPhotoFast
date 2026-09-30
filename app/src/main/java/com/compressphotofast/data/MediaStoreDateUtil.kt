@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.ContentValues
 import android.content.Context
@@ -7,6 +7,7 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.compressphotofast.util.LogUtil
 
 /**
  * Утилитарный класс для работы с датами в MediaStore.

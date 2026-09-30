@@ -20,6 +20,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import com.compressphotofast.data.BackupRecoveryHelper
+import com.compressphotofast.data.BackupRegistry
+import com.compressphotofast.data.MediaStoreUtil
+import com.compressphotofast.data.TempFilesCleaner
+import com.compressphotofast.data.UriUtil
 
 /**
  * Страховка файловых операций: backup-реестр, восстановление после kill и

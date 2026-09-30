@@ -10,9 +10,9 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.compressphotofast.util.Constants
-import com.compressphotofast.util.GalleryScanCoordinator
+import com.compressphotofast.domain.GalleryScanCoordinator
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.data.SettingsManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit

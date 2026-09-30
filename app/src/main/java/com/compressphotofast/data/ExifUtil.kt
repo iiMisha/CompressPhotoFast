@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.net.Uri
@@ -17,9 +17,10 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.UriUtil
 import android.content.ContentValues
 import java.util.concurrent.ConcurrentHashMap
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.FileIoUtil
 
 /**
  * Утилитарный класс для работы с EXIF метаданными изображений

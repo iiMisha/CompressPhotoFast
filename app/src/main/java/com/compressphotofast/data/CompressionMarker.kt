@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 /**
  * Информация о маркере сжатия из EXIF UserComment.

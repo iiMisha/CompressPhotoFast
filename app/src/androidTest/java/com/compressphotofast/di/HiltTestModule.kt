@@ -2,7 +2,7 @@ package com.compressphotofast.di
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.compressphotofast.util.SettingsManager
+import com.compressphotofast.data.SettingsManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

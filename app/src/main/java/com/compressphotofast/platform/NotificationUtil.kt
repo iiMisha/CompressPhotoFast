@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.platform
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -22,7 +22,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.compressphotofast.util.FileOperationsUtil
+import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.DailyCompressionStats
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.StatsTracker
+import com.compressphotofast.util.Constants
 
 /**
  * Утилитарный класс для работы с уведомлениями и Toast

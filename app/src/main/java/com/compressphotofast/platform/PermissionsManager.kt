@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.platform
 
 import android.Manifest
 import android.content.Context
@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import com.compressphotofast.R
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 /**
  * Менеджер разрешений для централизованного управления запросами и проверками разрешений.

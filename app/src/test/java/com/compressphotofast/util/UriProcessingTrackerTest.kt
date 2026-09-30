@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicLong
+import com.compressphotofast.data.UriProcessingTracker
 
 /**
  * Unit-тесты для [UriProcessingTracker].

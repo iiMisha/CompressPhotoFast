@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.robolectric.annotation.Config
+import com.compressphotofast.data.UriUtil
 
 /**
  * Unit тесты для UriUtil, проверяющие обработку старых файлов.

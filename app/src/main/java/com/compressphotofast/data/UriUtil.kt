@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.ContentUris
 import android.content.Context
@@ -16,6 +16,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
+import com.compressphotofast.util.LogUtil
+import com.compressphotofast.util.Constants
 
 /**
  * Утилитарный класс для работы с URI и получения информации о файлах

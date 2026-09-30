@@ -10,6 +10,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import io.mockk.mockk
+import com.compressphotofast.domain.CompressionOrigin
+import com.compressphotofast.domain.CompressionWorkScheduler
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])

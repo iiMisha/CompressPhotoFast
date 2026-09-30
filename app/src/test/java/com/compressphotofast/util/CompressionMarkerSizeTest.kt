@@ -13,6 +13,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import com.compressphotofast.data.ExifUtil
+import com.compressphotofast.data.OptimizedCacheUtil
+import com.compressphotofast.data.CompressionMarker
+import com.compressphotofast.domain.ImageProcessingChecker
 
 /**
  * Unit тесты формата маркера сжатия с размером файла

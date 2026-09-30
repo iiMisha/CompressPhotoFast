@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import android.content.Context
 import android.net.Uri
@@ -17,6 +17,10 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.UriUtil
+import com.compressphotofast.util.Constants
+import com.compressphotofast.util.LogUtil
 
 enum class CompressionEnqueueResult {
     DURABLY_ACCEPTED,

@@ -23,18 +23,18 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
-import com.compressphotofast.util.TempFilesCleaner
-import com.compressphotofast.util.GalleryScanCoordinator
-import com.compressphotofast.util.SettingsManager
-import com.compressphotofast.util.NotificationUtil
-import com.compressphotofast.util.MediaStoreObserver
-import com.compressphotofast.util.MediaStoreUtil
+import com.compressphotofast.data.TempFilesCleaner
+import com.compressphotofast.domain.GalleryScanCoordinator
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.platform.NotificationUtil
+import com.compressphotofast.data.MediaStoreObserver
+import com.compressphotofast.data.MediaStoreUtil
 import com.compressphotofast.util.LogUtil
-import com.compressphotofast.util.PerformanceMonitor
-import com.compressphotofast.util.UriProcessingTracker
-import com.compressphotofast.util.CompressionEvents
-import com.compressphotofast.util.CompressionWorkScheduler
-import com.compressphotofast.util.CompressionEnqueueResult
+import com.compressphotofast.domain.PerformanceMonitor
+import com.compressphotofast.data.UriProcessingTracker
+import com.compressphotofast.domain.CompressionEvents
+import com.compressphotofast.domain.CompressionWorkScheduler
+import com.compressphotofast.domain.CompressionEnqueueResult
 import javax.inject.Inject
 
 /**

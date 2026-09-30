@@ -20,6 +20,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.compressphotofast.data.MediaStoreUtil
+import com.compressphotofast.data.SettingsManager
 
 /**
  * Instrumentation тесты для проверки режима замены (PREF_SAVE_MODE = true)

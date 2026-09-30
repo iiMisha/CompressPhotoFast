@@ -5,7 +5,7 @@ import android.net.Uri
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.compressphotofast.util.CompressionWorkScheduler
+import com.compressphotofast.domain.CompressionWorkScheduler
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 

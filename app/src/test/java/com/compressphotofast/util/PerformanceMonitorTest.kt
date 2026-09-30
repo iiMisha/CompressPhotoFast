@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import com.compressphotofast.domain.PerformanceMonitor
 
 /**
  * Unit тесты для класса PerformanceMonitor

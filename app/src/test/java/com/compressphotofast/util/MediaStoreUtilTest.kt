@@ -16,6 +16,7 @@ import android.net.Uri
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import com.compressphotofast.data.MediaStoreUtil
 
 /**
  * Unit тесты для MediaStoreUtil

@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.platform
 
 
 /**

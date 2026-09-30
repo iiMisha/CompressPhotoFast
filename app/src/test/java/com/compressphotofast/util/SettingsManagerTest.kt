@@ -10,6 +10,8 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.CompressionPreset
 
 /**
  * Unit тесты для SettingsManager

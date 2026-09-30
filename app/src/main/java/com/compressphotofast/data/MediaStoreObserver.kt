@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.data
 
 import android.content.Context
 import android.database.ContentObserver
@@ -8,7 +8,6 @@ import android.os.Looper
 import android.provider.MediaStore
 import com.compressphotofast.util.LogUtil
 import java.util.concurrent.ConcurrentHashMap
-import com.compressphotofast.util.UriUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +21,7 @@ import kotlinx.coroutines.delay
  * Класс для централизованной работы с ContentObserver для отслеживания изменений в MediaStore
  */
 import javax.inject.Inject
+import com.compressphotofast.util.Constants
 
 class MediaStoreObserver @Inject constructor(
     private val context: Context,

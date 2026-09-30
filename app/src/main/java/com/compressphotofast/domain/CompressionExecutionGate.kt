@@ -1,4 +1,4 @@
-package com.compressphotofast.util
+package com.compressphotofast.domain
 
 import kotlinx.coroutines.sync.Mutex
 import javax.inject.Inject
