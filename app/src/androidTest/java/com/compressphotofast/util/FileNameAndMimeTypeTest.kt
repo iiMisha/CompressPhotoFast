@@ -369,25 +369,15 @@ class FileNameAndMimeTypeTest : BaseInstrumentedTest() {
             "image.HEIC.jpg" to "image",
             "photo.heif.jpeg" to "photo",
             "document.pdf" to "document", // нет двойного расширения
-            "archive.tar.gz" to "archive", // двойное расширение
-            "archive.tar.gz.zip" to "archive.tar" // тройное расширение - удаляет только одно двойное
+            "archive.tar.gz" to "archive.tar", // .tar не расширение изображения — часть имени
+            "PXL_1.PORTRAIT.ORIGINAL.jpg" to "PXL_1.PORTRAIT.ORIGINAL" // не схлопывается в соседний файл
         )
 
         testCases.forEach { (input, expectedBase) ->
-            // Симулируем логику cleanDoubleExtensions
-            val lastDotIndex = input.lastIndexOf('.')
-            val beforeLastDot = input.substring(0, lastDotIndex)
-            val secondLastDot = beforeLastDot.lastIndexOf('.')
-            val cleanBase = if (secondLastDot > 0) {
-                beforeLastDot.substring(0, secondLastDot)
-            } else {
-                beforeLastDot
-            }
-
             Assert.assertEquals(
                 "Неправильная очистка для '$input'",
                 expectedBase,
-                cleanBase
+                FileOperationsUtil.cleanDoubleExtensions(input)
             )
         }
     }

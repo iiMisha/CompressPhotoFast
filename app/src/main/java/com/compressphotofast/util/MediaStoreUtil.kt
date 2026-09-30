@@ -8,13 +8,12 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.FileInputStream
 import java.io.File
-import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -220,10 +219,16 @@ object MediaStoreUtil {
 
             try {
                 val existingUri = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)[fileName]
-                // Файл существует И режим замены: возвращаем existingUri с флагом true.
+                // Файл существует, это сам оригинал И режим замены: возвращаем existingUri с флагом true.
                 // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
-                if (shouldUseUpdatePath(existingUri, isReplaceMode)) {
+                if (shouldUseUpdatePath(existingUri, originalUri, isReplaceMode)) {
                     return@withContext Pair(existingUri, true) // true = режим обновления
+                }
+                if (existingUri != null && isReplaceMode) {
+                    LogUtil.warning(
+                        originalUri, "Replace",
+                        "Имя $fileName занято другим файлом ($existingUri) — перезапись запрещена, создаём новый файл"
+                    )
                 }
             } catch (e: Exception) {
                 LogUtil.errorWithException("Проверка существующего файла", e)
@@ -309,7 +314,7 @@ object MediaStoreUtil {
                 "stream_cache_${originalUri.hashCode()}_${System.currentTimeMillis()}.jpg"
             )
             FileOutputStream(streamCacheFile!!).use { output -> inputStream.copyTo(output) }
-            fun openCachedInput() = FileInputStream(streamCacheFile!!)
+            val request = SaveRequest(streamCacheFile!!, originalUri, quality, exifDataMemory, mimeType, originalFileSize)
 
             // Используем новую версию с поддержкой режима обновления
             val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
@@ -319,198 +324,226 @@ object MediaStoreUtil {
                 return@withContext null
             }
 
-            var wroteToExistingUri = false
-            try {
-                if (isUpdateMode) {
-                    // Режим замены: перезаписываем существующий файл напрямую.
-                    // КРИТИЧЕСКО: перед перезаписью создаём backup оригинала в noBackupFilesDir,
-                    // чтобы иметь возможность восстановить его при ошибке/прерывании записи.
-                    // safeUpdateExistingFile открывает "rwt" (truncate-write) — без backup
-                    // kill посередине привёл бы к необратимой потере оригинала.
-                    val replaceBackupFile = File(
-                        BackupRegistry.getBackupDir(context),
-                        "replace_backup_${uri.hashCode()}_${System.currentTimeMillis()}.jpg"
-                    )
-                    var replaceBackupCreated = false
-                    try {
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            FileOutputStream(replaceBackupFile).use { output -> input.copyTo(output) }
-                        }
-                        replaceBackupCreated = replaceBackupFile.exists() && replaceBackupFile.length() > 0
-                        if (replaceBackupCreated) {
-                            // Регистрируем backup в персистентном реестре для восстановления
-                            // при непредвиденном закрытии приложения посреди записи.
-                            BackupRegistry.registerBackup(context, uri, replaceBackupFile)
-                        }
-                    } catch (e: Exception) {
-                        LogUtil.warning(uri, "Replace backup", "Не удалось создать backup оригинала: ${e.message}")
-                        replaceBackupFile.delete()
-                    }
+            if (!isUpdateMode) {
+                return@withContext saveToNewEntry(context, uri, request)
+            }
 
-                    if (!replaceBackupCreated) {
-                        // ИНВАРИАНТ БЕЗОПАСНОСТИ: без backup оригинал не перезаписываем.
-                        // Truncate-write без страховки при сбое уничтожил бы оригинал.
-                        // Сохраняем сжатую версию в новый файл — оригинал остаётся нетронутым.
-                        LogUtil.warning(uri, "Replace", "Backup оригинала не создан — перезапись отменена, сохраняем в новый файл")
-                        val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
-                        if (fallbackResult != null) {
-                            try {
-                                context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                    openCachedInput().use { dataStream ->
-                                        dataStream.copyTo(outputStream, bufferSize = 8192)
-                                    }
-                                }
-                                clearIsPendingFlag(context, fallbackResult)
-                                return@withContext fallbackResult
-                            } catch (e: Exception) {
-                                LogUtil.error(originalUri, "Сохранение через fallback", "❌ Критическая ошибка при сохранении через fallback: ${e.message}", e)
-                                NotificationUtil.showErrorNotification(
-                                    context = context,
-                                    title = "Ошибка сохранения",
-                                    message = "Не удалось сохранить сжатое изображение через fallback. Попробуйте ещё раз."
-                                )
-                                return@withContext null
-                            }
-                        }
-                        return@withContext null
-                    }
-
-                    var updateSuccess = false
-                    try {
-                        // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
-                        clearIsPendingFlag(context, uri)
-
-                        // Перезаписываем файл напрямую.
-                        // ВНИМАНИЕ: всё время до завершения fsync файл на диске усечён
-                        // и виден галереям. Логируем длительность окна для диагностики.
-                        val writeStartMs = System.currentTimeMillis()
-                        updateSuccess = openCachedInput().use { cachedInput ->
-                            safeUpdateExistingFile(context, uri, cachedInput)
-                        }
-                        val writeWindowMs = System.currentTimeMillis() - writeStartMs
-                        LogUtil.processInfo(
-                            "[Replace] Окно частичной записи (truncate→fsync): ${writeWindowMs}мс, " +
-                                "успех=$updateSuccess"
-                        )
-
-                        if (!updateSuccess) {
-                            // Запись провалилась — восстанавливаем оригинал из backup
-                            LogUtil.warning(uri, "Replace", "Перезапись не удалась, восстанавливаем оригинал из backup")
-                            restoreFromBackup(context, uri, replaceBackupFile)
-                        }
-                    } finally {
-                        // Запись завершена (успешно или нет) — backup больше не нужен в реестре
-                        BackupRegistry.clearBackup(context, uri)
-                        replaceBackupFile.delete()
-                    }
-
-                    if (!updateSuccess) {
-                        // Fallback: пытаемся создать новый файл
-                        val fallbackResult = createMediaStoreEntry(context, "${fileName}_fallback", directory, mimeType, originalUri)
-                        if (fallbackResult != null) {
-                            try {
-                                context.contentResolver.openOutputStream(fallbackResult)?.use { outputStream ->
-                                    openCachedInput().use { dataStream ->
-                                        dataStream.copyTo(outputStream, bufferSize = 8192)
-                                    }
-                                }
-                                clearIsPendingFlag(context, fallbackResult)
-                                return@withContext fallbackResult
-                            } catch (e: Exception) {
-                                LogUtil.error(originalUri, "Сохранение через fallback", "❌ Критическая ошибка при сохранении через fallback: ${e.message}", e)
-                                NotificationUtil.showErrorNotification(
-                                    context = context,
-                                    title = "Ошибка сохранения",
-                                    message = "Не удалось сохранить сжатое изображение через fallback. Попробуйте ещё раз."
-                                )
-                                return@withContext null
-                            }
-                        }
-                        return@withContext null
-                    }
-
-                    wroteToExistingUri = true
-                } else {
-                    // Режим создания: записываем в новый файл
-                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        openCachedInput().use { cachedInput -> cachedInput.copyTo(outputStream) }
-                        outputStream.flush()
-                    } ?: throw IOException("Не удалось открыть OutputStream")
-                }
-
-                // ВЕРИФИКАЦИЯ ЦЕЛОСТНОСТИ перед снятием IS_PENDING
-                // Повреждённый файл НЕ ДОЛЖЕН стать видимым в галерее
-                val isValid = ImageIntegrityUtil.verifyImageIntegrity(context, uri)
-                if (!isValid) {
-                    LogUtil.error(originalUri, "Сохранение", "КРИТИЧЕСКАЯ ОШИБКА: Записанный файл повреждён, удаляем из MediaStore: $uri")
-                    try {
-                        context.contentResolver.delete(uri, null, null)
-                    } catch (deleteEx: Exception) {
-                        LogUtil.error(uri, "Cleanup", "Не удалось удалить повреждённый файл из MediaStore", deleteEx)
-                    }
-                    NotificationUtil.showErrorNotification(
-                        context,
-                        "Ошибка сохранения",
-                        "Сжатый файл был повреждён и удалён"
-                    )
-                    return@withContext null
-                }
-
-                // Файл верифицирован — снимаем IS_PENDING, делая его видимым
-                clearIsPendingFlag(context, uri)
-
-                if (wroteToExistingUri) {
-                    // Replace-режим: файл перезаписан на месте. Принудительно
-                    // синхронизируем запись MediaStore (размер, DATE_MODIFIED),
-                    // чтобы галереи инвалидаировали кэш миниатюр и не показывали
-                    // миниатюру, случайно снятую из частично перезаписанного файла.
-                    refreshMediaStoreEntry(context, uri, mimeType)
-                }
-
-                // Ждем, чтобы файл стал доступен в системе
-                val maxWaitTime = 2000L
-                waitForUriAvailability(context, uri, maxWaitTime)
-
-                // Специальная обработка для Android 11
-                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                    delay(Constants.MEDIASTORE_ANDROID11_DELAY_MS)
-                }
-
-                // Делегируем всю работу с EXIF в ExifUtil
-                ExifUtil.handleExifForSavedImage(
-                    context,
-                    originalUri,
-                    uri,
-                    quality,
-                    exifDataMemory,
-                    originalFileSize
-                )
-
-                // Инвалидируем кэш URI после успешного сохранения
-                UriUtil.invalidateUriExistsCache(uri)
-
-                return@withContext uri
-            } catch (e: Exception) {
-                LogUtil.errorWithException("Запись данных изображения", e)
-                // При ошибке записи удаляем незавершённую запись из MediaStore.
-                // ВАЖНО: если в этот URI была перезаписана существующая версия
-                // (replace-режим), удалять его нельзя — это файл пользователя.
-                if (!wroteToExistingUri) {
-                    try {
-                        context.contentResolver.delete(uri, null, null)
-                        LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
-                    } catch (deleteEx: Exception) {
-                        LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
-                    }
-                }
+            // Режим замены: перезаписываем оригинал на месте.
+            // Защита от потери правок: если оригинал изменился после чтения, его
+            // сжатая версия устарела — не перезаписываем.
+            if (!isFileUnchanged(context, uri, originalFileSize)) {
+                LogUtil.warning(uri, "Replace", "Оригинал изменён во время обработки — перезапись отменена")
                 return@withContext null
             }
 
+            // КРИТИЧЕСКО: перед перезаписью создаём durable backup оригинала в noBackupFilesDir,
+            // чтобы восстановить его при ошибке/прерывании записи. Без backup kill посередине
+            // truncate-записи привёл бы к необратимой потере оригинала.
+            val backupFile = BackupRegistry.createBackup(context, uri, "replace_backup_")
+            if (backupFile == null) {
+                // ИНВАРИАНТ БЕЗОПАСНОСТИ: без backup оригинал не перезаписываем.
+                // Сохраняем сжатую версию в новый файл (с уникальным именем) через
+                // общий путь верификации и EXIF — оригинал остаётся нетронутым.
+                LogUtil.warning(uri, "Replace", "Backup оригинала не создан — перезапись отменена, сохраняем в новый файл")
+                val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+                val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
+                val newUri = insertPendingEntry(context, fileName, mimeType, targetRelativePath)
+                return@withContext saveToNewEntry(context, newUri, request)
+            }
+
+            replaceInPlace(context, uri, backupFile, request)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.errorWithException("Сохранение сжатого изображения", e)
             return@withContext null
         } finally {
             streamCacheFile?.delete()
+        }
+    }
+
+    /**
+     * Параметры сохранения сжатого изображения.
+     */
+    private class SaveRequest(
+        val cacheFile: File,
+        val originalUri: Uri,
+        val quality: Int,
+        val exifDataMemory: Map<String, Any>?,
+        val mimeType: String,
+        val originalFileSize: Long?
+    )
+
+    /**
+     * Записывает сжатые данные в новую pending-запись: запись с fsync и сверкой
+     * длины → верификация → снятие IS_PENDING → EXIF → финальная верификация.
+     * При любой ошибке запись удаляется (это новый файл, не файл пользователя).
+     *
+     * В режиме замены оригинал будет удалён вызывающей стороной, поэтому провал
+     * записи EXIF здесь фатален: иначе GPS/даты оригинала были бы потеряны.
+     */
+    private suspend fun saveToNewEntry(context: Context, uri: Uri, request: SaveRequest): Uri? {
+        try {
+            val written = writeDurably(context, uri, request.cacheFile, "w")
+            if (written != request.cacheFile.length()) {
+                throw IOException("Записано $written из ${request.cacheFile.length()} байт")
+            }
+
+            // ВЕРИФИКАЦИЯ ЦЕЛОСТНОСТИ перед снятием IS_PENDING
+            // Повреждённый файл НЕ ДОЛЖЕН стать видимым в галерее
+            if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
+                NotificationUtil.showErrorNotification(context, "Ошибка сохранения", "Сжатый файл был повреждён и удалён")
+                throw IOException("Записанный файл повреждён")
+            }
+
+            // Файл верифицирован — снимаем IS_PENDING, делая его видимым
+            clearIsPendingFlag(context, uri)
+            awaitAvailability(context, uri)
+
+            val exifOk = ExifUtil.handleExifForSavedImage(
+                context, request.originalUri, uri, request.quality, request.exifDataMemory, request.originalFileSize
+            )
+            if (!exifOk && FileOperationsUtil.isSaveModeReplace(context)) {
+                throw IOException("EXIF не записан — оригинал с метаданными не будет заменён")
+            }
+            if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
+                throw IOException("Файл повреждён после записи EXIF")
+            }
+
+            // EXIF-запись идёт без fsync: сбрасываем файл до того, как
+            // вызывающая сторона удалит оригинал
+            FileIoUtil.syncUri(context, uri)
+            UriUtil.invalidateUriExistsCache(uri)
+            return uri
+        } catch (e: Exception) {
+            LogUtil.error(request.originalUri, "Сохранение", "Ошибка записи нового файла: ${e.message}", e)
+            withContext(NonCancellable) {
+                try {
+                    context.contentResolver.delete(uri, null, null)
+                    LogUtil.error(uri, "Cleanup", "Незавершённая запись удалена из MediaStore после ошибки")
+                } catch (deleteEx: Exception) {
+                    LogUtil.error(uri, "Cleanup", "Не удалось удалить незавершённую запись", deleteEx)
+                }
+            }
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return null
+        }
+    }
+
+    /**
+     * Перезаписывает оригинал на месте под защитой [backupFile].
+     *
+     * Backup освобождается только после полного успеха (запись, верификация,
+     * EXIF, повторная верификация). При любой ошибке файл откатывается к backup;
+     * если откат не удался, backup остаётся в реестре и будет применён
+     * [BackupRecoveryHelper] при следующем старте — файл пользователя
+     * никогда не удаляется.
+     */
+    private suspend fun replaceInPlace(
+        context: Context,
+        uri: Uri,
+        backupFile: File,
+        request: SaveRequest
+    ): Uri? {
+        var success = false
+        try {
+            // Сбрасываем IS_PENDING флаг перед обновлением (если он был установлен)
+            clearIsPendingFlag(context, uri)
+
+            // ВНИМАНИЕ: всё время до завершения fsync файл на диске усечён
+            // и виден галереям. Логируем длительность окна для диагностики.
+            val writeStartMs = System.currentTimeMillis()
+            val written = writeDurably(context, uri, request.cacheFile, "rwt")
+            LogUtil.processInfo("[Replace] Окно частичной записи (truncate→fsync): ${System.currentTimeMillis() - writeStartMs}мс")
+            if (written != request.cacheFile.length()) {
+                throw IOException("Записано $written из ${request.cacheFile.length()} байт")
+            }
+            if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
+                throw IOException("Перезаписанный файл повреждён")
+            }
+
+            // Принудительно синхронизируем запись MediaStore (размер, DATE_MODIFIED),
+            // чтобы галереи инвалидировали кэш миниатюр.
+            refreshMediaStoreEntry(context, uri, request.mimeType)
+            awaitAvailability(context, uri)
+
+            val exifOk = ExifUtil.handleExifForSavedImage(
+                context, request.originalUri, uri, request.quality, request.exifDataMemory, request.originalFileSize
+            )
+            if (!exifOk) {
+                throw IOException("EXIF не записан — откат, чтобы не потерять метаданные оригинала")
+            }
+            if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
+                throw IOException("Файл повреждён после записи EXIF")
+            }
+
+            // EXIF-запись идёт без fsync: сбрасываем файл до освобождения backup
+            FileIoUtil.syncUri(context, uri)
+            UriUtil.invalidateUriExistsCache(uri)
+            success = true
+            return uri
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Replace", "Перезапись не удалась: ${e.message}", e)
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            return null
+        } finally {
+            withContext(NonCancellable) {
+                if (success) {
+                    BackupRegistry.releaseBackup(context, backupFile)
+                } else if (BackupRegistry.rollback(context, uri, backupFile)) {
+                    LogUtil.warning(uri, "Replace", "Оригинал восстановлен из backup")
+                    BackupRegistry.releaseBackup(context, backupFile)
+                    refreshMediaStoreEntry(context, uri, request.mimeType)
+                    UriUtil.invalidateUriExistsCache(uri)
+                } else {
+                    LogUtil.error(uri, "Replace", "Не удалось восстановить оригинал — backup сохранён для восстановления при следующем запуске")
+                    NotificationUtil.showErrorNotification(
+                        context = context,
+                        title = "Ошибка сохранения",
+                        message = "Не удалось восстановить оригинал. Копия сохранена и будет восстановлена при следующем запуске приложения."
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Проверяет, что размер файла совпадает с зафиксированным в начале обработки.
+     * Неизвестный размер (ошибка чтения или отсутствие ожидания) не считается изменением.
+     */
+    suspend fun isFileUnchanged(context: Context, uri: Uri, expectedSize: Long?): Boolean {
+        if (expectedSize == null || expectedSize <= 0L) return true
+        val currentSize = try { UriUtil.getFileSize(context, uri) } catch (e: Exception) { -1L }
+        return currentSize <= 0L || currentSize == expectedSize
+    }
+
+    /**
+     * Записывает файл в URI через ParcelFileDescriptor с fsync.
+     * Режим "rwt" используется вместо openOutputStream("wt"), который ненадёжен
+     * на некоторых устройствах (Android 12+). Провал fsync — ошибка записи.
+     *
+     * @return количество записанных байт
+     */
+    private fun writeDurably(context: Context, uri: Uri, source: File, mode: String): Long {
+        val pfd = context.contentResolver.openFileDescriptor(uri, mode)
+            ?: throw IOException("Не удалось открыть FileDescriptor для URI: $uri")
+        return pfd.use {
+            FileOutputStream(it.fileDescriptor).use { output ->
+                val count = source.inputStream().use { input -> input.copyTo(output) }
+                output.flush()
+                it.fileDescriptor.sync()
+                count
+            }
+        }
+    }
+
+    /**
+     * Ждёт доступности файла после снятия IS_PENDING/перезаписи.
+     */
+    private suspend fun awaitAvailability(context: Context, uri: Uri) {
+        waitForUriAvailability(context, uri, 2000L)
+        // Специальная обработка для Android 11
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+            delay(Constants.MEDIASTORE_ANDROID11_DELAY_MS)
         }
     }
 
@@ -572,107 +605,33 @@ object MediaStoreUtil {
         }
 
     /**
-     * Безопасно обновляет существующий файл, перезаписывая его данными из входного потока
-     * Используется в режиме замены для исключения race condition и появления "~2" в именах
-     *
-     * После записи вызывает [ParcelFileDescriptor.getFileDescriptor.sync] для гарантированного
-     * сброса данных на носитель (durability при power-loss / форсированном ребуте).
-     *
-     * @param context Контекст приложения
-     * @param existingUri URI существующего файла для обновления
-     * @param inputData Входной поток с новыми данными
-     * @return true если обновление успешно, false в противном случае
-     */
-    private suspend fun safeUpdateExistingFile(
-        context: Context,
-        existingUri: Uri,
-        inputData: InputStream
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Используем ParcelFileDescriptor "rwt" (read-write-truncate) для надёжной перезаписи
-            // openOutputStream("wt") может работать ненадёжно на некоторых устройствах (Android 12+)
-            context.contentResolver.openFileDescriptor(existingUri, "rwt")?.use { pfd ->
-                java.io.FileOutputStream(pfd.fileDescriptor).use { outputStream ->
-                    inputData.copyTo(outputStream)
-                    outputStream.flush()
-                    // fsync: гарантируем, что данные сброшены из page cache на носитель.
-                    // flush() сбрасывает только буферы JVM/OS; sync() форсирует запись на диск.
-                    // ИНВАРИАНТ БЕЗОПАСНОСТИ: провал sync() трактуем как неудачу записи —
-                    // caller восстановит оригинал из backup, а не оставит усечённый файл.
-                    try {
-                        pfd.fileDescriptor.sync()
-                    } catch (e: Exception) {
-                        LogUtil.error(existingUri, "MediaStore", "sync() после записи не удался — трактуем как ошибку записи: ${e.message}")
-                        return@withContext false
-                    }
-                }
-            } ?: throw IOException("Не удалось открыть FileDescriptor для URI: $existingUri")
-            true
-        } catch (e: FileNotFoundException) {
-            LogUtil.error(existingUri, "MediaStore", "Файл не найден при обновлении: ${e.message}", e)
-            false
-        } catch (e: IOException) {
-            LogUtil.error(existingUri, "MediaStore", "Ошибка обновления файла", e)
-            false
-        } catch (e: Exception) {
-            LogUtil.error(existingUri, "MediaStore", "Ошибка обновления файла", e)
-            false
-        }
-    }
-
-    /**
-     * Восстанавливает файл из backup-копии через ParcelFileDescriptor "rwt".
-     * Используется:
-     *  - внутри [saveCompressedImageFromStreamInternal] для отката перезаписи оригинала
-     *    при ошибке/прерывании в replace-режиме;
-     *  - [BackupRecoveryHelper.recoverPendingBackups] при восстановлении после crash.
-     *
-     * После копирования вызывает [ParcelFileDescriptor.getFileDescriptor.sync] для durability.
-     *
-     * @return true если копирование выполнено без исключений
-     */
-    suspend fun restoreFromBackup(
-        context: Context,
-        uri: Uri,
-        backupFile: java.io.File
-    ): Boolean = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val pfd = context.contentResolver.openFileDescriptor(uri, "rwt")
-            if (pfd == null) {
-                LogUtil.error(uri, "MediaStore", "Не удалось открыть FileDescriptor для восстановления из backup")
-                return@withContext false
-            }
-            pfd.use {
-                FileOutputStream(it.fileDescriptor).use { output ->
-                    backupFile.inputStream().use { input ->
-                        input.copyTo(output)
-                    }
-                    output.flush()
-                    try {
-                        it.fileDescriptor.sync()
-                    } catch (e: Exception) {
-                        LogUtil.warning(uri, "MediaStore", "sync() после restore не удался: ${e.message}")
-                    }
-                }
-            }
-            true
-        } catch (restoreError: Exception) {
-            LogUtil.error(uri, "MediaStore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
-            false
-        }
-    }
-
-    /**
      * Определяет, следует ли использовать путь обновления (overwrite) вместо создания нового файла
      *
      * @param existingUri URI существующего файла (null если файл не существует)
      * @param isReplaceMode Включен ли режим замены
      * @return true если нужно использовать обновление, false если создавать новый файл
      */
-    private fun shouldUseUpdatePath(
+    internal fun shouldUseUpdatePath(
         existingUri: Uri?,
+        originalUri: Uri?,
         isReplaceMode: Boolean
-    ): Boolean = existingUri != null && isReplaceMode
+    ): Boolean = existingUri != null && isReplaceMode && isSameMediaItem(existingUri, originalUri)
+
+    /**
+     * Сравнивает два URI MediaStore по ID записи (варианты тома
+     * `external`/`external_primary` дают разные строки для одного файла).
+     * ИНВАРИАНТ БЕЗОПАСНОСТИ: перезапись на месте допустима только для самого
+     * оригинала — совпадение имени не означает, что это тот же файл.
+     */
+    internal fun isSameMediaItem(first: Uri?, second: Uri?): Boolean {
+        if (first == null || second == null) return false
+        if (first.authority != MediaStore.AUTHORITY || second.authority != MediaStore.AUTHORITY) return false
+        return try {
+            ContentUris.parseId(first) == ContentUris.parseId(second)
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     /**
      * Пакетная проверка существования файлов

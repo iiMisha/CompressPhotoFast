@@ -65,10 +65,18 @@ class CompressionResult:
         return self.compressed_size <= self.original_size * MIN_COMPRESSION_RATIO
 
 
+# Расширения изображений, которые считаются частью «двойного расширения» (image.HEIC.jpg)
+IMAGE_EXTENSIONS = {".heic", ".heif", ".jpg", ".jpeg", ".png", ".webp"}
+
+
 def clean_double_extensions(file_name: str) -> str:
     """
     Очищает двойные расширения в имени файла.
     Например: image.HEIC.jpg -> image, photo.heif.jpeg -> photo
+
+    Внутреннее расширение срезается, только если это известное расширение
+    изображения; прочие точки — часть имени (PXL_1.PORTRAIT.jpg -> PXL_1.PORTRAIT).
+    Семантика совпадает с FileOperationsUtil.cleanDoubleExtensions (Android).
 
     Args:
         file_name: Исходное имя файла
@@ -77,19 +85,18 @@ def clean_double_extensions(file_name: str) -> str:
         Имя файла без двойных расширений (только базовое имя)
     """
     last_dot_index = file_name.rfind('.')
-    if last_dot_index <= 0:
+    if last_dot_index < 0:
         return file_name
 
     before_last_dot = file_name[:last_dot_index]
     second_last_dot = before_last_dot.rfind('.')
+    inner_ext = before_last_dot[second_last_dot:].lower() if second_last_dot > 0 else ""
 
-    if second_last_dot > 0:
-        # Есть двойное расширение, возвращаем имя до второй точки
-        logger.debug(f"Очистка двойного расширения: {file_name} -> {before_last_dot[:second_last_dot]}")
-        return before_last_dot[:second_last_dot]
-    else:
-        # Двойного расширения нет, возвращаем как есть
-        return before_last_dot
+    if inner_ext in IMAGE_EXTENSIONS:
+        clean_name = before_last_dot[:second_last_dot]
+        logger.debug(f"Очистка двойного расширения: {file_name} -> {clean_name}")
+        return clean_name
+    return before_last_dot
 
 
 class ImageCompressor:

@@ -99,15 +99,9 @@ class CompressPhotoApp : Application(), Configuration.Provider {
      * засоряли MediaStore. Теперь очистка гарантированно выполняется при холодном старте.
      */
     private fun performPostCrashCleanup() {
-        // TempFilesCleaner.cleanupTempFiles — синхронная, запускаем в одном потоке
-        Executors.newSingleThreadExecutor().execute {
-            try {
-                TempFilesCleaner.cleanupTempFiles(applicationContext)
-            } catch (e: Exception) {
-                LogUtil.errorWithException("APP_POST_CRASH_CLEANUP", e)
-            }
-        }
-        // cleanupStalePendingEntries и recoverPendingBackups — suspend, нужен скоуп
+        val processStartMs = System.currentTimeMillis()
+        // Порядок важен: восстановление из backup'ов строго ДО очистки временных
+        // файлов, иначе cleaner мог бы удалить backup, нужный для восстановления.
         appScope.launch {
             try {
                 MediaStoreUtil.cleanupStalePendingEntries(applicationContext)
@@ -115,9 +109,14 @@ class CompressPhotoApp : Application(), Configuration.Provider {
                 LogUtil.errorWithException("APP_STALE_PENDING_CLEANUP", e)
             }
             try {
-                BackupRecoveryHelper.recoverPendingBackups(applicationContext)
+                BackupRecoveryHelper.recoverPendingBackups(applicationContext, processStartMs)
             } catch (e: Exception) {
                 LogUtil.errorWithException("APP_BACKUP_RECOVERY", e)
+            }
+            try {
+                TempFilesCleaner.cleanupTempFiles(applicationContext)
+            } catch (e: Exception) {
+                LogUtil.errorWithException("APP_POST_CRASH_CLEANUP", e)
             }
         }
     }

@@ -52,6 +52,24 @@ class FileOperationsUtilTest : BaseUnitTest() {
     // из-за необходимости реального Android Context для SettingsManager.
     // См. FileOperationsInstrumentedTest.kt в androidTest папке.
 
+    // ==================== cleanDoubleExtensions ====================
+
+    @Test
+    fun `cleanDoubleExtensions strips inner image extension`() {
+        assertEquals("image", FileOperationsUtil.cleanDoubleExtensions("image.HEIC.jpg"))
+        assertEquals("photo", FileOperationsUtil.cleanDoubleExtensions("photo.heif.jpeg"))
+        assertEquals("photo", FileOperationsUtil.cleanDoubleExtensions("photo.jpg"))
+    }
+
+    @Test
+    fun `cleanDoubleExtensions keeps non-image dots as part of name`() {
+        // Схлопывание имён привело бы к перезаписи соседнего файла в режиме замены
+        assertEquals("PXL_1.PORTRAIT.ORIGINAL", FileOperationsUtil.cleanDoubleExtensions("PXL_1.PORTRAIT.ORIGINAL.jpg"))
+        assertEquals("PXL_1.PORTRAIT", FileOperationsUtil.cleanDoubleExtensions("PXL_1.PORTRAIT.jpg"))
+        assertEquals("Screenshot_2024.01.01", FileOperationsUtil.cleanDoubleExtensions("Screenshot_2024.01.01.jpg"))
+        assertEquals("my.photo.2024", FileOperationsUtil.cleanDoubleExtensions("my.photo.2024.HEIC.jpg"))
+    }
+
     // ==================== isFileSizeValid ====================
     
     @Test

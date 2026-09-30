@@ -4,16 +4,15 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.system.Os
 import androidx.exifinterface.media.ExifInterface
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
-import java.io.FileOutputStream
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -388,10 +387,12 @@ object ExifUtil {
             // Копируем все теги
             copyExifTags(sourceExif, destExif)
 
-            // Сохраняем изменения
+            // Сохраняем изменения (под защитой durable backup)
             try {
                 LogUtil.processInfo("Вызываем saveAttributes() для сохранения EXIF данных")
-                destExif.saveAttributes()
+                if (!guardedExifWrite(context, destinationUri) { destExif.saveAttributes() }) {
+                    return@withContext false
+                }
                 LogUtil.processInfo("saveAttributes() выполнен успешно")
 
                 // Теперь можно закрыть дескриптор
@@ -760,7 +761,8 @@ object ExifUtil {
         uri: Uri, 
         exifData: Map<String, Any>, 
         quality: Int? = null,
-        originalFileSize: Long? = null
+        originalFileSize: Long? = null,
+        pixelsTransformed: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             if (!UriUtil.isUriExistsSuspend(context, uri)) {
@@ -795,9 +797,13 @@ object ExifUtil {
                     }
                 }
                 
-                // После трансформации пикселей в compressImageToStream устанавливаем orientation = NORMAL
-                exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
-                LogUtil.debug("EXIF", "Ориентация установлена в NORMAL (изображение трансформировано)")
+                // После трансформации пикселей в compressImageToStream устанавливаем orientation = NORMAL.
+                // ИНВАРИАНТ: для нетронутого оригинала (маркер пропуска/неудалённый оригинал)
+                // ориентацию менять нельзя — иначе фото будет отображаться повёрнутым.
+                if (pixelsTransformed) {
+                    exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
+                    LogUtil.debug("EXIF", "Ориентация установлена в NORMAL (изображение трансформировано)")
+                }
                 
                 // Применяем GPS-данные, если они есть
                 var gpsTagsApplied = 0
@@ -877,77 +883,13 @@ object ExifUtil {
                     LogUtil.processInfo("Добавлен маркер сжатия: $compressionInfo")
                 }
                 
-                // 2. Сохраняем изменения в EXIF (с backup для защиты от повреждения)
-                val backupFile = File(BackupRegistry.getBackupDir(context), "exif_backup_${System.currentTimeMillis()}.jpg")
-                var backupCreated = false
-                try {
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        FileOutputStream(backupFile).use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    backupCreated = backupFile.exists() && backupFile.length() > 0
-                    if (backupCreated) {
-                        // Регистрируем backup в персистентном реестре для восстановления
-                        // при непредвиденном закрытии приложения посреди saveAttributes().
-                        BackupRegistry.registerBackup(context, uri, backupFile)
-                    }
-                } catch (e: Exception) {
-                    LogUtil.warning(uri, "EXIF backup", "Не удалось создать backup: ${e.message}")
-                    backupFile.delete()
-                    backupCreated = false
-                }
-
-                if (!backupCreated) {
-                    // ИНВАРИАНТ БЕЗОПАСНОСТИ: saveAttributes() перезаписывает файл
-                    // на месте. Без backup его выполнение может необратимо повредить
-                    // изображение при сбое — пропускаем запись EXIF, файл остаётся
-                    // целым (без маркера/тегов, но валидным).
-                    LogUtil.warning(uri, "EXIF backup", "Backup не создан — saveAttributes() отменён для защиты файла от повреждения")
+                // 2. Сохраняем изменения в EXIF под защитой durable backup.
+                // ИНВАРИАНТ БЕЗОПАСНОСТИ: saveAttributes() перезаписывает файл на месте;
+                // без backup запись пропускается, файл остаётся целым (без маркера/тегов).
+                if (!guardedExifWrite(context, uri) { exif.saveAttributes() }) {
                     return@withContext false
                 }
-
-                try {
-                    exif.saveAttributes()
-                    LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
-
-                    if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                        LogUtil.error(uri, "EXIF верификация", "Файл повреждён после saveAttributes(), восстанавливаем из backup")
-                        if (backupFile.exists() && backupFile.length() > 0) {
-                            if (restoreFileFromBackup(context, uri, backupFile)) {
-                                // Верифицируем что restore прошёл успешно
-                                if (ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                                    LogUtil.processInfo("✅ Файл успешно восстановлен из backup после повреждения saveAttributes()")
-                                } else {
-                                    LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым даже после восстановления из backup")
-                                }
-                            }
-                        } else {
-                            LogUtil.error(uri, "EXIF restore", "Backup файл отсутствует или пуст, восстановление невозможно")
-                        }
-                        return@withContext false
-                    }
-                } catch (e: Exception) {
-                    LogUtil.error(uri, "EXIF save", "saveAttributes() упал, восстанавливаем файл из backup", e)
-                    if (backupFile.exists() && backupFile.length() > 0) {
-                        if (restoreFileFromBackup(context, uri, backupFile)) {
-                            if (ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                                LogUtil.processInfo("✅ Файл успешно восстановлен из backup после ошибки saveAttributes()")
-                            } else {
-                                LogUtil.error(uri, "EXIF restore", "Файл остался повреждённым после restore")
-                            }
-                        }
-                    } else {
-                        LogUtil.error(uri, "EXIF restore", "Backup файл отсутствует или пуст")
-                    }
-                    throw e
-                } finally {
-                    // saveAttributes() завершён — backup больше не нужен в реестре
-                    if (backupCreated) {
-                        BackupRegistry.clearBackup(context, uri)
-                    }
-                    backupFile.delete()
-                }
+                LogUtil.processInfo("Применено $appliedTags EXIF-тегов к $uri")
 
                 // Фаза 2: заменяем нулевую заглушку размера в маркере на фактический
                 // размер файла. Размер записывается одной записью: возможный дрейф
@@ -1027,18 +969,7 @@ object ExifUtil {
      * @return размер в байтах или null, если размер определить не удалось
      */
     private fun getActualFileSizeOnDisk(context: Context, uri: Uri): Long? {
-        val fromDescriptor = try {
-            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
-                try {
-                    Os.fstat(pfd.fileDescriptor).st_size.takeIf { it > 0L }
-                } catch (t: Throwable) {
-                    null
-                } ?: pfd.statSize.takeIf { it > 0L }
-            }
-        } catch (e: Exception) {
-            LogUtil.warning(uri, "Маркер сжатия", "Не удалось открыть дескриптор для определения размера: ${e.message}")
-            null
-        }
+        val fromDescriptor = FileIoUtil.getDescriptorSize(context, uri)
         if (fromDescriptor != null) {
             return fromDescriptor
         }
@@ -1070,9 +1001,8 @@ object ExifUtil {
      * допуск чекера (файл с превышающим допуск маркером будет однократно
      * пересжат, после чего маркер запишется заново).
      *
-     * I/O: backup файла создаётся один раз — копия нужна только для restore
-     * при сбое saveAttributes() или повреждении файла; верификация целостности
-     * выполняется после каждой записи (их максимум две).
+     * I/O: каждая запись (их максимум две) выполняется под защитой собственного
+     * durable backup с верификацией целостности ([guardedExifWrite]).
      */
     private suspend fun writeActualSizeMarker(
         context: Context,
@@ -1081,79 +1011,37 @@ object ExifUtil {
         markerTimestamp: Long,
         originalFileSize: Long?
     ): Boolean = withContext(Dispatchers.IO) {
-        val backupFile = createMarkerBackup(context, uri)
-        if (backupFile == null) {
+        val sizeBeforeWrite = getActualFileSizeOnDisk(context, uri)
+        if (sizeBeforeWrite == null || sizeBeforeWrite <= 0L) {
+            LogUtil.warning(uri, "Маркер сжатия", "Не удалось получить размер файла, маркер остаётся без размера")
             return@withContext false
         }
 
-        try {
-            val sizeBeforeWrite = getActualFileSizeOnDisk(context, uri)
-            if (sizeBeforeWrite == null || sizeBeforeWrite <= 0L) {
-                LogUtil.warning(uri, "Маркер сжатия", "Не удалось получить размер файла, маркер остаётся без размера")
-                return@withContext false
-            }
-
-            val writeOk = writeMarkerWithSize(context, uri, quality, markerTimestamp, sizeBeforeWrite, originalFileSize, backupFile)
-            if (!writeOk) {
-                return@withContext false
-            }
-
-            val actualAfterWrite = getActualFileSizeOnDisk(context, uri)
-            if (actualAfterWrite != null &&
-                kotlin.math.abs(actualAfterWrite - sizeBeforeWrite) > Constants.MARKER_SIZE_TOLERANCE_BYTES
-            ) {
-                // Дрейф saveAttributes() оказался больше допуска: одна корректирующая
-                // запись с фактическим размером. Фиксированная ширина строки маркера
-                // гарантирует, что длина записи не изменится и файл стабилизируется
-                LogUtil.processInfo(
-                    "Маркер сжатия: дрейф saveAttributes() ${sizeBeforeWrite} → $actualAfterWrite сверх допуска, корректирующая запись"
-                )
-                writeMarkerWithSize(context, uri, quality, markerTimestamp, actualAfterWrite, originalFileSize, backupFile)
-            } else {
-                LogUtil.processInfo("✅ Размер файла $sizeBeforeWrite записан в маркер сжатия")
-            }
-            return@withContext true
-        } finally {
-            BackupRegistry.clearBackup(context, uri)
-            backupFile.delete()
+        val writeOk = writeMarkerWithSize(context, uri, quality, markerTimestamp, sizeBeforeWrite, originalFileSize)
+        if (!writeOk) {
+            return@withContext false
         }
+
+        val actualAfterWrite = getActualFileSizeOnDisk(context, uri)
+        if (actualAfterWrite != null &&
+            kotlin.math.abs(actualAfterWrite - sizeBeforeWrite) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+        ) {
+            // Дрейф saveAttributes() оказался больше допуска: одна корректирующая
+            // запись с фактическим размером. Фиксированная ширина строки маркера
+            // гарантирует, что длина записи не изменится и файл стабилизируется
+            LogUtil.processInfo(
+                "Маркер сжатия: дрейф saveAttributes() ${sizeBeforeWrite} → $actualAfterWrite сверх допуска, корректирующая запись"
+            )
+            writeMarkerWithSize(context, uri, quality, markerTimestamp, actualAfterWrite, originalFileSize)
+        } else {
+            LogUtil.processInfo("✅ Размер файла $sizeBeforeWrite записан в маркер сжатия")
+        }
+        return@withContext true
     }
 
     /**
-     * Создаёт и регистрирует backup файла перед циклом попыток записи маркера.
-     * Одна копия обслуживает все попытки: restore нужен только при сбое
-     * saveAttributes(), а сами попытки перезаписывают файл целиком.
-     *
-     * @return файл backup или null, если копию создать не удалось
-     */
-    private fun createMarkerBackup(context: Context, uri: Uri): File? {
-        val backupFile = File(BackupRegistry.getBackupDir(context), "exif_marker_backup_${System.currentTimeMillis()}.jpg")
-        return try {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(backupFile).use { output ->
-                    input.copyTo(output)
-                }
-            }
-            if (backupFile.exists() && backupFile.length() > 0) {
-                BackupRegistry.registerBackup(context, uri, backupFile)
-                backupFile
-            } else {
-                LogUtil.warning(uri, "Маркер сжатия", "Backup не создан — запись размера в маркер отменена")
-                backupFile.delete()
-                null
-            }
-        } catch (e: Exception) {
-            LogUtil.warning(uri, "Маркер сжатия", "Не удалось создать backup: ${e.message}")
-            backupFile.delete()
-            null
-        }
-    }
-
-    /**
-     * Одна запись маркера с заданным значением поля размера. Backup создаётся
-     * вызывающей стороной ([writeActualSizeMarker] — один на фазу 2) и используется
-     * для восстановления при сбое записи. После записи всегда выполняется
-     * верификация целостности.
+     * Одна запись маркера с заданным значением поля размера под защитой
+     * [guardedExifWrite] (backup, верификация, откат при сбое).
      *
      * @return true если маркер записан и файл цел
      */
@@ -1163,77 +1051,77 @@ object ExifUtil {
         quality: Int,
         markerTimestamp: Long,
         size: Long,
-        originalFileSize: Long?,
-        backupFile: File
+        originalFileSize: Long?
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val markerWithSize = buildCompressionMarker(quality, markerTimestamp, size, originalFileSize)
-
-            try {
+            guardedExifWrite(context, uri) {
+                // Дескриптор не открыт — маркер не записан: обязаны вернуть false
+                // (через исключение), иначе вызывающий код сочтёт запись успешной
                 val pfd = context.contentResolver.openFileDescriptor(uri, "rw")
-                if (pfd == null) {
-                    // Дескриптор не открыт — файл не был модифицирован, но и маркер
-                    // не записан: обязаны вернуть false, иначе вызывающий код сочтёт
-                    // запись успешной при оставшемся неверном размере в маркере
-                    LogUtil.error(uri, "Маркер сжатия", "Не удалось открыть дескриптор для записи маркера")
-                    return@withContext false
-                }
+                    ?: throw IOException("Не удалось открыть дескриптор для записи маркера")
                 pfd.use {
-                    val exif = ExifInterface(pfd.fileDescriptor)
+                    val exif = ExifInterface(it.fileDescriptor)
                     exif.setAttribute(ExifInterface.TAG_USER_COMMENT, markerWithSize)
                     exif.saveAttributes()
                 }
-
-                if (!ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
-                    LogUtil.error(uri, "Маркер сжатия", "Файл повреждён после записи размера маркера, восстанавливаем из backup")
-                    if (restoreFileFromBackup(context, uri, backupFile) &&
-                        ImageIntegrityUtil.verifyImageIntegrity(context, uri)
-                    ) {
-                        LogUtil.processInfo("✅ Файл восстановлен из backup после сбоя записи размера маркера")
-                    }
-                    return@withContext false
-                }
-
-                return@withContext true
-            } catch (e: Exception) {
-                LogUtil.error(uri, "Маркер сжатия", "Ошибка записи размера маркера, восстанавливаем файл из backup", e)
-                restoreFileFromBackup(context, uri, backupFile)
-                return@withContext false
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.error(uri, "Маркер сжатия", "Не удалось записать размер файла в маркер", e)
             return@withContext false
         }
     }
 
     /**
-     * Восстанавливает файл из backup через ParcelFileDescriptor "rwt".
-     * После копирования вызывает [ParcelFileDescriptor.getFileDescriptor.sync] для durability.
-     * @return true если копирование выполнено без исключений
+     * Перезаписывает файл на месте ([write], обычно `saveAttributes()`) под защитой
+     * durable backup ([BackupRegistry.createBackup]).
+     *
+     * - backup не создан → запись не выполняется, возвращается false;
+     * - после записи файл не проходит верификацию → откат, false;
+     * - [write] бросил исключение → откат (только если файл действительно изменён),
+     *   исключение пробрасывается.
+     *
+     * ИНВАРИАНТ БЕЗОПАСНОСТИ: backup освобождается только при успехе или успешном
+     * откате; иначе остаётся в реестре для [BackupRecoveryHelper].
      */
-    private fun restoreFileFromBackup(context: Context, uri: Uri, backupFile: File): Boolean {
-        return try {
-            context.contentResolver.openFileDescriptor(uri, "rwt")?.use { pfd ->
-                FileOutputStream(pfd.fileDescriptor).use { output ->
-                    backupFile.inputStream().use { input ->
-                        input.copyTo(output)
-                    }
-                    output.flush()
-                    // fsync: гарантируем сброс восстановленных данных на носитель
-                    try {
-                        pfd.fileDescriptor.sync()
-                    } catch (e: Exception) {
-                        LogUtil.warning(uri, "EXIF restore", "sync() после restore не удался: ${e.message}")
-                    }
-                }
+    private suspend fun guardedExifWrite(context: Context, uri: Uri, write: suspend () -> Unit): Boolean {
+        val backupFile = BackupRegistry.createBackup(context, uri, "exif_backup_")
+        if (backupFile == null) {
+            LogUtil.warning(uri, "EXIF backup", "Backup не создан — запись EXIF отменена для защиты файла от повреждения")
+            return false
+        }
+        var keepBackup = false
+        try {
+            write()
+            if (ImageIntegrityUtil.verifyImageIntegrity(context, uri)) {
+                return true
             }
-            true
-        } catch (restoreError: Exception) {
-            LogUtil.error(uri, "EXIF restore", "Критическая ошибка: не удалось восстановить файл из backup", restoreError)
-            false
+            LogUtil.error(uri, "EXIF верификация", "Файл повреждён после записи EXIF, откатываем из backup")
+            keepBackup = !rollbackExifWrite(context, uri, backupFile)
+            return false
+        } catch (e: Throwable) {
+            LogUtil.error(uri, "EXIF save", "Запись EXIF упала, откатываем файл из backup: ${e.message}")
+            keepBackup = !rollbackExifWrite(context, uri, backupFile)
+            throw e
+        } finally {
+            if (!keepBackup) {
+                BackupRegistry.releaseBackup(context, backupFile)
+            }
         }
     }
-    
+
+    private suspend fun rollbackExifWrite(context: Context, uri: Uri, backupFile: File): Boolean =
+        withContext(NonCancellable) {
+            val restored = BackupRegistry.rollback(context, uri, backupFile)
+            if (restored) {
+                LogUtil.processInfo("✅ Файл совпадает с backup после отката записи EXIF")
+            } else {
+                LogUtil.error(uri, "EXIF restore", "Откат не удался — backup сохранён для восстановления при следующем запуске")
+            }
+            restored
+        }
+
     /**
      * Добавляет маркер сжатия к изображению
      * @param context Контекст приложения
@@ -1254,7 +1142,9 @@ object ExifUtil {
                 val markerPlaceholder = buildCompressionMarker(quality, markerTimestamp, null, originalFileSize)
 
                 exif.setAttribute(ExifInterface.TAG_USER_COMMENT, markerPlaceholder)
-                exif.saveAttributes()
+                if (!guardedExifWrite(context, uri) { exif.saveAttributes() }) {
+                    return@withContext false
+                }
 
                 LogUtil.processInfo("Маркер сжатия успешно добавлен")
             } ?: run {
@@ -1361,7 +1251,10 @@ object ExifUtil {
             // Используем заранее загруженные EXIF данные, если они доступны
             if (exifDataMemory != null && exifDataMemory.isNotEmpty()) {
                 try {
-                    exifSuccess = applyExifFromMemory(context, destinationUri, exifDataMemory, quality, originalFileSize)
+                    exifSuccess = applyExifFromMemory(
+                        context, destinationUri, exifDataMemory, quality, originalFileSize,
+                        pixelsTransformed = true
+                    )
                     LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
 
                     if (exifSuccess) {

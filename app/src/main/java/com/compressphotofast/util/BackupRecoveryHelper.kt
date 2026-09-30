@@ -10,91 +10,111 @@ import java.io.File
  * Восстановление файлов из orphan backup'ов, оставшихся после непредвиденного
  * закрытия приложения (kill, OOM, crash, перезагрузка).
  *
- * Вызывается при старте приложения из [com.compressphotofast.CompressPhotoApp.onCreate].
- * Логика:
- *  1. Читает [BackupRegistry.getPendingBackups].
- *  2. Для каждой записи проверяет существование и целостность URI.
- *     - Если URI повреждён/недоступен И backup существует → восстановление.
- *     - Если backup-файл отсутствует → запись удаляется из реестра.
- *  3. Очищает обработанные записи и orphan backup-файлы.
+ * Вызывается при старте приложения из [com.compressphotofast.CompressPhotoApp]
+ * ДО очистки временных файлов.
+ *
+ * Запись в реестре существует только на время рискованной операции, поэтому само
+ * её наличие означает, что операция не завершилась: файл восстанавливается из
+ * backup безусловно (проверка заголовка не отличает обрезанный файл от целого).
+ * Если для URI несколько backup'ов, используется самый ранний — состояние до
+ * начала всей операции. Если restore невозможен, backup сохраняется в галерею
+ * как отдельный файл. Backup удаляется только после успешного restore/сохранения;
+ * иначе он остаётся в реестре до следующего старта.
  */
 object BackupRecoveryHelper {
 
+    private const val RECOVERED_DIRECTORY = "${Constants.APP_DIRECTORY}/Recovered"
+
+    /** Запас на грубую точность mtime файловой системы. */
+    private const val MTIME_MARGIN_MS = 2_000L
+
     /**
-     * Точка входа: проверяет и восстанавливает все ожидающие backup'ы.
-     * Безопасна для вызова в фоновом потоке при старте приложения.
+     * @param processStartMs время старта текущего процесса: backup'ы, созданные
+     *        после него, принадлежат живым операциям этого процесса и не трогаются
      */
-    suspend fun recoverPendingBackups(context: Context) = withContext(Dispatchers.IO) {
+    suspend fun recoverPendingBackups(
+        context: Context,
+        processStartMs: Long = System.currentTimeMillis()
+    ) = withContext(Dispatchers.IO) {
+        val cutoff = processStartMs - MTIME_MARGIN_MS
         val pending = BackupRegistry.getPendingBackups(context)
+            .filterKeys { path -> File(path).let { !it.exists() || it.lastModified() < cutoff } }
         if (pending.isEmpty()) return@withContext
 
         LogUtil.processInfo("BackupRecovery: обнаружено ${pending.size} ожидающих backup-записей")
 
         var recovered = 0
-        var cleaned = 0
-        val processed = mutableSetOf<String>()
+        var savedAsCopy = 0
+        var kept = 0
 
-        for ((uriString, backupPath) in pending) {
+        val byUri = pending.entries.groupBy({ it.value }, { File(it.key) })
+        for ((uriString, backups) in byUri) {
+            val (valid, missing) = backups.partition { it.exists() && it.length() > 0L }
+            missing.forEach { BackupRegistry.releaseBackup(context, it) }
+            if (valid.isEmpty()) continue
+
+            // Самый ранний backup — состояние до начала всей операции
+            val primary = valid.minByOrNull { it.lastModified() }!!
             val uri = try { Uri.parse(uriString) } catch (e: Exception) { null }
-            val backupFile = File(backupPath)
 
-            // Если backup-файл не существует — запись неактуальна, удаляем из реестра
-            if (!backupFile.exists() || backupFile.length() == 0L) {
-                LogUtil.processDebug("BackupRecovery: backup-файл отсутствует для $uriString, удаляем запись")
-                processed.add(uriString)
-                cleaned++
-                continue
-            }
-
-            if (uri == null) {
-                processed.add(uriString)
-                cleaned++
-                continue
-            }
-
-            try {
-                val exists = UriUtil.isUriExistsSuspend(context, uri)
-                val isValid = exists && ImageIntegrityUtil.verifyImageIntegrity(context, uri)
-
-                if (!isValid) {
-                    // URI повреждён или отсутствует → пытаемся восстановить из backup
-                    LogUtil.warning(uri, "BackupRecovery", "URI повреждён/недоступен, восстанавливаем из backup: $backupPath")
-                    val restored = MediaStoreUtil.restoreFromBackup(context, uri, backupFile)
-                    if (restored) {
-                        LogUtil.processInfo("BackupRecovery: ✅ файл восстановлен из backup: $uri")
-                        recovered++
-                    } else {
-                        LogUtil.error(uri, "BackupRecovery", "Не удалось восстановить файл из backup: $backupPath")
-                    }
-                } else {
-                    LogUtil.processDebug("BackupRecovery: URI валиден, backup не требуется: $uri")
+            val handled = when {
+                uri != null && UriUtil.isUriExistsSuspend(context, uri) &&
+                    BackupRegistry.rollback(context, uri, primary) -> {
+                    LogUtil.processInfo("BackupRecovery: ✅ файл восстановлен из backup: $uri")
+                    UriUtil.invalidateUriExistsCache(uri)
+                    recovered++
+                    true
                 }
-                processed.add(uriString)
-            } catch (e: Exception) {
-                LogUtil.error(uri, "BackupRecovery", "Ошибка при восстановлении из backup", e)
-                processed.add(uriString)
-            } finally {
-                // Backup-файл больше не нужен в любом случае
-                try {
-                    if (backupFile.exists()) backupFile.delete()
-                } catch (e: Exception) {
-                    LogUtil.error(uri, "BackupRecovery", "Не удалось удалить backup-файл: $backupPath", e)
+                saveBackupAsNewFile(context, primary) -> {
+                    LogUtil.warning(uri, "BackupRecovery", "Restore невозможен, backup сохранён как отдельный файл")
+                    savedAsCopy++
+                    true
                 }
+                else -> false
             }
-        }
 
-        // Очищаем обработанные записи из реестра
-        processed.forEach { uriString ->
-            try {
-                val uri = Uri.parse(uriString)
-                BackupRegistry.clearBackup(context, uri)
-            } catch (e: Exception) {
-                // Игнорируем
+            if (handled) {
+                valid.forEach { BackupRegistry.releaseBackup(context, it) }
+            } else {
+                LogUtil.error(uri, "BackupRecovery", "Не удалось восстановить файл — backup сохранён до следующего запуска: ${primary.absolutePath}")
+                kept++
             }
         }
 
         LogUtil.processInfo(
-            "BackupRecovery: завершено — восстановлено $recovered, очищено $cleaned, обработано ${processed.size}"
+            "BackupRecovery: завершено — восстановлено $recovered, сохранено копией $savedAsCopy, отложено $kept"
         )
+    }
+
+    /**
+     * Сохраняет backup как новый файл в галерее (Pictures/CompressPhotoFast/Recovered).
+     */
+    private suspend fun saveBackupAsNewFile(context: Context, backupFile: File): Boolean {
+        val target = MediaStoreUtil.createMediaStoreEntry(
+            context,
+            "recovered_${System.currentTimeMillis()}.jpg",
+            RECOVERED_DIRECTORY,
+            "image/jpeg"
+        ) ?: return false
+        return try {
+            val written = context.contentResolver.openFileDescriptor(target, "w")?.use { pfd ->
+                java.io.FileOutputStream(pfd.fileDescriptor).use { output ->
+                    val count = backupFile.inputStream().use { it.copyTo(output) }
+                    output.flush()
+                    pfd.fileDescriptor.sync()
+                    count
+                }
+            } ?: -1L
+            if (written != backupFile.length()) {
+                context.contentResolver.delete(target, null, null)
+                return false
+            }
+            MediaStoreUtil.clearIsPendingFlag(context, target)
+            true
+        } catch (e: Exception) {
+            LogUtil.error(target, "BackupRecovery", "Не удалось сохранить backup в галерею", e)
+            try { context.contentResolver.delete(target, null, null) } catch (_: Exception) {}
+            false
+        }
     }
 }

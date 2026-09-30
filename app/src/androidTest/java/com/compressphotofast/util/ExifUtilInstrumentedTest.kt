@@ -957,4 +957,40 @@ class ExifUtilInstrumentedTest {
         assertThat(quality2).isEqualTo(80)
         assertThat(timestamp2).isGreaterThan(0L)
     }
+
+    /**
+     * Тест 25: Маркер в нетронутый оригинал не меняет ориентацию.
+     *
+     * Маркер пропуска (quality=99) пишется в оригинал, пиксели которого не
+     * трансформировались: сброс Orientation в NORMAL повернул бы фото.
+     */
+    @Test
+    fun test25_applyExifFromMemory_preservesOrientationOfOriginal() {
+        runBlocking {
+            val original = createTestImageInMediaStore()
+            val transformed = createTestImageInMediaStore()
+            listOf(original, transformed).forEach { uri ->
+                context.contentResolver.openFileDescriptor(uri, "rw")!!.use { pfd ->
+                    ExifInterface(pfd.fileDescriptor).apply {
+                        setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_ROTATE_90.toString())
+                        saveAttributes()
+                    }
+                }
+            }
+
+            val originalExif = ExifUtil.readExifDataToMemory(context, original)
+            assertThat(ExifUtil.applyExifFromMemory(context, original, originalExif, quality = 99)).isTrue()
+
+            val transformedExif = ExifUtil.readExifDataToMemory(context, transformed)
+            assertThat(
+                ExifUtil.applyExifFromMemory(context, transformed, transformedExif, quality = 80, pixelsTransformed = true)
+            ).isTrue()
+
+            fun orientationOf(uri: android.net.Uri) = context.contentResolver.openInputStream(uri)!!.use {
+                ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED)
+            }
+            assertThat(orientationOf(original)).isEqualTo(ExifInterface.ORIENTATION_ROTATE_90)
+            assertThat(orientationOf(transformed)).isEqualTo(ExifInterface.ORIENTATION_NORMAL)
+        }
+    }
 }

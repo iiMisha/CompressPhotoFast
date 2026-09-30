@@ -73,26 +73,37 @@ object FileOperationsUtil {
     }
 
     /**
+     * Расширения изображений, которые считаются частью «двойного расширения»
+     * (например, `image.HEIC.jpg`).
+     */
+    private val IMAGE_EXTENSIONS = setOf(".heic", ".heif", ".jpg", ".jpeg", ".png", ".webp")
+
+    /**
      * Очищает двойные расширения в имени файла
      * Например: image.HEIC.jpg -> image, photo.heif.jpeg -> photo
+     *
+     * Внутреннее расширение срезается, только если это известное расширение
+     * изображения. Прочие точки — часть имени: `PXL_1.PORTRAIT.jpg` -> `PXL_1.PORTRAIT`.
+     * ИНВАРИАНТ БЕЗОПАСНОСТИ: иначе имена разных файлов схлопываются
+     * (`PXL_1.PORTRAIT.ORIGINAL.jpg` -> `PXL_1.PORTRAIT.jpg`), и в режиме замены
+     * сжатый файл мог бы занять чужое имя.
      *
      * @param fileName Исходное имя файла
      * @return Имя файла без двойных расширений (только базовое имя)
      */
-    private fun cleanDoubleExtensions(fileName: String): String {
+    internal fun cleanDoubleExtensions(fileName: String): String {
         val lastDotIndex = fileName.lastIndexOf('.')
         if (lastDotIndex <= 0) return fileName
 
         val beforeLastDot = fileName.substring(0, lastDotIndex)
         val secondLastDot = beforeLastDot.lastIndexOf('.')
+        val innerExtension = if (secondLastDot > 0) beforeLastDot.substring(secondLastDot).lowercase() else ""
 
-        return if (secondLastDot > 0) {
-            // Есть двойное расширение, возвращаем имя до второй точки
+        return if (innerExtension in IMAGE_EXTENSIONS) {
             val cleanName = beforeLastDot.substring(0, secondLastDot)
             LogUtil.debug("FileOperationsUtil", "Очистка двойного расширения: $fileName -> $cleanName")
             cleanName
         } else {
-            // Двойного расширения нет, возвращаем как есть
             beforeLastDot
         }
     }

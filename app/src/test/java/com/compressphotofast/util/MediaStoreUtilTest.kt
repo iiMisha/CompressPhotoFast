@@ -13,6 +13,9 @@ import org.junit.Before
 import org.junit.Test
 import android.content.Context
 import android.net.Uri
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Unit тесты для MediaStoreUtil
@@ -26,6 +29,8 @@ import android.net.Uri
  *
  * Тесты для режима "wt" (commit c86c711) находятся в MediaStoreReplaceModeTest.kt (androidTest)
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [29])
 class MediaStoreUtilTest : BaseUnitTest() {
 
     private lateinit var mockContext: Context
@@ -49,76 +54,40 @@ class MediaStoreUtilTest : BaseUnitTest() {
 
     // ==================== Тесты логики режима обновления ====================
 
-    /**
-     * Тест 1: Проверка, что shouldUseUpdatePath возвращает true когда:
-     * - existingUri не null
-     * - режим замены включен
-     */
+    private val originalUri = Uri.parse("content://media/external/images/media/123")
+
     @Test
-    fun `should use update path when existing uri is not null and replace mode is true`() {
-        // Arrange
-        val existingUri = mockUri
-        val isReplaceMode = true
-
-        // Act
-        val result = shouldUseUpdatePathTestHelper(existingUri, isReplaceMode)
-
-        // Assert
-        assertTrue("Должен использовать путь обновления когда URI существует и режим замены включен", result)
+    fun `should use update path only for the original itself in replace mode`() {
+        assertTrue(MediaStoreUtil.shouldUseUpdatePath(originalUri, originalUri, isReplaceMode = true))
     }
 
-    /**
-     * Тест 2: Проверка, что shouldUseUpdatePath возвращает false когда:
-     * - existingUri null
-     * - режим замены включен
-     */
+    @Test
+    fun `should use update path for same id on another volume name`() {
+        val sameOnPrimary = Uri.parse("content://media/external_primary/images/media/123")
+        assertTrue(MediaStoreUtil.shouldUseUpdatePath(sameOnPrimary, originalUri, isReplaceMode = true))
+    }
+
+    @Test
+    fun `should not overwrite another file that occupies the target name`() {
+        // HEIC → .jpg или схлопнутое имя: целевое имя занято ДРУГИМ файлом
+        val otherFile = Uri.parse("content://media/external/images/media/456")
+        assertFalse(MediaStoreUtil.shouldUseUpdatePath(otherFile, originalUri, isReplaceMode = true))
+    }
+
     @Test
     fun `should not use update path when existing uri is null`() {
-        // Arrange
-        val existingUri: Uri? = null
-        val isReplaceMode = true
-
-        // Act
-        val result = shouldUseUpdatePathTestHelper(existingUri, isReplaceMode)
-
-        // Assert
-        assertFalse("Не должен использовать путь обновления когда URI не существует", result)
+        assertFalse(MediaStoreUtil.shouldUseUpdatePath(null, originalUri, isReplaceMode = true))
     }
 
-    /**
-     * Тест 3: Проверка, что shouldUseUpdatePath возвращает false когда:
-     * - existingUri не null
-     * - режим замены выключен
-     */
     @Test
     fun `should not use update path when replace mode is false`() {
-        // Arrange
-        val existingUri = mockUri
-        val isReplaceMode = false
-
-        // Act
-        val result = shouldUseUpdatePathTestHelper(existingUri, isReplaceMode)
-
-        // Assert
-        assertFalse("Не должен использовать путь обновления когда режим замены выключен", result)
+        assertFalse(MediaStoreUtil.shouldUseUpdatePath(originalUri, originalUri, isReplaceMode = false))
     }
 
-    /**
-     * Тест 4: Проверка, что shouldUseUpdatePath возвращает false когда:
-     * - existingUri null
-     * - режим замены выключен
-     */
     @Test
-    fun `should not use update path when both uri is null and replace mode is false`() {
-        // Arrange
-        val existingUri: Uri? = null
-        val isReplaceMode = false
-
-        // Act
-        val result = shouldUseUpdatePathTestHelper(existingUri, isReplaceMode)
-
-        // Assert
-        assertFalse("Не должен использовать путь обновления когда оба условия ложны", result)
+    fun `should not use update path for non-MediaStore original with same numeric id`() {
+        val sharedUri = Uri.parse("content://com.example.provider/files/123")
+        assertFalse(MediaStoreUtil.shouldUseUpdatePath(originalUri, sharedUri, isReplaceMode = true))
     }
 
     // ==================== Тесты Pair<Uri, Boolean> логики ====================
@@ -190,21 +159,6 @@ class MediaStoreUtilTest : BaseUnitTest() {
         // Assert
         assertEquals("URI должен быть извлечен корректно", testUri, uri)
         assertTrue("Флаг должен быть извлечен корректно", flag)
-    }
-
-    // ==================== Вспомогательные методы для тестирования private методов ====================
-
-    /**
-     * Вспомогательный метод для тестирования логики shouldUseUpdatePath
-     *
-     * Поскольку shouldUseUpdatePath является private в MediaStoreUtil,
-     * мы тестируем ту же логику здесь.
-     */
-    private fun shouldUseUpdatePathTestHelper(
-        existingUri: Uri?,
-        isReplaceMode: Boolean
-    ): Boolean {
-        return existingUri != null && isReplaceMode
     }
 
     // ==================== Тесты пакетной проверки конфликтов ====================

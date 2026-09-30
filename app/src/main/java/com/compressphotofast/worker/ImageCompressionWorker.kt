@@ -425,12 +425,30 @@ class ImageCompressionWorker @AssistedInject constructor(
         val isSavedFileValid = ImageIntegrityUtil.verifyImageIntegrity(context, savedUri)
         if (!isSavedFileValid) {
             LogUtil.error(imageUri, "Верификация", "КРИТИЧЕСКАЯ ОШИБКА: Сохранённый файл повреждён!")
-            // Удаляем повреждённый файл из MediaStore
+            // ИНВАРИАНТ БЕЗОПАСНОСТИ: удалять можно только новый файл. Если оригинал
+            // перезаписан на месте (savedUri == imageUri), это файл пользователя.
+            if (savedUri != imageUri) {
+                try {
+                    appContext.contentResolver.delete(savedUri, null, null)
+                    LogUtil.error(imageUri, "Верификация", "Повреждённый файл удалён из MediaStore: $savedUri")
+                } catch (e: Exception) {
+                    LogUtil.error(savedUri, "Верификация", "Не удалось удалить повреждённый файл", e)
+                }
+            }
+            StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
+            return Result.failure()
+        }
+
+        // Защита от потери правок: если оригинал изменился за время сжатия,
+        // сжатая копия устарела — удаляем её, оригинал не трогаем.
+        if (FileOperationsUtil.isSaveModeReplace(appContext) && savedUri != imageUri &&
+            !MediaStoreUtil.isFileUnchanged(appContext, imageUri, sourceSize)
+        ) {
+            LogUtil.warning(imageUri, "Replace", "Оригинал изменён во время сжатия — сжатая копия удалена, оригинал сохранён")
             try {
                 appContext.contentResolver.delete(savedUri, null, null)
-                LogUtil.error(imageUri, "Верификация", "Повреждённый файл удалён из MediaStore: $savedUri")
             } catch (e: Exception) {
-                LogUtil.error(savedUri, "Верификация", "Не удалось удалить повреждённый файл", e)
+                LogUtil.error(savedUri, "Replace", "Не удалось удалить устаревшую сжатую копию", e)
             }
             StatsTracker.updateStatus(imageUri, StatsTracker.COMPRESSION_STATUS_FAILED)
             return Result.failure()
@@ -452,6 +470,11 @@ class ImageCompressionWorker @AssistedInject constructor(
                     val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
                     if (deleteResult is IntentSender) {
                         addPendingDeleteRequest(imageUri, deleteResult)
+                    } else if (deleteResult != true) {
+                        // Тихий отказ MediaStore: оригинал остался без маркера и был бы
+                        // пережат повторно, порождая дубликаты
+                        deleteFailed = true
+                        deleteErrorMessage = "MediaStore не удалил файл"
                     }
                 } else {
                     LogUtil.warning(imageUri, "Удаление", "Файл уже не существует к моменту удаления")

@@ -298,19 +298,8 @@ class FileNameProcessingTest {
         }
     }
 
-    private fun cleanDoubleExtension(fileName: String): String {
-        val lastDotIndex = fileName.lastIndexOf('.')
-        if (lastDotIndex <= 0) return fileName
-
-        val beforeLastDot = fileName.substring(0, lastDotIndex)
-        val secondLastDot = beforeLastDot.lastIndexOf('.')
-
-        return if (secondLastDot > 0) {
-            beforeLastDot.substring(0, secondLastDot)
-        } else {
-            beforeLastDot
-        }
-    }
+    private fun cleanDoubleExtension(fileName: String): String =
+        FileOperationsUtil.cleanDoubleExtensions(fileName)
 
     private fun createCompressedFileName(originalName: String): String {
         val cleanName = cleanDoubleExtension(originalName)
