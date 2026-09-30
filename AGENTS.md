@@ -18,10 +18,11 @@
 
 ## Архитектура Android
 
-- UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt` (валидация и постановка share/Photo Picker URI — `compressSharedImages`). `util/`, `service/`, `worker/` не импортируют `ui`.
-- Сжатие: `worker/ImageCompressionWorker.kt`, `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `util/CompressionWorkScheduler.kt`, `util/CompressionExecutionGate.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
-- Настройки и данные: `util/SettingsManager.kt` (SharedPreferences), `MediaStore`.
-- Инфраструктура: `util/BackupRegistry.kt`, `util/BackupRecoveryHelper.kt`, `util/FileIoUtil.kt` (leaf: fstat/fsync), `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.
+- Пакеты: `domain/` (правила и оркестрация) → `data/` (MediaStore, EXIF, backup, настройки) → `util/` (leaf: `Constants`, `LogUtil`, `FileIoUtil`); `platform/` — уведомления, разрешения, батарея. `data/` и `util/` не импортируют `domain/`; `domain/`, `data/`, `service/`, `worker/` не импортируют `ui`.
+- UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt` (валидация и постановка share/Photo Picker URI — `compressSharedImages`; события воркера — `compressionEvents`).
+- Сжатие: `domain/CompressImageUseCase.kt` (EXIF → тест → сохранение → верификация → удаление оригинала; возвращает `Outcome`), `worker/ImageCompressionWorker.kt` (тонкий адаптер: lock URI, gate, foreground, retry, показ результата), `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `domain/CompressionWorkScheduler.kt`, `domain/CompressionExecutionGate.kt`, `domain/ImageCompressionUtil.kt`, `domain/ImageProcessingChecker.kt`.
+- Данные: `data/SettingsManager.kt` (SharedPreferences), `data/MediaStoreUtil.kt` (`saveCompressedImageFromStream` → `SaveResult`, без UI), `data/ExifUtil.kt`, `data/CompressionMarker.kt` (формат маркера, чистые функции), `data/UriProcessingTracker.kt`, `data/StatsTracker.kt`.
+- Инфраструктура: `data/BackupRegistry.kt`, `data/BackupRecoveryHelper.kt`, `util/FileIoUtil.kt` (fstat/fsync), `di/AppModule.kt`, `di/CoroutineScopeModule.kt` (`@ApplicationScope`), `domain/CompressionBatchTracker.kt`, `domain/CompressionEvents.kt` (SharedFlow воркер → UI/сервис вместо broadcast'ов).
 - Мониторинг: `service/BackgroundMonitoringService.kt`, `service/ImageDetectionJobService.kt`, `service/MonitoringController.kt`, `service/BootCompletedReceiver.kt`.
 - CLI: `compressphotofast-cli/src/cli.py`, `compressphotofast-cli/src/compression.py`.
 
@@ -49,8 +50,8 @@
 - Тяжёлая Bitmap/MediaStore-фаза сериализуется `CompressionExecutionGate`; transient retry ограничен пятью попытками с линейным backoff, проблемный URI не блокирует соседние.
 - Автосжатие задерживается на 30 секунд, ручное сжатие запускается без задержки; JPEG test artifacts пишутся в `cacheDir` и удаляются после любого исхода.
 - Разрешения запрашиваются все при первом запуске: один runtime-диалог (медиа/уведомления/гео EXIF) через `PermissionsManager.requestStartupPermissions`, затем All-Files-Access (`requestAllFilesAccessIfNeeded` в `MainActivity`), затем battery exemption; счётчик попыток запросов убран.
-- DI: `SettingsManager` внедряется Hilt во все Hilt-компоненты (воркеры, сервисы, `MainActivity`, `CompressPhotoApp`, `CompressionWorkScheduler`); `SettingsManager.getInstance` — только в `object`/companion. Pending-delete URI — через `SettingsManager`. `ImageProcessingChecker`, `GalleryScanUtil` — инъецируемые `@Singleton`; граф util-`object` ациклический (новые зависимости не должны создавать циклов).
-- Скан галереи (FGS, Job, reconciliation) — только через `util/GalleryScanCoordinator` (окно от watermark с overlap или HISTORY); watermark = время начала скана, продвигается только при `completedSuccessfully` и durable enqueue всех URI; triggered URI из Job watermark не двигают; debug `ApplicationExitInfo` логирует человекочитаемую причину.
+- DI: `SettingsManager` внедряется Hilt во все Hilt-компоненты (воркеры, сервисы, `MainActivity`, `CompressPhotoApp`, `CompressionWorkScheduler`); `SettingsManager.getInstance` — только в `object`/companion. Pending-delete URI — через `SettingsManager`. `ImageProcessingChecker`, `GalleryScanUtil` — инъецируемые `@Singleton`; граф `object` ациклический (новые зависимости не должны создавать циклов). Корутины синглтонов — в `@ApplicationScope`, не в самодельных scope.
+- Скан галереи (FGS, Job, reconciliation) — только через `domain/GalleryScanCoordinator` (окно от watermark с overlap или HISTORY); watermark = время начала скана, продвигается только при `completedSuccessfully` и durable enqueue всех URI; triggered URI из Job watermark не двигают; debug `ApplicationExitInfo` логирует человекочитаемую причину.
 
 ## Проверка и релиз
 
