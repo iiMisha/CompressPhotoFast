@@ -7,6 +7,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -27,15 +30,27 @@ import com.compressphotofast.util.LogUtil
 class CompressionBatchTracker @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val settingsManager: SettingsManager,
-    @ApplicationScope private val appScope: CoroutineScope
+    @ApplicationScope private val appScope: CoroutineScope,
+    private val compressionEvents: CompressionEvents
 ) {
 
     private val batches = ConcurrentHashMap<String, CompressionBatch>()
     private val batchIdCounter = AtomicInteger(1)
 
     // Константы таймаутов
-    private val INTENT_BATCH_TIMEOUT_MS = 30000L       // 30 сек таймаут безопасности для Intent-батчей
+    // Скользящий таймаут безопасности: отсчитывается от создания батча и от каждого результата,
+    // чтобы длинные ручные батчи (сериализованные CompressionExecutionGate) не обрывались
+    private val INTENT_BATCH_TIMEOUT_MS = 120_000L
     private val MAX_BATCHES = 50 // Максимальное количество отслеживаемых батчей
+
+    /** Суммарный прогресс активных ручных батчей: обработано [done] из [expected]. */
+    data class BatchProgress(val done: Int, val expected: Int)
+
+    private val _progress = MutableStateFlow<BatchProgress?>(null)
+    val progress: StateFlow<BatchProgress?> = _progress.asStateFlow()
+
+    /** Исход обработки одного файла батча. */
+    enum class Status { COMPRESSED, SKIPPED, FAILED }
 
     /**
      * Данные одного результата сжатия
@@ -46,7 +61,8 @@ class CompressionBatchTracker @Inject constructor(
         val compressedSize: Long,
         val sizeReduction: Float,
         val skipped: Boolean,
-        val skipReason: String? = null
+        val skipReason: String? = null,
+        val status: Status = if (skipped) Status.SKIPPED else Status.COMPRESSED
     )
 
     /**
@@ -54,7 +70,7 @@ class CompressionBatchTracker @Inject constructor(
      */
     private data class CompressionBatch(
         val batchId: String,
-        val expectedCount: Int,
+        @Volatile var expectedCount: Int,
         var results: MutableList<CompressionResult> = Collections.synchronizedList(mutableListOf()),
         var timeoutJob: Job? = null,
         val createdAt: Long = System.currentTimeMillis()
@@ -80,6 +96,7 @@ class CompressionBatchTracker @Inject constructor(
         scheduleTimeout(batchId, INTENT_BATCH_TIMEOUT_MS)
 
         cleanupOldBatches()
+        updateProgress()
         return batchId
     }
 
@@ -93,7 +110,8 @@ class CompressionBatchTracker @Inject constructor(
         compressedSize: Long,
         sizeReduction: Float,
         skipped: Boolean,
-        skipReason: String? = null
+        skipReason: String? = null,
+        status: Status = if (skipped) Status.SKIPPED else Status.COMPRESSED
     ) {
         val batch = batches[batchId] ?: return
         
@@ -103,8 +121,9 @@ class CompressionBatchTracker @Inject constructor(
                 originalSize = originalSize,
                 compressedSize = compressedSize,
                 sizeReduction = sizeReduction,
-                skipped = skipped,
-                skipReason = skipReason
+                skipped = status != Status.COMPRESSED,
+                skipReason = skipReason,
+                status = status
             )
             
             batch.results.add(result)
@@ -113,7 +132,38 @@ class CompressionBatchTracker @Inject constructor(
             // Проверяем, завершен ли батч
             if (batch.isComplete()) {
                 processBatch(batchId)
+            } else {
+                scheduleTimeout(batchId, INTENT_BATCH_TIMEOUT_MS)
+                updateProgress()
             }
+        }
+    }
+
+    /**
+     * Уточняет ожидаемое число результатов после постановки в очередь:
+     * URI, не принятые в durable очередь, результата не пришлют.
+     */
+    fun setExpectedCount(batchId: String, expectedCount: Int) {
+        val batch = batches[batchId] ?: return
+        synchronized(batch) {
+            batch.expectedCount = expectedCount
+            if (batch.isComplete()) {
+                processBatch(batchId)
+            } else {
+                updateProgress()
+            }
+        }
+    }
+
+    private fun updateProgress() {
+        val active = batches.values
+        _progress.value = if (active.isEmpty()) {
+            null
+        } else {
+            BatchProgress(
+                done = active.sumOf { it.results.size },
+                expected = active.sumOf { it.expectedCount }
+            )
         }
     }
 
@@ -134,8 +184,19 @@ class CompressionBatchTracker @Inject constructor(
 
         // Отменяем таймаут
         batch.timeoutJob?.cancel()
+        updateProgress()
 
-        val results = batch.results
+        val results = batch.results.toList()
+        compressionEvents.emit(
+            CompressionEvents.Event.BatchCompleted(
+                expected = batch.expectedCount,
+                compressed = results.count { it.status == Status.COMPRESSED },
+                skipped = results.count { it.status == Status.SKIPPED },
+                failed = results.count { it.status == Status.FAILED },
+                totalOriginalSize = results.filter { it.status == Status.COMPRESSED }.sumOf { it.originalSize },
+                totalCompressedSize = results.filter { it.status == Status.COMPRESSED }.sumOf { it.compressedSize }
+            )
+        )
         if (results.isEmpty()) {
             LogUtil.processDebug("Пустой батч $batchId, результат не показывается")
             return
@@ -179,8 +240,8 @@ class CompressionBatchTracker @Inject constructor(
      * Показывает групповой результат для нескольких файлов
      */
     private fun showBatchResult(context: Context, results: List<CompressionResult>) {
-        val successfulResults = results.filter { !it.skipped }
-        val skippedCount = results.count { it.skipped }
+        val successfulResults = results.filter { it.status == Status.COMPRESSED }
+        val skippedCount = results.count { it.status != Status.COMPRESSED }
         
         if (successfulResults.isEmpty() && skippedCount == 0) {
             return // Нет результатов для показа
@@ -263,6 +324,7 @@ class CompressionBatchTracker @Inject constructor(
             batch.timeoutJob?.cancel()
             batches.remove(batchId)
         }
+        updateProgress()
 
         if (oldBatches.isNotEmpty()) {
             LogUtil.processDebug("Очищено старых батчей: ${oldBatches.size}")
@@ -282,6 +344,7 @@ class CompressionBatchTracker @Inject constructor(
             batch.timeoutJob?.cancel()
         }
         batches.clear()
+        updateProgress()
         LogUtil.processDebug("Все батчи очищены")
     }
 }

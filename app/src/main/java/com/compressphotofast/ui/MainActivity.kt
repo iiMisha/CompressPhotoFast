@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import com.google.android.material.color.DynamicColors
+import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.compressphotofast.R
@@ -100,6 +101,44 @@ class MainActivity : AppCompatActivity() {
             message
         }
         NotificationUtil.showToast(this, messageWithEmoji, duration)
+    }
+
+    /**
+     * Показывает Snackbar над кнопкой выбора фото: в отличие от Toast не зависит
+     * от разрешения на уведомления и не отбрасывается дедупликацией.
+     */
+    private fun showSnackbar(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).apply {
+            if (binding.btnSelectPhotos.visibility == View.VISIBLE) anchorView = binding.btnSelectPhotos
+        }.show()
+    }
+
+    /**
+     * Формирует итог ручного батча (Photo Picker / Share) для Snackbar.
+     */
+    private fun formatBatchResult(event: CompressionEvents.Event.BatchCompleted): String {
+        val total = maxOf(event.expected, event.compressed + event.skipped + event.failed)
+        if (total == 1 && event.compressed == 0) {
+            return getString(
+                if (event.failed > 0) R.string.manual_result_single_failed else R.string.manual_result_single_skipped
+            )
+        }
+        val parts = mutableListOf<String>()
+        parts += if (event.compressed > 0) {
+            getString(
+                R.string.manual_result_compressed,
+                event.compressed,
+                total,
+                FileOperationsUtil.formatFileSize(event.totalOriginalSize),
+                FileOperationsUtil.formatFileSize(event.totalCompressedSize),
+                String.format("%.1f", FileOperationsUtil.computeSizeReductionPercent(event.totalOriginalSize, event.totalCompressedSize))
+            )
+        } else {
+            getString(R.string.manual_result_none_compressed, total)
+        }
+        if (event.skipped > 0) parts += getString(R.string.manual_result_skipped_part, event.skipped)
+        if (event.failed > 0) parts += getString(R.string.manual_result_failed_part, event.failed)
+        return parts.joinToString(" · ")
     }
 
     /**
@@ -262,9 +301,11 @@ class MainActivity : AppCompatActivity() {
 
         // Принудительная обработка независимо от настройки автосжатия
         lifecycleScope.launch {
-            if (viewModel.compressSharedImages(uris) == 0) {
-                showToast(getString(R.string.all_images_already_compressed))
-            }
+            val enqueued = viewModel.compressSharedImages(uris)
+            showSnackbar(
+                if (enqueued == 0) getString(R.string.all_images_already_compressed)
+                else getString(R.string.manual_photos_queued, enqueued)
+            )
         }
     }
 
@@ -397,10 +438,24 @@ class MainActivity : AppCompatActivity() {
                         is CompressionEvents.Event.Result -> if (!event.skipped) {
                             showCompressionResult(event.fileName, event.originalSize, event.compressedSize)
                         }
+                        is CompressionEvents.Event.BatchCompleted -> showSnackbar(formatBatchResult(event))
                         is CompressionEvents.Event.DeleteConfirmationRequired -> {
                             LogUtil.processDebug("Получен запрос на удаление файла: ${event.uri}")
                             requestFileDelete(event.uri)
                         }
+                    }
+                }
+            }
+        }
+
+        // Прогресс ручного сжатия отображается в подписи кнопки выбора фото
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.batchProgress.collect { progress ->
+                    binding.btnSelectPhotos.text = if (progress == null) {
+                        getString(R.string.select_photos_button)
+                    } else {
+                        getString(R.string.manual_compression_progress, progress.done, progress.expected)
                     }
                 }
             }

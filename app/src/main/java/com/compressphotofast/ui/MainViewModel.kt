@@ -30,6 +30,7 @@ import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.data.UriUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 
@@ -49,6 +50,9 @@ class MainViewModel @Inject constructor(
 
     /** События воркера: результат одиночного сжатия и запросы подтверждения удаления. */
     val compressionEvents: SharedFlow<CompressionEvents.Event> = compressionEvents.events
+
+    /** Прогресс ручных батчей (null — активных нет). */
+    val batchProgress: StateFlow<CompressionBatchTracker.BatchProgress?> = compressionBatchTracker.progress
 
     // LiveData для уровня сжатия
     private val _compressionQuality = MutableLiveData<Int>()
@@ -144,10 +148,8 @@ class MainViewModel @Inject constructor(
                 LogUtil.error(uri, "Ручное сжатие", "Ошибка запуска обработки", e)
             }
         }
-        // Если ни одно изображение не запущено (все пропущены/ошибки) — финализируем батч
-        if (enqueued == 0) {
-            compressionBatchTracker.finalizeBatch(batchId)
-        }
+        // Не принятые в очередь URI результата не пришлют; при 0 батч финализируется сразу
+        compressionBatchTracker.setExpectedCount(batchId, enqueued)
         return enqueued
     }
 

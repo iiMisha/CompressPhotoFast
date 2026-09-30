@@ -106,6 +106,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (exists && !isPending) {
                     uriProcessingTracker.removeUnavailable(imageUri)
                 } else {
+                    reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                     return@withContext Result.failure()
                 }
             }
@@ -115,6 +116,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                     LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует")
                     uriProcessingTracker.markUriUnavailable(imageUri)
+                    reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                     return@withContext Result.failure()
                 }
             } catch (e: PendingItemException) {
@@ -125,6 +127,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext retryOrFinish(imageUri, "early pending", e)
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
+                reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 return@withContext Result.failure()
             }
 
@@ -146,6 +149,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
             ) {
                 updateForegroundForMode("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}")
+                reportBatchOutcome(CompressionBatchTracker.Status.SKIPPED)
                 markRecentlyProcessed = true
                 return@withContext Result.success()
             }
@@ -184,6 +188,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 )
             }
 
+            reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
             updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
             return@withContext Result.failure()
         } finally {
@@ -206,7 +211,34 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
         LogUtil.warning(uri, "Сжатие", "Transient retry исчерпан ($attempt): $reason")
         if (error != null) LogUtil.error(uri, "Сжатие", "Transient detail", error)
+        reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
         return Result.failure()
+    }
+
+    /**
+     * Сообщает финальный исход ручного батча для исходов без размеров
+     * (пропуск/ошибка): без этого батч не набирает expectedCount и UI не получает итог.
+     * Не вызывается при retry — отчитается следующая попытка.
+     */
+    private fun reportBatchOutcome(status: CompressionBatchTracker.Status) {
+        if (batchId.isNullOrEmpty()) return
+        val uri = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)?.let(Uri::parse)
+        val fileName = uri?.let {
+            try {
+                UriUtil.getFileNameFromUri(appContext, it)
+            } catch (_: Exception) {
+                null
+            } ?: it.lastPathSegment
+        } ?: "unknown"
+        compressionBatchTracker.addResult(
+            batchId = batchId,
+            fileName = fileName,
+            originalSize = 0L,
+            compressedSize = 0L,
+            sizeReduction = 0f,
+            skipped = status != CompressionBatchTracker.Status.COMPRESSED,
+            status = status
+        )
     }
 
     /**
@@ -257,6 +289,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                     title = "Ошибка удаления оригинала",
                     message = "Сжатый файл сохранён, но не удалось удалить оригинал. Возможен дубликат."
                 )
+                reportBatchOutcome(CompressionBatchTracker.Status.COMPRESSED)
                 updateForegroundForMode("⚠️ Ошибка удаления оригинала")
             }
             is CompressImageUseCase.Outcome.SkippedInefficient -> {
@@ -265,9 +298,12 @@ class ImageCompressionWorker @AssistedInject constructor(
                     outcome.fileName, outcome.originalSize, outcome.estimatedCompressedSize, outcome.estimatedReduction, true
                 )
             }
-            CompressImageUseCase.Outcome.SkippedInvalidSize ->
+            CompressImageUseCase.Outcome.SkippedInvalidSize -> {
+                reportBatchOutcome(CompressionBatchTracker.Status.SKIPPED)
                 updateForegroundForMode("📏 ${appContext.getString(R.string.notification_skipping_invalid_size)}")
+            }
             is CompressImageUseCase.Outcome.Failed -> {
+                reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 outcome.saveFailure?.let { notifySaveFailure(it) }
                 updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
                 return Result.failure()

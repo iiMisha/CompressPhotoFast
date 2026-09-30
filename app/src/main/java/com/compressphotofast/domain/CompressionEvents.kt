@@ -27,6 +27,19 @@ class CompressionEvents @Inject constructor() {
             val skipped: Boolean
         ) : Event
 
+        /**
+         * Ручной батч (Photo Picker / Share) завершён: итог по всем файлам.
+         * [expected] может превышать сумму исходов, если батч закрыт по таймауту.
+         */
+        data class BatchCompleted(
+            val expected: Int,
+            val compressed: Int,
+            val skipped: Int,
+            val failed: Int,
+            val totalOriginalSize: Long,
+            val totalCompressedSize: Long
+        ) : Event
+
         /** Оригинал не удалён без подтверждения пользователя (replace-режим). */
         data class DeleteConfirmationRequired(val uri: Uri) : Event
     }

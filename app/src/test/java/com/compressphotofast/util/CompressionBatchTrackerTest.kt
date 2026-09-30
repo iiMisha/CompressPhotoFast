@@ -14,6 +14,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import com.compressphotofast.domain.CompressionBatchTracker
+import com.compressphotofast.domain.CompressionEvents
 import com.compressphotofast.platform.NotificationUtil
 
 /**
@@ -23,6 +24,7 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
 
     private lateinit var mockContext: android.content.Context
     private lateinit var tracker: CompressionBatchTracker
+    private lateinit var events: CompressionEvents
 
     @Before
     override fun setUp() {
@@ -34,10 +36,12 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         every { NotificationUtil.showCompressionResultToast(any<android.content.Context>(), any<String>(), any<Long>(), any<Long>(), any<Float>()) } just Runs
         every { NotificationUtil.showToast(any<android.content.Context>(), any<String>(), any<Int>()) } just Runs
 
+        events = mockk(relaxed = true)
         tracker = CompressionBatchTracker(
             mockContext,
             mockk(relaxed = true),
-            CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            events
         )
     }
 
@@ -241,5 +245,45 @@ class CompressionBatchTrackerTest : BaseUnitTest() {
         )
 
         assert(tracker.getActiveBatchCount() == 1) { "Батч должен быть активен до достижения expectedCount" }
+    }
+
+    @Test
+    fun `Прогресс отражает обработанные файлы активных батчей`() {
+        assert(tracker.progress.value == null) { "Без батчей прогресса нет" }
+        val batchId = tracker.createIntentBatch(3)
+        assert(tracker.progress.value == CompressionBatchTracker.BatchProgress(0, 3))
+
+        tracker.addResult(batchId, "a.jpg", 0L, 0L, 0f, skipped = true, status = CompressionBatchTracker.Status.FAILED)
+        assert(tracker.progress.value == CompressionBatchTracker.BatchProgress(1, 3))
+
+        tracker.setExpectedCount(batchId, 1)
+        assert(tracker.progress.value == null) { "Батч завершён уточнением expectedCount" }
+    }
+
+    @Test
+    fun `Завершение батча публикует итог со всеми исходами`() {
+        val batchId = tracker.createIntentBatch(3)
+        tracker.addResult(batchId, "a.jpg", 1000L, 400L, 60f, skipped = false)
+        tracker.addResult(batchId, "b.jpg", 0L, 0L, 0f, skipped = true)
+        tracker.addResult(batchId, "c.jpg", 0L, 0L, 0f, skipped = true, status = CompressionBatchTracker.Status.FAILED)
+
+        io.mockk.verify {
+            events.emit(
+                CompressionEvents.Event.BatchCompleted(
+                    expected = 3, compressed = 1, skipped = 1, failed = 1,
+                    totalOriginalSize = 1000L, totalCompressedSize = 400L
+                )
+            )
+        }
+        assert(tracker.getActiveBatchCount() == 0)
+    }
+
+    @Test
+    fun `Нулевой expectedCount сразу завершает батч`() {
+        val batchId = tracker.createIntentBatch(2)
+        tracker.setExpectedCount(batchId, 0)
+
+        assert(tracker.getActiveBatchCount() == 0)
+        io.mockk.verify { events.emit(match { it is CompressionEvents.Event.BatchCompleted && it.expected == 0 }) }
     }
 }

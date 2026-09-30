@@ -66,6 +66,14 @@
     <string name="image_already_compressed">ℹ️ Изображение уже сжато</string>
     <string name="image_already_optimized">Изображения уже сжаты</string>
     <string name="all_images_already_compressed">ℹ️ Все изображения уже сжаты</string>
+    <string name="manual_photos_queued">Принято в обработку: %d фото</string>
+    <string name="manual_compression_progress">Сжатие %1$d/%2$d…</string>
+    <string name="manual_result_compressed">✅ Сжато %1$d из %2$d: %3$s → %4$s (−%5$s%%)</string>
+    <string name="manual_result_none_compressed">ℹ️ Ни одно из %d фото не сжато</string>
+    <string name="manual_result_single_skipped">ℹ️ Фото уже сжато или экономия меньше 30%</string>
+    <string name="manual_result_single_failed">❌ Не удалось сжать фото</string>
+    <string name="manual_result_skipped_part">пропущено: %d</string>
+    <string name="manual_result_failed_part">ошибок: %d</string>
     <string name="file_deleted_successfully">✅ Оригинальный файл успешно удален</string>
     <string name="batch_processing_stopped">⏹️ Обработка остановлена</string>
     <string name="notification_toast_battery_settings">Найдите настройки оптимизации батареи и отключите ограничения для приложения</string>
