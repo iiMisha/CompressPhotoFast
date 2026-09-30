@@ -131,51 +131,9 @@ class ConstantsIntegrationTest : BaseInstrumentedTest() {
     @Test
     fun test_actionsAreCorrect() {
         org.junit.Assert.assertEquals(
-            "Action для завершения сжатия",
-            "com.compressphotofast.ACTION_COMPRESSION_COMPLETED",
-            Constants.ACTION_COMPRESSION_COMPLETED
-        )
-
-        org.junit.Assert.assertEquals(
             "Action для остановки сервиса",
             "com.compressphotofast.STOP_SERVICE",
             Constants.ACTION_STOP_SERVICE
-        )
-    }
-
-    /**
-     * Тест 8: Проверка Extras для Intent
-     */
-    @Test
-    fun test_extrasAreCorrect() {
-        org.junit.Assert.assertEquals(
-            "Extra для URI",
-            "extra_uri",
-            Constants.EXTRA_URI
-        )
-
-        org.junit.Assert.assertEquals(
-            "Extra для процента сокращения",
-            "extra_reduction_percent",
-            Constants.EXTRA_REDUCTION_PERCENT
-        )
-
-        org.junit.Assert.assertEquals(
-            "Extra для имени файла",
-            "file_name",
-            Constants.EXTRA_FILE_NAME
-        )
-
-        org.junit.Assert.assertEquals(
-            "Extra для оригинального размера",
-            "original_size",
-            Constants.EXTRA_ORIGINAL_SIZE
-        )
-
-        org.junit.Assert.assertEquals(
-            "Extra для сжатого размера",
-            "compressed_size",
-            Constants.EXTRA_COMPRESSED_SIZE
         )
     }
 

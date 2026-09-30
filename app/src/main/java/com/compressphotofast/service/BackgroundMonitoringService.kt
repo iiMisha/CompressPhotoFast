@@ -3,7 +3,6 @@ package com.compressphotofast.service
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
@@ -19,6 +18,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -31,6 +32,7 @@ import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.PerformanceMonitor
 import com.compressphotofast.util.UriProcessingTracker
+import com.compressphotofast.util.CompressionEvents
 import com.compressphotofast.util.CompressionWorkScheduler
 import com.compressphotofast.util.CompressionEnqueueResult
 import javax.inject.Inject
@@ -90,6 +92,9 @@ class BackgroundMonitoringService : Service() {
     @Inject
     lateinit var galleryScanCoordinator: GalleryScanCoordinator
 
+    @Inject
+    lateinit var compressionEvents: CompressionEvents
+
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
 
@@ -102,6 +107,9 @@ class BackgroundMonitoringService : Service() {
 
     // Job для периодической очистки временных файлов
     private var cleanupJob: Job? = null
+
+    // Подписка на события воркера
+    private var eventsJob: Job? = null
 
     // Mutex для предотвращения конкурентного сканирования
 
@@ -126,36 +134,19 @@ class BackgroundMonitoringService : Service() {
         }
     }
 
-    // BroadcastReceiver для получения уведомлений о завершении сжатия
-    private val compressionCompletedReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
-                val uriString = intent.getStringExtra(Constants.EXTRA_URI)
-                if (uriString != null) {
-                    val reductionPercent = intent.getFloatExtra(Constants.EXTRA_REDUCTION_PERCENT, 0f)
-                    val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: "неизвестный"
-                    val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0)
-                    val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0)
-
-                    // Создаем Uri из строки
-                    val uri = Uri.parse(uriString)
-
-                    // Удаляем URI из списка обрабатываемых (с синхронизацией)
-                    launchServiceScope {
-                        uriProcessingTracker.removeProcessingUriSafe(uri)
-                        return@launchServiceScope Unit
-                    }
-                    
-                    // Показываем уведомление о результате сжатия
-                    NotificationUtil.showCompressionResultNotification(applicationContext, fileName, originalSize, compressedSize, reductionPercent, skipped = false)
-                    
-                    // Устанавливаем таймер игнорирования изменений
-                    uriProcessingTracker.setIgnorePeriod(uri)
-                }
-            }
-        }
+    /**
+     * Реакция на успешное одиночное сжатие: снимаем URI из обрабатываемых,
+     * показываем результат и игнорируем собственное изменение файла.
+     */
+    private suspend fun handleCompressionResult(event: CompressionEvents.Event.Result) {
+        uriProcessingTracker.removeProcessingUriSafe(event.uri)
+        NotificationUtil.showCompressionResultNotification(
+            applicationContext, event.fileName, event.originalSize, event.compressedSize,
+            event.sizeReduction, skipped = false
+        )
+        uriProcessingTracker.setIgnorePeriod(event.uri)
     }
-    
+
     override fun onCreate() {
         super.onCreate()
         isRunning = false
@@ -174,11 +165,20 @@ class BackgroundMonitoringService : Service() {
             }
 
             setupContentObserver()
-            registerReceiver(
-                compressionCompletedReceiver,
-                IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
-                Context.RECEIVER_NOT_EXPORTED
-            )
+            eventsJob = serviceScope.launch {
+                compressionEvents.events
+                    .filterIsInstance<CompressionEvents.Event.Result>()
+                    .filter { !it.skipped }
+                    .collect { event ->
+                        try {
+                            handleCompressionResult(event)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            LogUtil.error(event.uri, "ServiceEvents", "Ошибка обработки результата сжатия", e)
+                        }
+                    }
+            }
 
             isRunning = true
             isReady = true
@@ -194,7 +194,7 @@ class BackgroundMonitoringService : Service() {
             LogUtil.error(null, "BackgroundMonitoringService", "Не удалось подготовить monitoring FGS", e)
             try {
                 mediaStoreObserver?.unregister()
-                unregisterReceiver(compressionCompletedReceiver)
+                eventsJob?.cancel()
             } catch (_: Exception) {
                 // Ресурсы могли не успеть зарегистрироваться.
             }
@@ -330,13 +330,7 @@ class BackgroundMonitoringService : Service() {
         mediaStoreObserver?.unregister()
         scanJob?.cancel()
         cleanupJob?.cancel()
-
-        // Отменяем регистрацию BroadcastReceiver
-        try {
-            unregisterReceiver(compressionCompletedReceiver)
-        } catch (e: Exception) {
-            // Игнорируем ошибку отмены регистрации
-        }
+        eventsJob?.cancel()
     }
     
     /**

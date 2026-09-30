@@ -162,20 +162,6 @@ class ConstantsTest : BaseUnitTest() {
         assertEquals("batch_id", Constants.WORK_BATCH_ID)
     }
 
-    // ========== Тесты действий BroadcastReceiver ==========
-
-    @Test
-    fun `проверка действия завершения сжатия`() {
-        // Arrange & Act & Assert
-        assertEquals("com.compressphotofast.ACTION_COMPRESSION_COMPLETED", Constants.ACTION_COMPRESSION_COMPLETED)
-    }
-
-    @Test
-    fun `проверка действия пропуска сжатия`() {
-        // Arrange & Act & Assert
-        assertEquals("com.compressphotofast.ACTION_COMPRESSION_SKIPPED", Constants.ACTION_COMPRESSION_SKIPPED)
-    }
-
     // ========== Тесты временных файлов ==========
 
     @Test

@@ -76,21 +76,8 @@ object Constants {
     const val AUTO_COMPRESSION_INITIAL_DELAY_SECONDS = 30L
     
     
-    // BroadcastReceiver actions
-    const val ACTION_REQUEST_DELETE_PERMISSION = "com.compressphotofast.REQUEST_DELETE_PERMISSION"
-    const val ACTION_COMPRESSION_COMPLETED = "com.compressphotofast.ACTION_COMPRESSION_COMPLETED"
-    const val ACTION_COMPRESSION_SKIPPED = "com.compressphotofast.ACTION_COMPRESSION_SKIPPED"
+    // Intent actions
     const val ACTION_STOP_SERVICE = "com.compressphotofast.STOP_SERVICE"
-
-    // Intent extras
-    const val EXTRA_URI = "extra_uri"
-    const val EXTRA_DELETE_INTENT_SENDER = "extra_delete_intent_sender"
-    const val EXTRA_FILE_NAME = "file_name"
-    const val EXTRA_ORIGINAL_SIZE = "original_size"
-    const val EXTRA_COMPRESSED_SIZE = "compressed_size"
-    const val EXTRA_REDUCTION_PERCENT = "extra_reduction_percent"
-    const val EXTRA_SKIP_REASON = "skip_reason"
-    const val EXTRA_BATCH_ID = "batch_id"
     
     // Временные файлы
     const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут

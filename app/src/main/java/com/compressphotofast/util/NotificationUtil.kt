@@ -602,68 +602,6 @@ object NotificationUtil {
     }
     
     /**
-     * Отправляет Broadcast о результате сжатия
-     */
-    fun sendCompressionResultBroadcast(
-        context: Context,
-        uriString: String,
-        fileName: String,
-        originalSize: Long,
-        compressedSize: Long,
-        sizeReduction: Float,
-        skipped: Boolean,
-        skipReason: String? = null,
-        batchId: String? = null
-    ) {
-        try {
-            // Определяем тип уведомления: о завершении или о пропуске
-            val action = if (skipped) 
-                Constants.ACTION_COMPRESSION_SKIPPED 
-            else 
-                Constants.ACTION_COMPRESSION_COMPLETED
-                
-            // Отправляем информацию через broadcast. setPackage обязателен:
-            // иначе неявный broadcast с именем файла и URI получат сторонние приложения.
-            val intent = Intent(action).apply {
-                setPackage(context.packageName)
-                putExtra(Constants.EXTRA_FILE_NAME, fileName)
-                putExtra(Constants.EXTRA_URI, uriString)
-                putExtra(Constants.EXTRA_ORIGINAL_SIZE, originalSize)
-                putExtra(Constants.EXTRA_COMPRESSED_SIZE, compressedSize)
-                putExtra(Constants.EXTRA_REDUCTION_PERCENT, sizeReduction)
-                if (skipReason != null) {
-                    putExtra(Constants.EXTRA_SKIP_REASON, skipReason)
-                }
-                if (batchId != null) {
-                    putExtra(Constants.EXTRA_BATCH_ID, batchId)
-                }
-                flags = Intent.FLAG_RECEIVER_FOREGROUND
-            }
-            context.sendBroadcast(intent)
-            
-            // Показываем уведомление о результате сжатия с помощью централизованного метода
-            showCompressionResultNotification(
-                context = context,
-                fileName = fileName,
-                originalSize = originalSize,
-                compressedSize = compressedSize,
-                sizeReduction = sizeReduction,
-                skipped = skipped
-            )
-            
-            // Логируем информацию о результате
-            val message = if (skipped) {
-                "Уведомление о пропуске сжатия отправлено: Файл=$fileName, экономия=${String.format("%.1f", sizeReduction)}%"
-            } else {
-                "Уведомление о завершении сжатия отправлено: Файл=$fileName"
-            }
-            LogUtil.processInfo(message)
-        } catch (e: Exception) {
-            LogUtil.error(Uri.EMPTY, "Отправка уведомления", "Ошибка при отправке уведомления о ${if (skipped) "пропуске" else "завершении"} сжатия", e)
-        }
-    }
-
-    /**
      * Показывает уведомление об ошибке
      */
     fun showErrorNotification(

@@ -23,11 +23,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.compressphotofast.util.CompressionBatchTracker
+import com.compressphotofast.util.CompressionEvents
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.UriProcessingTracker
 import com.compressphotofast.util.UriUtil
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 
@@ -41,8 +43,12 @@ class MainViewModel @Inject constructor(
     private val uriProcessingTracker: UriProcessingTracker,
     private val compressionBatchTracker: CompressionBatchTracker,
     private val compressionWorkScheduler: CompressionWorkScheduler,
-    private val imageProcessingChecker: ImageProcessingChecker
+    private val imageProcessingChecker: ImageProcessingChecker,
+    compressionEvents: CompressionEvents
 ) : ViewModel() {
+
+    /** События воркера: результат одиночного сжатия и запросы подтверждения удаления. */
+    val compressionEvents: SharedFlow<CompressionEvents.Event> = compressionEvents.events
 
     // LiveData для уровня сжатия
     private val _compressionQuality = MutableLiveData<Int>()

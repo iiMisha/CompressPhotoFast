@@ -3,7 +3,6 @@ package com.compressphotofast.worker
 import android.app.RecoverableSecurityException
 import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Context
-import android.content.Intent
 import android.content.IntentSender
 import android.net.Uri
 import androidx.hilt.work.HiltWorker
@@ -26,6 +25,7 @@ import com.compressphotofast.util.UriUtil
 import com.compressphotofast.util.MediaStoreUtil
 import com.compressphotofast.util.FileOperationsUtil
 import com.compressphotofast.util.CompressionBatchTracker
+import com.compressphotofast.util.CompressionEvents
 import com.compressphotofast.util.CompressionExecutionGate
 import com.compressphotofast.util.SettingsManager
 import dagger.assisted.Assisted
@@ -46,7 +46,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val compressionBatchTracker: CompressionBatchTracker,
     private val executionGate: CompressionExecutionGate,
     private val settingsManager: SettingsManager,
-    private val imageProcessingChecker: ImageProcessingChecker
+    private val imageProcessingChecker: ImageProcessingChecker,
+    private val compressionEvents: CompressionEvents
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -447,7 +448,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 if (UriUtil.isUriExistsSuspend(appContext, imageUri)) {
                     val deleteResult = FileOperationsUtil.deleteFile(appContext, imageUri, uriProcessingTracker, forceDelete = true)
                     if (deleteResult is IntentSender) {
-                        addPendingDeleteRequest(imageUri, deleteResult)
+                        addPendingDeleteRequest(imageUri)
                     } else if (deleteResult != true) {
                         // Тихий отказ MediaStore: оригинал остался без маркера и был бы
                         // пережат повторно, порождая дубликаты
@@ -578,20 +579,17 @@ class ImageCompressionWorker @AssistedInject constructor(
                         skipReason = skipReason
                     )
                 } else {
-                    // Старое поведение для задач без batch ID - показываем индивидуальный результат
-                    NotificationUtil.sendCompressionResultBroadcast(
-                        context = appContext,
-                        uriString = uriString,
-                        fileName = fileName,
-                        originalSize = originalSize,
-                        compressedSize = compressedSize,
-                        sizeReduction = sizeReduction,
-                        skipped = skipped,
-                        skipReason = skipReason,
-                        batchId = null // Явно указываем null для старого поведения
+                    // Задачи без batch ID (автосжатие): индивидуальный результат
+                    compressionEvents.emit(
+                        CompressionEvents.Event.Result(
+                            uri = Uri.parse(uriString),
+                            fileName = fileName,
+                            originalSize = originalSize,
+                            compressedSize = compressedSize,
+                            sizeReduction = sizeReduction,
+                            skipped = skipped
+                        )
                     )
-                    
-                    // Показываем индивидуальное уведомление только для задач без batch ID
                     NotificationUtil.showCompressionResultNotification(
                         context = appContext,
                         fileName = fileName,
@@ -618,19 +616,11 @@ class ImageCompressionWorker @AssistedInject constructor(
     /**
      * Добавляет запрос на удаление файла в список ожидающих
      */
-    private fun addPendingDeleteRequest(uri: Uri, deletePendingIntent: IntentSender) {
-        
-        // Сохраняем URI для последующей обработки в MainActivity
+    private fun addPendingDeleteRequest(uri: Uri) {
+        // Сохраняем URI: MainActivity обработает его при следующем открытии,
+        // а если она на экране — сразу по событию
         settingsManager.savePendingDeleteUri(uri.toString())
-        
-        // Отправляем broadcast для уведомления MainActivity о необходимости запросить разрешение
-        val intent = Intent(Constants.ACTION_REQUEST_DELETE_PERMISSION).apply {
-            setPackage(appContext.packageName)
-            putExtra(Constants.EXTRA_URI, uri)
-            // Добавляем IntentSender как Parcelable
-            putExtra(Constants.EXTRA_DELETE_INTENT_SENDER, deletePendingIntent)
-        }
-        appContext.sendBroadcast(intent)
+        compressionEvents.emit(CompressionEvents.Event.DeleteConfirmationRequired(uri))
     }
 
 

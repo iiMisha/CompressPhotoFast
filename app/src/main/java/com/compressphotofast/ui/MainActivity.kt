@@ -2,10 +2,8 @@ package com.compressphotofast.ui
 
 import android.Manifest
 import android.app.Activity
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.IntentSender
 import android.net.Uri
 import android.os.Build
@@ -28,6 +26,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.MonitoringController
+import com.compressphotofast.util.CompressionEvents
 import com.compressphotofast.util.CompressionPreset
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.FileOperationsUtil
@@ -59,24 +58,6 @@ class MainActivity : AppCompatActivity() {
 
     // Запуск запроса разрешений
 
-    // BroadcastReceiver для запросов на удаление файлов
-    private val deletePermissionReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Constants.ACTION_REQUEST_DELETE_PERMISSION) {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Constants.EXTRA_URI, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra<Uri>(Constants.EXTRA_URI)
-                }
-                uri?.let {
-                    LogUtil.processDebug("Получен запрос на удаление файла через broadcast: $it")
-                    requestFileDelete(it)
-                }
-            }
-        }
-    }
-    
     // Регистрируем launcher в начале класса
     private val intentSenderLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -131,70 +112,6 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    /**
-     * BroadcastReceiver для получения уведомлений о завершении сжатия одного изображения
-     * Теперь используется только для задач без batch ID (обратная совместимость)
-     */
-    private val compressionCompletedReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Constants.ACTION_COMPRESSION_COMPLETED) {
-                val fileName = intent.getStringExtra(Constants.EXTRA_FILE_NAME) ?: return
-                val originalSize = intent.getLongExtra(Constants.EXTRA_ORIGINAL_SIZE, 0L)
-                val compressedSize = intent.getLongExtra(Constants.EXTRA_COMPRESSED_SIZE, 0L)
-                val batchId = intent.getStringExtra(Constants.EXTRA_BATCH_ID)
-                
-                // Показываем результаты сжатия только для задач без batch ID (старое поведение)
-                if (batchId.isNullOrEmpty()) {
-                    showCompressionResult(fileName, originalSize, compressedSize)
-                }
-                // Для задач с batch ID результат будет показан через CompressionBatchTracker
-            }
-        }
-    }
-
-     override fun onStart() {
-         super.onStart()
-        
-        // Регистрируем BroadcastReceiver для получения уведомлений о завершении сжатия
-        registerReceiver(
-            compressionCompletedReceiver,
-            IntentFilter(Constants.ACTION_COMPRESSION_COMPLETED),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        
-        // Регистрируем receiver для запросов на удаление файлов
-        registerReceiver(deletePermissionReceiver,
-            IntentFilter(Constants.ACTION_REQUEST_DELETE_PERMISSION),
-            Context.RECEIVER_NOT_EXPORTED)
-        
-    }
-    
-    override fun onStop() {
-        // Отменяем регистрацию BroadcastReceiver при остановке активности
-        // Используем forEach с индивидуальным try-catch для каждого receiver
-        listOf(
-            deletePermissionReceiver,
-            compressionCompletedReceiver
-        ).forEach { receiver ->
-            try {
-                unregisterReceiver(receiver)
-            } catch (e: IllegalArgumentException) {
-                LogUtil.debug("MainActivity", "Receiver already unregistered")
-            } catch (e: Exception) {
-                LogUtil.errorWithException("BROADCAST_UNREGISTER: $receiver", e)
-            }
-        }
-
-        super.onStop()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        
-        // Очистка ресурсов
-        // Не отменяем регистрацию BroadcastReceiver здесь, так как это уже сделано в onStop
-    }
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -456,6 +373,23 @@ class MainActivity : AppCompatActivity() {
      * Наблюдение за ViewModel
      */
     private fun observeViewModel() {
+        // События воркера получаем только пока активность видима (как раньше broadcast'ы)
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.compressionEvents.collect { event ->
+                    when (event) {
+                        is CompressionEvents.Event.Result -> if (!event.skipped) {
+                            showCompressionResult(event.fileName, event.originalSize, event.compressedSize)
+                        }
+                        is CompressionEvents.Event.DeleteConfirmationRequired -> {
+                            LogUtil.processDebug("Получен запрос на удаление файла: ${event.uri}")
+                            requestFileDelete(event.uri)
+                        }
+                    }
+                }
+            }
+        }
+
         // Наблюдение за состоянием раскрывающегося предупреждения
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
