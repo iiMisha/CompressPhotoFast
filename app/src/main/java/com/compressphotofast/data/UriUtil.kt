@@ -391,45 +391,14 @@ object UriUtil {
                     val sizeIndex = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
 
                     if (pendingIndex != -1 && dateAddedIndex != -1 && sizeIndex != -1) {
-                        val isPending = cursor.getInt(pendingIndex) == 1
-                        val dateAdded = cursor.getLong(dateAddedIndex) // в секундах
                         val sizeIsNull = cursor.isNull(sizeIndex)
-                        val size = if (sizeIsNull) 0L else cursor.getLong(sizeIndex)
-
-                        // Если флаг IS_PENDING установлен, проверяем возраст файла
-                        if (isPending) {
-                            val currentTime = System.currentTimeMillis() / 1000 // текущее время в секундах
-                            val ageSeconds = currentTime - dateAdded
-
-                            // Если _size=NULL и файл физически существует - игнорируем is_pending
-                            // (типичная ситуация для файлов, добавленных через adb/shell)
-                            if (sizeIsNull || size == 0L) {
-                                try {
-                                    context.contentResolver.openInputStream(uri)?.use { stream ->
-                                        if (stream.read() != -1) {
-                                            LogUtil.processDebug("Файл имеет is_pending=1 и _size=${if (sizeIsNull) "NULL" else "0"}, но физически существует и читается, игнорируем флаг: $uri")
-                                            return false
-                                        }
-                                    }
-                                } catch (e: IllegalStateException) {
-                                    return true
-                                } catch (e: Exception) {
-                                    LogUtil.processDebug("isPending: файл недоступен, считаем pending: ${e.message}")
-                                    return true
-                                }
-                            }
-
-                            // Если файл старше 1 минуты (60 секунд), игнорируем флаг IS_PENDING
-                            // Это исправляет проблему с файлами, у которых остался устаревший флаг
-                            if (ageSeconds > 60) {
-                                LogUtil.processDebug("Файл имеет is_pending=1, но возраст $ageSeconds сек > 60 сек, игнорируем флаг: $uri")
-                                return false
-                            }
-
-                            // Файл был добавлен недавно и имеет is_pending=1, считаем что pending
-                            LogUtil.processDebug("Файл имеет is_pending=1 и возраст $ageSeconds сек, считаем временным: $uri")
-                            return true
-                        }
+                        return evaluatePending(
+                            context,
+                            uri,
+                            isPending = cursor.getInt(pendingIndex) == 1,
+                            dateAddedSec = cursor.getLong(dateAddedIndex),
+                            size = if (sizeIsNull) null else cursor.getLong(sizeIndex)
+                        )
                     }
                 }
             }
@@ -446,6 +415,59 @@ object UriUtil {
      */
     suspend fun isFilePendingSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
         return@withContext isFilePending(context, uri)
+    }
+
+    /**
+     * [isFilePending] по уже полученному [MediaItemSnapshot] без повторного запроса.
+     * Снимок без DATE_ADDED (не MediaStore) pending не считается.
+     */
+    suspend fun isPendingEffective(context: Context, snapshot: MediaItemSnapshot): Boolean = withContext(Dispatchers.IO) {
+        val dateAdded = snapshot.dateAddedSec ?: return@withContext false
+        try {
+            evaluatePending(context, snapshot.uri, snapshot.isPendingRaw, dateAdded, snapshot.size)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtil.error(snapshot.uri, "IS_PENDING проверка", "Ошибка при проверке IS_PENDING", e)
+            false
+        }
+    }
+
+    /**
+     * Флаг IS_PENDING с поправками: устаревший (> 60 с) флаг и флаг при NULL/0 размере
+     * у физически читаемого файла игнорируются.
+     */
+    private fun evaluatePending(context: Context, uri: Uri, isPending: Boolean, dateAddedSec: Long, size: Long?): Boolean {
+        if (!isPending) return false
+        val ageSeconds = System.currentTimeMillis() / 1000 - dateAddedSec
+
+        // Если _size=NULL и файл физически существует - игнорируем is_pending
+        // (типичная ситуация для файлов, добавленных через adb/shell)
+        if (size == null || size == 0L) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    if (stream.read() != -1) {
+                        LogUtil.processDebug("Файл имеет is_pending=1 и _size=${size ?: "NULL"}, но физически существует и читается, игнорируем флаг: $uri")
+                        return false
+                    }
+                }
+            } catch (e: IllegalStateException) {
+                return true
+            } catch (e: Exception) {
+                LogUtil.processDebug("isPending: файл недоступен, считаем pending: ${e.message}")
+                return true
+            }
+        }
+
+        // Если файл старше 1 минуты (60 секунд), игнорируем флаг IS_PENDING
+        // Это исправляет проблему с файлами, у которых остался устаревший флаг
+        if (ageSeconds > 60) {
+            LogUtil.processDebug("Файл имеет is_pending=1, но возраст $ageSeconds сек > 60 сек, игнорируем флаг: $uri")
+            return false
+        }
+
+        // Файл был добавлен недавно и имеет is_pending=1, считаем что pending
+        LogUtil.processDebug("Файл имеет is_pending=1 и возраст $ageSeconds сек, считаем временным: $uri")
+        return true
     }
     
     /**
@@ -528,7 +550,7 @@ object UriUtil {
      * Выполняет запрос к MediaStore по ID из lastPathSegment URI.
      * Используется как запасной вариант для Android 11 (API 30).
      */
-    private fun queryMediaStoreWithIdFallbackApi30(
+    internal fun queryMediaStoreWithIdFallbackApi30(
         context: Context,
         uri: Uri,
         projection: Array<String>

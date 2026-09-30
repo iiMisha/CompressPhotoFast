@@ -3,10 +3,12 @@ package com.compressphotofast.domain
 import android.content.Context
 import android.content.IntentSender
 import android.net.Uri
+import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.util.Constants
 import com.compressphotofast.data.DailyCompressionStats
 import com.compressphotofast.data.ExifUtil
 import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.MediaItemSnapshot
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.MediaStoreUtil
 import com.compressphotofast.data.SettingsManager
@@ -55,9 +57,19 @@ class CompressImageUseCase @Inject constructor(
         data class Failed(val saveFailure: MediaStoreUtil.SaveFailure? = null) : Outcome
     }
 
-    suspend operator fun invoke(imageUri: Uri, params: Params): Outcome {
+    /**
+     * @param snapshot метаданные MediaStore, полученные вызывающей стороной после входа
+     *        в gate (null — запросить по отдельности)
+     * @param preloadedExif теги исходника из [ExifUtil.readSourceExif] (null — прочитать здесь)
+     */
+    suspend operator fun invoke(
+        imageUri: Uri,
+        params: Params,
+        snapshot: MediaItemSnapshot? = null,
+        preloadedExif: Map<String, Any>? = null
+    ): Outcome {
         // 1. Загружаем EXIF данные в память перед любыми операциями с файлом
-        val exifDataMemory = try {
+        val exifDataMemory = preloadedExif ?: try {
             ExifUtil.readExifDataToMemory(context, imageUri)
         } catch (e: java.io.FileNotFoundException) {
             LogUtil.error(imageUri, "Чтение EXIF", "Файл не найден при чтении EXIF: ${e.message}")
@@ -74,7 +86,7 @@ class CompressImageUseCase @Inject constructor(
             return Outcome.Failed()
         }
 
-        val sourceSize = try {
+        val sourceSize = snapshot?.size?.takeIf { it > 0L } ?: try {
             UriUtil.getFileSize(context, imageUri)
         } catch (e: java.io.FileNotFoundException) {
             LogUtil.error(imageUri, "Проверка размера", "Файл не найден при получении размера: ${e.message}")
@@ -93,7 +105,10 @@ class CompressImageUseCase @Inject constructor(
             sourceSize,
             params.quality,
             keepStream = true,
-            maxDimension = params.maxResolution
+            maxDimension = params.maxResolution,
+            knownMimeType = snapshot?.mimeType,
+            knownOrientation = (exifDataMemory[ExifInterface.TAG_ORIENTATION] as? String)?.toIntOrNull()
+                ?: ExifInterface.ORIENTATION_NORMAL
         )
         if (testResult == null) {
             LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
@@ -109,9 +124,9 @@ class CompressImageUseCase @Inject constructor(
             // Ветки вынесены в отдельные suspend-функции для уменьшения state machine
             // (ART-предупреждение `Method exceeds compiler instruction limit`).
             return if (testResult.isEfficient()) {
-                saveCompressed(imageUri, params, exifDataMemory, testResult, sourceSize)
+                saveCompressed(imageUri, params, exifDataMemory, testResult, sourceSize, snapshot)
             } else {
-                markInefficient(imageUri, exifDataMemory, testResult, sourceSize)
+                markInefficient(imageUri, exifDataMemory, testResult, sourceSize, snapshot)
             }
         } finally {
             testResult.deleteArtifact()
@@ -127,9 +142,10 @@ class CompressImageUseCase @Inject constructor(
         params: Params,
         exifDataMemory: Map<String, Any>,
         testResult: ImageCompressionUtil.CompressionTestResult,
-        sourceSize: Long
+        sourceSize: Long,
+        snapshot: MediaItemSnapshot?
     ): Outcome {
-        val fileName = UriUtil.getFileNameFromUri(context, imageUri)
+        val fileName = snapshot?.displayName ?: UriUtil.getFileNameFromUri(context, imageUri)
         if (fileName.isNullOrEmpty()) {
             LogUtil.error(imageUri, "Имя файла", "Не удалось получить имя файла")
             return Outcome.Failed()
@@ -138,7 +154,9 @@ class CompressImageUseCase @Inject constructor(
         val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
         val finalFileName = FileOperationsUtil.createCompressedFileName(context, fileName)
         // В режиме замены сохраняем в той же директории, иначе — в директории приложения
-        val directory = if (isReplaceMode) UriUtil.getDirectoryFromUri(context, imageUri) else Constants.APP_DIRECTORY
+        val directory = if (isReplaceMode) {
+            snapshot?.directory ?: UriUtil.getDirectoryFromUri(context, imageUri)
+        } else Constants.APP_DIRECTORY
 
         val compressedImageFile = testResult.compressedFile
         if (compressedImageFile == null || !compressedImageFile.exists()) {
@@ -258,11 +276,12 @@ class CompressImageUseCase @Inject constructor(
         imageUri: Uri,
         exifDataMemory: Map<String, Any>,
         testResult: ImageCompressionUtil.CompressionTestResult,
-        sourceSize: Long
+        sourceSize: Long,
+        snapshot: MediaItemSnapshot?
     ): Outcome {
         ExifUtil.writeExifDataFromMemory(context, imageUri, exifDataMemory, 99, sourceSize)
         return Outcome.SkippedInefficient(
-            fileName = getFileNameSafely(imageUri),
+            fileName = snapshot?.displayName ?: getFileNameSafely(imageUri),
             originalSize = sourceSize,
             estimatedCompressedSize = testResult.stats.compressedSize,
             estimatedReduction = testResult.stats.sizeReduction

@@ -19,6 +19,8 @@ import com.compressphotofast.domain.ImageProcessingChecker
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.UriUtil
 import com.compressphotofast.data.MediaStoreUtil
+import com.compressphotofast.data.MediaItemSnapshot
+import com.compressphotofast.data.ExifUtil
 import com.compressphotofast.domain.CompressionBatchTracker
 import com.compressphotofast.domain.CompressionEvents
 import com.compressphotofast.domain.CompressionExecutionGate
@@ -93,17 +95,21 @@ class ImageCompressionWorker @AssistedInject constructor(
                 return@withContext Result.success() // success чтобы не блокировать цепочку WorkManager
             }
 
+            // Существование, pending и остальные метаданные — одним запросом MediaStore
+            val preGateSnapshot = try {
+                MediaItemSnapshot.query(appContext, imageUri)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
+                reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
+                return@withContext Result.failure()
+            }
+            val exists = preGateSnapshot?.exists == true
+
             // Если URI помечен как недоступный, проверяем его повторно перед выходом
             if (uriProcessingTracker.isUriUnavailable(imageUri)) {
-                val exists = try {
-                    UriUtil.isUriExistsSuspend(appContext, imageUri)
-                } catch (e: Exception) {
-                    false
-                }
-                
-                val isPending = UriUtil.isFilePending(appContext, imageUri)
-                
-                if (exists && !isPending) {
+                if (exists && !UriUtil.isPendingEffective(appContext, preGateSnapshot!!)) {
                     uriProcessingTracker.removeUnavailable(imageUri)
                 } else {
                     reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
@@ -112,28 +118,16 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             // Ранняя проверка существования файла перед любыми операциями
-            try {
-                if (!UriUtil.isUriExistsSuspend(appContext, imageUri)) {
-                    LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует")
-                    uriProcessingTracker.markUriUnavailable(imageUri)
-                    reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
-                    return@withContext Result.failure()
-                }
-            } catch (e: PendingItemException) {
-                // Если файл pending — это временное состояние, планируем retry.
-                // Файл всё ещё пишется другим процессом/приложением; повторная попытка позже
-                // позволит корректно обработать его после завершения записи.
-                LogUtil.warning(imageUri, "Ранняя проверка", "Файл в pending-состоянии, планирую retry")
-                return@withContext retryOrFinish(imageUri, "early pending", e)
-            } catch (e: Exception) {
-                LogUtil.error(imageUri, "Ранняя проверка", "Ошибка при проверке существования", e)
+            if (!exists) {
+                LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует")
+                uriProcessingTracker.markUriUnavailable(imageUri)
                 reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 return@withContext Result.failure()
             }
 
             // Дешёвую проверку pending выполняем до gate, чтобы один пишущийся
             // файл не удерживал тяжёлую фазу соседних URI.
-            if (UriUtil.isFilePendingSuspend(appContext, imageUri)) {
+            if (UriUtil.isPendingEffective(appContext, preGateSnapshot!!)) {
                 LogUtil.skipImage(imageUri, "Файл находится в процессе записи, планирую retry")
                 return@withContext retryOrFinish(imageUri, "pending before execution gate", null)
             }
@@ -144,7 +138,15 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Повторная проверка после входа в gate закрывает race legacy/v2
             // и изменения EXIF между discovery и фактическим запуском.
-            val gatedProcessingCheck = imageProcessingChecker.isProcessingRequired(imageUri, forceProcess = true)
+            // Свежий снимок и одно чтение EXIF: маркер идёт в проверку, теги — в сжатие.
+            val gatedSnapshot = MediaItemSnapshot.query(appContext, imageUri)
+            val sourceExif = ExifUtil.readSourceExif(appContext, imageUri, gatedSnapshot)
+            val gatedProcessingCheck = imageProcessingChecker.isProcessingRequired(
+                imageUri,
+                forceProcess = true,
+                snapshot = gatedSnapshot,
+                precomputedMarker = sourceExif?.marker
+            )
             if (!gatedProcessingCheck.processingRequired &&
                 gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
             ) {
@@ -157,7 +159,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Для batch-обработки используем тихий режим для предотвращения спама уведомлений
             updateForegroundForMode("🔧 ${appContext.getString(R.string.notification_compression_in_progress)}")
 
-            val outcome = compressImage(imageUri, CompressImageUseCase.Params(compressionQuality, maxResolution))
+            val outcome = compressImage(
+                imageUri,
+                CompressImageUseCase.Params(compressionQuality, maxResolution),
+                snapshot = gatedSnapshot,
+                preloadedExif = sourceExif?.data
+            )
             return@withContext handleOutcome(outcome)
         } catch (e: TimeoutCancellationException) {
             LogUtil.warning(globalImageUri, "Сжатие", "Превышен лимит времени, планирую retry")

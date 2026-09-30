@@ -273,10 +273,14 @@ object FileOperationsUtil {
     /**
      * Находит сжатую версию файла в директории приложения по имени оригинального файла
      */
-    suspend fun findCompressedVersionByOriginalName(context: Context, originalUri: Uri): Uri? = withContext(Dispatchers.IO) {
+    suspend fun findCompressedVersionByOriginalName(
+        context: Context,
+        originalUri: Uri,
+        knownFileName: String? = null
+    ): Uri? = withContext(Dispatchers.IO) {
         try {
             // Получаем имя оригинального файла
-            val originalFileName = UriUtil.getFileNameFromUri(context, originalUri)
+            val originalFileName = knownFileName ?: UriUtil.getFileNameFromUri(context, originalUri)
             if (originalFileName.isNullOrEmpty()) {
                 LogUtil.debug("FileUtil", "Не удалось получить имя оригинального файла: $originalUri")
                 return@withContext null

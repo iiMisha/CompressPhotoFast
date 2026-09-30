@@ -8,8 +8,10 @@ import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.CompressionMarkerInfo
 import com.compressphotofast.data.ExifUtil
 import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.MediaItemSnapshot
 import com.compressphotofast.data.OptimizedCacheUtil
 import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.data.UriUtil
@@ -74,11 +76,16 @@ class ImageProcessingChecker @Inject constructor(
      * 
      * @param uri URI изображения
      * @param forceProcess Принудительная обработка, даже если автосжатие отключено
+     * @param snapshot метаданные из курсора вызывающей стороны (null — один запрос здесь)
      * @return true если изображение нужно обработать, false в противном случае
      */
-    suspend fun shouldProcessImage(uri: Uri, forceProcess: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+    suspend fun shouldProcessImage(
+        uri: Uri,
+        forceProcess: Boolean = false,
+        snapshot: MediaItemSnapshot? = null
+    ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val result = isProcessingRequired(uri, forceProcess)
+            val result = isProcessingRequired(uri, forceProcess, snapshot)
             if (!result.processingRequired) {
                 LogUtil.debug("ImageProcessingChecker", "Изображение не требует обработки: ${result.reason}")
             }
@@ -93,16 +100,16 @@ class ImageProcessingChecker @Inject constructor(
      * Проверяет основные условия и настройки для обработки изображения
      * @return true если прошли все базовые проверки
      */
-    private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean, path: String?): Boolean = withContext(Dispatchers.IO) {
+    private suspend fun passesBasicChecks(context: Context, uri: Uri, forceProcess: Boolean, snapshot: MediaItemSnapshot?, path: String?): Boolean = withContext(Dispatchers.IO) {
         try {
             // Проверяем существование URI
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
+            if (snapshot == null || !snapshot.exists) {
                 LogUtil.processDebug("URI не существует: $uri")
                 return@withContext false
             }
             
             // Проверяем, не является ли файл переименованным оригиналом
-            val fileName = UriUtil.getFileNameFromUri(context, uri) ?: ""
+            val fileName = snapshot.displayName ?: UriUtil.getFileNameFromUri(context, uri) ?: ""
             if (fileName.contains("_original.")) {
                 LogUtil.processDebug("Файл является переименованным оригиналом, пропускаем: $uri")
                 return@withContext false
@@ -131,8 +138,7 @@ class ImageProcessingChecker @Inject constructor(
             }
             
             // Проверяем, является ли файл временным или в процессе записи
-            // Добавляем более гибкую проверку с учетом времени
-            if (UriUtil.isFilePendingSuspend(context, uri)) {
+            if (UriUtil.isPendingEffective(context, snapshot)) {
                 LogUtil.processDebug("Файл является временным или в процессе записи: $uri")
                 // Проверяем, может быть файл уже был обработан, но все еще помечен как pending
                 if (fileName.contains("_compressed")) {
@@ -144,7 +150,7 @@ class ImageProcessingChecker @Inject constructor(
             }
             
             // Проверяем MIME тип
-            val mimeType = UriUtil.getMimeType(context, uri)
+            val mimeType = snapshot.mimeType ?: UriUtil.getMimeType(context, uri)
             if (!OptimizedCacheUtil.isProcessableMimeType(mimeType)) {
                 LogUtil.processDebug("Неподдерживаемый MIME тип: $mimeType для URI: $uri")
                 return@withContext false
@@ -165,21 +171,35 @@ class ImageProcessingChecker @Inject constructor(
      * 
      * @param uri URI изображения
      * @param forceProcess Принудительная обработка, даже если автосжатие отключено
+     * @param snapshot метаданные MediaStore (null — один запрос здесь)
+     * @param precomputedMarker маркер из уже прочитанного EXIF (null — прочитать при промахе кэша)
      * @return результат проверки в виде объекта ProcessingCheckResult
      */
-    suspend fun isProcessingRequired(uri: Uri, forceProcess: Boolean = false): ProcessingCheckResult =
-        isProcessingRequired(appContext, uri, forceProcess)
+    suspend fun isProcessingRequired(
+        uri: Uri,
+        forceProcess: Boolean = false,
+        snapshot: MediaItemSnapshot? = null,
+        precomputedMarker: CompressionMarkerInfo? = null
+    ): ProcessingCheckResult =
+        isProcessingRequired(appContext, uri, forceProcess, snapshot, precomputedMarker)
 
-    private suspend fun isProcessingRequired(context: Context, uri: Uri, forceProcess: Boolean): ProcessingCheckResult = withContext(Dispatchers.IO) {
+    private suspend fun isProcessingRequired(
+        context: Context,
+        uri: Uri,
+        forceProcess: Boolean,
+        providedSnapshot: MediaItemSnapshot?,
+        precomputedMarker: CompressionMarkerInfo?
+    ): ProcessingCheckResult = withContext(Dispatchers.IO) {
         try {
             // Создаем результат по умолчанию
             val result = ProcessingCheckResult()
             
-            // Путь запрашивается один раз для обеих проверок директории приложения
-            val filePath = UriUtil.getFilePathFromUri(context, uri)
+            // Все метаданные MediaStore — одним запросом
+            val snapshot = providedSnapshot ?: MediaItemSnapshot.query(context, uri)
+            val filePath = snapshot?.filePath ?: UriUtil.getFilePathFromUri(context, uri)
 
             // Проверяем базовые условия
-            if (!passesBasicChecks(context, uri, forceProcess, filePath)) {
+            if (!passesBasicChecks(context, uri, forceProcess, snapshot, filePath)) {
                 result.processingRequired = false
                 result.reason = ProcessingSkipReason.BASIC_CHECK_FAILED
                 return@withContext result
@@ -196,7 +216,7 @@ class ImageProcessingChecker @Inject constructor(
             
             // Поиск сжатой версии в директории приложения по имени (только если режим замены отключен)
             if (!FileOperationsUtil.isSaveModeReplace(context)) {
-                val compressedUri = FileOperationsUtil.findCompressedVersionByOriginalName(context, uri)
+                val compressedUri = FileOperationsUtil.findCompressedVersionByOriginalName(context, uri, snapshot?.displayName)
                 if (compressedUri != null) {
                     result.processingRequired = false
                     result.reason = ProcessingSkipReason.COMPRESSED_VERSION_EXISTS
@@ -205,14 +225,14 @@ class ImageProcessingChecker @Inject constructor(
             }
             
             // Получаем размер файла для проверок
-            val fileSize = UriUtil.getFileSize(context, uri)
+            val fileSize = snapshot?.size?.takeIf { it > 0L } ?: UriUtil.getFileSize(context, uri)
 
             // Атомарное чтение/вычисление EXIF-данных с double-check locking.
             // Кэш валидируется по размеру файла: копирование/перенос (обновляющие
             // только дату модификации) не инвалидируют кэш, реальное изменение
             // содержимого — инвалидирует.
             val exifData = OptimizedCacheUtil.getOrComputeExifData(uri, fileSize) {
-                val marker = ExifUtil.getCompressionMarker(context, uri)
+                val marker = precomputedMarker ?: ExifUtil.getCompressionMarker(context, uri)
                 OptimizedCacheUtil.CachedExifData(
                     marker.isCompressed, marker.quality, marker.timestamp, marker.fileSize, fileSize
                 )

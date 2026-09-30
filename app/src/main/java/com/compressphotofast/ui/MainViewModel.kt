@@ -14,6 +14,7 @@ import com.compressphotofast.domain.ImageProcessingChecker
 import com.compressphotofast.domain.CompressionEnqueueResult
 import com.compressphotofast.domain.CompressionOrigin
 import com.compressphotofast.domain.CompressionWorkScheduler
+import com.compressphotofast.data.MediaItemSnapshot
 import com.compressphotofast.data.CompressionPreset
 import com.compressphotofast.data.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -251,12 +252,7 @@ class MainViewModel @Inject constructor(
             val currentTime = System.currentTimeMillis()
             val historyAgo = currentTime - Constants.HISTORY_SCAN_WINDOW_MILLIS
             
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.RELATIVE_PATH
-            )
+            val projection = MediaItemSnapshot.PROJECTION
             
             // Ищем изображения, добавленные за историю
             val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
@@ -273,15 +269,18 @@ class MainViewModel @Inject constructor(
                 selectionArgs,
                 sortOrder
             )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val columns = MediaItemSnapshot.Columns(cursor)
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    val id = cursor.getLong(idColumn)
                     val contentUri = ContentUris.withAppendedId(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         id
                     )
                     
-                    // Проверяем, требует ли изображение обработки с использованием центрального класса проверки
-                    val shouldProcess = imageProcessingChecker.shouldProcessImage(contentUri, false)
+                    // Метаданные уже в курсоре: проверка не делает запросов к MediaStore
+                    val snapshot = MediaItemSnapshot.fromCursor(cursor, contentUri, columns)
+                    val shouldProcess = imageProcessingChecker.shouldProcessImage(contentUri, false, snapshot)
                     
                     if (shouldProcess) {
                         uncompressedImages.add(contentUri)

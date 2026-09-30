@@ -7,6 +7,8 @@ import android.net.Uri
 import com.compressphotofast.BaseUnitTest
 import com.compressphotofast.data.ExifUtil
 import com.compressphotofast.data.FileOperationsUtil
+import com.compressphotofast.data.MediaItemSnapshot
+import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.data.ImageIntegrityUtil
 import com.compressphotofast.data.MediaStoreUtil
 import com.compressphotofast.data.SettingsManager
@@ -75,7 +77,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
 
     private fun stubTest(compressedSize: Long) {
         val reduction = (sourceSize - compressedSize) * 100f / sourceSize
-        coEvery { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any()) } returns
+        coEvery { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any(), any(), any()) } returns
             ImageCompressionUtil.CompressionTestResult(
                 ImageCompressionUtil.CompressionStats(sourceSize, compressedSize, reduction),
                 artifact
@@ -101,7 +103,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         coEvery { UriUtil.getFileSize(any(), uri) } returns 1_000L
 
         assertEquals(CompressImageUseCase.Outcome.SkippedInvalidSize, useCase(uri, params))
-        coVerify(exactly = 0) { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -189,5 +191,31 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         assertEquals(CompressImageUseCase.Outcome.Failed(), useCase(uri, params))
         verify { resolver.delete(savedUri, null, null) }
         coVerify(exactly = 0) { FileOperationsUtil.deleteFile(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `снимок и предзагруженный EXIF избавляют от повторных запросов`() = runTest {
+        stubTest(compressedSize = 400_000L)
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        val snapshot = MediaItemSnapshot(
+            uri = uri,
+            displayName = "photo.jpg",
+            relativePath = "DCIM/Camera/",
+            mimeType = "image/jpeg",
+            size = sourceSize,
+            isPendingRaw = false,
+            dateAddedSec = 1L,
+            dateModifiedSec = 1L
+        )
+
+        val outcome = useCase(uri, params, snapshot, mapOf(ExifInterface.TAG_ORIENTATION to "6"))
+
+        assertTrue(outcome is CompressImageUseCase.Outcome.Compressed)
+        coVerify(exactly = 0) { ExifUtil.readExifDataToMemory(any(), any()) }
+        coVerify(exactly = 0) { UriUtil.getFileSize(any(), uri) }
+        verify(exactly = 0) { UriUtil.getFileNameFromUri(any(), any()) }
+        coVerify {
+            ImageCompressionUtil.testCompression(any(), uri, sourceSize, any(), any(), any(), "image/jpeg", 6)
+        }
     }
 }

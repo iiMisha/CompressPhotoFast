@@ -282,6 +282,22 @@ object ExifUtil {
             }
 
             try {
+                // FileDescriptor seekable: ExifInterface читает только нужные сегменты,
+                // HEIC/PNG/WebP не буферизуются целиком. Объект только для чтения:
+                // дескриптор закрывается сразу после разбора (saveAttributes недопустим).
+                val fromFd = try {
+                    context.contentResolver.openFileDescriptor(finalUri, "r")?.use { pfd ->
+                        ExifInterface(pfd.fileDescriptor)
+                    }
+                } catch (e: FileNotFoundException) {
+                    throw e
+                } catch (e: IllegalStateException) {
+                    throw e
+                } catch (e: Exception) {
+                    LogUtil.processDebug("EXIF: чтение через FileDescriptor не удалось, используем поток: ${e.message}")
+                    null
+                }
+                if (fromFd != null) return fromFd
                 context.contentResolver.openInputStream(finalUri)?.use { inputStream ->
                     return ExifInterface(inputStream)
                 }
@@ -615,78 +631,119 @@ object ExifUtil {
             return@withContext it
         }
 
-        val exifData = mutableMapOf<String, Any>()
         try {
             LogUtil.processInfo("Чтение EXIF данных из $uri в память (кэш не найден)")
-            
-            val exif = getExifInterface(context, uri) ?: return@withContext exifData
-            
-            // Сохраняем все теги
-            for (tag in TAG_LIST) {
-                val value = exif.getAttribute(tag)
-                if (value != null) {
-                    exifData[tag] = value
-                }
-            }
-            
-            // === ДИАГНОСТИКА РАЗРЕШЕНИЙ ===
-            try {
-                val hasMediaLocationPermission =
-                    context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
-                        android.content.pm.PackageManager.PERMISSION_GRANTED
-                
-                LogUtil.permissionsInfo("📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для $uri:")
-                LogUtil.permissionsInfo("  - Android версия: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
-                LogUtil.permissionsInfo("  - ACCESS_MEDIA_LOCATION: ${if (hasMediaLocationPermission) "✅ ПРЕДОСТАВЛЕНО" else "❌ ОТСУТСТВУЕТ"}")
-                LogUtil.permissionsInfo("  - URI тип: ${if (uri.toString().startsWith("content://media/")) "MediaStore" else "Другой"}")
-                
-                if (!hasMediaLocationPermission) {
-                    LogUtil.permissionsWarning("⚠️ КРИТИЧНО: Разрешение ACCESS_MEDIA_LOCATION отсутствует - GPS данные будут скрыты системой!")
-                }
-            } catch (e: Exception) {
-                LogUtil.permissionsError("Ошибка проверки разрешений", e)
-            }
-            
-            // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ EXIFINTERFACE ===
-            LogUtil.processInfo("🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()")
-            
-            val latLong = exif.latLong
-            LogUtil.processInfo("🔍 GPS результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
-            
-            if (latLong != null) {
-                exifData["HAS_GPS"] = true
-                exifData["GPS_LAT"] = latLong[0]
-                exifData["GPS_LONG"] = latLong[1]
-                
-                val altitude = exif.getAltitude(0.0)
-                if (!altitude.isNaN()) {
-                    exifData["GPS_ALT"] = altitude
-                }
-                
-                LogUtil.processInfo("✅ GPS данные получены через ExifInterface: lat=${latLong[0]}, lng=${latLong[1]}")
-            } else {
-                LogUtil.processInfo("⚠️ GPS данные не найдены в EXIF")
-            }
-            
-            // === ДОБАВЛЕНИЕ ДАТЫ ОЦИФРОВКИ ИЗ МЕТАДАННЫХ ФАЙЛА ===
-            LogUtil.processInfo("🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости")
-            addDigitizedDateFromFileMetadata(context, uri, exif, exifData)
-            
-            LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов, сохраняем в кэш")
-            // Сохраняем в кэш
+            val exif = getExifInterface(context, uri) ?: return@withContext mutableMapOf<String, Any>()
+            val exifData = extractExifData(context, uri, exif, knownLastModifiedMs = null)
             if (exifData.isNotEmpty()) {
                 exifDataCache.putWithTimestamp(uriString, exifData)
             }
+            return@withContext exifData
         } catch (e: Exception) {
             LogUtil.error(uri, "Чтение EXIF в память", e)
             // В случае ошибки (например, FileNotFoundException), выбрасываем исключение дальше,
             // чтобы вызывающий код мог его обработать.
             throw e
         }
-        
-        return@withContext exifData
     }
-    
+
+    /**
+     * Теги исходника и маркер сжатия, прочитанные одним разбором EXIF.
+     * [marker] null без снимка MediaStore: HEIC-маркер по имени проверить нечем.
+     */
+    data class SourceExif(val data: Map<String, Any>, val marker: CompressionMarkerInfo?)
+
+    /**
+     * Одно чтение EXIF исходника для сжатия: теги для переноса (как [readExifDataToMemory])
+     * и маркер (как [getCompressionMarker]). Имя/дата HEIC-маркера и дата оцифровки
+     * берутся из [snapshot] без запросов к MediaStore. Кэш [readExifDataToMemory]
+     * обходится и обновляется свежими данными.
+     * @return null, если EXIF прочитать не удалось (вызывающая сторона читает сама)
+     */
+    suspend fun readSourceExif(context: Context, uri: Uri, snapshot: MediaItemSnapshot?): SourceExif? = withContext(Dispatchers.IO) {
+        try {
+            val exif = getExifInterface(context, uri) ?: return@withContext null
+            val data = extractExifData(context, uri, exif, knownLastModifiedMs = snapshot?.dateModifiedMs)
+            if (data.isNotEmpty()) {
+                exifDataCache.putWithTimestamp(uri.toString(), data)
+            }
+            val marker = snapshot?.let {
+                val heicMarker = if (UriUtil.isHeicMimeType(it.mimeType)) {
+                    heicSuffixMarker(uri, it.displayName, it.dateModifiedMs)
+                } else null
+                heicMarker ?: markerFromExif(uri, exif)
+            }
+            SourceExif(data, marker)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LogUtil.processDebug("readSourceExif: не удалось прочитать EXIF $uri: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun extractExifData(
+        context: Context,
+        uri: Uri,
+        exif: ExifInterface,
+        knownLastModifiedMs: Long?
+    ): MutableMap<String, Any> {
+        val exifData = mutableMapOf<String, Any>()
+        // Сохраняем все теги
+        for (tag in TAG_LIST) {
+            val value = exif.getAttribute(tag)
+            if (value != null) {
+                exifData[tag] = value
+            }
+        }
+        
+        // === ДИАГНОСТИКА РАЗРЕШЕНИЙ ===
+        try {
+            val hasMediaLocationPermission =
+                context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            
+            LogUtil.permissionsInfo("📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для $uri:")
+            LogUtil.permissionsInfo("  - Android версия: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
+            LogUtil.permissionsInfo("  - ACCESS_MEDIA_LOCATION: ${if (hasMediaLocationPermission) "✅ ПРЕДОСТАВЛЕНО" else "❌ ОТСУТСТВУЕТ"}")
+            LogUtil.permissionsInfo("  - URI тип: ${if (uri.toString().startsWith("content://media/")) "MediaStore" else "Другой"}")
+            
+            if (!hasMediaLocationPermission) {
+                LogUtil.permissionsWarning("⚠️ КРИТИЧНО: Разрешение ACCESS_MEDIA_LOCATION отсутствует - GPS данные будут скрыты системой!")
+            }
+        } catch (e: Exception) {
+            LogUtil.permissionsError("Ошибка проверки разрешений", e)
+        }
+        
+        // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ EXIFINTERFACE ===
+        LogUtil.processInfo("🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()")
+        
+        val latLong = exif.latLong
+        LogUtil.processInfo("🔍 GPS результат: ${if (latLong != null) "lat=${latLong[0]}, lng=${latLong[1]}" else "null"}")
+        
+        if (latLong != null) {
+            exifData["HAS_GPS"] = true
+            exifData["GPS_LAT"] = latLong[0]
+            exifData["GPS_LONG"] = latLong[1]
+            
+            val altitude = exif.getAltitude(0.0)
+            if (!altitude.isNaN()) {
+                exifData["GPS_ALT"] = altitude
+            }
+            
+            LogUtil.processInfo("✅ GPS данные получены через ExifInterface: lat=${latLong[0]}, lng=${latLong[1]}")
+        } else {
+            LogUtil.processInfo("⚠️ GPS данные не найдены в EXIF")
+        }
+        
+        // === ДОБАВЛЕНИЕ ДАТЫ ОЦИФРОВКИ ИЗ МЕТАДАННЫХ ФАЙЛА ===
+        LogUtil.processInfo("🕒 ПРОВЕРКА ДАТ: Проверяем наличие дат в EXIF и добавляем дату оцифровки при необходимости")
+        addDigitizedDateFromFileMetadata(context, uri, exif, exifData, knownLastModifiedMs)
+        
+        LogUtil.processInfo("Прочитано ${exifData.size} EXIF-тегов")
+        return exifData
+    }
+
     /**
      * Применяет сохраненные EXIF-данные к изображению
      * @param context Контекст приложения
@@ -1188,33 +1245,40 @@ object ExifUtil {
                 val (displayName, dateModified) = withContext(Dispatchers.IO) {
                     getHeicDisplayNameAndDate(context, uri)
                 }
-
-                // Проверяем суффикс _compressed в имени HEIC файла
-                if (CompressionMarker.hasHeicCompressedSuffix(displayName)) {
-                    LogUtil.processDebug("Найден HEIC маркер сжатия в имени файла: $displayName для URI: $uri")
-                    // Для HEIC с суффиксом возвращаем качество по умолчанию (85) и дату модификации
-                    return CompressionMarkerInfo(true, 85, dateModified ?: System.currentTimeMillis(), null)
-                }
+                heicSuffixMarker(uri, displayName, dateModified)?.let { return it }
             }
 
             // Стандартная проверка EXIF маркера для всех форматов
             val exifInterface = getExifInterface(context, uri) ?: return CompressionMarkerInfo.NOT_COMPRESSED
-            val userComment = exifInterface.getAttribute(ExifInterface.TAG_USER_COMMENT)
-            try {
-                CompressionMarker.parse(userComment)?.let { marker ->
-                    LogUtil.processDebug(
-                        "Найден EXIF маркер с timestamp: ${marker.timestamp}, размер: ${marker.fileSize}, " +
-                            "исходный размер: ${marker.originalFileSize} для URI: $uri"
-                    )
-                    return marker
-                }
-            } catch (e: NumberFormatException) {
-                LogUtil.error(uri, "Парсинг маркера", "Ошибка при парсинге маркера сжатия: $userComment", e)
-            }
+            return markerFromExif(uri, exifInterface)
         } catch (e: Exception) {
             LogUtil.error(uri, "EXIF", "Ошибка при получении маркера сжатия", e)
         }
 
+        return CompressionMarkerInfo.NOT_COMPRESSED
+    }
+
+    /** HEIC-маркер по суффиксу _compressed в имени файла. */
+    private fun heicSuffixMarker(uri: Uri, displayName: String?, dateModifiedMs: Long?): CompressionMarkerInfo? {
+        if (!CompressionMarker.hasHeicCompressedSuffix(displayName)) return null
+        LogUtil.processDebug("Найден HEIC маркер сжатия в имени файла: $displayName для URI: $uri")
+        // Для HEIC с суффиксом возвращаем качество по умолчанию (85) и дату модификации
+        return CompressionMarkerInfo(true, 85, dateModifiedMs ?: System.currentTimeMillis(), null)
+    }
+
+    private fun markerFromExif(uri: Uri, exifInterface: ExifInterface): CompressionMarkerInfo {
+        val userComment = exifInterface.getAttribute(ExifInterface.TAG_USER_COMMENT)
+        try {
+            CompressionMarker.parse(userComment)?.let { marker ->
+                LogUtil.processDebug(
+                    "Найден EXIF маркер с timestamp: ${marker.timestamp}, размер: ${marker.fileSize}, " +
+                        "исходный размер: ${marker.originalFileSize} для URI: $uri"
+                )
+                return marker
+            }
+        } catch (e: NumberFormatException) {
+            LogUtil.error(uri, "Парсинг маркера", "Ошибка при парсинге маркера сжатия: $userComment", e)
+        }
         return CompressionMarkerInfo.NOT_COMPRESSED
     }
 
@@ -1340,7 +1404,8 @@ object ExifUtil {
         context: Context,
         uri: Uri,
         exif: ExifInterface,
-        exifData: MutableMap<String, Any>
+        exifData: MutableMap<String, Any>,
+        knownLastModifiedMs: Long? = null
     ) {
         try {
             // Проверяем, есть ли уже какие-то даты в EXIF
@@ -1352,7 +1417,7 @@ object ExifUtil {
             LogUtil.processInfo("Получаем дату модификации файла для установки как дату оцифровки")
             
             // Получаем дату модификации файла
-            val fileModificationDate = UriUtil.getFileLastModified(context, uri)
+            val fileModificationDate = knownLastModifiedMs ?: UriUtil.getFileLastModified(context, uri)
             
             if (fileModificationDate > 0) {
                 val formattedDate = formatDateForExif(fileModificationDate)

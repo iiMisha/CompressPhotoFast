@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.MediaItemSnapshot
 import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
@@ -57,12 +58,8 @@ class GalleryScanUtil @Inject constructor(
             }
             
             // Запрашиваем последние изображения из MediaStore
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.SIZE
-            )
+            // Полная проекция снимка: проверка кандидатов не делает запросов к MediaStore
+            val projection = MediaItemSnapshot.PROJECTION
             
             // Ищем фотографии, созданные за последнее заданное время
             val selection = "${MediaStore.Images.Media.DATE_ADDED} >= ?"
@@ -94,6 +91,8 @@ class GalleryScanUtil @Inject constructor(
                 val allUris = mutableListOf<Uri>()
                 val uriSizeMap = mutableMapOf<Uri, Long>()
                 val uriNameMap = mutableMapOf<Uri, String>()
+                val snapshots = mutableMapOf<Uri, MediaItemSnapshot>()
+                val columns = MediaItemSnapshot.Columns(cursor)
                 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
@@ -123,11 +122,12 @@ class GalleryScanUtil @Inject constructor(
                     allUris.add(contentUri)
                     uriSizeMap[contentUri] = size
                     uriNameMap[contentUri] = name
+                    snapshots[contentUri] = MediaItemSnapshot.fromCursor(cursor, contentUri, columns)
                 }
                 
                 if (checkProcessable && allUris.isNotEmpty()) {
                     for (uri in allUris) {
-                        if (imageProcessingChecker.shouldProcessImage(uri)) {
+                        if (imageProcessingChecker.shouldProcessImage(uri, snapshot = snapshots[uri])) {
                             foundUris.add(uri)
                             processedCount++
                         } else {
