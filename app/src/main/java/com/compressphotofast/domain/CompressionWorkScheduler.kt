@@ -7,11 +7,12 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.await
 import androidx.work.workDataOf
+import kotlinx.coroutines.flow.first
 import com.compressphotofast.worker.ImageCompressionWorker
-import com.compressphotofast.worker.ImageSettleWorker
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -52,11 +53,22 @@ class CompressionWorkScheduler @Inject constructor(
             val maxResolution = settingsManager.getMaxResolution()
             val data = buildInputData(uri, quality, forceProcess, batchId, origin, discoveredAt, maxResolution)
             if (forceProcess) {
+                // Settle-работы ставились до версии с одной работой на URI
                 workManager.cancelUniqueWork(settleName(uri)).await()
-                enqueueFinal(uri, data, expedited = true)
+                // Отложенная auto-работа того же URI заменяется, иначе ручной батч
+                // ждал бы её задержку и не получил бы отчёт; выполняющуюся не трогаем
+                val running = workManager.getWorkInfosForUniqueWorkFlow(finalName(uri)).first()
+                    .any { it.state == WorkInfo.State.RUNNING }
+                val policy = if (running) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.REPLACE
+                workManager.enqueueUniqueWork(
+                    finalName(uri), policy, buildFinalWorkRequest(uri, data, expedited = true)
+                ).await()
             } else {
-                val request = buildSettleWorkRequest(uri, data)
-                workManager.enqueueUniqueWork(settleName(uri), ExistingWorkPolicy.KEEP, request).await()
+                // Одна отложенная работа вместо settle → final: задержка даёт файлу
+                // «устояться», KEEP схлопывает повторные обнаружения
+                workManager.enqueueUniqueWork(
+                    finalName(uri), ExistingWorkPolicy.KEEP, buildFinalWorkRequest(uri, data, delayed = true)
+                ).await()
             }
             LogUtil.processDebug(
                 "Durable enqueue: source=${origin.name}, uri=$uri, digest=${digest(uri)}, " +
@@ -69,28 +81,23 @@ class CompressionWorkScheduler @Inject constructor(
         }
     }
 
+    /** Дренаж legacy settle-работ ([com.compressphotofast.worker.ImageSettleWorker]). */
     suspend fun enqueueFinal(uri: Uri, inputData: androidx.work.Data, expedited: Boolean = false) {
         workManager.enqueueUniqueWork(finalName(uri), ExistingWorkPolicy.KEEP, buildFinalWorkRequest(uri, inputData, expedited)).await()
     }
 
-    internal fun buildSettleWorkRequest(uri: Uri, inputData: androidx.work.Data): OneTimeWorkRequest =
-        OneTimeWorkRequestBuilder<ImageSettleWorker>()
-            .setInputData(inputData)
-            .setInitialDelay(Constants.AUTO_COMPRESSION_INITIAL_DELAY_SECONDS, TimeUnit.SECONDS)
-            .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
-            .addTag("image_settle_v2_${digest(uri)}")
-            .build()
-
     internal fun buildFinalWorkRequest(
         uri: Uri,
         inputData: androidx.work.Data,
-        expedited: Boolean = false
+        expedited: Boolean = false,
+        delayed: Boolean = false
     ): OneTimeWorkRequest {
         val builder = OneTimeWorkRequestBuilder<ImageCompressionWorker>()
             .setInputData(inputData)
             .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
             .addTag("image_compression_v2_${digest(uri)}")
         if (expedited) builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        if (delayed) builder.setInitialDelay(Constants.AUTO_COMPRESSION_INITIAL_DELAY_SECONDS, TimeUnit.SECONDS)
         return builder.build()
     }
 

@@ -26,7 +26,7 @@ class ImageProcessingUtilWorkRequestTest {
             mockk(relaxed = true)
         )
         val data = scheduler.buildInputData(uri, 70, false, null, CompressionOrigin.AUTO, 1L)
-        val request = scheduler.buildSettleWorkRequest(uri, data)
+        val request = scheduler.buildFinalWorkRequest(uri, data, delayed = true)
 
         assertEquals(
             Constants.AUTO_COMPRESSION_INITIAL_DELAY_SECONDS,
