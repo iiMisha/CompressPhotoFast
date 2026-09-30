@@ -21,7 +21,7 @@
 - UI: `ui/MainActivity.kt`, `ui/MainViewModel.kt` (валидация и постановка share/Photo Picker URI — `compressSharedImages`). `util/`, `service/`, `worker/` не импортируют `ui`.
 - Сжатие: `worker/ImageCompressionWorker.kt`, `worker/ImageSettleWorker.kt`, `worker/GalleryReconciliationWorker.kt`, `util/CompressionWorkScheduler.kt`, `util/CompressionExecutionGate.kt`, `util/ImageCompressionUtil.kt`, `util/ImageProcessingChecker.kt`.
 - Настройки и данные: `util/SettingsManager.kt` (SharedPreferences), `MediaStore`.
-- Инфраструктура: `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.
+- Инфраструктура: `util/BackupRegistry.kt`, `util/BackupRecoveryHelper.kt`, `util/FileIoUtil.kt` (leaf: fstat/fsync), `di/AppModule.kt`, `util/UriProcessingTracker.kt`, `util/CompressionBatchTracker.kt`, `util/StatsTracker.kt`.
 - Мониторинг: `service/BackgroundMonitoringService.kt`, `service/ImageDetectionJobService.kt`, `service/MonitoringController.kt`, `service/BootCompletedReceiver.kt`.
 - CLI: `compressphotofast-cli/src/cli.py`, `compressphotofast-cli/src/compression.py`.
 
@@ -40,7 +40,9 @@
 - Сервис использует `START_STICKY`, корректно отменяет резервный Job при ручной остановке и восстанавливается после перезагрузки или обновления приложения.
 - При первом включении автосжатия однократно запрашивается исключение из оптимизации батареи; флаг хранится в `SettingsManager`.
 - Игнорирование фото из мессенджеров удалено: защита от повторного сжатия основана на проверке эффективности.
-- Реализованы резервное копирование и восстановление исходного файла при неудаче файловых операций.
+- Backup перед любой перезаписью на месте (`rwt`, `saveAttributes`): `BackupRegistry.createBackup` (оригинал через `setRequireOriginal`, fsync, сверка длины, реестр `path→uri` через commit); `releaseBackup` только при успехе или успешном `rollback`, иначе backup остаётся до recovery. Файл пользователя никогда не удаляется при сбое.
+- Recovery при старте (`BackupRecoveryHelper`, до `TempFilesCleaner`, который не трогает зарегистрированные backup): безусловный restore самого раннего backup URI, иначе копия в `Pictures/CompressPhotoFast/Recovered`; backup'ы текущего процесса пропускаются.
+- Replace-режим: перезапись на месте только если найденный по имени файл — сам оригинал (ID MediaStore); размер оригинала сверяется до перезаписи/удаления (TOCTOU); провал EXIF — откат/удаление новой копии. `cleanDoubleExtensions` срезает только расширения изображений (как CLI). `Orientation=NORMAL` — только при `pixelsTransformed`.
 - UI/E2E instrumentation-тесты удалены как неактуальные; сохранены интеграционные тесты утилит и сервисов.
 - Recovery после LMK/OEM kill: cold-start и JobScheduler best-effort восстанавливают FGS, reconciliation независимо от FGS восстанавливает MediaStore URI, content-trigger использует два чередующихся job ID.
 - Новые URI ставятся в per-URI unique WorkManager works через SHA-256 identity: auto settle задержан на 30 секунд, manual final-work expedited без delay; legacy `sequential_image_compression` не отменяется и дренируется bounded Worker.
