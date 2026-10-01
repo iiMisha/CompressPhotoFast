@@ -98,7 +98,7 @@ object BackupRegistry {
                 ?: throw IOException("Не удалось открыть FileDescriptor для восстановления")
             val written = pfd.use {
                 FileOutputStream(it.fileDescriptor).use { output ->
-                    val count = backupFile.inputStream().use { input -> input.copyTo(output) }
+                    val count = backupFile.inputStream().use { input -> input.copyTo(output, FileIoUtil.COPY_BUFFER_SIZE) }
                     output.flush()
                     it.fileDescriptor.sync()
                     count

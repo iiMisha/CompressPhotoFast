@@ -15,6 +15,12 @@ import java.io.InputStream
 object FileIoUtil {
 
     /**
+     * Буфер durable-копий: через FUSE каждый write() — отдельный запрос
+     * к MediaProvider, буфер `copyTo` по умолчанию (8 КБ) дробит файл на сотни запросов.
+     */
+    const val COPY_BUFFER_SIZE = 256 * 1024
+
+    /**
      * Фактический размер файла через дескриптор (fstat → statSize), в обход
      * кэша MediaStore. Перехват Throwable вокруг fstat нужен, т.к. в JVM-среде
      * (Robolectric) нативный вызов может быть недоступен.
@@ -58,7 +64,7 @@ object FileIoUtil {
      */
     fun writeDurably(input: InputStream, target: File): Long {
         return FileOutputStream(target).use { output ->
-            val copied = input.copyTo(output)
+            val copied = input.copyTo(output, COPY_BUFFER_SIZE)
             output.flush()
             output.fd.sync()
             copied

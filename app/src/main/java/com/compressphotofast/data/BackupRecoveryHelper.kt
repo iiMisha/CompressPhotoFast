@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.FileIoUtil
 
 /**
  * Восстановление файлов из orphan backup'ов, оставшихся после непредвиденного
@@ -101,7 +102,7 @@ object BackupRecoveryHelper {
         return try {
             val written = context.contentResolver.openFileDescriptor(target, "w")?.use { pfd ->
                 java.io.FileOutputStream(pfd.fileDescriptor).use { output ->
-                    val count = backupFile.inputStream().use { it.copyTo(output) }
+                    val count = backupFile.inputStream().use { it.copyTo(output, FileIoUtil.COPY_BUFFER_SIZE) }
                     output.flush()
                     pfd.fileDescriptor.sync()
                     count

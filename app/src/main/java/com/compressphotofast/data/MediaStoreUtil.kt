@@ -17,6 +17,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import com.compressphotofast.util.Constants
+import com.compressphotofast.util.FileIoUtil
 import com.compressphotofast.util.LogUtil
 
 /**
@@ -514,7 +515,7 @@ object MediaStoreUtil {
             ?: throw IOException("Не удалось открыть FileDescriptor для URI: $uri")
         return pfd.use {
             FileOutputStream(it.fileDescriptor).use { output ->
-                val count = source.inputStream().use { input -> input.copyTo(output) }
+                val count = source.inputStream().use { input -> input.copyTo(output, FileIoUtil.COPY_BUFFER_SIZE) }
                 output.flush()
                 it.fileDescriptor.sync()
                 count
