@@ -16,6 +16,7 @@ object Constants {
     const val PREF_PROCESS_SCREENSHOTS = "process_screenshots"
     const val PREF_SHOW_COMPRESSION_TOAST = "show_compression_toast"
     const val PREF_LAST_SCAN_TIMESTAMP = "last_scan_timestamp"
+    const val PREF_LAST_HISTORY_SCAN_TIMESTAMP = "last_history_scan_timestamp"
     const val PREF_PENDING_BACKUPS = "pending_backups"
     const val PREF_BATTERY_EXEMPTION_REQUESTED = "battery_exemption_requested"
 
@@ -75,6 +76,9 @@ object Constants {
     const val HISTORY_SCAN_WINDOW_DAYS = 2
     const val HISTORY_SCAN_WINDOW_SECONDS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60L
     const val HISTORY_SCAN_WINDOW_MILLIS = HISTORY_SCAN_WINDOW_DAYS * 24 * 60 * 60 * 1000L
+    // HISTORY-скан при холодном старте (в т.ч. от WorkManager/JobScheduler после LMK) —
+    // не чаще этого интервала; boot и открытие MainActivity — без ограничения.
+    const val HISTORY_CATCH_UP_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000L
     const val CONTENT_OBSERVER_DELAY_SECONDS = 10L // 10 секунд задержки при обнаружении файла
     const val AUTO_COMPRESSION_INITIAL_DELAY_SECONDS = 30L
     

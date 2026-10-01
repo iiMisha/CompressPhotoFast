@@ -195,6 +195,17 @@ class SettingsManager @Inject constructor(
             .apply()
     }
 
+    /** Время начала последнего durable HISTORY-скана. */
+    fun getLastHistoryScanTimestamp(): Long {
+        return sharedPreferences.getLong(Constants.PREF_LAST_HISTORY_SCAN_TIMESTAMP, 0L)
+    }
+
+    fun setLastHistoryScanTimestamp(timestamp: Long) {
+        sharedPreferences.edit()
+            .putLong(Constants.PREF_LAST_HISTORY_SCAN_TIMESTAMP, timestamp)
+            .apply()
+    }
+
     companion object {
         /**
          * Создает экземпляр SettingsManager без внедрения зависимостей (для классов без Hilt)

@@ -116,4 +116,35 @@ class GalleryScanCoordinatorTest {
         assertTrue(coordinator.enqueueAll(listOf(uri1)))
         verify(exactly = 0) { settings.setLastScanTimestamp(any()) }
     }
+
+    @Test
+    fun `durable history scan records history timestamp`() = runTest {
+        stubScan(completed = true)
+
+        coordinator.scan(GalleryScanCoordinator.Window.HISTORY)
+
+        verify(exactly = 1) { settings.setLastHistoryScanTimestamp(any()) }
+    }
+
+    @Test
+    fun `watermark scan or failed history keeps history timestamp`() = runTest {
+        stubScan(completed = true)
+        coordinator.scan(GalleryScanCoordinator.Window.SINCE_WATERMARK)
+        stubScan(completed = false)
+        coordinator.scan(GalleryScanCoordinator.Window.HISTORY)
+
+        verify(exactly = 0) { settings.setLastHistoryScanTimestamp(any()) }
+    }
+
+    @Test
+    fun `history catch-up is throttled by interval`() {
+        val now = 100_000_000_000L
+        val interval = Constants.HISTORY_CATCH_UP_MIN_INTERVAL_MS
+        assertTrue(GalleryScanCoordinator.isHistoryCatchUpDue(0L, now))
+        assertTrue(GalleryScanCoordinator.isHistoryCatchUpDue(now - interval, now))
+        assertFalse(GalleryScanCoordinator.isHistoryCatchUpDue(now - interval + 1, now))
+        assertFalse(GalleryScanCoordinator.isHistoryCatchUpDue(now, now))
+        // Часы переведены назад — не застреваем без HISTORY
+        assertTrue(GalleryScanCoordinator.isHistoryCatchUpDue(now + 1, now))
+    }
 }

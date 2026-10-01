@@ -42,13 +42,20 @@ class GalleryReconciliationWorker @AssistedInject constructor(
         private const val PERIODIC_NAME = "gallery_reconciliation_periodic"
         private const val CATCH_UP = "catch_up"
 
+        /**
+         * Гарантирует periodic reconciliation; при [catchUp] дополнительно ставит
+         * разовый HISTORY-скан. Без [catchUp] разовый скан не нужен: FGS стартует
+         * со скана от watermark, а periodic подберёт остальное.
+         */
         fun schedule(context: Context, catchUp: Boolean) {
             if (!SettingsManager.getInstance(context).isAutoCompressionEnabled()) return
             val wm = WorkManager.getInstance(context)
-            val request = OneTimeWorkRequestBuilder<GalleryReconciliationWorker>()
-                .setInputData(androidx.work.workDataOf(CATCH_UP to catchUp))
-                .build()
-            wm.enqueueUniqueWork(ONE_TIME_NAME, ExistingWorkPolicy.KEEP, request)
+            if (catchUp) {
+                val request = OneTimeWorkRequestBuilder<GalleryReconciliationWorker>()
+                    .setInputData(androidx.work.workDataOf(CATCH_UP to true))
+                    .build()
+                wm.enqueueUniqueWork(ONE_TIME_NAME, ExistingWorkPolicy.KEEP, request)
+            }
             val periodic = PeriodicWorkRequestBuilder<GalleryReconciliationWorker>(
                 Constants.RECONCILIATION_INTERVAL_MINUTES, TimeUnit.MINUTES
             ).build()

@@ -44,7 +44,10 @@ class GalleryScanCoordinator @Inject constructor(
         }
         val scan = galleryScanUtil.scanRecentImages(windowSeconds)
         val durable = scan.completedSuccessfully && enqueueAll(scan.foundUris)
-        if (durable) settingsManager.setLastScanTimestamp(startedAt)
+        if (durable) {
+            settingsManager.setLastScanTimestamp(startedAt)
+            if (window == Window.HISTORY) settingsManager.setLastHistoryScanTimestamp(startedAt)
+        }
         LogUtil.processDebug(
             "GalleryScan: window=$window(${windowSeconds}s), found=${scan.foundUris.size}, durable=$durable"
         )
@@ -66,6 +69,15 @@ class GalleryScanCoordinator @Inject constructor(
     }
 
     companion object {
+        /**
+         * Нужен ли HISTORY-скан при холодном старте: не чаще
+         * [Constants.HISTORY_CATCH_UP_MIN_INTERVAL_MS]. Время из будущего (перевод часов) — нужен.
+         */
+        fun isHistoryCatchUpDue(lastHistoryMs: Long, nowMs: Long): Boolean {
+            val elapsed = nowMs - lastHistoryMs
+            return elapsed < 0L || elapsed >= Constants.HISTORY_CATCH_UP_MIN_INTERVAL_MS
+        }
+
         internal fun windowSinceWatermark(lastScanMs: Long, nowMs: Long): Int =
             ((nowMs - lastScanMs) / 1000L + Constants.RECENT_SCAN_WINDOW_SECONDS)
                 .coerceIn(Constants.RECENT_SCAN_WINDOW_SECONDS, Constants.HISTORY_SCAN_WINDOW_SECONDS)
