@@ -166,14 +166,14 @@ class ExifUtilInstrumentedTest {
      * Тест 5: Добавление маркера сжатия
      */
     @Test
-    fun test05_markCompressedImage_addsMarker() {
+    fun test05_writeSkipMarker_addsMarker() {
         runBlocking {
             // Arrange
             val testImage = createTestImageInMediaStore()
             val quality = 85
 
             // Act
-            val markResult = ExifUtil.markCompressedImage(context, testImage, quality)
+            val markResult = ExifUtil.writeSkipMarker(context, testImage, quality, null)
 
             // Assert
             assertThat(markResult).isTrue()
@@ -183,10 +183,11 @@ class ExifUtilInstrumentedTest {
             assertThat(marker.isCompressed).isTrue()
             assertThat(marker.quality).isEqualTo(quality)
 
-            // Verify - двухфазная запись: размер в маркере совпадает с фактическим
-            val actualSize = UriUtil.getFileSize(context, testImage)
+            // Verify - одна запись: размер в маркере в пределах допуска от фактического
+            val actualSize = UriUtil.getFileSize(context, testImage)!!
             assertThat(marker.fileSize).isNotNull()
-            assertThat(marker.fileSize).isEqualTo(actualSize)
+            assertThat(kotlin.math.abs(actualSize - marker.fileSize!!))
+                .isAtMost(com.compressphotofast.util.Constants.MARKER_SIZE_TOLERANCE_BYTES)
         }
     }
 
@@ -198,7 +199,7 @@ class ExifUtilInstrumentedTest {
         runBlocking {
             // Arrange
             val testImage = createTestImageInMediaStore()
-            ExifUtil.markCompressedImage(context, testImage, 80)
+            ExifUtil.writeSkipMarker(context, testImage, 80, null)
 
             // Act
             val isCompressed = ExifUtil.getCompressionMarker(context, testImage).isCompressed
@@ -234,7 +235,7 @@ class ExifUtilInstrumentedTest {
             // Arrange
             val testImage = createTestImageInMediaStore()
             val quality = 75
-            ExifUtil.markCompressedImage(context, testImage, quality)
+            ExifUtil.writeSkipMarker(context, testImage, quality, null)
 
             // Act
             val (isCompressed, markedQuality, timestamp) =
@@ -244,56 +245,6 @@ class ExifUtilInstrumentedTest {
             assertThat(isCompressed).isTrue()
             assertThat(markedQuality).isEqualTo(quality)
             assertThat(timestamp).isGreaterThan(0L)
-        }
-    }
-
-    /**
-     * Тест 9: Копирование EXIF данных между изображениями
-     *
-     * Проверяет что метод copyExifData корректно копирует EXIF теги из исходного файла в целевой.
-     *
-     * ВАЖНО: Тест создает два тестовых изображения, добавляет EXIF данные в исходный файл,
-     * затем копирует их в целевой файл и верифицирует успешность копирования.
-     *
-     * Историческая справка: Ранее тест падал из-за преждевременного закрытия ParcelFileDescriptor
-     * через блок use{}. ExifInterface.saveAttributes() требует открытый файловый дескриптор.
-     * Решение: дескриптор теперь хранится в переменной и закрывается явно после saveAttributes().
-     */
-    @Test
-    fun test09_copyExifData_copiesExifSuccessfully() {
-        runBlocking {
-            // Arrange
-            val sourceImage = createTestImageInMediaStore()
-            kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
-
-            // Добавляем минимальные EXIF данные в исходный файл
-            context.contentResolver.openFileDescriptor(sourceImage, "rw")?.use { pfd ->
-                val exif = ExifInterface(pfd.fileDescriptor)
-                exif.setAttribute(ExifInterface.TAG_MAKE, "TestManufacturer")
-                exif.setAttribute(ExifInterface.TAG_MODEL, "TestModel")
-                exif.setAttribute(ExifInterface.TAG_ORIENTATION, "1")
-                exif.saveAttributes()
-            }
-
-            // Ждем после добавления EXIF
-            kotlinx.coroutines.delay(1500)  // Увеличено для стабильности
-
-            val destImage = createTestImageInMediaStore()
-            kotlinx.coroutines.delay(2000)  // Увеличено для стабильности
-
-            // Act - копируем EXIF без маркера сжатия
-            val copyResult = ExifUtil.copyExifData(context, sourceImage, destImage)
-
-            // Assert
-            assertThat(copyResult).isTrue()
-
-            // Verify - проверяем, что теги скопированы
-            val destExif = ExifUtil.getExifInterface(context, destImage)
-            assertThat(destExif).isNotNull()
-            val make = destExif?.getAttribute(ExifInterface.TAG_MAKE)
-            val model = destExif?.getAttribute(ExifInterface.TAG_MODEL)
-            assertThat(make).isEqualTo("TestManufacturer")
-            assertThat(model).isEqualTo("TestModel")
         }
     }
 
@@ -329,64 +280,6 @@ class ExifUtilInstrumentedTest {
     }
 
     /**
-     * Тест 11: Обработка EXIF для сохраненного изображения (с заранее загруженными данными)
-     */
-    @Test
-    fun test11_handleExifForSavedImage_withPreloadedData() {
-        runBlocking {
-            // Arrange
-            val sourceImage = createTestImageInMediaStore()
-            val destImage = createTestImageInMediaStore()
-            val quality = 80
-
-            // Предварительно загружаем EXIF данные
-            val exifData = ExifUtil.readExifDataToMemory(context, sourceImage)
-
-            // Act
-            val handleResult = ExifUtil.handleExifForSavedImage(
-                context,
-                sourceImage,
-                destImage,
-                quality,
-                exifData
-            )
-
-            // Assert
-            assertThat(handleResult).isTrue()
-
-            // Verify
-            val (isCompressed, markedQuality, _) = ExifUtil.getCompressionMarker(context, destImage)
-            assertThat(isCompressed).isTrue()
-            assertThat(markedQuality).isEqualTo(quality)
-        }
-    }
-
-    /**
-     * Тест 12: Обработка EXIF для сохраненного изображения (без предварительной загрузки)
-     */
-    @Test
-    fun test12_handleExifForSavedImage_withoutPreloadedData() {
-        runBlocking {
-            // Arrange
-            val sourceImage = createTestImageInMediaStore()
-            val destImage = createTestImageInMediaStore()
-            val quality = 85
-
-            // Act - без предварительной загрузки данных
-            val handleResult = ExifUtil.handleExifForSavedImage(
-                context,
-                sourceImage,
-                destImage,
-                quality,
-                exifDataMemory = null
-            )
-
-            // Assert
-            assertThat(handleResult).isTrue()
-        }
-    }
-
-    /**
      * Тест 13: Получение маркера сжатия (не suspend вариант)
      */
     @Test
@@ -395,7 +288,7 @@ class ExifUtilInstrumentedTest {
             // Arrange
             val testImage = createTestImageInMediaStore()
             val quality = 70
-            ExifUtil.markCompressedImage(context, testImage, quality)
+            ExifUtil.writeSkipMarker(context, testImage, quality, null)
 
             // Act - не suspend метод
             val (isCompressed, markedQuality, timestamp) = runBlocking {
@@ -442,18 +335,18 @@ class ExifUtilInstrumentedTest {
      * Тест 15: Несколько маркеров сжатия (последний перезаписывает предыдущий)
      */
     @Test
-    fun test15_markCompressedImage_overwritesPreviousMarker() {
+    fun test15_writeSkipMarker_overwritesPreviousMarker() {
         runBlocking {
             // Arrange
             val testImage = createTestImageInMediaStore()
 
             // Act - добавляем первый маркер
-            ExifUtil.markCompressedImage(context, testImage, 70)
+            ExifUtil.writeSkipMarker(context, testImage, 70, null)
             val (compressed1, quality1, _) = ExifUtil.getCompressionMarker(context, testImage)
 
             // Act - добавляем второй маркер
             Thread.sleep(100) // чтобы timestamp отличался
-            ExifUtil.markCompressedImage(context, testImage, 90)
+            ExifUtil.writeSkipMarker(context, testImage, 90, null)
             val (compressed2, quality2, timestamp2) = ExifUtil.getCompressionMarker(context, testImage)
 
             // Assert
@@ -462,24 +355,6 @@ class ExifUtilInstrumentedTest {
             assertThat(compressed2).isTrue()
             assertThat(quality2).isEqualTo(90) // качество обновлено
             assertThat(timestamp2).isGreaterThan(0L)
-        }
-    }
-
-    /**
-     * Тест 16: Копирование EXIF с несуществующим исходным файлом
-     */
-    @Test
-    fun test16_copyExifData_returnsFalseForInvalidSourceUri() {
-        runBlocking {
-            // Arrange
-            val destImage = createTestImageInMediaStore()
-            val invalidSourceUri = android.net.Uri.parse("content://invalid/source")
-
-            // Act
-            val copyResult = ExifUtil.copyExifData(context, invalidSourceUri, destImage)
-
-            // Assert
-            assertThat(copyResult).isFalse()
         }
     }
 
@@ -561,7 +436,7 @@ class ExifUtilInstrumentedTest {
             val quality = 75
 
             // Добавляем маркер сжатия
-            val markResult = ExifUtil.markCompressedImage(context, jpegImage, quality)
+            val markResult = ExifUtil.writeSkipMarker(context, jpegImage, quality, null)
             assertThat(markResult).isTrue()
 
             // Act
@@ -938,7 +813,7 @@ class ExifUtilInstrumentedTest {
 
         // Теперь добавляем маркер
         runBlocking {
-            ExifUtil.markCompressedImage(context, jpegImage, 80)
+            ExifUtil.writeSkipMarker(context, jpegImage, 80, null)
         }
 
         // Act - после добавления маркера

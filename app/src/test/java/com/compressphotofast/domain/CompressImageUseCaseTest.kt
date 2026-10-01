@@ -54,7 +54,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         useCase = CompressImageUseCase(context, tracker, settings, events)
 
         coEvery { ExifUtil.readExifDataToMemory(any(), any()) } returns emptyMap()
-        coEvery { ExifUtil.writeExifDataFromMemory(any(), any(), any(), any(), any()) } returns true
+        coEvery { ExifUtil.writeSkipMarker(any(), any(), any(), any()) } returns true
         coEvery { UriUtil.getFileSize(any(), uri) } returns sourceSize
         coEvery { UriUtil.getFileSize(any(), savedUri) } returns 400_000L
         every { UriUtil.getFileNameFromUri(any(), any()) } returns "photo.jpg"
@@ -113,7 +113,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         val outcome = useCase(uri, params)
 
         assertTrue(outcome is CompressImageUseCase.Outcome.SkippedInefficient)
-        coVerify { ExifUtil.writeExifDataFromMemory(any(), uri, any(), 99, sourceSize) }
+        coVerify { ExifUtil.writeSkipMarker(any(), uri, 99, sourceSize) }
         assertFalse(artifact.exists())
     }
 
@@ -178,7 +178,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         val outcome = useCase(uri, params)
 
         assertTrue(outcome is CompressImageUseCase.Outcome.CompressedOriginalKept)
-        coVerify { ExifUtil.writeExifDataFromMemory(any(), uri, any(), 99, sourceSize) }
+        coVerify { ExifUtil.writeSkipMarker(any(), uri, 99, sourceSize) }
     }
 
     @Test

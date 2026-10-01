@@ -9,7 +9,6 @@ import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -315,309 +314,6 @@ object ExifUtil {
     }
     
     /**
-     * Копирует все важные EXIF-теги между двумя изображениями
-     * @param context Контекст приложения
-     * @param sourceUri URI исходного изображения
-     * @param destinationUri URI целевого изображения
-     * @return true если копирование успешно
-     */
-    suspend fun copyExifData(context: Context, sourceUri: Uri, destinationUri: Uri): Boolean = withContext(Dispatchers.IO) {
-        var pfd: android.os.ParcelFileDescriptor? = null
-        try {
-            LogUtil.processInfo("Копирование EXIF данных: $sourceUri -> $destinationUri")
-
-            // Получаем ExifInterface для исходного изображения
-            val sourceExif = getExifInterface(context, sourceUri) ?: return@withContext false
-
-            // Получаем ExifInterface для целевого изображения
-            // ВАЖНО: Не закрываем ParcelFileDescriptor до завершения saveAttributes()
-            pfd = try {
-                context.contentResolver.openFileDescriptor(destinationUri, "rw")
-            } catch (e: Exception) {
-                LogUtil.error(destinationUri, "Открытие ExifInterface", e)
-                return@withContext false
-            } ?: return@withContext false
-
-            val destExif = ExifInterface(pfd.fileDescriptor)
-
-            // Копируем все теги
-            copyExifTags(sourceExif, destExif)
-
-            // Сохраняем изменения (под защитой durable backup)
-            try {
-                LogUtil.processInfo("Вызываем saveAttributes() для сохранения EXIF данных")
-                if (!guardedExifWrite(context, destinationUri) { destExif.saveAttributes() }) {
-                    return@withContext false
-                }
-                LogUtil.processInfo("saveAttributes() выполнен успешно")
-
-                // Теперь можно закрыть дескриптор
-                pfd.close()
-                pfd = null
-
-                // Верификация GPS данных после сохранения
-                val savedExif = getExifInterface(context, destinationUri)
-                if (savedExif != null) {
-                    val gpsTagsAfterSave = checkGpsTagsAvailability(savedExif)
-                    LogUtil.processInfo("GPS теги после сохранения: $gpsTagsAfterSave")
-                    if (gpsTagsAfterSave.isNotEmpty()) {
-                        LogUtil.processInfo("✓ GPS данные успешно сохранены в файл")
-                    } else {
-                        LogUtil.processWarning("⚠ GPS данные не найдены в сохраненном файле")
-                    }
-                } else {
-                    LogUtil.processWarning("Не удалось открыть сохраненный файл для верификации GPS")
-                }
-
-                LogUtil.processInfo("EXIF данные успешно скопированы")
-            } catch (e: Exception) {
-                LogUtil.error(destinationUri, "Сохранение EXIF", e)
-                return@withContext false
-            }
-
-            // Проверяем успех копирования
-            val verificationResult = verifyExifCopy(sourceExif, getExifInterface(context, destinationUri) ?: return@withContext false)
-
-            if (verificationResult) {
-                LogUtil.processInfo("Проверка EXIF копирования успешна")
-            } else {
-                LogUtil.processInfo("Проверка EXIF копирования не прошла")
-            }
-
-            return@withContext verificationResult
-        } catch (e: Exception) {
-            LogUtil.error(sourceUri, "Копирование EXIF", e)
-            return@withContext false
-        } finally {
-            // Гарантированно закрываем дескриптор при любом исходе
-            pfd?.close()
-        }
-    }
-    
-    /**
-     * Копирует EXIF-теги между двумя объектами ExifInterface
-     * @param sourceExif Исходный объект ExifInterface
-     * @param destExif Целевой объект ExifInterface
-     */
-    private fun copyExifTags(sourceExif: ExifInterface, destExif: ExifInterface) {
-        // Копируем GPS данные через специальную функцию
-        copyGpsData(sourceExif, destExif)
-
-        // Копируем остальные теги
-        var tagsCopied = 0
-        var exifErrors = 0
-        for (tag in TAG_LIST) {
-            try {
-                val value = sourceExif.getAttribute(tag)
-                if (value != null) {
-                    destExif.setAttribute(tag, value)
-                    tagsCopied++
-                }
-            } catch (e: Exception) {
-                exifErrors++
-                LogUtil.warning(null, "EXIF", "Не удалось скопировать тег $tag: ${e.message}")
-            }
-        }
-
-        if (exifErrors > 0) {
-            LogUtil.warning(null, "EXIF", "Обнаружено $exifErrors ошибок при копировании EXIF тегов")
-        }
-
-        LogUtil.processInfo("Скопировано $tagsCopied EXIF-тегов")
-    }
-    
-    /**
-     * Копирует GPS-данные между двумя объектами ExifInterface
-     * @param sourceExif Исходный объект ExifInterface
-     * @param destExif Целевой объект ExifInterface
-     */
-    private fun copyGpsData(sourceExif: ExifInterface, destExif: ExifInterface) {
-        try {
-            LogUtil.processInfo("Начинаем копирование GPS данных")
-
-            // Сначала проверяем наличие GPS тегов в исходном файле
-            val gpsTagsAvailable = checkGpsTagsAvailability(sourceExif)
-            LogUtil.processInfo("GPS теги в исходном файле: $gpsTagsAvailable")
-
-            if (gpsTagsAvailable.isEmpty()) {
-                LogUtil.processInfo("GPS данные в исходном файле отсутствуют")
-                return
-            }
-
-            // Используем приоритетный метод: копирование отдельных GPS-тегов
-            var gpsTagsCopied = 0
-            var gpsErrors = 0
-            var detailedGpsInfo = StringBuilder("Копирование GPS тегов:\n")
-
-            for (tag in GPS_TAGS) {
-                try {
-                    val value = sourceExif.getAttribute(tag)
-                    if (value != null && value.isNotEmpty()) {
-                        destExif.setAttribute(tag, value)
-                        gpsTagsCopied++
-                        detailedGpsInfo.append("  $tag: $value\n")
-                        LogUtil.processInfo("GPS тег скопирован: $tag = $value")
-                    } else {
-                        detailedGpsInfo.append("  $tag: пусто/null\n")
-                    }
-                } catch (e: Exception) {
-                    gpsErrors++
-                    LogUtil.error(null, "Копирование GPS тега $tag", e)
-                    detailedGpsInfo.append("  $tag: ошибка - ${e.message}\n")
-                }
-            }
-
-            LogUtil.processInfo(detailedGpsInfo.toString().trimEnd())
-
-            if (gpsErrors > 0) {
-                LogUtil.warning(null, "EXIF", "Обнаружено $gpsErrors ошибок при копировании GPS тегов")
-            }
-
-            if (gpsTagsCopied > 0) {
-                LogUtil.processInfo("Успешно скопировано $gpsTagsCopied GPS-тегов через setAttribute")
-
-                // Дополнительная проверка: пробуем также setLatLong как backup
-                try {
-                    val latLong = sourceExif.latLong
-                    if (latLong != null) {
-                        LogUtil.processInfo("Дополнительно проверяем latLong API: широта=${latLong[0]}, долгота=${latLong[1]}")
-                        // Не перезаписываем уже скопированные теги, только логируем для сравнения
-                    }
-                } catch (e: Exception) {
-                    LogUtil.processInfo("latLong API недоступен для исходного файла: ${e.message}")
-                }
-            } else {
-                LogUtil.processWarning("Не удалось скопировать ни одного GPS тега")
-
-                // Fallback: пробуем latLong API
-                try {
-                    val latLong = sourceExif.latLong
-                    if (latLong != null) {
-                        destExif.setLatLong(latLong[0], latLong[1])
-
-                        // Копируем высоту
-                        val altitude = sourceExif.getAltitude(0.0)
-                        if (!altitude.isNaN()) {
-                            destExif.setAltitude(altitude)
-                        }
-
-                        LogUtil.processInfo("GPS данные скопированы через latLong API: широта=${latLong[0]}, долгота=${latLong[1]}")
-                    } else {
-                        LogUtil.processWarning("Не удалось скопировать GPS данные ни одним из методов")
-                    }
-                } catch (e: Exception) {
-                    LogUtil.error(null, "Fallback копирование через latLong API", e)
-                }
-            }
-        } catch (e: Exception) {
-            LogUtil.error(null, "Копирование GPS данных", e)
-        }
-    }
-    
-    /**
-     * Проверяет наличие GPS тегов в ExifInterface
-     * @param exif Объект ExifInterface для проверки
-     * @return Список доступных GPS тегов
-     */
-    private fun checkGpsTagsAvailability(exif: ExifInterface): List<String> {
-        val availableTags = mutableListOf<String>()
-        
-        for (tag in GPS_TAGS) {
-            try {
-                val value = exif.getAttribute(tag)
-                if (value != null && value.isNotEmpty()) {
-                    availableTags.add(tag)
-                }
-            } catch (e: Exception) {
-                LogUtil.warning(null, "EXIF", "Ошибка при проверке GPS тега $tag: ${e.message}")
-                // Игнорируем ошибки при проверке отдельных тегов
-            }
-        }
-        
-        return availableTags
-    }
-    
-    /**
-     * Проверяет успешность копирования EXIF-тегов
-     * @param sourceExif Исходный объект ExifInterface
-     * @param destExif Целевой объект ExifInterface
-     * @return true если копирование успешно
-     */
-    private fun verifyExifCopy(sourceExif: ExifInterface, destExif: ExifInterface): Boolean {
-        // Критические теги, наличие хотя бы одного из которых считается успешным копированием
-        val criticalTags = arrayOf(
-            ExifInterface.TAG_DATETIME,
-            ExifInterface.TAG_MODEL,
-            ExifInterface.TAG_MAKE,
-            ExifInterface.TAG_GPS_LATITUDE,
-            ExifInterface.TAG_GPS_LONGITUDE,
-            ExifInterface.TAG_EXPOSURE_TIME,
-            ExifInterface.TAG_F_NUMBER,
-            ExifInterface.TAG_FOCAL_LENGTH
-        )
-
-        var criticalTagCopied = false
-        val verificationDetails = StringBuilder("Проверка критических тегов:\n")
-
-        for (tag in criticalTags) {
-            val sourceValue = sourceExif.getAttribute(tag)
-            val destValue = destExif.getAttribute(tag)
-            val status = when {
-                sourceValue == null -> "отсутствует в источнике"
-                destValue == null -> "отсутствует в назначении"
-                sourceValue == destValue -> "✓ совпадает"
-                else -> "✗ не совпадает (источник: '$sourceValue', назначение: '$destValue')"
-            }
-            verificationDetails.append("  $tag: $status\n")
-
-            if (sourceValue != null && sourceValue == destValue) {
-                criticalTagCopied = true
-            }
-        }
-
-        LogUtil.processInfo(verificationDetails.toString().trimEnd())
-
-        // Подсчитываем общее количество скопированных тегов
-        var tagsCopied = 0
-        var totalTags = 0
-        var tagsMismatched = 0
-        val tagsDetails = StringBuilder("Проверка всех тегов из TAG_LIST:\n")
-
-        for (tag in TAG_LIST) {
-            val sourceValue = sourceExif.getAttribute(tag)
-            if (sourceValue != null) {
-                totalTags++
-                val destValue = destExif.getAttribute(tag)
-                when {
-                    sourceValue == destValue -> {
-                        tagsCopied++
-                        tagsDetails.append("  ✓ $tag: совпадает\n")
-                    }
-                    destValue == null -> {
-                        tagsDetails.append("  ✗ $tag: отсутствует в назначении (был '$sourceValue')\n")
-                    }
-                    else -> {
-                        // Тег есть в обоих, но значения разные
-                        tagsMismatched++
-                        tagsDetails.append("  ✗ $tag: не совпадает (источник: '$sourceValue', назначение: '$destValue')\n")
-                    }
-                }
-            }
-        }
-
-        LogUtil.processInfo(tagsDetails.toString().trimEnd())
-        LogUtil.processInfo("Результат верификации: criticalTagCopied=$criticalTagCopied, totalTags=$totalTags, tagsCopied=$tagsCopied, tagsMismatched=$tagsMismatched")
-
-        // Копирование успешно, если:
-        // 1. Скопирован хотя бы один критический тег, ИЛИ
-        // 2. Скопировано более половины всех тегов, ИЛИ
-        // 3. В исходном файле нет тегов для копирования (totalTags = 0) - операция completed успешно
-        val result = criticalTagCopied || (totalTags > 0 && tagsCopied >= totalTags / 2) || totalTags == 0
-        LogUtil.processInfo("Итоговая проверка верификации: $result")
-        return result
-    }
-    
-    /**
      * Считывает EXIF-данные в память для последующего применения
      * @param context Контекст приложения
      * @param uri URI изображения
@@ -873,6 +569,78 @@ object ExifUtil {
     }
 
     /**
+     * Записывает в исходный файл маркер пропуска (недостаточная экономия или
+     * неудалённый оригинал) одной записью: размер файла известен до записи, а
+     * дрейф `saveAttributes()` (до ~1 КБ) покрывается допуском
+     * [Constants.MARKER_SIZE_TOLERANCE_BYTES]. Теги не переписываются — файл
+     * не трансформирован, GPS и ориентация остаются нетронутыми.
+     *
+     * Если после записи размер ушёл сверх допуска — одна корректирующая запись
+     * с фактическим размером. Провал записи откатывает файл к состоянию без
+     * маркера ([guardedExifWrite]) — файл будет повторно проверен позже.
+     *
+     * @return true, если маркер записан
+     */
+    suspend fun writeSkipMarker(
+        context: Context,
+        uri: Uri,
+        quality: Int,
+        originalFileSize: Long?
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Вне replace-режима сохраняем исходную date_modified (см. applyExifFromMemory)
+            val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+            val originalLastModified = if (!isReplaceMode) UriUtil.getFileLastModified(context, uri) else 0L
+
+            val sizeBefore = getActualFileSizeOnDisk(context, uri)
+            if (sizeBefore == null || sizeBefore <= 0L) {
+                LogUtil.warning(uri, "Маркер пропуска", "Не удалось получить размер файла, маркер не записан")
+                return@withContext false
+            }
+
+            val markerTimestamp = System.currentTimeMillis()
+            val marker = CompressionMarker.build(quality, markerTimestamp, sizeBefore, originalFileSize)
+            val written = guardedExifWrite(context, uri) { writeUserCommentInPlace(context, uri, marker) }
+            if (!written) {
+                LogUtil.warning(uri, "Маркер пропуска", "Запись маркера не удалась, файл оставлен без маркера")
+                return@withContext false
+            }
+
+            val sizeAfter = getActualFileSizeOnDisk(context, uri)
+            if (sizeAfter != null &&
+                kotlin.math.abs(sizeAfter - sizeBefore) > Constants.MARKER_SIZE_TOLERANCE_BYTES
+            ) {
+                LogUtil.processInfo(
+                    "Маркер пропуска: дрейф saveAttributes() $sizeBefore → $sizeAfter сверх допуска, корректирующая запись"
+                )
+                writeMarkerWithSize(context, uri, quality, markerTimestamp, sizeAfter, originalFileSize)
+            }
+
+            if (!isReplaceMode && originalLastModified > 0) {
+                MediaStoreDateUtil.restoreModifiedDate(context, uri, originalLastModified)
+            }
+            LogUtil.processInfo("✅ Маркер пропуска записан: $marker")
+            return@withContext true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Маркер пропуска", e)
+
+            // HEIC: ExifInterface не умеет сохранять — маркер через переименование
+            if (isHeicFile(context, uri) &&
+                (e.message?.contains("only supports saving attributes for JPEG, PNG, and WebP") == true ||
+                 e is IOException)) {
+                LogUtil.processInfo("HEIC файл: попытка добавить маркер через переименование")
+                if (markHeicFileAsCompressed(context, uri)) {
+                    LogUtil.processInfo("✅ HEIC файл помечен как сжатый через переименование")
+                    return@withContext true
+                }
+            }
+            return@withContext false
+        }
+    }
+
+    /**
      * Переносит теги из [exifData] (результат [readExifDataToMemory]) в [exif]:
      * строковые теги, GPS и, при [pixelsTransformed], Orientation=NORMAL.
      * @return число применённых строковых тегов
@@ -1122,21 +890,26 @@ object ExifUtil {
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val markerWithSize = CompressionMarker.build(quality, markerTimestamp, size, originalFileSize)
-            guardedExifWrite(context, uri) {
-                // Дескриптор не открыт — маркер не записан: обязаны вернуть false
-                // (через исключение), иначе вызывающий код сочтёт запись успешной
-                val pfd = context.contentResolver.openFileDescriptor(uri, "rw")
-                    ?: throw IOException("Не удалось открыть дескриптор для записи маркера")
-                pfd.use {
-                    val exif = ExifInterface(it.fileDescriptor)
-                    exif.setAttribute(ExifInterface.TAG_USER_COMMENT, markerWithSize)
-                    exif.saveAttributes()
-                }
-            }
+            guardedExifWrite(context, uri) { writeUserCommentInPlace(context, uri, markerWithSize) }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             LogUtil.error(uri, "Маркер сжатия", "Не удалось записать размер файла в маркер", e)
             return@withContext false
+        }
+    }
+
+    /**
+     * Перезаписывает TAG_USER_COMMENT файла на месте через дескриптор (`saveAttributes()`).
+     * Вызывать только внутри [guardedExifWrite]. Дескриптор не открыт — исключение,
+     * иначе вызывающий код счёл бы запись успешной.
+     */
+    internal fun writeUserCommentInPlace(context: Context, uri: Uri, comment: String) {
+        val pfd = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Не удалось открыть дескриптор для записи маркера")
+        pfd.use {
+            val exif = ExifInterface(it.fileDescriptor)
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, comment)
+            exif.saveAttributes()
         }
     }
 
@@ -1190,47 +963,6 @@ object ExifUtil {
         }
 
     /**
-     * Добавляет маркер сжатия к изображению
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @param quality Качество сжатия
-     * @return true если маркер успешно добавлен
-     */
-    suspend fun markCompressedImage(context: Context, uri: Uri, quality: Int, originalFileSize: Long? = null): Boolean = withContext(Dispatchers.IO) {
-        try {
-            LogUtil.processInfo("Добавление маркера сжатия: $uri, качество=$quality")
-
-            val markerTimestamp = System.currentTimeMillis()
-
-            context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
-                val exif = ExifInterface(pfd.fileDescriptor)
-
-                // Фаза 1: маркер с нулевой заглушкой размера фиксированной ширины
-                val markerPlaceholder = CompressionMarker.build(quality, markerTimestamp, null, originalFileSize)
-
-                exif.setAttribute(ExifInterface.TAG_USER_COMMENT, markerPlaceholder)
-                if (!guardedExifWrite(context, uri) { exif.saveAttributes() }) {
-                    return@withContext false
-                }
-
-                LogUtil.processInfo("Маркер сжатия успешно добавлен")
-            } ?: run {
-                LogUtil.error(uri, "Запись маркера", "Не удалось открыть файл для добавления маркера")
-                return@withContext false
-            }
-
-            // Фаза 2: запись фактического размера файла в маркер одной записью
-            // (дрейф saveAttributes() покрывается допуском в чекере)
-            writeActualSizeMarker(context, uri, quality, markerTimestamp, originalFileSize)
-
-            return@withContext true
-        } catch (e: Exception) {
-            LogUtil.error(uri, "Добавление маркера сжатия", e)
-            return@withContext false
-        }
-    }
-    
-    /**
      * Получает информацию о сжатии из тега UserComment
      * @param context Контекст приложения
      * @param uri URI изображения
@@ -1282,82 +1014,6 @@ object ExifUtil {
         return CompressionMarkerInfo.NOT_COMPRESSED
     }
 
-    /**
-     * Централизованный метод для обработки EXIF данных при сохранении сжатого изображения
-     * 
-     * @param context Контекст приложения
-     * @param sourceUri URI исходного изображения
-     * @param destinationUri URI сохраненного изображения
-     * @param quality Качество сжатия
-     * @param exifDataMemory Предварительно загруженные EXIF данные или null
-     * @param originalFileSize Исходный размер файла до сжатия (для поля origSize маркера)
-     * @return true если обработка EXIF данных успешна, false в противном случае
-     */
-    suspend fun handleExifForSavedImage(
-        context: Context, 
-        sourceUri: Uri, 
-        destinationUri: Uri, 
-        quality: Int,
-        exifDataMemory: Map<String, Any>? = null,
-        originalFileSize: Long? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        var exifSuccess = false
-        
-        try {
-            // Используем заранее загруженные EXIF данные, если они доступны
-            if (exifDataMemory != null && exifDataMemory.isNotEmpty()) {
-                try {
-                    exifSuccess = applyExifFromMemory(
-                        context, destinationUri, exifDataMemory, quality, originalFileSize,
-                        pixelsTransformed = true
-                    )
-                    // Целостность после каждой записи проверяет guardedExifWrite,
-                    // итоговую — вызывающий MediaStoreUtil
-                    LogUtil.processInfo("Применение EXIF данных из памяти: ${if (exifSuccess) "успешно" else "неудачно"}")
-                } catch (e: Exception) {
-                    LogUtil.error(destinationUri, "EXIF", "Ошибка при применении EXIF данных из памяти", e)
-                }
-            } else {
-                // Если заранее загруженных данных нет, пробуем скопировать EXIF обычным способом
-                try {
-                    // Дополнительная задержка перед работой с EXIF
-                    delay(Constants.EXIF_COPY_DELAY_MS)
-                    exifSuccess = copyExifData(context, sourceUri, destinationUri)
-                    LogUtil.processDebug("Копирование EXIF данных между URI: ${if (exifSuccess) "успешно" else "неудачно"}")
-                    
-                    if (!exifSuccess) {
-                        LogUtil.processWarning("Не удалось скопировать EXIF данные, пробуем добавить только маркер сжатия")
-                        exifSuccess = markCompressedImage(context, destinationUri, quality, originalFileSize)
-                    }
-                } catch (e: Exception) {
-                    LogUtil.error(sourceUri, "Копирование EXIF", e)
-                }
-            }
-            
-            return@withContext exifSuccess
-        } catch (e: Exception) {
-            LogUtil.error(sourceUri, "Обработка EXIF данных", e)
-            return@withContext false
-        }
-    }
-    
-    /**
-     * Записывает EXIF данные из памяти в изображение
-     * @param context Контекст приложения
-     * @param uri URI изображения
-     * @param exifData Карта с EXIF-тегами и их значениями
-     * @return true если запись успешна
-     */
-    suspend fun writeExifDataFromMemory(
-        context: Context, 
-        uri: Uri, 
-        exifData: Map<String, Any>,
-        quality: Int? = null,
-        originalFileSize: Long? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        return@withContext applyExifFromMemory(context, uri, exifData, quality, originalFileSize)
-    }
-    
     /**
      * Проверяет наличие любых дат в EXIF данных
      * @param exif Объект ExifInterface для проверки

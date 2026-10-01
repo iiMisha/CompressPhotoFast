@@ -126,7 +126,7 @@ class CompressImageUseCase @Inject constructor(
             return if (testResult.isEfficient()) {
                 saveCompressed(imageUri, params, exifDataMemory, testResult, sourceSize, snapshot)
             } else {
-                markInefficient(imageUri, exifDataMemory, testResult, sourceSize, snapshot)
+                markInefficient(imageUri, testResult, sourceSize, snapshot)
             }
         } finally {
             testResult.deleteArtifact()
@@ -215,8 +215,11 @@ class CompressImageUseCase @Inject constructor(
         if (isReplaceMode && !overwrittenInPlace && !deleteOriginal(imageUri)) {
             // Сжатый файл уже сохранён: маркер в неудалённом оригинале исключает повторную обработку
             try {
-                ExifUtil.writeExifDataFromMemory(context, imageUri, exifDataMemory, 99, sourceSize)
-                LogUtil.processInfo("Маркер сжатия записан в неудалённый оригинал для предотвращения повторной обработки")
+                if (ExifUtil.writeSkipMarker(context, imageUri, 99, sourceSize)) {
+                    LogUtil.processInfo("Маркер сжатия записан в неудалённый оригинал для предотвращения повторной обработки")
+                } else {
+                    LogUtil.warning(imageUri, "Маркер", "Маркер в неудалённый оригинал не записан")
+                }
             } catch (e: Exception) {
                 LogUtil.error(imageUri, "Маркер", "Не удалось записать маркер в оригинал", e)
             }
@@ -274,12 +277,14 @@ class CompressImageUseCase @Inject constructor(
      */
     private suspend fun markInefficient(
         imageUri: Uri,
-        exifDataMemory: Map<String, Any>,
         testResult: ImageCompressionUtil.CompressionTestResult,
         sourceSize: Long,
         snapshot: MediaItemSnapshot?
     ): Outcome {
-        ExifUtil.writeExifDataFromMemory(context, imageUri, exifDataMemory, 99, sourceSize)
+        if (!ExifUtil.writeSkipMarker(context, imageUri, 99, sourceSize)) {
+            // Без маркера файл будет повторно протестирован при следующем скане
+            LogUtil.warning(imageUri, "Маркер", "Маркер пропуска не записан")
+        }
         return Outcome.SkippedInefficient(
             fileName = snapshot?.displayName ?: getFileNameSafely(imageUri),
             originalSize = sourceSize,

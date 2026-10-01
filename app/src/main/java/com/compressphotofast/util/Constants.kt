@@ -85,9 +85,6 @@ object Constants {
     // Временные файлы
     const val TEMP_FILE_MAX_AGE = 30 * 60 * 1000L // 30 минут
     
-    // Задержки для EXIF и MediaStore операций (мс)
-    const val EXIF_COPY_DELAY_MS = 300L
-
     // Пресеты максимального разрешения (по большей стороне). 0 — сохранить исходное разрешение
     const val RESOLUTION_ORIGINAL = 0
     const val RESOLUTION_2560 = 2560
