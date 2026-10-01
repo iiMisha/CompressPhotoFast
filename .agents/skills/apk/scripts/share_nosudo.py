@@ -6,9 +6,10 @@ root/nginx/systemd.
 
 Режим поднимает встроенный Python HTTP-сервер на непривилегированном порту
 (8080 по умолчанию), БЕЗ root/nginx/systemd. APK отдаётся по неугадываемому
-одноразовому URL:
-    http://<host>:<port>/<token>/app-debug.apk
-где <token> = 32 hex-символа. Листинг директорий запрещён, чужие пути → 404.
+одноразовому короткому URL (удобно вводить вручную) и печатает QR-код:
+    http://<host>:<port>/<token>
+где <token> = 5 символов без неоднозначных (0/o, 1/l/i). Защита от перебора —
+бан IP после 10 промахов (404) до конца TTL. Листинг запрещён, чужие пути → 404.
 APK отдаётся с корректным MIME и Content-Disposition: attachment.
 
 Реализован TTL: серверный процесс сам завершается и чистит каталог по
@@ -41,6 +42,7 @@ import http.server
 import json
 import os
 import re
+import secrets
 import shutil
 import signal
 import socket
@@ -69,8 +71,11 @@ META_DIR = Path(os.path.expanduser("~/.local/share/apk-share-compressphotofast")
 DEFAULT_PORT = 8080
 PORT_SCAN_LIMIT = 20
 DEFAULT_TTL = "1h"
-TOKEN_BYTES = 16  # 32 hex-символа
-APK_FILENAME = "app-debug.apk"          # имя в URL (как в sudo-режиме)
+TOKEN_LEN = 5
+# Без неоднозначных символов (0/o, 1/l/i): 31^5 ≈ 28,6 млн вариантов.
+TOKEN_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"
+MAX_MISSES_PER_IP = 10  # после N ответов 404 IP банится до конца TTL
+APK_FILENAME = "app-debug.apk"          # имя файла в каталоге токена
 
 
 # --- Базовые утилиты ---------------------------------------------------------
@@ -129,7 +134,32 @@ def cleanup_old_apks(keep_path, variant):
 
 # --- Токен, IP, TTL ----------------------------------------------------------
 def make_token():
-    return os.urandom(TOKEN_BYTES).hex()
+    while True:
+        token = "".join(secrets.choice(TOKEN_ALPHABET) for _ in range(TOKEN_LEN))
+        if not (SHARE_ROOT / token).exists() and not meta_path(token).exists():
+            return token
+
+
+# --- QR-код в терминале --------------------------------------------------------
+def render_qr(text, invert=False):
+    """QR-код полублоками (2 ряда модулей на строку), тихая зона 2 модуля.
+
+    По умолчанию рассчитан на тёмный терминал: блоками рисуются СВЕТЛЫЕ модули,
+    на экране получается тёмный код на светлом фоне. invert=True — для светлой темы."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from qrcodegen import QrCode
+    qr = QrCode.encode_text(text, QrCode.Ecc.MEDIUM)
+    border = 2
+    rng = range(-border, qr.get_size() + border)
+
+    def lit(x, y):
+        return qr.get_module(x, y) == invert  # get_module вне матрицы → False (светлый)
+
+    chars = {(True, True): "█", (True, False): "▀", (False, True): "▄", (False, False): " "}
+    lines = []
+    for y in range(-border, qr.get_size() + border, 2):
+        lines.append("".join(chars[(lit(x, y), lit(x, y + 1))] for x in rng))
+    return "\n".join(lines)
 
 
 def public_ip():
@@ -245,7 +275,8 @@ def pid_alive(pid):
 
 
 # --- Публикация --------------------------------------------------------------
-def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debug"):
+def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debug",
+            qr=True, qr_invert=False):
     apk_filename = "app-release.apk" if variant == "release" else APK_FILENAME
     if not no_build:
         build_apk(variant)
@@ -287,7 +318,7 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debu
     link.symlink_to(apk_path.resolve())
 
     download_name = make_download_name(apk_path, variant)
-    url = f"http://{host}:{port}/{token}/{apk_filename}"
+    url = f"http://{host}:{port}/{token}"
     meta = {
         "token": token,
         "pid": None,
@@ -316,7 +347,8 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debu
     # гонку между запуском subprocess и записью meta-файла на диск.
     proc = subprocess.Popen(
         [sys.executable, __file__, "--serve", token, str(ttl_seconds),
-         "--port", str(port), "--download-name", download_name],
+         "--port", str(port), "--download-name", download_name,
+         "--apk-filename", apk_filename],
         cwd=str(SHARE_ROOT),
         stdout=log, stderr=log,
         start_new_session=True,  # detach от управляющего терминала
@@ -332,7 +364,11 @@ def publish(apk_path, ttl_seconds, host, port, no_build, keep_old, variant="debu
     print("📱 Ссылка на скачивание APK (без sudo, порт %d):" % port)
     print()
     print("    " + url)
+    print("    вручную: " + url.removeprefix("http://"))
     print()
+    if qr:
+        print(render_qr(url, qr_invert))
+        print()
     print(f"    Размер: {size_mb:.0f} МБ · TTL: {fmt_ttl(ttl_seconds)} · файл: {download_name}")
     print(f"    PID сервера: {proc.pid} (жив: {'да' if pid_alive(proc.pid) else 'НЕТ'})")
     print(f"    Лог: {log_file}")
@@ -358,7 +394,7 @@ def verify_url(url):
 
 
 # --- Управление ссылками -----------------------------------------------------
-def list_shares():
+def list_shares(qr=True, qr_invert=False):
     if not META_DIR.exists():
         info("Активных ссылок нет.")
         return
@@ -382,6 +418,9 @@ def list_shares():
             print(f"    файл: {m['download_name']}")
         print(f"    создан: {m.get('created')} · истекает: {m.get('expires_at')}")
         print()
+        if qr and alive and m.get("url"):
+            print(render_qr(m["url"], qr_invert))
+            print()
 
 
 def stop_token(token):
@@ -447,10 +486,36 @@ class ApkHandler(http.server.SimpleHTTPRequestHandler):
     # не на всё соединение).
     timeout = 300
 
-    def __init__(self, *a, directory, download_name="CompressPhotoFast-debug.apk", **kw):
+    # Счётчик промахов (404) по IP — общий для процесса: защита короткого токена
+    # от перебора. После MAX_MISSES_PER_IP IP получает 404 на всё до конца TTL.
+    _misses = {}
+    _misses_lock = threading.Lock()
+
+    def __init__(self, *a, directory, token, apk_filename,
+                 download_name="CompressPhotoFast-debug.apk", **kw):
+        self.token = token
+        self.apk_filename = apk_filename
         self.download_name = download_name
         self._range_bytes = None
+        self._is_apk = False
         super().__init__(*a, directory=str(directory), **kw)
+
+    def _resolve_apk(self):
+        """Путь к APK для валидного запроса, иначе None. Принимаются /<token>,
+        /<token>/ и прежний /<token>/<apk_filename>."""
+        ip = self.client_address[0]
+        with self._misses_lock:
+            if self._misses.get(ip, 0) >= MAX_MISSES_PER_IP:
+                return None
+        path = self.path.split("?", 1)[0].split("#", 1)[0]
+        allowed = {f"/{self.token}", f"/{self.token}/", f"/{self.token}/{self.apk_filename}"}
+        if path in allowed:
+            return os.path.join(self.directory, self.token, self.apk_filename)
+        with self._misses_lock:
+            self._misses[ip] = self._misses.get(ip, 0) + 1
+            if self._misses[ip] == MAX_MISSES_PER_IP:
+                sys.stderr.write(f"[serve] IP {ip} забанен после {MAX_MISSES_PER_IP} промахов\n")
+        return None
 
     def list_directory(self, path):
         # Запрет листинга любых директорий.
@@ -463,9 +528,9 @@ class ApkHandler(http.server.SimpleHTTPRequestHandler):
         return super().guess_type(path)
 
     def send_head(self):
-        path = self.translate_path(self.path)
-        if os.path.isdir(path):
-            self.send_error(404, "No listing")
+        path = self._resolve_apk()
+        if path is None:
+            self.send_error(404, "File not found")
             return None
         try:
             f = open(path, "rb")
@@ -495,6 +560,7 @@ class ApkHandler(http.server.SimpleHTTPRequestHandler):
                         self.end_headers()
                         return None
                     status = 206
+            self._is_apk = True
             self.send_response(status)
             if status == 206:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
@@ -524,7 +590,7 @@ class ApkHandler(http.server.SimpleHTTPRequestHandler):
 
     def end_headers(self):
         # Content-Type для .apk выставляет guess_type() — добавляем форс-скачивание.
-        if self.path.endswith(".apk"):
+        if self._is_apk:
             self.send_header("Content-Disposition", f'attachment; filename="{self.download_name}"')
         self.send_header("Access-Control-Allow-Origin", "*")
         super().end_headers()
@@ -534,7 +600,7 @@ class ApkHandler(http.server.SimpleHTTPRequestHandler):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
 
-def serve(token, port, ttl_seconds, download_name=None):
+def serve(token, port, ttl_seconds, download_name=None, apk_filename=None):
     """Целевой режим дочернего процесса. Крутит HTTP-сервер + TTL-поток."""
     token_dir = SHARE_ROOT / token
     if not token_dir.exists():
@@ -553,7 +619,10 @@ def serve(token, port, ttl_seconds, download_name=None):
 
     httpd = ReusableThreadingTCPServer(
         ("0.0.0.0", port),
-        lambda *a, **kw: ApkHandler(*a, directory=SHARE_ROOT, download_name=download_name, **kw),
+        lambda *a, **kw: ApkHandler(
+            *a, directory=SHARE_ROOT, token=token,
+            apk_filename=apk_filename or APK_FILENAME,
+            download_name=download_name, **kw),
     )
 
     def ttl_killer():
@@ -597,22 +666,27 @@ def main():
     ap.add_argument("--serve", nargs=2, metavar=("TOKEN", "TTL_SECONDS"),
                     help=argparse.SUPPRESS)  # внутренний режим дочернего процесса
     ap.add_argument("--download-name", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--apk-filename", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--no-qr", action="store_true", help="не печатать QR-код")
+    ap.add_argument("--qr-invert", action="store_true",
+                    help="инвертировать QR (для светлой темы терминала)")
     args = ap.parse_args()
 
     if args.serve:
-        serve(args.serve[0], args.port, int(args.serve[1]), args.download_name)
+        serve(args.serve[0], args.port, int(args.serve[1]), args.download_name, args.apk_filename)
         return
     if args.stop_all:
         stop_all(); return
     if args.stop:
         stop_token(args.stop); return
     if args.list:
-        list_shares(); return
+        list_shares(not args.no_qr, args.qr_invert); return
 
     host = args.host or public_ip()
     ttl_seconds = parse_ttl(args.ttl)
     variant = "release" if args.release else "debug"
-    publish(None, ttl_seconds, host, args.port, args.no_build, args.keep, variant)
+    publish(None, ttl_seconds, host, args.port, args.no_build, args.keep, variant,
+            qr=not args.no_qr, qr_invert=args.qr_invert)
 
 
 if __name__ == "__main__":
