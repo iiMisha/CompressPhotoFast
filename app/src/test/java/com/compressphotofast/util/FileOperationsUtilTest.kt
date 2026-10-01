@@ -413,4 +413,27 @@ class FileOperationsUtilTest : BaseUnitTest() {
         // Assert
         assertEquals(fileName, result)
     }
+
+    @Test
+    fun `hasCompressedVersionName matches base and extension ignoring case`() {
+        val names = listOf("other.jpg", "img_1234_compressed.JPG")
+
+        assertTrue(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", names))
+        assertTrue(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMG_1234.jpg")))
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMG_1234.png")))
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", emptyList()))
+    }
+
+    @Test
+    fun `hasCompressedVersionName treats underscore as literal unlike LIKE`() {
+        // В SQLite LIKE '_' совпал бы с любым символом; в памяти — только с '_'
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMGX1234_compressed.jpg")))
+    }
+
+    @Test
+    fun `hasCompressedVersionName does not overlap base and extension`() {
+        // Имя короче base+ext не совпадает, пустое имя оригинала — тоже
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("photo.jpg", listOf("photo")))
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("", listOf("photo.jpg")))
+    }
 }

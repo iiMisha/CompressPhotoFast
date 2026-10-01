@@ -47,6 +47,11 @@ class ImageCompressionWorker @AssistedInject constructor(
 
     companion object {
         private const val MAX_TRANSIENT_ATTEMPTS = 5
+        internal const val MAX_OOM_ATTEMPTS = 2
+
+        /** Разрешён ли ещё один запуск после попытки [runAttemptCount] (0-based). */
+        internal fun shouldRetry(runAttemptCount: Int, maxAttempts: Int = MAX_TRANSIENT_ATTEMPTS): Boolean =
+            runAttemptCount + 1 < maxAttempts
     }
 
     // Переопределяем поле applicationContext для удобного доступа
@@ -178,12 +183,19 @@ class ImageCompressionWorker @AssistedInject constructor(
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие", "Ошибка при сжатии изображения", e)
 
+            // OOM может быть следствием давления на heap от других компонентов
+            // процесса (Coil, UI): одна повторная попытка, а не весь transient-бюджет.
+            if (e is CompressionException.OutOfMemory) {
+                return@withContext retryOrFinish(
+                    globalImageUri, "OutOfMemory: ${e.message}", e, MAX_OOM_ATTEMPTS
+                )
+            }
+
             // Все transient-ветки используют единый bounded retry.
             val isTransient = e is java.io.IOException ||
                 e is PendingItemException ||
                 e is RecoverableSecurityException ||
                 e is CompressionException.InsufficientMemory ||
-                e is CompressionException.OutOfMemory ||
                 e is ForegroundServiceStartNotAllowedException ||
                 e is SecurityException ||
                 (e is IllegalStateException && e.message?.contains("foreground", ignoreCase = true) == true)
@@ -209,10 +221,15 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
     }
 
-    private fun retryOrFinish(uri: Uri?, reason: String, error: Throwable?): Result {
+    private fun retryOrFinish(
+        uri: Uri?,
+        reason: String,
+        error: Throwable?,
+        maxAttempts: Int = MAX_TRANSIENT_ATTEMPTS
+    ): Result {
         val attempt = runAttemptCount + 1
-        if (attempt < MAX_TRANSIENT_ATTEMPTS) {
-            LogUtil.warning(uri, "Сжатие", "Transient attempt $attempt/$MAX_TRANSIENT_ATTEMPTS: $reason")
+        if (shouldRetry(runAttemptCount, maxAttempts)) {
+            LogUtil.warning(uri, "Сжатие", "Transient attempt $attempt/$maxAttempts: $reason")
             if (error != null) LogUtil.error(uri, "Сжатие", "Transient detail", error)
             return Result.retry()
         }

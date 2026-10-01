@@ -71,16 +71,12 @@ object StatsTracker {
                 totalCompressedBytes = currentCompressedBytes + compressedSize
             )
 
-            val saved = preferences.edit()
+            preferences.edit()
                 .putLong(Constants.PREF_DAILY_STATS_EPOCH_DAY, stats.epochDay)
                 .putInt(Constants.PREF_DAILY_STATS_SUCCESSFUL_COUNT, stats.successfulCount)
                 .putLong(Constants.PREF_DAILY_STATS_ORIGINAL_BYTES, stats.totalOriginalBytes)
                 .putLong(Constants.PREF_DAILY_STATS_COMPRESSED_BYTES, stats.totalCompressedBytes)
-                .commit()
-            if (!saved) {
-                LogUtil.warning(null, "StatsTracker", "Не удалось сохранить суточную статистику сжатия")
-                return null
-            }
+                .apply()
             return stats
         }
     }

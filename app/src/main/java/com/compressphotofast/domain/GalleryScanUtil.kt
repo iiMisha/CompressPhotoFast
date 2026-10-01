@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.compressphotofast.data.FileOperationsUtil
 import com.compressphotofast.data.MediaItemSnapshot
 import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.util.Constants
@@ -81,7 +82,6 @@ class GalleryScanUtil @Inject constructor(
             )
             cursor.use {
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                val nameColumn = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
                 val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
                 
                 val totalImages = cursor.count
@@ -89,14 +89,11 @@ class GalleryScanUtil @Inject constructor(
                 
                 // Сначала собираем все URI для пакетной обработки
                 val allUris = mutableListOf<Uri>()
-                val uriSizeMap = mutableMapOf<Uri, Long>()
-                val uriNameMap = mutableMapOf<Uri, String>()
                 val snapshots = mutableMapOf<Uri, MediaItemSnapshot>()
                 val columns = MediaItemSnapshot.Columns(cursor)
                 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idColumn)
-                    val name = if (nameColumn != -1) cursor.getString(nameColumn) else "unknown"
                     val size = if (sizeColumn != -1) cursor.getLong(sizeColumn) else 0L
                     
                     // Пропускаем слишком маленькие файлы
@@ -120,14 +117,19 @@ class GalleryScanUtil @Inject constructor(
                     
 
                     allUris.add(contentUri)
-                    uriSizeMap[contentUri] = size
-                    uriNameMap[contentUri] = name
                     snapshots[contentUri] = MediaItemSnapshot.fromCursor(cursor, contentUri, columns)
                 }
                 
                 if (checkProcessable && allUris.isNotEmpty()) {
+                    // Сжатые копии ищутся один раз на скан (только separate-режим)
+                    val appDirectoryNames = if (!FileOperationsUtil.isSaveModeReplace(context)) {
+                        FileOperationsUtil.queryAppDirectoryFileNames(context)
+                    } else null
                     for (uri in allUris) {
-                        if (imageProcessingChecker.shouldProcessImage(uri, snapshot = snapshots[uri])) {
+                        if (imageProcessingChecker.shouldProcessImage(
+                                uri, snapshot = snapshots[uri], appDirectoryNames = appDirectoryNames
+                            )
+                        ) {
                             foundUris.add(uri)
                             processedCount++
                         } else {

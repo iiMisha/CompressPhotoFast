@@ -205,9 +205,11 @@ object BackupRegistry {
                 val prefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
                 val current = readMap(prefs.getString(Constants.PREF_PENDING_BACKUPS, null))
                 if (current.remove(backupPath) != null) {
+                    // apply: stale-запись на уже удалённый файл после смерти процесса
+                    // отфильтрует BackupRecoveryHelper; create остаётся commit.
                     prefs.edit()
                         .putString(Constants.PREF_PENDING_BACKUPS, writeMap(current))
-                        .commit()
+                        .apply()
                 }
             }
         } catch (e: Exception) {

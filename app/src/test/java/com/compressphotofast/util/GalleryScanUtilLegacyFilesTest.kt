@@ -173,7 +173,7 @@ class GalleryScanUtilLegacyFilesTest : BaseUnitTest() {
         // Мокаем SettingsManager
         every { settings.isAutoCompressionEnabled() } returns true
 
-        coEvery { checker.shouldProcessImage(any(), any(), any()) } returns true
+        coEvery { checker.shouldProcessImage(any(), any(), any(), any()) } returns true
 
         // Выполняем сканирование истории
         val result = scanner().scanRecentImages(Constants.HISTORY_SCAN_WINDOW_SECONDS.toInt())

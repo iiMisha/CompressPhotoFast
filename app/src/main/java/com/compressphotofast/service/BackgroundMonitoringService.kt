@@ -18,8 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,7 +28,6 @@ import com.compressphotofast.platform.NotificationUtil
 import com.compressphotofast.data.MediaStoreObserver
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.UriProcessingTracker
-import com.compressphotofast.domain.CompressionEvents
 import com.compressphotofast.domain.CompressionWorkScheduler
 import com.compressphotofast.domain.CompressionEnqueueResult
 import javax.inject.Inject
@@ -90,9 +87,6 @@ class BackgroundMonitoringService : Service() {
     @Inject
     lateinit var galleryScanCoordinator: GalleryScanCoordinator
 
-    @Inject
-    lateinit var compressionEvents: CompressionEvents
-
     // MediaStoreObserver для централизованной работы с ContentObserver
     private var mediaStoreObserver: MediaStoreObserver? = null
 
@@ -105,9 +99,6 @@ class BackgroundMonitoringService : Service() {
 
     // Job для периодической очистки временных файлов
     private var cleanupJob: Job? = null
-
-    // Подписка на события воркера
-    private var eventsJob: Job? = null
 
     // Mutex для предотвращения конкурентного сканирования
 
@@ -132,19 +123,6 @@ class BackgroundMonitoringService : Service() {
         }
     }
 
-    /**
-     * Реакция на успешное одиночное сжатие: снимаем URI из обрабатываемых,
-     * показываем результат и игнорируем собственное изменение файла.
-     */
-    private suspend fun handleCompressionResult(event: CompressionEvents.Event.Result) {
-        uriProcessingTracker.removeProcessingUriSafe(event.uri)
-        NotificationUtil.showCompressionResultNotification(
-            applicationContext, event.fileName, event.originalSize, event.compressedSize,
-            event.sizeReduction, skipped = false
-        )
-        uriProcessingTracker.setIgnorePeriod(event.uri)
-    }
-
     override fun onCreate() {
         super.onCreate()
         isRunning = false
@@ -163,21 +141,6 @@ class BackgroundMonitoringService : Service() {
             }
 
             setupContentObserver()
-            eventsJob = serviceScope.launch {
-                compressionEvents.events
-                    .filterIsInstance<CompressionEvents.Event.Result>()
-                    .filter { !it.skipped }
-                    .collect { event ->
-                        try {
-                            handleCompressionResult(event)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            LogUtil.error(event.uri, "ServiceEvents", "Ошибка обработки результата сжатия", e)
-                        }
-                    }
-            }
-
             isRunning = true
             isReady = true
             // Content-trigger Job остаётся armed всегда: в отличие от ContentObserver
@@ -193,7 +156,6 @@ class BackgroundMonitoringService : Service() {
             LogUtil.error(null, "BackgroundMonitoringService", "Не удалось подготовить monitoring FGS", e)
             try {
                 mediaStoreObserver?.unregister()
-                eventsJob?.cancel()
             } catch (_: Exception) {
                 // Ресурсы могли не успеть зарегистрироваться.
             }
@@ -329,7 +291,6 @@ class BackgroundMonitoringService : Service() {
         mediaStoreObserver?.unregister()
         scanJob?.cancel()
         cleanupJob?.cancel()
-        eventsJob?.cancel()
     }
     
     /**

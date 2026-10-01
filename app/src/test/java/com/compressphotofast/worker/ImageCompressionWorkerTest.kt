@@ -1,6 +1,8 @@
 package com.compressphotofast.worker
 
 import com.compressphotofast.BaseUnitTest
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -39,5 +41,15 @@ class ImageCompressionWorkerTest : BaseUnitTest() {
         val separateMode = false
         val shouldDelete3 = separateMode && !differentUri
         assert(!shouldDelete3) { "В режиме отдельного сохранения удаление НЕ должно происходить" }
+    }
+
+    @Test
+    fun `OutOfMemory повторяется один раз, transient-ошибки до пяти попыток`() {
+        val oom = ImageCompressionWorker.MAX_OOM_ATTEMPTS
+        assertTrue("первый OOM → retry", ImageCompressionWorker.shouldRetry(0, oom))
+        assertFalse("второй OOM → failure", ImageCompressionWorker.shouldRetry(1, oom))
+
+        assertTrue("InsufficientMemory и др.: четвёртая попытка → retry", ImageCompressionWorker.shouldRetry(3))
+        assertFalse("пятая попытка → failure", ImageCompressionWorker.shouldRetry(4))
     }
 }

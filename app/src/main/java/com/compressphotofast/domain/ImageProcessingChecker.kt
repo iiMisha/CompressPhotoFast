@@ -77,15 +77,18 @@ class ImageProcessingChecker @Inject constructor(
      * @param uri URI изображения
      * @param forceProcess Принудительная обработка, даже если автосжатие отключено
      * @param snapshot метаданные из курсора вызывающей стороны (null — один запрос здесь)
+     * @param appDirectoryNames имена файлов директории приложения, полученные один раз
+     *   на скан ([FileOperationsUtil.queryAppDirectoryFileNames]); null — запрос здесь
      * @return true если изображение нужно обработать, false в противном случае
      */
     suspend fun shouldProcessImage(
         uri: Uri,
         forceProcess: Boolean = false,
-        snapshot: MediaItemSnapshot? = null
+        snapshot: MediaItemSnapshot? = null,
+        appDirectoryNames: List<String>? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val result = isProcessingRequired(uri, forceProcess, snapshot)
+            val result = isProcessingRequired(appContext, uri, forceProcess, snapshot, null, appDirectoryNames)
             if (!result.processingRequired) {
                 LogUtil.debug("ImageProcessingChecker", "Изображение не требует обработки: ${result.reason}")
             }
@@ -181,14 +184,15 @@ class ImageProcessingChecker @Inject constructor(
         snapshot: MediaItemSnapshot? = null,
         precomputedMarker: CompressionMarkerInfo? = null
     ): ProcessingCheckResult =
-        isProcessingRequired(appContext, uri, forceProcess, snapshot, precomputedMarker)
+        isProcessingRequired(appContext, uri, forceProcess, snapshot, precomputedMarker, null)
 
     private suspend fun isProcessingRequired(
         context: Context,
         uri: Uri,
         forceProcess: Boolean,
         providedSnapshot: MediaItemSnapshot?,
-        precomputedMarker: CompressionMarkerInfo?
+        precomputedMarker: CompressionMarkerInfo?,
+        appDirectoryNames: List<String>?
     ): ProcessingCheckResult = withContext(Dispatchers.IO) {
         try {
             // Создаем результат по умолчанию
@@ -216,8 +220,13 @@ class ImageProcessingChecker @Inject constructor(
             
             // Поиск сжатой версии в директории приложения по имени (только если режим замены отключен)
             if (!FileOperationsUtil.isSaveModeReplace(context)) {
-                val compressedUri = FileOperationsUtil.findCompressedVersionByOriginalName(context, uri, snapshot?.displayName)
-                if (compressedUri != null) {
+                val displayName = snapshot?.displayName
+                val hasCompressedVersion = if (appDirectoryNames != null && displayName != null) {
+                    FileOperationsUtil.hasCompressedVersionName(displayName, appDirectoryNames)
+                } else {
+                    FileOperationsUtil.findCompressedVersionByOriginalName(context, uri, displayName) != null
+                }
+                if (hasCompressedVersion) {
                     result.processingRequired = false
                     result.reason = ProcessingSkipReason.COMPRESSED_VERSION_EXISTS
                     return@withContext result

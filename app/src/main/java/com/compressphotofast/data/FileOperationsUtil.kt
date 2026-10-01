@@ -335,6 +335,51 @@ object FileOperationsUtil {
     }
     
     /**
+     * Имена всех файлов в директории приложения (включая подпапки) одним запросом —
+     * для пакетной проверки скана через [hasCompressedVersionName] вместо
+     * запроса [findCompressedVersionByOriginalName] на каждый URI.
+     *
+     * @return список имён или null при ошибке запроса
+     */
+    suspend fun queryAppDirectoryFileNames(context: Context): List<String>? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?",
+                arrayOf("%${Constants.APP_DIRECTORY}%"),
+                null
+            )?.use { cursor ->
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val names = ArrayList<String>(cursor.count)
+                while (cursor.moveToNext()) {
+                    cursor.getString(nameColumn)?.let(names::add)
+                }
+                names
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            LogUtil.errorWithException("Запрос имён директории приложения", e)
+            null
+        }
+    }
+
+    /**
+     * Сопоставление в памяти с семантикой `DISPLAY_NAME LIKE '$base%$ext'` из
+     * [findCompressedVersionByOriginalName]: без учёта регистра, как SQLite LIKE.
+     * `_` и `%` в имени — литералы (строже LIKE, где это wildcard).
+     */
+    fun hasCompressedVersionName(originalFileName: String, appDirectoryNames: Collection<String>): Boolean {
+        if (originalFileName.isEmpty()) return false
+        val (base, ext) = splitNameAndExtension(originalFileName)
+        return appDirectoryNames.any { name ->
+            name.length >= base.length + ext.length &&
+                name.startsWith(base, ignoreCase = true) &&
+                name.endsWith(ext, ignoreCase = true)
+        }
+    }
+
+    /**
      * Вычисляет процент уменьшения размера с защитой от деления на ноль
      * @return Процент уменьшения (0..100) или 0 если originalSize <= 0
      */
