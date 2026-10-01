@@ -103,7 +103,7 @@ class UriProcessingTracker private constructor(
      */
     fun isProcessing(uri: Uri): Boolean {
         maybeCleanupStaleUris()
-        return processingUris.contains(uri.toString())
+        return processingUris.contains(keyOf(uri))
     }
 
     /**
@@ -138,7 +138,7 @@ class UriProcessingTracker private constructor(
      * Добавляет URI в список недавно обработанных
      */
     fun addRecentlyProcessedUri(uri: Uri) {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         val timestamp = System.currentTimeMillis()
         recentlyProcessedUris[uriString] = timestamp
         LogUtil.processDebug("URI добавлен в список недавно обработанных: $uriString")
@@ -157,7 +157,7 @@ class UriProcessingTracker private constructor(
      * Устанавливает период игнорирования для URI до указанного времени
      */
     fun setIgnoreUntil(uri: Uri, ignoreUntil: Long) {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         ignoreUrisUntil[uriString] = ignoreUntil
         LogUtil.processDebug("Установлен период игнорирования для URI: $uriString до ${java.util.Date(ignoreUntil)}")
     }
@@ -174,7 +174,7 @@ class UriProcessingTracker private constructor(
      * Проверяет, должен ли URI игнорироваться в данный момент
      */
     fun shouldIgnore(uri: Uri): Boolean {
-        return shouldIgnoreUri(uri.toString())
+        return shouldIgnoreUri(keyOf(uri))
     }
 
     /**
@@ -182,7 +182,8 @@ class UriProcessingTracker private constructor(
      * @param uriString URI для проверки
      * @return true если URI следует игнорировать, false в противном случае
      */
-    fun shouldIgnoreUri(uriString: String): Boolean {
+    fun shouldIgnoreUri(rawUriString: String): Boolean {
+        val uriString = keyOf(rawUriString)
         // Проверяем период игнорирования
         val ignoreUntil = ignoreUrisUntil[uriString]
         if (ignoreUntil != null && System.currentTimeMillis() < ignoreUntil) {
@@ -266,7 +267,7 @@ class UriProcessingTracker private constructor(
      * принудительно снимается/перевыдаётся — это устраняет бесконечный пропуск фото.
      */
     suspend fun addProcessingUriSafe(uri: Uri, source: String = "unknown"): Boolean {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         maybeCleanupStaleUris()
         val mutex = uriLocks.getOrPut(uriString) { Mutex() }
         return mutex.withLock {
@@ -302,7 +303,7 @@ class UriProcessingTracker private constructor(
      * Безопасно удаляет URI из списка обрабатываемых с блокировкой
      */
     suspend fun removeProcessingUriSafe(uri: Uri) {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         val mutex = uriLocks.getOrPut(uriString) { Mutex() }
         mutex.withLock {
             processingUris.remove(uriString)
@@ -317,7 +318,7 @@ class UriProcessingTracker private constructor(
      */
     suspend fun isImageBeingProcessed(uri: Uri, fileModifiedDate: Long = 0): Boolean {
         maybeCleanupStaleUris()
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         val isProcessing = processingUris.contains(uriString)
         val isIgnored = shouldIgnoreUri(uriString)
         val isRecentlyProcessed = isUriRecentlyProcessed(uriString)
@@ -339,7 +340,7 @@ class UriProcessingTracker private constructor(
      * Помечает URI как недоступный
      */
     fun markUriUnavailable(uri: Uri) {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         unavailableUris[uriString] = System.currentTimeMillis()
         LogUtil.processDebug("URI помечен как недоступный: $uriString")
     }
@@ -348,7 +349,7 @@ class UriProcessingTracker private constructor(
      * Удаляет URI из списка недоступных
      */
     fun removeUnavailable(uri: Uri) {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
         unavailableUris.remove(uriString)
         LogUtil.processDebug("URI удален из списка недоступных: $uriString")
     }
@@ -357,7 +358,7 @@ class UriProcessingTracker private constructor(
      * Проверяет, является ли URI недоступным
      */
     fun isUriUnavailable(uri: Uri): Boolean {
-        val uriString = uri.toString()
+        val uriString = keyOf(uri)
 
         // Очищаем устаревшие записи перед проверкой
         cleanupStaleUnavailableEntries()
@@ -439,6 +440,19 @@ class UriProcessingTracker private constructor(
     companion object {
         @Volatile
         private var fallbackInstance: UriProcessingTracker? = null
+
+        private val MEDIA_IMAGE_URI = Regex("^content://media/[^/]+/images/media/(\\d+)$")
+
+        /**
+         * Ключ трекера, не зависящий от тома MediaStore: один элемент приходит как
+         * `external` и `external_primary` (или имя тома SD) — без нормализации
+         * ignore/processing промахиваются. Ключ остаётся валидным URI тома `external`.
+         */
+        internal fun keyOf(uriString: String): String =
+            MEDIA_IMAGE_URI.matchEntire(uriString)?.let { "content://media/external/images/media/${it.groupValues[1]}" }
+                ?: uriString
+
+        internal fun keyOf(uri: Uri): String = keyOf(uri.toString())
 
         /**
          * Получает экземпляр для использования в object-классах без Hilt

@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.compressphotofast.BaseUnitTest
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -59,6 +60,35 @@ class UriProcessingTrackerTest : BaseUnitTest() {
     private fun withSmallStaleThreshold(): Long {
         tracker.staleUriThresholdMs = 50L
         return 80L
+    }
+
+    // ==================== Ключи по MediaStore ID ====================
+
+    @Test
+    fun `external и external_primary одного ID дают один ключ`() = runBlocking {
+        val id = 900_000L + uriCounter.incrementAndGet()
+        val external = Uri.parse("content://media/external/images/media/$id")
+        val primary = Uri.parse("content://media/external_primary/images/media/$id")
+
+        tracker.setIgnorePeriod(primary)
+        assertTrue("ignore должен действовать для другого тома", tracker.shouldIgnore(external))
+        assertTrue(tracker.shouldIgnoreUri(external.toString()))
+
+        assertTrue(tracker.addProcessingUriSafe(external, "test"))
+        assertTrue(tracker.isProcessing(primary))
+        assertFalse("повторный acquire через другой том", tracker.addProcessingUriSafe(primary, "test"))
+        tracker.removeProcessingUriSafe(primary)
+        assertFalse(tracker.isProcessing(external))
+    }
+
+    @Test
+    fun `ключ не-MediaStore URI не меняется`() {
+        val picker = "content://media/picker/0/com.android.providers.media.photopicker/media/42"
+        assertEquals(picker, UriProcessingTracker.keyOf(picker))
+        assertEquals(
+            "content://media/external/images/media/7",
+            UriProcessingTracker.keyOf("content://media/external_primary/images/media/7")
+        )
     }
 
     // ==================== Базовый acquire/release ====================
