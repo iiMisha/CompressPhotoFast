@@ -48,7 +48,7 @@ class ExifArtifactWriteTest : BaseUnitTest() {
     }
 
     @Test
-    fun `теги, GPS и нормальная ориентация переносятся в artifact`() = runTest {
+    fun `теги, GPS и исходная ориентация переносятся в artifact`() = runTest {
         val exifData = mapOf<String, Any>(
             ExifInterface.TAG_DATETIME_ORIGINAL to "2026:09:30 12:00:00",
             ExifInterface.TAG_MAKE to "TestMake",
@@ -63,13 +63,31 @@ class ExifArtifactWriteTest : BaseUnitTest() {
         val exif = ExifInterface(artifact)
         assertEquals("2026:09:30 12:00:00", exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL))
         assertEquals("TestMake", exif.getAttribute(ExifInterface.TAG_MAKE))
-        // Пиксели artifact уже повёрнуты при сжатии
-        assertEquals(ExifInterface.ORIENTATION_NORMAL, exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0))
+        // Пиксели JPEG не поворачиваются — ориентацию задаёт исходный тег
+        assertEquals(ExifInterface.ORIENTATION_ROTATE_90, exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0))
         val latLong = exif.latLong
         assertNotNull(latLong)
         assertEquals(55.75, latLong!![0], 1e-4)
         assertEquals(37.62, latLong[1], 1e-4)
         val marker = CompressionMarker.parse(exif.getAttribute(ExifInterface.TAG_USER_COMMENT))
         assertEquals(artifact.length(), marker!!.fileSize)
+    }
+
+    @Test
+    fun `повёрнутые пиксели получают нормальную ориентацию`() = runTest {
+        val exifData = mapOf<String, Any>(
+            ExifInterface.TAG_ORIENTATION to ExifInterface.ORIENTATION_ROTATE_90.toString()
+        )
+
+        assertTrue(
+            ExifUtil.writeExifToArtifact(
+                artifact, exifData, quality = 80, originalFileSize = null, pixelsTransformed = true
+            )
+        )
+
+        assertEquals(
+            ExifInterface.ORIENTATION_NORMAL,
+            ExifInterface(artifact).getAttributeInt(ExifInterface.TAG_ORIENTATION, 0)
+        )
     }
 }

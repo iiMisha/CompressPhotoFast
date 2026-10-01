@@ -655,7 +655,7 @@ object ExifUtil {
             }
         }
         
-        // После трансформации пикселей в compressImageToStream устанавливаем orientation = NORMAL.
+        // Ориентация уже применена к пикселям (HEIC через ImageDecoder) — orientation = NORMAL.
         // ИНВАРИАНТ: для нетронутого оригинала (маркер пропуска/неудалённый оригинал)
         // ориентацию менять нельзя — иначе фото будет отображаться повёрнутым.
         if (pixelsTransformed) {
@@ -744,18 +744,21 @@ object ExifUtil {
      * При сбое ExifInterface восстанавливает исходный файл, artifact остаётся
      * валидным JPEG без EXIF.
      *
+     * @param pixelsTransformed ориентация уже применена к пикселям (HEIC через ImageDecoder):
+     *        Orientation=NORMAL; иначе исходный тег Orientation переносится как есть
      * @return true, если маркер записан и его size в пределах допуска от длины файла
      */
     suspend fun writeExifToArtifact(
         file: File,
         exifData: Map<String, Any>,
         quality: Int,
-        originalFileSize: Long?
+        originalFileSize: Long?,
+        pixelsTransformed: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val markerTimestamp = System.currentTimeMillis()
             val exif = ExifInterface(file)
-            val appliedTags = applyTags(exif, exifData, pixelsTransformed = true)
+            val appliedTags = applyTags(exif, exifData, pixelsTransformed)
             exif.setAttribute(
                 ExifInterface.TAG_USER_COMMENT,
                 CompressionMarker.build(quality, markerTimestamp, null, originalFileSize)

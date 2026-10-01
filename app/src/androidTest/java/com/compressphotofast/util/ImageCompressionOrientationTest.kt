@@ -52,7 +52,7 @@ class ImageCompressionOrientationTest {
     }
 
     @Test
-    fun compressImage_with90DegreeOrientation_producesCorrectlyRotatedBitmap() = runBlocking {
+    fun compressImage_with90DegreeOrientation_keepsPixelsUnrotated() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_rotate_90.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -71,16 +71,15 @@ class ImageCompressionOrientationTest {
         val outputBitmap = BitmapFactory.decodeFile(outputFile.absolutePath)
         assertNotNull("Bitmap должен быть создан", outputBitmap)
 
-        assertEquals("Ширина и высота должны поменяться местами после поворота на 90°",
-            originalHeight, outputBitmap!!.width)
-        assertEquals("Ширина и высота должны поменяться местами после поворота на 90°",
-            originalWidth, outputBitmap.height)
+        // Пиксели JPEG не поворачиваются: ориентацию задаёт тег EXIF, переносимый в копию
+        assertEquals("Ширина JPEG с orientation=90 должна сохраниться", originalWidth, outputBitmap!!.width)
+        assertEquals("Высота JPEG с orientation=90 должна сохраниться", originalHeight, outputBitmap.height)
 
         outputStream.close()
     }
 
     @Test
-    fun compressImage_with180DegreeOrientation_producesCorrectlyRotatedBitmap() = runBlocking {
+    fun compressImage_with180DegreeOrientation_keepsPixelsUnrotated() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_rotate_180.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -108,7 +107,7 @@ class ImageCompressionOrientationTest {
     }
 
     @Test
-    fun compressImage_with270DegreeOrientation_producesCorrectlyRotatedBitmap() = runBlocking {
+    fun compressImage_with270DegreeOrientation_keepsPixelsUnrotated() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_rotate_270.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -127,16 +126,14 @@ class ImageCompressionOrientationTest {
         val outputBitmap = BitmapFactory.decodeFile(outputFile.absolutePath)
         assertNotNull("Bitmap должен быть создан", outputBitmap)
 
-        assertEquals("Ширина и высота должны поменяться местами после поворота на 270°",
-            originalHeight, outputBitmap!!.width)
-        assertEquals("Ширина и высота должны поменяться местами после поворота на 270°",
-            originalWidth, outputBitmap.height)
+        assertEquals("Ширина JPEG с orientation=270 должна сохраниться", originalWidth, outputBitmap!!.width)
+        assertEquals("Высота JPEG с orientation=270 должна сохраниться", originalHeight, outputBitmap.height)
 
         outputStream.close()
     }
 
     @Test
-    fun compressImage_withFlipHorizontal_producesCorrectlyFlippedBitmap() = runBlocking {
+    fun compressImage_withFlipHorizontal_keepsPixelsUnflipped() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_flip_horizontal.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -164,7 +161,7 @@ class ImageCompressionOrientationTest {
     }
 
     @Test
-    fun compressImage_withFlipVertical_producesCorrectlyFlippedBitmap() = runBlocking {
+    fun compressImage_withFlipVertical_keepsPixelsUnflipped() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_flip_vertical.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -216,7 +213,7 @@ class ImageCompressionOrientationTest {
     }
 
     @Test
-    fun compressImage_transposeOrientation_producesCorrectlyTransformedBitmap() = runBlocking {
+    fun compressImage_transposeOrientation_keepsPixelsUnrotated() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_transpose.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -235,16 +232,14 @@ class ImageCompressionOrientationTest {
         val outputBitmap = BitmapFactory.decodeFile(outputFile.absolutePath)
         assertNotNull("Bitmap должен быть создан", outputBitmap)
 
-        assertEquals("Ширина и высота должны поменяться местами после transpose (90° поворот)",
-            originalHeight, outputBitmap!!.width)
-        assertEquals("Ширина и высота должны поменяться местами после transpose (90° поворот)",
-            originalWidth, outputBitmap.height)
+        assertEquals("Ширина JPEG с transpose должна сохраниться", originalWidth, outputBitmap!!.width)
+        assertEquals("Высота JPEG с transpose должна сохраниться", originalHeight, outputBitmap.height)
 
         outputStream.close()
     }
 
     @Test
-    fun compressImage_transverseOrientation_producesCorrectlyTransformedBitmap() = runBlocking {
+    fun compressImage_transverseOrientation_keepsPixelsUnrotated() = runBlocking {
         val inputFile = copyAssetToTempFile("orientation/test_transverse.jpg")
         val inputUri = Uri.fromFile(inputFile)
 
@@ -263,10 +258,8 @@ class ImageCompressionOrientationTest {
         val outputBitmap = BitmapFactory.decodeFile(outputFile.absolutePath)
         assertNotNull("Bitmap должен быть создан", outputBitmap)
 
-        assertEquals("Ширина и высота должны поменяться местами после transverse (270° поворот)",
-            originalHeight, outputBitmap!!.width)
-        assertEquals("Ширина и высота должны поменяться местами после transverse (270° поворот)",
-            originalWidth, outputBitmap.height)
+        assertEquals("Ширина JPEG с transverse должна сохраниться", originalWidth, outputBitmap!!.width)
+        assertEquals("Высота JPEG с transverse должна сохраниться", originalHeight, outputBitmap.height)
 
         outputStream.close()
     }

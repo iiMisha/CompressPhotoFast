@@ -14,12 +14,9 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.RandomAccessFile
-import android.graphics.Matrix
-import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.data.FileOperationsUtil
 import com.compressphotofast.data.UriUtil
 import com.compressphotofast.util.Constants
-import com.compressphotofast.data.ExifUtil
 import com.compressphotofast.util.LogUtil
 
 /**
@@ -69,62 +66,6 @@ sealed class CompressionException(
  * Объединяет дублирующуюся логику из CompressionTestUtil и других классов
  */
 object ImageCompressionUtil {
-
-    private data class OrientationTransform(
-        val rotationDegrees: Int = 0,
-        val flipHorizontal: Boolean = false,
-        val flipVertical: Boolean = false
-    )
-
-    private fun getOrientationTransform(context: Context, uri: Uri): OrientationTransform {
-        val exif = ExifUtil.getExifInterface(context, uri) 
-            ?: return OrientationTransform()
-        
-        val orientation = exif.getAttributeInt(
-            ExifInterface.TAG_ORIENTATION, 
-            ExifInterface.ORIENTATION_NORMAL
-        )
-        return orientationTransform(orientation)
-    }
-
-    private fun orientationTransform(orientation: Int): OrientationTransform {
-        return when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> OrientationTransform(rotationDegrees = 90)
-            ExifInterface.ORIENTATION_ROTATE_180 -> OrientationTransform(rotationDegrees = 180)
-            ExifInterface.ORIENTATION_ROTATE_270 -> OrientationTransform(rotationDegrees = 270)
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> OrientationTransform(flipHorizontal = true)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> OrientationTransform(flipVertical = true)
-            ExifInterface.ORIENTATION_TRANSPOSE -> OrientationTransform(rotationDegrees = 90, flipHorizontal = true)
-            ExifInterface.ORIENTATION_TRANSVERSE -> OrientationTransform(rotationDegrees = 270, flipHorizontal = true)
-            else -> OrientationTransform()
-        }
-    }
-
-    private fun applyOrientationTransform(bitmap: Bitmap, transform: OrientationTransform): Bitmap {
-        if (transform.rotationDegrees == 0 && !transform.flipHorizontal && !transform.flipVertical) {
-            return bitmap
-        }
-        
-        val matrix = Matrix()
-        
-        if (transform.rotationDegrees != 0) {
-            matrix.postRotate(transform.rotationDegrees.toFloat())
-        }
-        
-        if (transform.flipHorizontal) {
-            matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
-        }
-        
-        if (transform.flipVertical) {
-            matrix.postScale(1f, -1f, bitmap.width / 2f, bitmap.height / 2f)
-        }
-        
-        return Bitmap.createBitmap(
-            bitmap, 0, 0,
-            bitmap.width, bitmap.height,
-            matrix, true
-        )
-    }
 
     /**
      * Декодирует границы изображения (ширина, высота) с поддержкой HEIC/HEIF
@@ -317,13 +258,11 @@ object ImageCompressionUtil {
         uri: Uri,
         quality: Int,
         maxDimension: Int = Constants.RESOLUTION_ORIGINAL,
-        knownMimeType: String? = null,
-        knownOrientation: Int? = null
+        knownMimeType: String? = null
     ): File? =
         withTimeout(120_000L) {
             withContext(Dispatchers.IO) {
                 var inputBitmap: Bitmap? = null
-                var transformedBitmap: Bitmap? = null
                 var artifact: File? = null
                 var completed = false
                 var width = 0
@@ -337,15 +276,10 @@ object ImageCompressionUtil {
                     // Масштабирование применяется только при явном выборе пресета;
                     // по умолчанию (RESOLUTION_ORIGINAL) разрешение сохраняется.
                     val scalePlan = computeScalePlan(width, height, maxDimension)
-                    // Orientation из уже прочитанного EXIF избавляет от повторного разбора файла
-                    val transform = when {
-                        UriUtil.isHeicMimeType(mimeType) -> OrientationTransform()
-                        knownOrientation != null -> orientationTransform(knownOrientation)
-                        else -> getOrientationTransform(context, uri)
-                    }
-                    val requiresSecondBitmap = transform.rotationDegrees != 0 ||
-                        transform.flipHorizontal || transform.flipVertical
-                    val requiredBytes = estimatePeakMemoryBytes(width, height, mimeType, requiresSecondBitmap)
+                    // Пиксели не поворачиваются: тег Orientation переносится в копию как есть
+                    // (как в CLI), второй bitmap под поворот не нужен. HEIC ImageDecoder
+                    // поворачивает сам — см. CompressionTestResult.pixelsOriented.
+                    val requiredBytes = estimatePeakMemoryBytes(width, height, mimeType)
                     if (!FileOperationsUtil.hasEnoughMemory(context, requiredBytes)) {
                         throw CompressionException.InsufficientMemory(
                             requiredBytes, FileOperationsUtil.availableMemoryBytes(context)
@@ -364,14 +298,6 @@ object ImageCompressionUtil {
                         scalePlan?.targetHeight ?: 0
                     )
                         ?: return@withContext null
-                    if (requiresSecondBitmap) {
-                        transformedBitmap = applyOrientationTransform(inputBitmap!!, transform)
-                        if (transformedBitmap !== inputBitmap) {
-                            inputBitmap.recycle()
-                            inputBitmap = transformedBitmap
-                            transformedBitmap = null
-                        }
-                    }
                     if (scalePlan != null &&
                         (inputBitmap!!.width > scalePlan.targetWidth || inputBitmap!!.height > scalePlan.targetHeight)
                     ) {
@@ -402,7 +328,7 @@ object ImageCompressionUtil {
                     completed = true
                     artifact
                 } catch (e: OutOfMemoryError) {
-                    val required = estimatePeakMemoryBytes(width, height, null, false)
+                    val required = estimatePeakMemoryBytes(width, height, null)
                     throw CompressionException.OutOfMemory(
                         required,
                         FileOperationsUtil.availableMemoryBytes(context),
@@ -417,7 +343,6 @@ object ImageCompressionUtil {
                 } catch (e: Exception) {
                     throw if (e is IOException) e else IOException("Ошибка сжатия изображения", e)
                 } finally {
-                    transformedBitmap?.recycle()
                     inputBitmap?.recycle()
                     if (!completed) artifact?.delete()
                 }
@@ -445,14 +370,12 @@ object ImageCompressionUtil {
     fun estimatePeakMemoryBytes(
         width: Int,
         height: Int,
-        mimeType: String?,
-        requiresSecondBitmap: Boolean = false
+        mimeType: String?
     ): Long {
         val pixels = width.toLong().coerceAtLeast(0L) * height.toLong().coerceAtLeast(0L)
         val decodedBytes = pixels * if (UriUtil.isHeicMimeType(mimeType)) 4L else 2L
-        val secondBitmapBytes = if (requiresSecondBitmap) pixels * 4L else 0L
         val jpegBytes = maxOf(1L * 1024 * 1024, pixels)
-        return decodedBytes + secondBitmapBytes + jpegBytes
+        return decodedBytes + jpegBytes
     }
     
     /**
@@ -464,7 +387,6 @@ object ImageCompressionUtil {
      * @param quality Качество сжатия (0-100)
      * @param keepStream Сохранять ли поток данных открытым в результате
      * @param knownMimeType MIME из снимка MediaStore (null — запросить)
-     * @param knownOrientation EXIF Orientation из прочитанных тегов (null — прочитать из файла)
      * @return CompressionTestResult с результатами сжатия или null при ошибке
      */
     suspend fun testCompression(
@@ -474,13 +396,15 @@ object ImageCompressionUtil {
         quality: Int,
         keepStream: Boolean = false,
         maxDimension: Int = Constants.RESOLUTION_ORIGINAL,
-        knownMimeType: String? = null,
-        knownOrientation: Int? = null
+        knownMimeType: String? = null
     ): CompressionTestResult? = withContext(Dispatchers.IO) {
         var artifact: File? = null
         try {
+            val mimeType = knownMimeType ?: UriUtil.getMimeType(context, uri)
+            // ImageDecoder применяет EXIF-ориентацию HEIC к пикселям; BitmapFactory — нет
+            val pixelsOriented = UriUtil.isHeicMimeType(mimeType)
             artifact = try {
-                compressImageToFile(context, uri, quality, maxDimension, knownMimeType, knownOrientation)
+                compressImageToFile(context, uri, quality, maxDimension, mimeType)
             } catch (e: CompressionException) {
                 throw e
             } catch (e: IOException) {
@@ -498,12 +422,12 @@ object ImageCompressionUtil {
             val stats = CompressionStats(originalSize, compressedSize, sizeReduction)
             
             return@withContext if (keepStream) {
-                val result = CompressionTestResult(stats, artifact)
+                val result = CompressionTestResult(stats, artifact, pixelsOriented)
                 artifact = null
                 result
             } else {
                 artifact!!.delete()
-                CompressionTestResult(stats, null)
+                CompressionTestResult(stats, null, pixelsOriented)
             }
         } catch (e: CompressionException) {
             throw e
@@ -540,7 +464,9 @@ object ImageCompressionUtil {
      */
     data class CompressionTestResult(
         val stats: CompressionStats,
-        val compressedFile: File?
+        val compressedFile: File?,
+        /** Ориентация уже применена к пикселям (HEIC): в копию пишется Orientation=NORMAL. */
+        val pixelsOriented: Boolean = false
     ) {
         /**
          * Проверяет, было ли сжатие эффективным

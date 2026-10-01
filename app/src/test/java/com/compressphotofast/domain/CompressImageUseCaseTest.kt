@@ -75,18 +75,19 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         super.tearDown()
     }
 
-    private fun stubTest(compressedSize: Long) {
+    private fun stubTest(compressedSize: Long, pixelsOriented: Boolean = false) {
         val reduction = (sourceSize - compressedSize) * 100f / sourceSize
-        coEvery { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any(), any()) } returns
             ImageCompressionUtil.CompressionTestResult(
                 ImageCompressionUtil.CompressionStats(sourceSize, compressedSize, reduction),
-                artifact
+                artifact,
+                pixelsOriented
             )
     }
 
     private fun stubSave(result: MediaStoreUtil.SaveResult) {
         coEvery {
-            MediaStoreUtil.saveCompressedImageFromFile(any(), artifact, any(), any(), any(), any(), any(), any(), any())
+            MediaStoreUtil.saveCompressedImageFromFile(any(), artifact, any(), any(), any(), any(), any(), any(), any(), any())
         } returns result
     }
 
@@ -103,7 +104,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         coEvery { UriUtil.getFileSize(any(), uri) } returns 1_000L
 
         assertEquals(CompressImageUseCase.Outcome.SkippedInvalidSize, useCase(uri, params))
-        coVerify(exactly = 0) { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { ImageCompressionUtil.testCompression(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -215,7 +216,19 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         coVerify(exactly = 0) { UriUtil.getFileSize(any(), uri) }
         verify(exactly = 0) { UriUtil.getFileNameFromUri(any(), any()) }
         coVerify {
-            ImageCompressionUtil.testCompression(any(), uri, sourceSize, any(), any(), any(), "image/jpeg", 6)
+            ImageCompressionUtil.testCompression(any(), uri, sourceSize, any(), any(), any(), "image/jpeg")
+        }
+    }
+
+    @Test
+    fun `признак повёрнутых пикселей передаётся в сохранение`() = runTest {
+        stubTest(compressedSize = 400_000L, pixelsOriented = true)
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+
+        useCase(uri, params)
+
+        coVerify {
+            MediaStoreUtil.saveCompressedImageFromFile(any(), artifact, any(), any(), any(), any(), any(), any(), any(), true)
         }
     }
 }

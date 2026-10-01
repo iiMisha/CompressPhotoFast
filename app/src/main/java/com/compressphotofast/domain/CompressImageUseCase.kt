@@ -3,7 +3,6 @@ package com.compressphotofast.domain
 import android.content.Context
 import android.content.IntentSender
 import android.net.Uri
-import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.util.Constants
 import com.compressphotofast.data.DailyCompressionStats
 import com.compressphotofast.data.ExifUtil
@@ -106,9 +105,7 @@ class CompressImageUseCase @Inject constructor(
             params.quality,
             keepStream = true,
             maxDimension = params.maxResolution,
-            knownMimeType = snapshot?.mimeType,
-            knownOrientation = (exifDataMemory[ExifInterface.TAG_ORIENTATION] as? String)?.toIntOrNull()
-                ?: ExifInterface.ORIENTATION_NORMAL
+            knownMimeType = snapshot?.mimeType
         )
         if (testResult == null) {
             LogUtil.error(imageUri, "Тестовое сжатие", "Ошибка при тестовом сжатии")
@@ -172,7 +169,8 @@ class CompressImageUseCase @Inject constructor(
             originalUri = imageUri,
             quality = params.quality,
             exifDataMemory = exifDataMemory,
-            originalFileSize = sourceSize
+            originalFileSize = sourceSize,
+            pixelsTransformed = testResult.pixelsOriented
         )
         val savedUri = when (saveResult) {
             is MediaStoreUtil.SaveResult.Failed -> {

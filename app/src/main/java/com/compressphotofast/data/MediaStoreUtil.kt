@@ -284,6 +284,7 @@ object MediaStoreUtil {
      * @param exifDataMemory EXIF исходника, пишется в artifact до публикации
      * @param mimeType MIME тип для сохранения (по умолчанию "image/jpeg")
      * @param originalFileSize Исходный размер файла до сжатия (для поля origSize маркера)
+     * @param pixelsTransformed ориентация уже применена к пикселям: в копию пишется Orientation=NORMAL
      * @return [SaveResult.Saved] с URI сохранённого файла или [SaveResult.Failed] с причиной
      */
     suspend fun saveCompressedImageFromFile(
@@ -295,7 +296,8 @@ object MediaStoreUtil {
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
         exifDataMemory: Map<String, Any>? = null,
         mimeType: String = "image/jpeg",
-        originalFileSize: Long? = null
+        originalFileSize: Long? = null,
+        pixelsTransformed: Boolean = false
     ): SaveResult = withContext(Dispatchers.IO) {
         // ЗАЩИТА ОТ КОНКУРЕНТНОЙ ЗАПИСИ: Mutex по целевому пути гарантирует,
         // что два потока не будут одновременно записывать в один и тот же файл.
@@ -308,7 +310,8 @@ object MediaStoreUtil {
         val saveLock = getSaveLock(lockKey)
         saveLock.withLock {
             saveCompressedImageFromFileInternal(
-                context, compressedFile, fileName, directory, originalUri, quality, exifDataMemory, mimeType, originalFileSize
+                context, compressedFile, fileName, directory, originalUri, quality, exifDataMemory, mimeType,
+                originalFileSize, pixelsTransformed
             )
         }
     }
@@ -326,12 +329,15 @@ object MediaStoreUtil {
         quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
         exifDataMemory: Map<String, Any>? = null,
         mimeType: String = "image/jpeg",
-        originalFileSize: Long? = null
+        originalFileSize: Long? = null,
+        pixelsTransformed: Boolean = false
     ): SaveResult = withContext(Dispatchers.IO) {
         try {
             // EXIF и маркер (с точным размером) пишутся в локальный artifact до публикации:
             // в MediaStore файл попадает одной durable-записью, без saveAttributes() поверх
-            val exifOk = ExifUtil.writeExifToArtifact(compressedFile, exifDataMemory ?: emptyMap(), quality, originalFileSize)
+            val exifOk = ExifUtil.writeExifToArtifact(
+                compressedFile, exifDataMemory ?: emptyMap(), quality, originalFileSize, pixelsTransformed
+            )
             if (!exifOk && FileOperationsUtil.isSaveModeReplace(context)) {
                 // Оригинал с метаданными будет заменён/удалён — без EXIF это потеря GPS/дат
                 LogUtil.error(originalUri, "Сохранение", "EXIF не записан в artifact — замена оригинала отменена")
