@@ -147,24 +147,32 @@ object MediaStoreUtil {
             val (pathWithSlash, pathWithoutSlash) = buildPathVariants(targetRelativePath)
             val (fileNameWithoutExt, extension) = FileOperationsUtil.splitNameAndExtension(fileName)
 
-            val fileNamesToCheck = mutableListOf(fileName)
-            for (i in 1 until 100) {
-                fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
+            // Почти всегда желаемое имя свободно: сначала дешёвый запрос одного имени,
+            // пачка вариантов — только при конфликте.
+            val existingNames = mutableSetOf<String>()
+            fun queryExisting(names: List<String>) {
+                val placeholders = names.joinToString(",") { "?" }
+                context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+                    "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)",
+                    names.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash),
+                    null
+                )?.use { cursor ->
+                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                    while (cursor.moveToNext()) {
+                        existingNames.add(cursor.getString(nameColumn))
+                    }
+                }
             }
 
-            val placeholders = fileNamesToCheck.joinToString(",") { "?" }
-            val existingNames = mutableSetOf<String>()
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-                "${MediaStore.Images.Media.DISPLAY_NAME} IN ($placeholders) AND (${MediaStore.Images.Media.RELATIVE_PATH} = ? OR ${MediaStore.Images.Media.RELATIVE_PATH} = ?)",
-                fileNamesToCheck.toTypedArray() + arrayOf(pathWithSlash, pathWithoutSlash),
-                null
-            )?.use { cursor ->
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                while (cursor.moveToNext()) {
-                    existingNames.add(cursor.getString(nameColumn))
+            val fileNamesToCheck = mutableListOf(fileName)
+            queryExisting(fileNamesToCheck)
+            if (fileName in existingNames) {
+                for (i in 1 until 100) {
+                    fileNamesToCheck.add("${fileNameWithoutExt}_${i}${extension}")
                 }
+                queryExisting(fileNamesToCheck.drop(1))
             }
 
             val freeName = fileNamesToCheck.firstOrNull { it !in existingNames }

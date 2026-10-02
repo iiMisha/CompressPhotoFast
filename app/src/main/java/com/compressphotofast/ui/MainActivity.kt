@@ -27,6 +27,7 @@ import com.google.android.material.color.DynamicColors
 import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.compressphotofast.BuildConfig
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.MonitoringController
@@ -45,7 +46,9 @@ import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.worker.GalleryReconciliationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -282,9 +285,11 @@ class MainActivity : AppCompatActivity() {
         LogUtil.processDebug("handleIntent: Получен интент с action=${intent.action}, type=${intent.type}")
         
         // Логируем все данные интента для отладки
-        intent.extras?.keySet()?.forEach { key ->
-            @Suppress("DEPRECATION")
-            LogUtil.processDebug("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
+        if (BuildConfig.DEBUG) {
+            intent.extras?.keySet()?.forEach { key ->
+                @Suppress("DEPRECATION")
+                LogUtil.processDebug("handleIntent: интент содержит extra[$key]=${intent.extras?.get(key)}")
+            }
         }
         
         val uris = extractUrisFromIntent(intent)
@@ -292,18 +297,21 @@ class MainActivity : AppCompatActivity() {
 
         val flags = intent.flags and
             (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        if (flags != 0) {
-            uris.forEach { uri ->
-                try {
-                    contentResolver.takePersistableUriPermission(uri, flags)
-                } catch (_: Exception) {
-                    // Provider may not support persistable grants.
-                }
-            }
-        }
 
         // Принудительная обработка независимо от настройки автосжатия
         lifecycleScope.launch {
+            if (flags != 0) {
+                // Binder IPC на каждый URI — не на main thread.
+                withContext(Dispatchers.IO) {
+                    uris.forEach { uri ->
+                        try {
+                            contentResolver.takePersistableUriPermission(uri, flags)
+                        } catch (_: Exception) {
+                            // Provider may not support persistable grants.
+                        }
+                    }
+                }
+            }
             val enqueued = viewModel.compressSharedImages(uris)
             showSnackbar(
                 if (enqueued == 0) getString(R.string.all_images_already_compressed)
