@@ -123,7 +123,7 @@ class ImageDetectionJobService : JobService() {
                 val uris = triggered.filterNot { uriProcessingTracker.shouldIgnore(it) }
                 if (triggered.isNotEmpty()) {
                     // Только triggered URI: это не скан галереи, watermark не продвигаем.
-                    galleryScanCoordinator.enqueueAll(uris)
+                    galleryScanCoordinator.enqueueTriggered(uris)
                 } else if (!observerAlive) {
                     galleryScanCoordinator.scan(GalleryScanCoordinator.Window.SINCE_WATERMARK)
                 }

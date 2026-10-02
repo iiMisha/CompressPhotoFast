@@ -21,7 +21,8 @@ import com.compressphotofast.util.LogUtil
 class GalleryScanCoordinator @Inject constructor(
     private val settingsManager: SettingsManager,
     private val scheduler: CompressionWorkScheduler,
-    private val galleryScanUtil: GalleryScanUtil
+    private val galleryScanUtil: GalleryScanUtil,
+    private val imageProcessingChecker: ImageProcessingChecker
 ) {
     enum class Window {
         /** От последнего watermark (с перекрытием), в пределах истории. */
@@ -66,6 +67,29 @@ class GalleryScanCoordinator @Inject constructor(
             }
         }
         return durable
+    }
+
+    /**
+     * Ставит в очередь URI от live-источников (observer, content-trigger Job), пропуская
+     * заведомо сжатые: media scanner и правки метаданных будят их постоянно, а воркер
+     * всё равно отбросил бы такой URI после 30 с задержки. Отсекается только
+     * ALREADY_COMPRESSED (маркер + размер совпадают); остальное решает воркер, потому что
+     * недописанный файл выглядит «маленьким» и не должен теряться.
+     * @return true, если все URI приняты или не требуют обработки
+     */
+    suspend fun enqueueTriggered(uris: List<Uri>): Boolean {
+        val pending = uris.filterNot { isAlreadyCompressed(it) }
+        return enqueueAll(pending)
+    }
+
+    private suspend fun isAlreadyCompressed(uri: Uri): Boolean = try {
+        val check = imageProcessingChecker.isProcessingRequired(uri)
+        !check.processingRequired &&
+            check.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
     }
 
     companion object {

@@ -30,6 +30,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.compressphotofast.BuildConfig
 import com.compressphotofast.R
 import com.compressphotofast.databinding.ActivityMainBinding
+import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.domain.CompressionEvents
 import com.compressphotofast.data.CompressionPreset
@@ -521,6 +522,11 @@ class MainActivity : AppCompatActivity() {
         LogUtil.processDebug("setupBackgroundService: автоматическое сжатие ${if (isEnabled) "включено" else "выключено"}")
 
         if (isEnabled) {
+            // Живой сервис уже держит observer и резервный Job: повторный запуск — лишние IPC
+            if (BackgroundMonitoringService.isReady) {
+                LogUtil.processDebug("setupBackgroundService: сервис уже работает")
+                return
+            }
             // Единая точка запуска: планирует резервный Job и поднимает постоянный foreground-сервис.
             MonitoringController.startMonitoring(this)
             LogUtil.processDebug("setupBackgroundService: мониторинг запущен через контроллер")

@@ -360,29 +360,15 @@ class UriProcessingTracker private constructor(
     fun isUriUnavailable(uri: Uri): Boolean {
         val uriString = keyOf(uri)
 
-        // Очищаем устаревшие записи перед проверкой
-        cleanupStaleUnavailableEntries()
-
-        return unavailableUris.containsKey(uriString)
-    }
-
-    /**
-     * Очищает устаревшие записи недоступных URI
-     */
-    private fun cleanupStaleUnavailableEntries() {
-        val now = System.currentTimeMillis()
-        val expiredUris = mutableListOf<String>()
-
-        for ((uri, timestamp) in unavailableUris) {
-            if (now - timestamp > UNAVAILABLE_URI_EXPIRATION) {
-                expiredUris.add(uri)
-            }
+        // TTL проверяем при чтении: полный обход карты на каждый вызов не нужен,
+        // остальные записи вычищает троттлинговая очистка
+        val markedAt = unavailableUris[uriString] ?: return false
+        if (System.currentTimeMillis() - markedAt > UNAVAILABLE_URI_EXPIRATION) {
+            unavailableUris.remove(uriString, markedAt)
+            LogUtil.processDebug("Устаревший URI удален из списка недоступных: $uriString")
+            return false
         }
-
-        for (uri in expiredUris) {
-            unavailableUris.remove(uri)
-            LogUtil.processDebug("Устаревший URI удален из списка недоступных: $uri")
-        }
+        return true
     }
 
     /**
@@ -448,9 +434,13 @@ class UriProcessingTracker private constructor(
          * `external` и `external_primary` (или имя тома SD) — без нормализации
          * ignore/processing промахиваются. Ключ остаётся валидным URI тома `external`.
          */
-        internal fun keyOf(uriString: String): String =
-            MEDIA_IMAGE_URI.matchEntire(uriString)?.let { "content://media/external/images/media/${it.groupValues[1]}" }
+        internal fun keyOf(uriString: String): String {
+            // Быстрый отсев: регулярка нужна только для URI MediaStore
+            if (!uriString.startsWith("content://media/")) return uriString
+            return MEDIA_IMAGE_URI.matchEntire(uriString)
+                ?.let { "content://media/external/images/media/${it.groupValues[1]}" }
                 ?: uriString
+        }
 
         internal fun keyOf(uri: Uri): String = keyOf(uri.toString())
 

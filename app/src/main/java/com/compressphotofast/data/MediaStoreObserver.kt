@@ -66,9 +66,7 @@ class MediaStoreObserver @Inject constructor(
         val lastObservedTime = recentlyObservedUris[uriString]
         if (lastObservedTime != null && currentTime - lastObservedTime < contentObserverDebounceTime) return
         recentlyObservedUris[uriString] = currentTime
-        recentlyObservedUris.entries
-            .filter { currentTime - it.value > 15000L }
-            .forEach { recentlyObservedUris.remove(it.key) }
+        recentlyObservedUris.entries.removeIf { currentTime - it.value > 15000L }
 
         LogUtil.processDebug("MediaStoreObserver: обнаружено изменение в MediaStore: $uri, обработка через ${Constants.CONTENT_OBSERVER_DELAY_SECONDS} сек")
         pendingTasks[uriString]?.cancel()

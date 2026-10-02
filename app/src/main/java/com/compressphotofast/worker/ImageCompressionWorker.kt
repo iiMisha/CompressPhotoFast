@@ -72,6 +72,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     // Имя файла из последнего снимка MediaStore — для отчёта в батч без повторного запроса
     private var snapshotDisplayName: String? = null
 
+    private var silentForegroundSet = false
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         LogUtil.processDebug(
             "ImageCompressionWorker.doWork() НАЧАЛО: uri=${inputData.getString(Constants.WORK_INPUT_IMAGE_URI)}, " +
@@ -174,6 +176,9 @@ class ImageCompressionWorker @AssistedInject constructor(
                 snapshot = gatedSnapshot,
                 preloadedExif = sourceExif?.data
             )
+            // Тяжёлая фаза закончена: уведомления и статистика не должны держать permit соседних URI
+            executionGate.release()
+            isExecutionGateOwner = false
             return@withContext handleOutcome(outcome)
         } catch (e: TimeoutCancellationException) {
             LogUtil.warning(globalImageUri, "Сжатие", "Превышен лимит времени, планирую retry")
@@ -291,6 +296,9 @@ class ImageCompressionWorker @AssistedInject constructor(
         if (workOrigin == "MANUAL") {
             setForeground(createForegroundInfo(singleModeText))
         } else {
+            // Тихое уведомление не зависит от текста: повторный setForeground — лишний IPC
+            if (silentForegroundSet) return
+            silentForegroundSet = true
             setForeground(NotificationUtil.createSilentForegroundInfo(
                 appContext,
                 Constants.NOTIFICATION_ID_COMPRESSION

@@ -19,12 +19,14 @@ import com.compressphotofast.domain.CompressionOrigin
 import com.compressphotofast.domain.CompressionWorkScheduler
 import com.compressphotofast.domain.GalleryScanCoordinator
 import com.compressphotofast.domain.GalleryScanUtil
+import com.compressphotofast.domain.ImageProcessingChecker
 
 class GalleryScanCoordinatorTest {
     private val settings = mockk<SettingsManager>(relaxed = true)
     private val scheduler = mockk<CompressionWorkScheduler>()
     private val scanUtil = mockk<GalleryScanUtil>()
-    private val coordinator = GalleryScanCoordinator(settings, scheduler, scanUtil)
+    private val checker = mockk<ImageProcessingChecker>()
+    private val coordinator = GalleryScanCoordinator(settings, scheduler, scanUtil, checker)
     private val uri1 = mockk<Uri>()
     private val uri2 = mockk<Uri>()
 
@@ -115,6 +117,32 @@ class GalleryScanCoordinatorTest {
     fun `enqueueAll does not touch watermark`() = runTest {
         assertTrue(coordinator.enqueueAll(listOf(uri1)))
         verify(exactly = 0) { settings.setLastScanTimestamp(any()) }
+    }
+
+    @Test
+    fun `enqueueTriggered skips already compressed and keeps the rest`() = runTest {
+        coEvery { checker.isProcessingRequired(uri1) } returns ImageProcessingChecker.ProcessingCheckResult(
+            processingRequired = false, reason = ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
+        )
+        // Недописанный файл выглядит маленьким — отсекать его на этом этапе нельзя
+        coEvery { checker.isProcessingRequired(uri2) } returns ImageProcessingChecker.ProcessingCheckResult(
+            processingRequired = false, reason = ImageProcessingChecker.ProcessingSkipReason.ALREADY_SMALL
+        )
+
+        assertTrue(coordinator.enqueueTriggered(listOf(uri1, uri2)))
+
+        coVerify(exactly = 0) { scheduler.enqueue(uri1, any(), any(), any(), any()) }
+        coVerify(exactly = 1) { scheduler.enqueue(uri2, any(), any(), any(), any()) }
+        verify(exactly = 0) { settings.setLastScanTimestamp(any()) }
+    }
+
+    @Test
+    fun `enqueueTriggered enqueues when check fails`() = runTest {
+        coEvery { checker.isProcessingRequired(uri1) } throws IllegalStateException("boom")
+
+        assertTrue(coordinator.enqueueTriggered(listOf(uri1)))
+
+        coVerify(exactly = 1) { scheduler.enqueue(uri1, any(), any(), any(), any()) }
     }
 
     @Test

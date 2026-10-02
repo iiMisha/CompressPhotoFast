@@ -305,7 +305,7 @@ object ImageCompressionUtil {
                     }
 
                     artifact = File(context.cacheDir, "compressed_${uri.hashCode()}_${System.currentTimeMillis()}.jpg")
-                    FileOutputStream(artifact).use { output ->
+                    FileOutputStream(artifact).buffered(com.compressphotofast.util.FileIoUtil.COPY_BUFFER_SIZE).use { output ->
                         if (!inputBitmap!!.compress(Bitmap.CompressFormat.JPEG, quality, output)) {
                             throw IOException("Bitmap.compress вернул false")
                         }

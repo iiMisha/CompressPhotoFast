@@ -340,10 +340,7 @@ class BackgroundMonitoringService : Service() {
                 return false
             }
 
-            return compressionWorkScheduler.enqueue(uri).let {
-                it == CompressionEnqueueResult.DURABLY_ACCEPTED ||
-                    it == CompressionEnqueueResult.NOT_REQUIRED
-            }
+            return galleryScanCoordinator.enqueueTriggered(listOf(uri))
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {

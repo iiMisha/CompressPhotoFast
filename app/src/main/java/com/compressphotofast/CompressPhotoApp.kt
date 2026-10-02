@@ -52,9 +52,11 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Создание канала уведомлений (для Android 8.0+)
-        // Используем централизованный метод из NotificationUtil
-        NotificationUtil.createDefaultNotificationChannel(this)
+        // Каналы уведомлений (Android 8.0+) — несколько binder-вызовов, не на main.
+        // Каждый путь показа уведомления сам вызывает createDefaultNotificationChannel
+        appScope.launch(Dispatchers.IO) {
+            NotificationUtil.createDefaultNotificationChannel(applicationContext)
+        }
 
         // Инициализация WorkManager с конфигурацией
         // Проверяем, что WorkManager еще не инициализирован (например, в тестах)
