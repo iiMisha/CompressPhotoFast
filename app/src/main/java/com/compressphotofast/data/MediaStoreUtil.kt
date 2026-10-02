@@ -39,7 +39,8 @@ object MediaStoreUtil {
     }
 
     sealed interface SaveResult {
-        data class Saved(val uri: Uri) : SaveResult
+        /** [size] — точная длина опубликованного файла (сверена при записи). */
+        data class Saved(val uri: Uri, val size: Long) : SaveResult
         data class Failed(val reason: SaveFailure) : SaveResult
     }
 
@@ -100,8 +101,9 @@ object MediaStoreUtil {
         directory: String
     ): String {
         var path = if (isReplaceMode && originalUri != null) {
-            // В режиме замены используем оригинальную директорию файла
-            UriUtil.getDirectoryFromUri(context, originalUri)
+            // В режиме замены используем оригинальную директорию файла; вызывающая
+            // сторона обычно уже знает её из снимка MediaStore — без лишнего запроса
+            directory.ifEmpty { UriUtil.getDirectoryFromUri(context, originalUri) }
         } else if (directory.isEmpty()) {
             Environment.DIRECTORY_PICTURES
         } else if (directory.startsWith(Environment.DIRECTORY_PICTURES)) {
@@ -235,25 +237,44 @@ object MediaStoreUtil {
         mimeType: String = "image/jpeg",
         originalUri: Uri? = null
     ): Pair<Uri?, Boolean> = withContext(Dispatchers.IO) {
-        try {
-            val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
-            val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
+        val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
+        val targetRelativePath = try {
+            buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
+        } catch (e: Exception) {
+            LogUtil.errorWithException("Создание записи в MediaStore V2", e)
+            return@withContext Pair(null, false)
+        }
+        createMediaStoreEntryV2(context, fileName, mimeType, originalUri, isReplaceMode, targetRelativePath)
+    }
 
-            try {
-                val existingUri = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)[fileName]
-                // Файл существует, это сам оригинал И режим замены: возвращаем existingUri с флагом true.
-                // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
-                if (shouldUseUpdatePath(existingUri, originalUri, isReplaceMode)) {
-                    return@withContext Pair(existingUri, true) // true = режим обновления
+    private suspend fun createMediaStoreEntryV2(
+        context: Context,
+        fileName: String,
+        mimeType: String,
+        originalUri: Uri?,
+        isReplaceMode: Boolean,
+        targetRelativePath: String
+    ): Pair<Uri?, Boolean> = withContext(Dispatchers.IO) {
+        try {
+            // Вне режима замены существующий файл не перезаписывается — конфликт имён
+            // решает handleFileNameConflict, отдельный запрос не нужен
+            if (isReplaceMode) {
+                try {
+                    val existingUri = batchCheckFilesExist(context, listOf(fileName), targetRelativePath)[fileName]
+                    // Файл существует, это сам оригинал И режим замены: возвращаем existingUri с флагом true.
+                    // НЕ удаляем файл здесь - будем перезаписывать напрямую через OutputStream
+                    if (shouldUseUpdatePath(existingUri, originalUri, isReplaceMode)) {
+                        return@withContext Pair(existingUri, true) // true = режим обновления
+                    }
+                    if (existingUri != null) {
+                        LogUtil.warning(
+                            originalUri, "Replace",
+                            "Имя $fileName занято другим файлом ($existingUri) — перезапись запрещена, создаём новый файл"
+                        )
+                    }
+                } catch (e: Exception) {
+                    LogUtil.errorWithException("Проверка существующего файла", e)
                 }
-                if (existingUri != null && isReplaceMode) {
-                    LogUtil.warning(
-                        originalUri, "Replace",
-                        "Имя $fileName занято другим файлом ($existingUri) — перезапись запрещена, создаём новый файл"
-                    )
-                }
-            } catch (e: Exception) {
-                LogUtil.errorWithException("Проверка существующего файла", e)
             }
 
             Pair(insertPendingEntry(context, fileName, mimeType, targetRelativePath), false) // false = режим создания
@@ -310,8 +331,8 @@ object MediaStoreUtil {
         val saveLock = getSaveLock(lockKey)
         saveLock.withLock {
             saveCompressedImageFromFileInternal(
-                context, compressedFile, fileName, directory, originalUri, quality, exifDataMemory, mimeType,
-                originalFileSize, pixelsTransformed
+                context, compressedFile, fileName, isReplaceMode, targetRelativePath, originalUri, quality,
+                exifDataMemory, mimeType, originalFileSize, pixelsTransformed
             )
         }
     }
@@ -324,13 +345,14 @@ object MediaStoreUtil {
         context: Context,
         compressedFile: File,
         fileName: String,
-        directory: String,
+        isReplaceMode: Boolean,
+        targetRelativePath: String,
         originalUri: Uri,
-        quality: Int = Constants.COMPRESSION_QUALITY_MEDIUM,
-        exifDataMemory: Map<String, Any>? = null,
-        mimeType: String = "image/jpeg",
-        originalFileSize: Long? = null,
-        pixelsTransformed: Boolean = false
+        quality: Int,
+        exifDataMemory: Map<String, Any>?,
+        mimeType: String,
+        originalFileSize: Long?,
+        pixelsTransformed: Boolean
     ): SaveResult = withContext(Dispatchers.IO) {
         try {
             // EXIF и маркер (с точным размером) пишутся в локальный artifact до публикации:
@@ -338,7 +360,7 @@ object MediaStoreUtil {
             val exifOk = ExifUtil.writeExifToArtifact(
                 compressedFile, exifDataMemory ?: emptyMap(), quality, originalFileSize, pixelsTransformed
             )
-            if (!exifOk && FileOperationsUtil.isSaveModeReplace(context)) {
+            if (!exifOk && isReplaceMode) {
                 // Оригинал с метаданными будет заменён/удалён — без EXIF это потеря GPS/дат
                 LogUtil.error(originalUri, "Сохранение", "EXIF не записан в artifact — замена оригинала отменена")
                 return@withContext SaveResult.Failed(SaveFailure.OTHER)
@@ -347,7 +369,8 @@ object MediaStoreUtil {
             val request = SaveRequest(compressedFile, originalUri, mimeType)
 
             // Используем новую версию с поддержкой режима обновления
-            val (uri, isUpdateMode) = createMediaStoreEntryV2(context, fileName, directory, mimeType, originalUri)
+            val (uri, isUpdateMode) =
+                createMediaStoreEntryV2(context, fileName, mimeType, originalUri, isReplaceMode, targetRelativePath)
 
             if (uri == null) {
                 LogUtil.error(originalUri, "Сохранение", "Не удалось создать запись в MediaStore")
@@ -375,8 +398,6 @@ object MediaStoreUtil {
                 // Сохраняем сжатую версию в новый файл (с уникальным именем) через
                 // общий путь верификации и EXIF — оригинал остаётся нетронутым.
                 LogUtil.warning(uri, "Replace", "Backup оригинала не создан — перезапись отменена, сохраняем в новый файл")
-                val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
-                val targetRelativePath = buildTargetRelativePath(context, isReplaceMode, originalUri, directory)
                 val newUri = insertPendingEntry(context, fileName, mimeType, targetRelativePath)
                 return@withContext saveToNewEntry(context, newUri, request)
             }
@@ -419,7 +440,7 @@ object MediaStoreUtil {
             // Файл верифицирован — снимаем IS_PENDING, делая его видимым
             clearIsPendingFlag(context, uri)
             UriUtil.invalidateUriExistsCache(uri)
-            return SaveResult.Saved(uri)
+            return SaveResult.Saved(uri, written)
         } catch (e: Exception) {
             LogUtil.error(request.originalUri, "Сохранение", "Ошибка записи нового файла: ${e.message}", e)
             withContext(NonCancellable) {
@@ -493,7 +514,7 @@ object MediaStoreUtil {
             }
         }
         return when {
-            success -> SaveResult.Saved(uri)
+            success -> SaveResult.Saved(uri, request.cacheFile.length())
             rollbackFailed -> SaveResult.Failed(SaveFailure.ROLLBACK_FAILED)
             else -> SaveResult.Failed(SaveFailure.OTHER)
         }

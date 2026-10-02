@@ -56,7 +56,6 @@ class CompressImageUseCaseTest : BaseUnitTest() {
         coEvery { ExifUtil.readExifDataToMemory(any(), any()) } returns emptyMap()
         coEvery { ExifUtil.writeSkipMarker(any(), any(), any(), any()) } returns true
         coEvery { UriUtil.getFileSize(any(), uri) } returns sourceSize
-        coEvery { UriUtil.getFileSize(any(), savedUri) } returns 400_000L
         every { UriUtil.getFileNameFromUri(any(), any()) } returns "photo.jpg"
         every { UriUtil.getDirectoryFromUri(any(), any()) } returns "Pictures/"
         coEvery { UriUtil.isUriExistsSuspend(any(), any()) } returns true
@@ -132,12 +131,14 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     @Test
     fun `успешное сжатие в отдельный файл`() = runTest {
         stubTest(compressedSize = 400_000L)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 400_000L))
 
         val outcome = useCase(uri, params)
 
         assertTrue(outcome is CompressImageUseCase.Outcome.Compressed)
         assertEquals(400_000L, (outcome as CompressImageUseCase.Outcome.Compressed).compressedSize)
+        // Размер сохранённого файла приходит из SaveResult без запроса к MediaStore
+        coVerify(exactly = 0) { UriUtil.getFileSize(any(), savedUri) }
         coVerify(exactly = 0) { FileOperationsUtil.deleteFile(any(), any(), any(), any()) }
     }
 
@@ -159,7 +160,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     fun `replace-режим откладывает удаление до подтверждения пользователя`() = runTest {
         every { FileOperationsUtil.isSaveModeReplace(any()) } returns true
         stubTest(compressedSize = 400_000L)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 400_000L))
         coEvery { FileOperationsUtil.deleteFile(any(), uri, any(), true) } returns mockk<IntentSender>()
 
         val outcome = useCase(uri, params)
@@ -173,7 +174,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     fun `replace-режим при отказе удаления пишет маркер в оригинал`() = runTest {
         every { FileOperationsUtil.isSaveModeReplace(any()) } returns true
         stubTest(compressedSize = 400_000L)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 400_000L))
         coEvery { FileOperationsUtil.deleteFile(any(), uri, any(), true) } returns false
 
         val outcome = useCase(uri, params)
@@ -186,7 +187,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     fun `изменённый во время сжатия оригинал сохраняется, копия удаляется`() = runTest {
         every { FileOperationsUtil.isSaveModeReplace(any()) } returns true
         stubTest(compressedSize = 400_000L)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 400_000L))
         coEvery { MediaStoreUtil.isFileUnchanged(any(), uri, sourceSize) } returns false
 
         assertEquals(CompressImageUseCase.Outcome.Failed(), useCase(uri, params))
@@ -197,7 +198,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     @Test
     fun `снимок и предзагруженный EXIF избавляют от повторных запросов`() = runTest {
         stubTest(compressedSize = 400_000L)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 400_000L))
         val snapshot = MediaItemSnapshot(
             uri = uri,
             displayName = "photo.jpg",
@@ -223,7 +224,7 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     @Test
     fun `признак повёрнутых пикселей передаётся в сохранение`() = runTest {
         stubTest(compressedSize = 400_000L, pixelsOriented = true)
-        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri))
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 400_000L))
 
         useCase(uri, params)
 

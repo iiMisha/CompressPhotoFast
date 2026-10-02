@@ -172,13 +172,14 @@ class CompressImageUseCase @Inject constructor(
             originalFileSize = sourceSize,
             pixelsTransformed = testResult.pixelsOriented
         )
-        val savedUri = when (saveResult) {
+        val saved = when (saveResult) {
             is MediaStoreUtil.SaveResult.Failed -> {
                 LogUtil.error(imageUri, "Сохранение", "Не удалось сохранить сжатое изображение: ${saveResult.reason}")
                 return Outcome.Failed(saveResult.reason)
             }
-            is MediaStoreUtil.SaveResult.Saved -> saveResult.uri
+            is MediaStoreUtil.SaveResult.Saved -> saveResult
         }
+        val savedUri = saved.uri
 
         // Перезапись на месте определяется по ID MediaStore: savedUri строится как
         // content://media/external/..., а imageUri может прийти через external_primary.
@@ -207,7 +208,7 @@ class CompressImageUseCase @Inject constructor(
         }
 
         // Учитываем только сохранённый и проверенный файл, независимо от удаления оригинала.
-        val compressedSize = UriUtil.getFileSize(context, savedUri) ?: testResult.stats.compressedSize
+        val compressedSize = saved.size
         val dailyStats = StatsTracker.recordSuccessfulCompression(context, sourceSize, compressedSize)
 
         if (isReplaceMode && !overwrittenInPlace && !deleteOriginal(imageUri)) {

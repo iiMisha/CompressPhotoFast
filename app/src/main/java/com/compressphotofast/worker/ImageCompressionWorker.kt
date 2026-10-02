@@ -69,6 +69,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val workOrigin = inputData.getString(Constants.WORK_ORIGIN)
         ?: if (batchId.isNullOrEmpty()) "AUTO" else "MANUAL"
     private var markRecentlyProcessed = false
+    // Имя файла из последнего снимка MediaStore — для отчёта в батч без повторного запроса
+    private var snapshotDisplayName: String? = null
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         LogUtil.processDebug(
@@ -110,6 +112,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 return@withContext Result.failure()
             }
+            snapshotDisplayName = preGateSnapshot?.displayName
             val exists = preGateSnapshot?.exists == true
 
             // Если URI помечен как недоступный, проверяем его повторно перед выходом
@@ -145,6 +148,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             // и изменения EXIF между discovery и фактическим запуском.
             // Свежий снимок и одно чтение EXIF: маркер идёт в проверку, теги — в сжатие.
             val gatedSnapshot = MediaItemSnapshot.query(appContext, imageUri)
+            gatedSnapshot?.displayName?.let { snapshotDisplayName = it }
             val sourceExif = ExifUtil.readSourceExif(appContext, imageUri, gatedSnapshot)
             val gatedProcessingCheck = imageProcessingChecker.isProcessingRequired(
                 imageUri,
@@ -247,7 +251,7 @@ class ImageCompressionWorker @AssistedInject constructor(
     private fun reportBatchOutcome(status: CompressionBatchTracker.Status) {
         if (batchId.isNullOrEmpty()) return
         val uri = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)?.let(Uri::parse)
-        val fileName = uri?.let {
+        val fileName = snapshotDisplayName ?: uri?.let {
             try {
                 UriUtil.getFileNameFromUri(appContext, it)
             } catch (_: Exception) {
