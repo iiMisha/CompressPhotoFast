@@ -14,13 +14,14 @@ import com.compressphotofast.domain.ImageProcessingChecker
 import com.compressphotofast.domain.CompressionEnqueueResult
 import com.compressphotofast.domain.CompressionOrigin
 import com.compressphotofast.domain.CompressionWorkScheduler
+import com.compressphotofast.BuildConfig
+import com.compressphotofast.data.FileOperationsUtil
 import com.compressphotofast.data.MediaItemSnapshot
 import com.compressphotofast.data.CompressionPreset
 import com.compressphotofast.data.SettingsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.compressphotofast.domain.CompressionBatchTracker
@@ -98,21 +99,19 @@ class MainViewModel @Inject constructor(
             return 0
         }
         return withContext(Dispatchers.IO) {
-            validUris.forEach { logFileDetails(it) }
+            // Запрос ради debug-лога: в release R8 вырезает только вызов LogUtil, не query
+            if (BuildConfig.DEBUG) validUris.forEach { logFileDetails(it) }
             enqueueManualBatch(validUris)
         }
     }
 
     private suspend fun isValidSharedImage(uri: Uri): Boolean {
-        // Двойная проверка существования с паузой защищает от race condition
-        // с провайдером, который ещё не завершил запись.
-        for (attempt in 1..2) {
-            if (attempt == 2) delay(50)
-            if (!UriUtil.isUriExistsSuspend(context, uri)) {
-                LogUtil.error(uri, "Intent обработка", "Файл не существует (проверка $attempt)")
-                uriProcessingTracker.markUriUnavailable(uri)
-                return false
-            }
+        // Одна проверка: повтор попадал бы в кэш isUriExistsSuspend (TTL 10 с) и лишь
+        // добавлял паузу на каждый URI; незавершённую запись отсекает воркер (pending)
+        if (!UriUtil.isUriExistsSuspend(context, uri)) {
+            LogUtil.error(uri, "Intent обработка", "Файл не существует")
+            uriProcessingTracker.markUriUnavailable(uri)
+            return false
         }
         val mimeType = try {
             withContext(Dispatchers.IO) { UriUtil.getMimeType(context, uri) }
@@ -260,7 +259,11 @@ class MainViewModel @Inject constructor(
             val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
             
             val uncompressedImages = mutableListOf<Uri>()
-            
+            // Сжатые копии ищутся одним запросом (только separate-режим), как в скане галереи
+            val appDirectoryNames = if (!settingsManager.isSaveModeReplace()) {
+                FileOperationsUtil.queryAppDirectoryFileNames(context)
+            } else null
+
             // Ищем неотсжатые изображения
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -280,7 +283,9 @@ class MainViewModel @Inject constructor(
                     
                     // Метаданные уже в курсоре: проверка не делает запросов к MediaStore
                     val snapshot = MediaItemSnapshot.fromCursor(cursor, contentUri, columns)
-                    val shouldProcess = imageProcessingChecker.shouldProcessImage(contentUri, false, snapshot)
+                    val shouldProcess = imageProcessingChecker.shouldProcessImage(
+                        contentUri, false, snapshot, appDirectoryNames
+                    )
                     
                     if (shouldProcess) {
                         uncompressedImages.add(contentUri)
