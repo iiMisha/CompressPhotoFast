@@ -1025,16 +1025,27 @@ object ExifUtil {
      * Получает информацию о сжатии из тега UserComment
      * @param context Контекст приложения
      * @param uri URI изображения
+     * @param snapshot снимок MediaStore (если есть): из него берутся MIME, имя и дата HEIC-маркера
      * @return [CompressionMarkerInfo] с флагом сжатия, качеством, временной меткой
      *         и размером файла из маркера (null, если размер неизвестен:
      *         старый формат, HEIC-маркер или заглушка двухфазной записи)
      */
-    suspend fun getCompressionMarker(context: Context, uri: Uri): CompressionMarkerInfo {
+    suspend fun getCompressionMarker(
+        context: Context,
+        uri: Uri,
+        snapshot: MediaItemSnapshot? = null
+    ): CompressionMarkerInfo {
         try {
-            // Сначала проверяем HEIC файлы с суффиксом _compressed в имени
-            if (isHeicFile(context, uri)) {
-                val (displayName, dateModified) = withContext(Dispatchers.IO) {
-                    getHeicDisplayNameAndDate(context, uri)
+            // Сначала проверяем HEIC файлы с суффиксом _compressed в имени.
+            // MIME, имя и дату берём из снимка без запросов к провайдеру (скан галереи).
+            val isHeic = snapshot?.mimeType
+                ?.let { UriUtil.isHeicMimeType(it) }
+                ?: isHeicFile(context, uri)
+            if (isHeic) {
+                val (displayName, dateModified) = if (snapshot?.displayName != null) {
+                    snapshot.displayName to snapshot.dateModifiedMs
+                } else {
+                    withContext(Dispatchers.IO) { getHeicDisplayNameAndDate(context, uri) }
                 }
                 heicSuffixMarker(uri, displayName, dateModified)?.let { return it }
             }

@@ -174,6 +174,35 @@ class ExifUtilHeicTest : BaseUnitTest() {
     }
 
     /**
+     * HEIC-маркер со снимком MediaStore: MIME, имя и дата берутся из снимка,
+     * к провайдеру (getType/query) обращений нет.
+     */
+    @Test
+    fun `test getCompressionMarker with snapshot does not query provider`() {
+        val mockContext = mockk<Context>()
+        val heicUri = Uri.parse("content://media/external/images/media/103")
+        val snapshot = com.compressphotofast.data.MediaItemSnapshot(
+            uri = heicUri,
+            displayName = "photo_compressed.heic",
+            relativePath = "DCIM/Camera/",
+            mimeType = "image/heic",
+            size = 500_000L,
+            isPendingRaw = false,
+            dateAddedSec = 1704067100L,
+            dateModifiedSec = 1704067200L
+        )
+
+        val marker = runBlocking {
+            ExifUtil.getCompressionMarker(mockContext, heicUri, snapshot)
+        }
+
+        assertTrue("HEIC с суффиксом в снимке должен считаться сжатым", marker.isCompressed)
+        assertEquals(85, marker.quality)
+        assertEquals(1704067200000L, marker.timestamp)
+        verify(exactly = 0) { mockContext.contentResolver }
+    }
+
+    /**
      * Тест 4: getCompressionMarker для HEIC БЕЗ суффикса
      *
      * Проверяет, что HEIC файл без суффикса не распознается как сжатый

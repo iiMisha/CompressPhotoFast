@@ -241,7 +241,7 @@ class ImageProcessingChecker @Inject constructor(
             // только дату модификации) не инвалидируют кэш, реальное изменение
             // содержимого — инвалидирует.
             val exifData = OptimizedCacheUtil.getOrComputeExifData(uri, fileSize) {
-                val marker = precomputedMarker ?: ExifUtil.getCompressionMarker(context, uri)
+                val marker = precomputedMarker ?: ExifUtil.getCompressionMarker(context, uri, snapshot)
                 OptimizedCacheUtil.CachedExifData(
                     marker.isCompressed, marker.quality, marker.timestamp, marker.fileSize, fileSize
                 )
