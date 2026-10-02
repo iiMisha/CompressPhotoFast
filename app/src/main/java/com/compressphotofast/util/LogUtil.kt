@@ -29,6 +29,9 @@ object LogUtil {
     // Флаг для управления уровнем детализации (настраивается через BuildConfig)
     private val SHOULD_LOG_DEBUG = BuildConfig.DEBUG_LOGGING
 
+    /** Для блоков диагностики, чья подготовка (не только вывод) не нужна в release. */
+    val isDebugLoggingEnabled: Boolean get() = SHOULD_LOG_DEBUG
+
     /**
      * Проверяет, нужно ли выводить лог (дедупликация и уровень детализации)
      * Thread-safe для многопоточной обработки изображений

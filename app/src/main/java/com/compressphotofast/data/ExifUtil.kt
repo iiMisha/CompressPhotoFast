@@ -396,24 +396,26 @@ object ExifUtil {
             }
         }
         
-        // === ДИАГНОСТИКА РАЗРЕШЕНИЙ ===
-        try {
-            val hasMediaLocationPermission =
-                context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
-                    android.content.pm.PackageManager.PERMISSION_GRANTED
-            
-            LogUtil.permissionsInfo("📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для $uri:")
-            LogUtil.permissionsInfo("  - Android версия: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
-            LogUtil.permissionsInfo("  - ACCESS_MEDIA_LOCATION: ${if (hasMediaLocationPermission) "✅ ПРЕДОСТАВЛЕНО" else "❌ ОТСУТСТВУЕТ"}")
-            LogUtil.permissionsInfo("  - URI тип: ${if (uri.toString().startsWith("content://media/")) "MediaStore" else "Другой"}")
-            
-            if (!hasMediaLocationPermission) {
-                LogUtil.permissionsWarning("⚠️ КРИТИЧНО: Разрешение ACCESS_MEDIA_LOCATION отсутствует - GPS данные будут скрыты системой!")
+        // === ДИАГНОСТИКА РАЗРЕШЕНИЙ (только debug: в release checkSelfPermission не нужен) ===
+        if (LogUtil.isDebugLoggingEnabled) {
+            try {
+                val hasMediaLocationPermission =
+                    context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                LogUtil.permissionsInfo("📋 ДИАГНОСТИКА РАЗРЕШЕНИЙ для $uri:")
+                LogUtil.permissionsInfo("  - Android версия: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
+                LogUtil.permissionsInfo("  - ACCESS_MEDIA_LOCATION: ${if (hasMediaLocationPermission) "✅ ПРЕДОСТАВЛЕНО" else "❌ ОТСУТСТВУЕТ"}")
+                LogUtil.permissionsInfo("  - URI тип: ${if (uri.toString().startsWith("content://media/")) "MediaStore" else "Другой"}")
+
+                if (!hasMediaLocationPermission) {
+                    LogUtil.permissionsWarning("⚠️ КРИТИЧНО: Разрешение ACCESS_MEDIA_LOCATION отсутствует - GPS данные будут скрыты системой!")
+                }
+            } catch (e: Exception) {
+                LogUtil.permissionsError("Ошибка проверки разрешений", e)
             }
-        } catch (e: Exception) {
-            LogUtil.permissionsError("Ошибка проверки разрешений", e)
         }
-        
+
         // === GPS ИЗВЛЕЧЕНИЕ ЧЕРЕЗ EXIFINTERFACE ===
         LogUtil.processInfo("🔍 GPS ИЗВЛЕЧЕНИЕ: Используем ExifInterface с поддержкой MediaStore.setRequireOriginal()")
         

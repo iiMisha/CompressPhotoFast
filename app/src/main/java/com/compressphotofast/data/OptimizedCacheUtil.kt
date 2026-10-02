@@ -20,7 +20,10 @@ object OptimizedCacheUtil {
 
     // Время жизни кэшированных данных
     private const val DIRECTORY_CACHE_TTL = 30 * 60 * 1000L // 30 минут
-    private const val EXIF_CACHE_TTL = 10 * 60 * 1000L // 10 минут
+    // TTL — лишь верхняя граница: актуальность записи гарантирует isStaleFor (размер файла
+    // сверяется при каждом обращении), а любая перезапись (replace, маркер) меняет размер.
+    // Должен превышать каданс часовых сканов, иначе каждый скан заново читает EXIF.
+    private const val EXIF_CACHE_TTL = 12 * 60 * 60 * 1000L // 12 часов
     private const val PATH_PATTERN_CACHE_TTL = 60 * 60 * 1000L // 1 час
 
     /**
