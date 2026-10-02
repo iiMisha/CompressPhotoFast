@@ -4,9 +4,13 @@ import androidx.exifinterface.media.ExifInterface
 import com.compressphotofast.BaseUnitTest
 import com.compressphotofast.data.CompressionMarker
 import com.compressphotofast.data.ExifUtil
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +49,43 @@ class ExifArtifactWriteTest : BaseUnitTest() {
         assertEquals(70, marker!!.quality)
         assertEquals(artifact.length(), marker.fileSize)
         assertEquals(1_234_567L, marker.originalFileSize)
+    }
+
+    @Test
+    fun `размер дописывается патчем без второй перезаписи artifact`() = runTest {
+        var patched: Boolean? = null
+        mockkObject(ExifUtil)
+        try {
+            every { ExifUtil.patchArtifactMarker(any(), any(), any()) } answers {
+                (callOriginal() as Boolean).also { patched = it }
+            }
+            assertTrue(ExifUtil.writeExifToArtifact(artifact, emptyMap(), quality = 70, originalFileSize = 500_000L))
+        } finally {
+            unmockkObject(ExifUtil)
+        }
+        assertEquals(true, patched)
+        val marker = CompressionMarker.parse(ExifInterface(artifact).getAttribute(ExifInterface.TAG_USER_COMMENT))
+        assertEquals(artifact.length(), marker!!.fileSize)
+        assertEquals(500_000L, marker.originalFileSize)
+    }
+
+    @Test
+    fun `патч не применяется без единственной заглушки`() {
+        artifact.writeBytes("xxMARKERyyMARKER".toByteArray())
+        assertFalse(ExifUtil.patchArtifactMarker(artifact, "MARKER", "SIZED!"))
+        artifact.writeBytes("xxMARKERyy".toByteArray())
+        assertFalse(ExifUtil.patchArtifactMarker(artifact, "MARKER", "TOO_LONG"))
+        assertTrue(ExifUtil.patchArtifactMarker(artifact, "MARKER", "SIZED!"))
+        assertEquals("xxSIZED!yy", artifact.readText())
+    }
+
+    @Test
+    fun `поиск заглушки требует единственного вхождения`() {
+        val needle = "ab".toByteArray()
+        assertEquals(2, ExifUtil.indexOfSingle("xxab".toByteArray(), needle))
+        assertEquals(-1, ExifUtil.indexOfSingle("abxab".toByteArray(), needle))
+        assertEquals(-1, ExifUtil.indexOfSingle("xxxx".toByteArray(), needle))
+        assertEquals(-1, ExifUtil.indexOfSingle("a".toByteArray(), needle))
     }
 
     @Test

@@ -26,9 +26,12 @@ import com.compressphotofast.util.FileIoUtil
  */
 object ExifUtil {
 
-    // Фаза 2 маркера на локальном artifact: запись фиксированной ширины обычно
-    // стабилизирует длину с первой попытки
+    // Запасная фаза 2 маркера на локальном artifact (если патч заглушки не удался):
+    // запись фиксированной ширины обычно стабилизирует длину с первой попытки
     private const val MAX_ARTIFACT_MARKER_WRITES = 3
+
+    // APP1 (EXIF) не длиннее 64 КБ и идёт в начале JPEG — заглушка маркера ищется в этом окне
+    private const val ARTIFACT_MARKER_SCAN_BYTES = 128L * 1024
 
     // GPS-теги для копирования/проверки/применения
     private val GPS_TAGS = arrayOf(
@@ -735,9 +738,9 @@ object ExifUtil {
     /**
      * Записывает EXIF и маркер сжатия в локальный JPEG-artifact до его публикации
      * в MediaStore. Двухфазная запись маркера выполняется на локальном файле:
-     * фаза 1 — теги и заглушка размера, фаза 2 — фактический [File.length], пока
-     * длина не стабилизируется (строка маркера фиксированной ширины, обычно одна
-     * запись). Artifact затем копируется в MediaStore байт-в-байт, поэтому size в
+     * фаза 1 — теги и заглушка размера, фаза 2 — фактический [File.length]
+     * патчем байтов заглушки на месте (строка маркера фиксированной ширины, длина
+     * не меняется); если патч не удался — повторными `saveAttributes()`. Artifact затем копируется в MediaStore байт-в-байт, поэтому size в
      * маркере совпадает с размером опубликованного файла без backup и fsync на
      * каждую запись EXIF.
      *
@@ -766,6 +769,21 @@ object ExifUtil {
             exif.saveAttributes()
 
             var size = file.length()
+            // Поле размера фиксированной ширины: длина файла после фазы 1 окончательная,
+            // размер дописывается патчем байтов заглушки без второго saveAttributes()
+            if (patchArtifactMarker(
+                    file,
+                    CompressionMarker.build(quality, markerTimestamp, null, originalFileSize),
+                    CompressionMarker.build(quality, markerTimestamp, size, originalFileSize)
+                )
+            ) {
+                val patched = CompressionMarker.parse(ExifInterface(file).getAttribute(ExifInterface.TAG_USER_COMMENT))
+                if (patched?.fileSize == file.length()) {
+                    LogUtil.processInfo("EXIF artifact: $appliedTags тегов, маркер с размером $size")
+                    return@withContext true
+                }
+                LogUtil.processWarning("EXIF artifact: патч маркера не сошёлся с длиной файла, повторная запись")
+            }
             repeat(MAX_ARTIFACT_MARKER_WRITES) {
                 val sized = ExifInterface(file)
                 sized.setAttribute(
@@ -793,6 +811,44 @@ object ExifUtil {
             LogUtil.errorWithException("EXIF artifact", e)
             false
         }
+    }
+
+    /**
+     * Заменяет в начале локального artifact единственное вхождение [placeholder]
+     * строкой [replacement] той же длины (EXIF лежит в APP1 в начале JPEG).
+     * @return false, если вхождение не найдено или не единственно — нужна запись через ExifInterface
+     */
+    internal fun patchArtifactMarker(file: File, placeholder: String, replacement: String): Boolean {
+        val needle = placeholder.toByteArray(Charsets.US_ASCII)
+        val bytes = replacement.toByteArray(Charsets.US_ASCII)
+        if (needle.size != bytes.size) return false
+        return try {
+            java.io.RandomAccessFile(file, "rw").use { raf ->
+                val head = ByteArray(minOf(raf.length(), ARTIFACT_MARKER_SCAN_BYTES).toInt())
+                raf.readFully(head)
+                val offset = indexOfSingle(head, needle)
+                if (offset < 0) return false
+                raf.seek(offset.toLong())
+                raf.write(bytes)
+                true
+            }
+        } catch (e: IOException) {
+            LogUtil.processWarning("EXIF artifact: патч маркера не удался: ${e.message}")
+            false
+        }
+    }
+
+    /** Позиция единственного вхождения [needle] в [haystack]; -1, если вхождений нет или больше одного. */
+    internal fun indexOfSingle(haystack: ByteArray, needle: ByteArray): Int {
+        var found = -1
+        outer@ for (i in 0..haystack.size - needle.size) {
+            for (j in needle.indices) {
+                if (haystack[i + j] != needle[j]) continue@outer
+            }
+            if (found >= 0) return -1
+            found = i
+        }
+        return found
     }
 
     /**
