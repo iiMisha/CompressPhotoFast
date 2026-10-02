@@ -5,6 +5,8 @@
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
     <string name="warning_toggle_description">Показать или скрыть подсказку</string>
+    <string name="state_expanded">Развёрнуто</string>
+    <string name="state_collapsed">Свёрнуто</string>
     <string name="warning_card_title">Работает не на всех устройствах?</string>
     <string name="warning_open_battery_settings">Открыть настройки батареи</string>
     <string name="background_mode_warning">При проблемах работы автоматического сжатия:\n\n1. Настройки → Приложения → CompressPhotoFast → Батарея → выберите «Без ограничений»\n\nили, в зависимости от модели телефона:\n\n2. Настройки → Батарея → Оптимизация расхода батареи (или «Управление энергопотреблением») → найдите CompressPhotoFast и отключите оптимизацию</string>

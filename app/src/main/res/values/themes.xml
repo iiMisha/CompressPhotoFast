@@ -32,7 +32,7 @@
 
     <style name="ShapeAppearance.App.Medium" parent="ShapeAppearance.Material3.MediumComponent">
         <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">20dp</item>
+        <item name="cornerSize">@dimen/corner_medium</item>
     </style>
 
     <!-- Диалоги: цвета кнопок наследуются от M3 -->

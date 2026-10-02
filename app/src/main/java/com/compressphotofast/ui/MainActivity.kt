@@ -51,6 +51,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val ARROW_EXPANDED_ROTATION = 180f
+private const val ARROW_ANIMATION_MS = 200L
+
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
@@ -213,13 +216,14 @@ class MainActivity : AppCompatActivity() {
     private fun applyWindowInsets() {
         val pageMargin = resources.getDimensionPixelSize(R.dimen.page_margin)
         val maxWidth = resources.getDimensionPixelSize(R.dimen.content_max_width)
-        val fabMargin = (16 * resources.displayMetrics.density).toInt()
+        val fabMargin = resources.getDimensionPixelSize(R.dimen.fab_margin)
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
             val bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
             binding.appBar.setPadding(bars.left, bars.top, bars.right, 0)
             binding.mainScroll.setPadding(bars.left, 0, bars.right, bars.bottom)
             // На широких экранах ограничиваем ширину контента и центрируем его
-            val side = maxOf(pageMargin, (resources.displayMetrics.widthPixels - bars.left - bars.right - maxWidth) / 2)
+            val windowWidth = (resources.configuration.screenWidthDp * resources.displayMetrics.density).toInt()
+            val side = maxOf(pageMargin, (windowWidth - bars.left - bars.right - maxWidth) / 2)
             binding.mainContainer.setPadding(side, binding.mainContainer.paddingTop, side, binding.mainContainer.paddingBottom)
             (binding.btnSelectPhotos.layoutParams as ViewGroup.MarginLayoutParams).apply {
                 setMargins(fabMargin + bars.left, fabMargin, fabMargin + bars.right, fabMargin + bars.bottom)
@@ -479,7 +483,12 @@ class MainActivity : AppCompatActivity() {
                 viewModel.isWarningExpanded.collect { isExpanded ->
                     TransitionManager.beginDelayedTransition(binding.mainContainer)
                     binding.warningCard.visibility = if (isExpanded) View.VISIBLE else View.GONE
-                    binding.ivExpandArrow.animate().rotation(if (isExpanded) 180f else 0f).setDuration(200).start()
+                    binding.ivExpandArrow.animate()
+                        .rotation(if (isExpanded) ARROW_EXPANDED_ROTATION else 0f)
+                        .setDuration(ARROW_ANIMATION_MS)
+                        .start()
+                    binding.autoCompressionHeader.stateDescription =
+                        getString(if (isExpanded) R.string.state_expanded else R.string.state_collapsed)
                 }
             }
         }
