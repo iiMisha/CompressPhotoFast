@@ -68,56 +68,26 @@ sealed class CompressionException(
 object ImageCompressionUtil {
 
     /**
-     * Декодирует границы изображения (ширина, высота) с поддержкой HEIC/HEIF
-     * Для HEIC/HEIF использует ImageDecoder, для остальных - BitmapFactory
+     * Декодирует границы изображения (ширина, высота) через BitmapFactory.
+     * HEIC/HEIF сюда не попадает: границы берутся в одном проходе ImageDecoder
+     * ([decodeHeicSinglePass]).
      */
     private suspend fun decodeImageBounds(
         context: Context,
-        uri: Uri,
-        mimeType: String?
+        uri: Uri
     ): Pair<Int, Int>? = withContext(Dispatchers.IO) {
         var width = 0
         var height = 0
         try {
-                if (UriUtil.isHeicMimeType(mimeType)) {
-                    // Используем ImageDecoder для HEIC/HEIF (API 28+)
-                    val source = ImageDecoder.createSource(context.contentResolver, uri)
-
-                    try {
-                        // Используем ImageDecoder для получения размеров без полной аллокации
-                        // Декодирование прерывается выбросом исключения после получения заголовка
-                        ImageDecoder.decodeDrawable(source) { decoder, info, _ ->
-                            width = info.size.width
-                            height = info.size.height
-                            throw StopDecodingException()
-                        }
-                    } catch (e: StopDecodingException) {
-                        // Это ожидаемое прерывание
-                    } catch (e: Exception) {
-                        // Если ImageDecoder не справился, пробуем BitmapFactory как fallback
-                        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                            BitmapFactory.decodeStream(inputStream, null, options)
-                            width = options.outWidth
-                            height = options.outHeight
-                        }
-                    }
-
-                    if (width > 0 && height > 0) {
-                        return@withContext Pair(width, height)
-                    }
-                } else {
-                // Используем BitmapFactory для остальных форматов
-                val options = BitmapFactory.Options().apply {
-                    inJustDecodeBounds = true
-                }
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    BitmapFactory.decodeStream(inputStream, null, options)
-                    width = options.outWidth
-                    height = options.outHeight
-                    if (options.outWidth > 0 && options.outHeight > 0) {
-                        return@withContext Pair(options.outWidth, options.outHeight)
-                    }
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
+                width = options.outWidth
+                height = options.outHeight
+                if (options.outWidth > 0 && options.outHeight > 0) {
+                    return@withContext Pair(options.outWidth, options.outHeight)
                 }
             }
         } catch (e: OutOfMemoryError) {
@@ -127,11 +97,6 @@ object ImageCompressionUtil {
             throw CompressionException.OutOfMemory(
                 requiredMemory,
                 availableMemory,
-                e
-            )
-        } catch (e: ImageDecoder.DecodeException) {
-            throw CompressionException.CorruptedFile(
-                UriUtil.getFileNameFromUri(context, uri) ?: "неизвестный",
                 e
             )
         } catch (e: Exception) {
@@ -168,55 +133,88 @@ object ImageCompressionUtil {
         return ScalePlan(sample, targetWidth, targetHeight)
     }
 
+    /** Результат одного прохода ImageDecoder для HEIC/HEIF. */
+    private class HeicDecoded(
+        val bitmap: Bitmap,
+        val width: Int,
+        val height: Int,
+        val scalePlan: ScalePlan?
+    )
+
     /**
-     * Декодирует изображение с поддержкой HEIC/HEIF
-     * Для HEIC/HEIF использует ImageDecoder, для остальных - BitmapFactory
+     * HEIC/HEIF: границы, admission-проверка памяти и декодирование за один вызов
+     * ImageDecoder (заголовок разбирается в [ImageDecoder.OnHeaderDecodedListener]).
+     * [CompressionException] из listener и [ImageDecoder.DecodeException] пробрасываются,
+     * остальные сбои → null.
      */
+    private suspend fun decodeHeicSinglePass(
+        context: Context,
+        uri: Uri,
+        mimeType: String?,
+        maxDimension: Int
+    ): HeicDecoded? = withContext(Dispatchers.IO) {
+        var width = 0
+        var height = 0
+        var scalePlan: ScalePlan? = null
+        var bitmap: Bitmap? = null
+        try {
+            val source = ImageDecoder.createSource(context.contentResolver, uri)
+            bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                width = info.size.width
+                height = info.size.height
+                scalePlan = computeScalePlan(width, height, maxDimension)
+                requireMemory(context, width, height, mimeType)
+                scalePlan?.let { decoder.setTargetSize(it.targetWidth, it.targetHeight) }
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                decoder.setMemorySizePolicy(ImageDecoder.MEMORY_POLICY_LOW_RAM)
+            }
+            return@withContext HeicDecoded(bitmap, width, height, scalePlan)
+        } catch (e: CompressionException) {
+            throw e
+        } catch (e: ImageDecoder.DecodeException) {
+            throw e
+        } catch (e: OutOfMemoryError) {
+            throw e
+        } catch (e: Exception) {
+            bitmap?.recycle()
+            LogUtil.error(uri, "Декодирование HEIC", e)
+            return@withContext null
+        }
+    }
+
+    /** Admission-проверка: при нехватке headroom бросает [CompressionException.InsufficientMemory]. */
+    private fun requireMemory(context: Context, width: Int, height: Int, mimeType: String?) {
+        // Пиксели не поворачиваются: тег Orientation переносится в копию как есть
+        // (как в CLI), второй bitmap под поворот не нужен. HEIC ImageDecoder
+        // поворачивает сам — см. CompressionTestResult.pixelsOriented.
+        val requiredBytes = estimatePeakMemoryBytes(width, height, mimeType)
+        if (!FileOperationsUtil.hasEnoughMemory(context, requiredBytes)) {
+            throw CompressionException.InsufficientMemory(
+                requiredBytes, FileOperationsUtil.availableMemoryBytes(context)
+            )
+        }
+    }
+
+    /** Декодирует не-HEIC изображение через BitmapFactory. */
     private suspend fun decodeImageBitmap(
         context: Context,
         uri: Uri,
         mimeType: String?,
-        inSampleSize: Int,
-        targetWidth: Int = 0,
-        targetHeight: Int = 0
+        inSampleSize: Int
     ): Bitmap? = withContext(Dispatchers.IO) {
-        var bitmap: Bitmap? = null
         try {
-            if (UriUtil.isHeicMimeType(mimeType)) {
-                // Используем ImageDecoder для HEIC/HEIF (API 28+)
-                // OPTIMIZED: single-pass decode - получаем bounds и bitmap за один раз
-                val source = ImageDecoder.createSource(context.contentResolver, uri)
-
-                bitmap = ImageDecoder.decodeBitmap(source, { decoder, info, _ ->
-                    if (targetWidth > 0 && targetHeight > 0) {
-                        decoder.setTargetSize(targetWidth, targetHeight)
-                    } else if (inSampleSize > 1) {
-                        val scaledWidth = info.size.width / inSampleSize
-                        val scaledHeight = info.size.height / inSampleSize
-                        decoder.setTargetSize(scaledWidth, scaledHeight)
-                    }
-                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                    decoder.setMemorySizePolicy(ImageDecoder.MEMORY_POLICY_LOW_RAM)
-                })
-                return@withContext bitmap
-            } else {
-                // Используем BitmapFactory для остальных форматов
-                val options = BitmapFactory.Options().apply {
-                    this.inSampleSize = inSampleSize
-                    inPreferredConfig = if (isRgb565Compatible(mimeType)) {
-                        Bitmap.Config.RGB_565
-                    } else {
-                        Bitmap.Config.ARGB_8888
-                    }
+            val options = BitmapFactory.Options().apply {
+                this.inSampleSize = inSampleSize
+                inPreferredConfig = if (isRgb565Compatible(mimeType)) {
+                    Bitmap.Config.RGB_565
+                } else {
+                    Bitmap.Config.ARGB_8888
                 }
-
-                bitmap = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    BitmapFactory.decodeStream(inputStream, null, options)
-                }
-                return@withContext bitmap
+            }
+            return@withContext context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                BitmapFactory.decodeStream(inputStream, null, options)
             }
         } catch (e: Exception) {
-            bitmap?.recycle()
             LogUtil.error(uri, "Декодирование изображения", e)
             return@withContext null
         }
@@ -269,35 +267,28 @@ object ImageCompressionUtil {
                 var height = 0
                 try {
                     val mimeType = knownMimeType ?: UriUtil.getMimeType(context, uri)
-                    val bounds = decodeImageBounds(context, uri, mimeType)
-                        ?: return@withContext null
-                    width = bounds.first
-                    height = bounds.second
                     // Масштабирование применяется только при явном выборе пресета;
                     // по умолчанию (RESOLUTION_ORIGINAL) разрешение сохраняется.
-                    val scalePlan = computeScalePlan(width, height, maxDimension)
-                    // Пиксели не поворачиваются: тег Orientation переносится в копию как есть
-                    // (как в CLI), второй bitmap под поворот не нужен. HEIC ImageDecoder
-                    // поворачивает сам — см. CompressionTestResult.pixelsOriented.
-                    val requiredBytes = estimatePeakMemoryBytes(width, height, mimeType)
-                    if (!FileOperationsUtil.hasEnoughMemory(context, requiredBytes)) {
-                        throw CompressionException.InsufficientMemory(
-                            requiredBytes, FileOperationsUtil.availableMemoryBytes(context)
-                        )
+                    // Full-resolution decode is the default. Memory admission defers work
+                    // instead of silently changing image dimensions.
+                    val scalePlan: ScalePlan?
+                    if (UriUtil.isHeicMimeType(mimeType)) {
+                        val decoded = decodeHeicSinglePass(context, uri, mimeType, maxDimension)
+                            ?: return@withContext null
+                        width = decoded.width
+                        height = decoded.height
+                        scalePlan = decoded.scalePlan
+                        inputBitmap = decoded.bitmap
+                    } else {
+                        val bounds = decodeImageBounds(context, uri)
+                            ?: return@withContext null
+                        width = bounds.first
+                        height = bounds.second
+                        scalePlan = computeScalePlan(width, height, maxDimension)
+                        requireMemory(context, width, height, mimeType)
+                        inputBitmap = decodeImageBitmap(context, uri, mimeType, scalePlan?.inSampleSize ?: 1)
+                            ?: return@withContext null
                     }
-
-                    // Full-resolution decode is the default. Memory admission above
-                    // defers work instead of silently changing image dimensions.
-                    // Даунскейл (если выбран пресет) дополнительно снижает память.
-                    inputBitmap = decodeImageBitmap(
-                        context,
-                        uri,
-                        mimeType,
-                        scalePlan?.inSampleSize ?: 1,
-                        scalePlan?.targetWidth ?: 0,
-                        scalePlan?.targetHeight ?: 0
-                    )
-                        ?: return@withContext null
                     if (scalePlan != null &&
                         (inputBitmap!!.width > scalePlan.targetWidth || inputBitmap!!.height > scalePlan.targetHeight)
                     ) {
@@ -497,4 +488,3 @@ object ImageCompressionUtil {
     }
 }
 
-private class StopDecodingException : RuntimeException()
