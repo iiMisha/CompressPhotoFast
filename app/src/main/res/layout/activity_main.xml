@@ -394,6 +394,6 @@
         android:layout_margin="@dimen/fab_margin"
         android:text="@string/select_photos_button"
         android:visibility="gone"
-        app:icon="@drawable/ic_add_photo"
+        app:icon="@drawable/ic_photo_library"
         tools:visibility="visible" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
