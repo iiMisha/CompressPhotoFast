@@ -16,8 +16,16 @@
 
     <color name="error">#BA1A1A</color>
 
-
     <color name="surface_container">#EAEEF6</color>
     <color name="secondary_container">#D9E3F5</color>
     <color name="on_secondary_container">#0F1C2E</color>
+
+    <color name="surface_container_low">#EFF3FA</color>
+    <color name="surface_container_high">#E4E9F2</color>
+    <color name="surface_container_highest">#DDE2EC</color>
+    <color name="outline_variant">#C3C6CF</color>
+    <color name="inverse_surface">#2E3135</color>
+    <color name="inverse_on_surface">#EFF0F7</color>
+    <color name="secondary">#565F71</color>
+    <color name="on_secondary">#FFFFFF</color>
 </resources>

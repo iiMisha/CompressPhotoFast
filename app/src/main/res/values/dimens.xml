@@ -16,5 +16,11 @@
     <dimen name="icon_size">24dp</dimen>
     <dimen name="min_touch">48dp</dimen>
     <dimen name="corner_medium">20dp</dimen>
+    <dimen name="corner_small">12dp</dimen>
+    <dimen name="badge_size">40dp</dimen>
+    <dimen name="badge_padding">8dp</dimen>
+    <dimen name="toggle_padding_vertical">6dp</dimen>
+    <dimen name="line_spacing_body">4dp</dimen>
+    <dimen name="card_stroke">1dp</dimen>
     <dimen name="toggle_min_height">52dp</dimen>
 </resources>

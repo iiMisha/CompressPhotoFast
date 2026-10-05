@@ -10,8 +10,7 @@
         android:id="@+id/appBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:liftOnScroll="true">
+        style="@style/Widget.App.AppBar">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -56,16 +55,36 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
+                        android:minHeight="@dimen/min_touch"
                         android:orientation="horizontal">
 
-                        <TextView
-                            android:id="@+id/tvAutoCompressionLabel"
+                        <ImageView
+                            style="@style/Widget.App.IconBadge"
+                            android:layout_marginEnd="@dimen/card_padding"
+                            android:src="@drawable/ic_auto_compress" />
+
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:labelFor="@+id/switchAutoCompression"
-                            android:text="@string/auto_compression_toggle"
-                            android:textAppearance="@style/TextAppearance.App.Label" />
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvAutoCompressionLabel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:labelFor="@+id/switchAutoCompression"
+                                android:text="@string/auto_compression_toggle"
+                                android:textAppearance="@style/TextAppearance.App.Label" />
+
+                            <TextView
+                                android:id="@+id/tvAutoCompressionDescription"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_xs"
+                                android:text="@string/auto_compression_description"
+                                android:textAppearance="@style/TextAppearance.App.Caption" />
+                        </LinearLayout>
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchAutoCompression"
@@ -73,14 +92,6 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/space_l" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvAutoCompressionDescription"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/auto_compression_description"
-                        android:textAppearance="@style/TextAppearance.App.Caption" />
 
                     <com.google.android.material.divider.MaterialDivider
                         android:layout_width="match_parent"
@@ -111,7 +122,7 @@
                             android:layout_width="@dimen/icon_size"
                             android:layout_height="@dimen/icon_size"
                             android:layout_marginStart="@dimen/space_m"
-                            android:contentDescription="@string/warning_toggle_description"
+                            android:importantForAccessibility="no"
                             android:src="@drawable/ic_expand_more"
                             app:tint="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
@@ -167,16 +178,36 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
+                        android:minHeight="@dimen/min_touch"
                         android:orientation="horizontal">
 
-                        <TextView
-                            android:id="@+id/tvSaveModeLabel"
+                        <ImageView
+                            style="@style/Widget.App.IconBadge"
+                            android:layout_marginEnd="@dimen/card_padding"
+                            android:src="@drawable/ic_save_mode" />
+
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:labelFor="@+id/switchSaveMode"
-                            android:text="@string/save_mode_toggle"
-                            android:textAppearance="@style/TextAppearance.App.Label" />
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSaveModeLabel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:labelFor="@+id/switchSaveMode"
+                                android:text="@string/save_mode_toggle"
+                                android:textAppearance="@style/TextAppearance.App.Label" />
+
+                            <TextView
+                                android:id="@+id/tvSaveModeDescription"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_xs"
+                                android:text="@string/save_mode_description"
+                                android:textAppearance="@style/TextAppearance.App.Caption" />
+                        </LinearLayout>
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchSaveMode"
@@ -184,14 +215,6 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/space_l" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvSaveModeDescription"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/save_mode_description"
-                        android:textAppearance="@style/TextAppearance.App.Caption" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -209,27 +232,46 @@
                     android:paddingHorizontal="@dimen/card_padding"
                     android:paddingVertical="@dimen/card_padding_vertical">
 
-                    <TextView
-                        android:id="@+id/tvCompressionQualityTitle"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:accessibilityHeading="true"
-                        android:text="@string/compression_quality_title"
-                        android:textAppearance="@style/TextAppearance.App.Section" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/tvCompressionQualityDescription"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/compression_quality_description"
-                        android:textAppearance="@style/TextAppearance.App.Caption" />
+                        <ImageView
+                            style="@style/Widget.App.IconBadge"
+                            android:layout_marginEnd="@dimen/card_padding"
+                            android:src="@drawable/ic_quality" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvCompressionQualityTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:accessibilityHeading="true"
+                                android:text="@string/compression_quality_title"
+                                android:textAppearance="@style/TextAppearance.App.Section" />
+
+                            <TextView
+                                android:id="@+id/tvCompressionQualityDescription"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_xs"
+                                android:text="@string/compression_quality_description"
+                                android:textAppearance="@style/TextAppearance.App.Caption" />
+                        </LinearLayout>
+                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/radioGroupQuality"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_m"
+                        android:layout_marginTop="@dimen/space_l"
                         android:baselineAligned="false"
                         app:selectionRequired="true"
                         app:singleSelection="true">
@@ -272,27 +314,46 @@
                     android:paddingHorizontal="@dimen/card_padding"
                     android:paddingVertical="@dimen/card_padding_vertical">
 
-                    <TextView
-                        android:id="@+id/tvResolutionTitle"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:accessibilityHeading="true"
-                        android:text="@string/resolution_title"
-                        android:textAppearance="@style/TextAppearance.App.Section" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/tvResolutionDescription"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/resolution_description"
-                        android:textAppearance="@style/TextAppearance.App.Caption" />
+                        <ImageView
+                            style="@style/Widget.App.IconBadge"
+                            android:layout_marginEnd="@dimen/card_padding"
+                            android:src="@drawable/ic_resolution" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvResolutionTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:accessibilityHeading="true"
+                                android:text="@string/resolution_title"
+                                android:textAppearance="@style/TextAppearance.App.Section" />
+
+                            <TextView
+                                android:id="@+id/tvResolutionDescription"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/space_xs"
+                                android:text="@string/resolution_description"
+                                android:textAppearance="@style/TextAppearance.App.Caption" />
+                        </LinearLayout>
+                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/radioGroupResolution"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_m"
+                        android:layout_marginTop="@dimen/space_l"
                         android:baselineAligned="false"
                         app:selectionRequired="true"
                         app:singleSelection="true">

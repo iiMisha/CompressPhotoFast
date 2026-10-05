@@ -1,29 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Заголовок секции внутри карточки -->
-    <style name="TextAppearance.App.Section" parent="TextAppearance.Material3.TitleSmall">
-        <item name="android:textColor">?attr/colorPrimary</item>
+    <style name="TextAppearance.App.Section" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <!-- Название настройки -->
-    <style name="TextAppearance.App.Label" parent="TextAppearance.Material3.BodyLarge">
+    <style name="TextAppearance.App.Label" parent="TextAppearance.Material3.TitleMedium">
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
     <!-- Пояснение к настройке -->
-    <style name="TextAppearance.App.Caption" parent="TextAppearance.Material3.BodySmall">
+    <style name="TextAppearance.App.Caption" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <!-- Заголовок раскрывающейся подсказки -->
     <style name="TextAppearance.App.Link" parent="TextAppearance.Material3.LabelLarge">
-        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
 
     <!-- Текст внутри тонированной карточки подсказки -->
     <style name="TextAppearance.App.Body" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textColor">?attr/colorOnSecondaryContainer</item>
-        <item name="android:lineSpacingExtra">4dp</item>
+        <item name="android:lineSpacingExtra">@dimen/line_spacing_body</item>
     </style>
 
     <!-- Заголовок тулбара -->
@@ -31,21 +31,40 @@
         <item name="titleTextAppearance">@style/TextAppearance.Material3.TitleLarge</item>
     </style>
 
+    <!-- AppBar с поверхностью темы: работает liftOnScroll -->
+    <style name="Widget.App.AppBar" parent="Widget.Material3.AppBarLayout">
+        <item name="android:background">?attr/colorSurface</item>
+        <item name="liftOnScroll">true</item>
+    </style>
+
     <!-- Карточка секции настроек -->
     <style name="Widget.App.Card" parent="Widget.Material3.CardView.Filled">
-        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainerHigh</item>
         <item name="cardElevation">0dp</item>
+        <item name="strokeColor">?attr/colorOutlineVariant</item>
+        <item name="strokeWidth">@dimen/card_stroke</item>
     </style>
 
     <!-- Тонированная карточка-подсказка внутри карточки настройки -->
     <style name="Widget.App.Card.Tonal">
         <item name="cardBackgroundColor">?attr/colorSecondaryContainer</item>
         <item name="strokeWidth">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.App.Small</item>
+    </style>
+
+    <!-- Круглая иконка-акцент в заголовке карточки -->
+    <style name="Widget.App.IconBadge" parent="">
+        <item name="android:layout_width">@dimen/badge_size</item>
+        <item name="android:layout_height">@dimen/badge_size</item>
+        <item name="android:background">@drawable/bg_icon_badge</item>
+        <item name="android:padding">@dimen/badge_padding</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:tint">?attr/colorOnPrimaryContainer</item>
     </style>
 
     <!-- Сегментная кнопка выбора значения -->
     <style name="Widget.App.ToggleButton" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="android:textSize">13sp</item>
+        <item name="android:textAppearance">@style/TextAppearance.Material3.LabelMedium</item>
         <item name="android:lineSpacingMultiplier">0.9</item>
         <item name="android:minHeight">@dimen/toggle_min_height</item>
         <item name="android:gravity">center</item>
@@ -54,7 +73,8 @@
         <item name="android:insetBottom">0dp</item>
         <item name="android:paddingStart">@dimen/space_xs</item>
         <item name="android:paddingEnd">@dimen/space_xs</item>
-        <item name="android:paddingTop">6dp</item>
-        <item name="android:paddingBottom">6dp</item>
+        <item name="android:paddingTop">@dimen/toggle_padding_vertical</item>
+        <item name="android:paddingBottom">@dimen/toggle_padding_vertical</item>
+        <item name="strokeColor">?attr/colorOutline</item>
     </style>
 </resources>

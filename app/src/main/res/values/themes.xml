@@ -14,13 +14,20 @@
         <item name="colorSurfaceVariant">@color/surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
         <item name="colorSurfaceContainer">@color/surface_container</item>
-        <item name="colorSurfaceContainerLow">@color/surface_container</item>
+        <item name="colorSurfaceContainerLow">@color/surface_container_low</item>
+        <item name="colorSurfaceContainerHigh">@color/surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/surface_container_highest</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+        <item name="colorOutlineVariant">@color/outline_variant</item>
+        <item name="colorSurfaceInverse">@color/inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/inverse_on_surface</item>
         <item name="colorOutline">@color/outline</item>
         <item name="colorError">@color/error</item>
 
         <!-- Фон -->
-        <item name="android:colorBackground">@color/background</item>
-        <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorBackground">?attr/colorSurface</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
 
         <!-- Типографика -->
         <item name="android:textColorPrimary">@color/on_background</item>
@@ -33,6 +40,11 @@
     <style name="ShapeAppearance.App.Medium" parent="ShapeAppearance.Material3.MediumComponent">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/corner_medium</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Small" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/corner_small</item>
     </style>
 
     <!-- Диалоги: цвета кнопок наследуются от M3 -->
