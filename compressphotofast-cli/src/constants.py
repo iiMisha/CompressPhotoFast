@@ -17,6 +17,5 @@ EXIF_COMPRESSION_MARKER = "CompressPhotoFast_Compressed"
 # Допуск сравнения фактического размера файла с размером в EXIF-маркере
 # (соответствует Constants.MARKER_SIZE_TOLERANCE_BYTES в Android)
 MARKER_SIZE_TOLERANCE_BYTES = 4096
-EXIF_TAG_USER_COMMENT = 37510
 TIME_DIFFERENCE_ALLOWED_SECONDS = 20
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".heic", ".heif"}

@@ -6,8 +6,6 @@ from .constants import (
     APP_DIRECTORY,
     COMPRESSED_FILE_SUFFIX,
     SUPPORTED_EXTENSIONS,
-    MIN_FILE_SIZE,
-    MAX_FILE_SIZE,
     OPTIMUM_FILE_SIZE,
 )
 
@@ -22,10 +20,6 @@ class FileInfo:
         self.mtime = mtime
         self.is_supported = is_supported
         self.extension = os.path.splitext(name)[1].lower()
-
-
-def is_valid_file_size(size: int) -> bool:
-    return MIN_FILE_SIZE <= size <= MAX_FILE_SIZE
 
 
 def format_size(size: int) -> str:
@@ -138,26 +132,6 @@ def find_image_files(
 
     scan_directory(root)
     return files
-
-
-def find_compressed_versions(root_path: str, original_name: str) -> List[str]:
-    root = Path(root_path)
-    compressed_dir = root / APP_DIRECTORY
-
-    if not compressed_dir.exists():
-        return []
-
-    base_name = os.path.splitext(original_name)[0]
-    ext = os.path.splitext(original_name)[1]
-
-    pattern = f"{base_name}{COMPRESSED_FILE_SUFFIX}*{ext}"
-    compressed_files = []
-
-    for item in compressed_dir.glob(pattern):
-        if item.is_file():
-            compressed_files.append(str(item))
-
-    return compressed_files
 
 
 def create_compressed_filename(original_name: str, replace_mode: bool = False) -> str:
