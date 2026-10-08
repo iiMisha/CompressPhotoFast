@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import com.google.android.material.color.DynamicColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -93,6 +94,31 @@ class MainActivity : AppCompatActivity() {
             })
         } else {
             LogUtil.processDebug("Photo Picker был закрыт без выбора изображений")
+        }
+    }
+
+    /** Собственный список папок из MediaStore: системный выбор папки на части устройств падает. */
+    private fun showFolderPicker() {
+        lifecycleScope.launch {
+            val folders = viewModel.listImageFolders()
+            if (folders.isEmpty()) {
+                showSnackbar(getString(R.string.folder_no_images))
+                return@launch
+            }
+            val labels = folders.map { "${it.first.trimEnd('/')} (${it.second})" }.toTypedArray()
+            MaterialAlertDialogBuilder(this@MainActivity)
+                .setTitle(R.string.select_folder_title)
+                .setItems(labels) { _, which ->
+                    lifecycleScope.launch {
+                        val enqueued = viewModel.compressFolder(folders[which].first)
+                        showSnackbar(
+                            if (enqueued == 0) getString(R.string.folder_no_images)
+                            else getString(R.string.manual_photos_queued, enqueued)
+                        )
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
         }
     }
 
@@ -226,6 +252,9 @@ class MainActivity : AppCompatActivity() {
             val side = maxOf(pageMargin, (windowWidth - bars.left - bars.right - maxWidth) / 2)
             binding.mainContainer.setPadding(side, binding.mainContainer.paddingTop, side, binding.mainContainer.paddingBottom)
             (binding.btnSelectPhotos.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                setMargins(fabMargin + bars.left, fabMargin, fabMargin + bars.right, fabMargin + bars.bottom)
+            }
+            (binding.btnSelectFolder.layoutParams as ViewGroup.MarginLayoutParams).apply {
                 setMargins(fabMargin + bars.left, fabMargin, fabMargin + bars.right, fabMargin + bars.bottom)
             }
             windowInsets
@@ -362,6 +391,8 @@ class MainActivity : AppCompatActivity() {
         binding.btnSelectPhotos.setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
+
+        binding.btnSelectFolder.setOnClickListener { showFolderPicker() }
 
         // Регистрируем listener'ы переключателей после установки начальных состояний
         attachSwitchListeners()
@@ -692,8 +723,10 @@ class MainActivity : AppCompatActivity() {
         if (permissionsManager?.hasStoragePermissions() ?: false ||
             (Build.VERSION.SDK_INT >= 34 && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == android.content.pm.PackageManager.PERMISSION_GRANTED)) {
             binding.btnSelectPhotos.visibility = View.VISIBLE
+            binding.btnSelectFolder.visibility = View.VISIBLE
         } else {
             binding.btnSelectPhotos.visibility = View.GONE
+            binding.btnSelectFolder.visibility = View.GONE
         }
     }
 }

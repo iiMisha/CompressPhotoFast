@@ -76,6 +76,75 @@ object MediaStoreUtil {
     }
 
     /**
+     * Папки с изображениями (RELATIVE_PATH → число файлов), без каталога приложения.
+     * Заменяет системный выбор папки: приложение «Файлы» на части устройств падает.
+     */
+    suspend fun queryImageFolders(context: Context): List<Pair<String, Int>> =
+        withContext(Dispatchers.IO) {
+            val counts = sortedMapOf<String, Int>()
+            val pathColumn = MediaStore.Images.Media.RELATIVE_PATH
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(pathColumn, MediaStore.Images.Media.SIZE),
+                null, null, null
+            )?.use { cursor ->
+                val pathIdx = cursor.getColumnIndexOrThrow(pathColumn)
+                val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+                val appSegment = "${Constants.APP_DIRECTORY}/"
+                while (cursor.moveToNext()) {
+                    val path = cursor.getString(pathIdx).orEmpty()
+                    if (path.isEmpty() || path.startsWith(appSegment) || path.contains("/$appSegment")) continue
+                    val size = cursor.getLong(sizeIdx)
+                    if (size < Constants.MIN_FILE_SIZE || size > Constants.MAX_FILE_SIZE) continue
+                    counts[path] = (counts[path] ?: 0) + 1
+                }
+            }
+            counts.map { it.key to it.value }
+        }
+
+    /**
+     * Все изображения в папке (включая подпапки) по RELATIVE_PATH, без ограничения числа.
+     * Файлы вне допустимого размера и каталог приложения пропускаются.
+     *
+     * @param relativePath RELATIVE_PATH с завершающим слешем; пустая строка — всё хранилище
+     */
+    suspend fun queryImagesInFolder(context: Context, relativePath: String): List<Uri> =
+        withContext(Dispatchers.IO) {
+            val result = mutableListOf<Uri>()
+            val pathColumn = MediaStore.Images.Media.RELATIVE_PATH
+            // Диапазон вместо LIKE: без wildcard/ESCAPE, которые MediaProvider может отклонять
+            val selection = if (relativePath.isEmpty()) null
+                else "$pathColumn >= ? AND $pathColumn < ?"
+            val args = if (relativePath.isEmpty()) null
+                else arrayOf(relativePath, relativePath.dropLast(1) + "0")
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.SIZE, pathColumn),
+                selection,
+                args,
+                "${MediaStore.Images.Media.DATE_ADDED} DESC"
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+                val pathIdx = cursor.getColumnIndexOrThrow(pathColumn)
+                val appSegment = "${Constants.APP_DIRECTORY}/"
+                while (cursor.moveToNext()) {
+                    val size = cursor.getLong(sizeIdx)
+                    if (size < Constants.MIN_FILE_SIZE || size > Constants.MAX_FILE_SIZE) continue
+                    val path = cursor.getString(pathIdx).orEmpty()
+                    if (path.startsWith(appSegment) || path.contains("/$appSegment")) continue
+                    result.add(
+                        ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idIdx)
+                        )
+                    )
+                }
+            }
+            LogUtil.processInfo("queryImagesInFolder('$relativePath'): подходит ${result.size}")
+            result
+        }
+
+    /**
      * Формирует пару вариантов относительного пути (без слэша / со слэшем на конце)
      * для запросов к MediaStore, проверяющих RELATIVE_PATH.
      */

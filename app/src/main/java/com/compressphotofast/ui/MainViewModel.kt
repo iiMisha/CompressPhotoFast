@@ -30,6 +30,7 @@ import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.data.UriUtil
+import com.compressphotofast.data.MediaStoreUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,6 +104,19 @@ class MainViewModel @Inject constructor(
             if (BuildConfig.DEBUG) validUris.forEach { logFileDetails(it) }
             enqueueManualBatch(validUris)
         }
+    }
+
+    suspend fun listImageFolders(): List<Pair<String, Int>> = MediaStoreUtil.queryImageFolders(context)
+
+    /**
+     * Ручное сжатие всех изображений папки (с подпапками) без лимита числа файлов.
+     * @param relativePath RELATIVE_PATH с завершающим слешем
+     * @return число принятых в очередь URI
+     */
+    suspend fun compressFolder(relativePath: String): Int = withContext(Dispatchers.IO) {
+        val uris = MediaStoreUtil.queryImagesInFolder(context, relativePath)
+        LogUtil.processInfo("Папка '$relativePath': найдено ${uris.size} изображений")
+        enqueueManualBatch(uris)
     }
 
     private suspend fun isValidSharedImage(uri: Uri): Boolean {
