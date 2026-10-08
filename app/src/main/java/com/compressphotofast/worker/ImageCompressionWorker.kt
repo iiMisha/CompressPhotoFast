@@ -72,7 +72,6 @@ class ImageCompressionWorker @AssistedInject constructor(
     // Имя файла из последнего снимка MediaStore — для отчёта в батч без повторного запроса
     private var snapshotDisplayName: String? = null
 
-    private var silentForegroundSet = false
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         LogUtil.processDebug(
@@ -288,21 +287,15 @@ class ImageCompressionWorker @AssistedInject constructor(
     /**
      * Обновляет foreground-уведомление в зависимости от режима обработки.
      *
-     * Для одиночной задачи (без batchId) показывается заметное уведомление с [singleModeText];
-     * для пакетной обработки — тихое (silent) уведомление, чтобы избежать спама при последовательном
-     * сжатии множества фото.
+     * Foreground и заметное уведомление с [singleModeText] — только для ручных работ;
+     * автоматические идут без setForeground.
      */
     private suspend fun updateForegroundForMode(singleModeText: String) {
+        // AUTO-работы короткие и идут при живом FGS мониторинга: десятки параллельных
+        // setForeground гоняют SystemForegroundService в stop/start и роняют процесс
+        // (ForegroundServiceDidNotStartInTimeException).
         if (workOrigin == "MANUAL") {
             setForeground(createForegroundInfo(singleModeText))
-        } else {
-            // Тихое уведомление не зависит от текста: повторный setForeground — лишний IPC
-            if (silentForegroundSet) return
-            silentForegroundSet = true
-            setForeground(NotificationUtil.createSilentForegroundInfo(
-                appContext,
-                Constants.NOTIFICATION_ID_COMPRESSION
-            ))
         }
     }
 

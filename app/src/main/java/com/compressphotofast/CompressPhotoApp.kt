@@ -167,6 +167,26 @@ class CompressPhotoApp : Application(), Configuration.Provider {
             .setDefaultProcessName("com.compressphotofast")
             .setExecutor(Executors.newFixedThreadPool(2))
             .setTaskExecutor(Executors.newFixedThreadPool(2))
+            .setSchedulingExceptionHandler { e -> handleSchedulingFailure(e) }
             .build()
+    }
+
+    /**
+     * Лимит JobScheduler (150 заданий) исчерпан «осиротевшими» заданиями WorkManager:
+     * без обработчика исключение в ForceStopRunnable роняет процесс на каждом старте.
+     * Снимаем все задания SystemJobService; флаг needsReschedule остаётся, и WorkManager
+     * перепланирует работы из своей БД при следующем старте процесса.
+     */
+    private fun handleSchedulingFailure(e: Throwable) {
+        LogUtil.errorWithException("APP_WM_SCHEDULING", e as? Exception ?: Exception(e))
+        try {
+            val scheduler = getSystemService(android.app.job.JobScheduler::class.java)
+            val wmService = "androidx.work.impl.background.systemjob.SystemJobService"
+            scheduler.allPendingJobs
+                .filter { it.service.className == wmService }
+                .forEach { scheduler.cancel(it.id) }
+        } catch (ex: Exception) {
+            LogUtil.errorWithException("APP_WM_JOB_CLEANUP", ex)
+        }
     }
 }
