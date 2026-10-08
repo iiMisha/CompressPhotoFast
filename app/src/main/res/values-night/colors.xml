@@ -6,7 +6,6 @@
     <color name="primary_container">#01497F</color>
     <color name="on_primary_container">#D4E3FF</color>
 
-    <color name="background">#000000</color>
     <color name="on_background">#E2E2E9</color>
     <color name="surface">#000000</color>
     <color name="on_surface">#E2E2E9</color>

@@ -70,23 +70,4 @@ object FileIoUtil {
             copied
         }
     }
-
-    /**
-     * Сбрасывает на носитель данные файла по URI (fsync по дескриптору чтения:
-     * на Linux fsync применим к любому открытому дескриптору, а открытие на
-     * чтение не вызывает у MediaProvider рескан при закрытии).
-     *
-     * @return true, если fsync выполнен
-     */
-    fun syncUri(context: Context, uri: Uri): Boolean {
-        return try {
-            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
-                pfd.fileDescriptor.sync()
-                true
-            } ?: false
-        } catch (e: Exception) {
-            LogUtil.warning(uri, "fsync", "Не удалось сбросить файл на носитель: ${e.message}")
-            false
-        }
-    }
 }

@@ -411,13 +411,6 @@ object UriUtil {
     }
     
     /**
-     * Корутинная версия проверки статуса IS_PENDING
-     */
-    suspend fun isFilePendingSuspend(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        return@withContext isFilePending(context, uri)
-    }
-
-    /**
      * [isFilePending] по уже полученному [MediaItemSnapshot] без повторного запроса.
      * Снимок без DATE_ADDED (не MediaStore) pending не считается.
      */

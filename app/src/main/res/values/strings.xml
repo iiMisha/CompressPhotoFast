@@ -4,7 +4,6 @@
     <!-- Основной экран -->
     <string name="auto_compression_toggle">Автоматическое сжатие</string>
     <string name="auto_compression_description">Автоматически сжимает новые фотографии</string>
-    <string name="warning_toggle_description">Показать или скрыть подсказку</string>
     <string name="state_expanded">Развёрнуто</string>
     <string name="state_collapsed">Свёрнуто</string>
     <string name="warning_card_title">Работает не на всех устройствах?</string>
@@ -14,9 +13,6 @@
     <string name="save_mode_description">Вкл. — сжатое фото заменяет оригинал. Выкл. — сохраняется в папку CompressPhotoFast</string>
     <string name="compression_quality_title">Качество сжатия</string>
     <string name="compression_quality_description">Ниже — меньше размер файла, выше — лучше качество</string>
-    <string name="compression_quality_low">Низкое</string>
-    <string name="compression_quality_medium">Среднее</string>
-    <string name="compression_quality_high">Высокое</string>
     <string name="compression_quality_low_with_value">Низкое\n%d%%</string>
     <string name="compression_quality_medium_with_value">Среднее\n%d%%</string>
     <string name="compression_quality_high_with_value">Высокое\n%d%%</string>
@@ -31,23 +27,13 @@
     <string name="select_photos_button">Выбрать фото</string>
     
     <!-- Уведомления -->
-    <string name="notification_title">CompressPhotoFast</string>
-    <string name="notification_title_processing">Сжатие изображения</string>
-    <string name="notification_background_service">Служба мониторинга фотографий</string>
-    <string name="notification_background_service_description">Приложение автоматически сжимает новые фотографии для экономии места на устройстве</string>
-    <string name="notification_action_stop">Остановить</string>
     <string name="notification_stop">Остановить</string>
     <string name="background_service_notification_title">Автосжатие фото</string>
     <string name="background_service_notification_text">Мониторинг новых фото и автосжатие</string>
-    <string name="notification_compressing">📸 Сжатие фотографий…</string>
     <string name="notification_processing">🖼️ Обработка изображения...</string>
-    <string name="notification_compression_complete">Сжатие завершено</string>
     <string name="notification_channel_id">compression_channel</string>
     <string name="notification_channel_name">Сжатие изображений</string>
     <string name="notification_channel_description">Уведомления о процессе сжатия изображений</string>
-    <string name="notification_compression_error">Ошибка сжатия</string>
-    <string name="notification_compression_error_details">Не удалось сжать файл: %1$s</string>
-    <string name="notification_compression_details">%1$s: %2$s → %3$s (-%4$s%%)</string>
     <string name="notification_compression_in_progress">🔧 Сжатие изображения...</string>
     <string name="notification_compression_failed">Ошибка сжатия</string>
     <string name="notification_skipping_compressed">🖼️ Изображение уже сжато, пропускаем</string>
@@ -58,18 +44,8 @@
     <string name="notification_compression_completed_text">🖼️ %1$s: %2$s→%3$s (%4$s)</string>
     <string name="notification_compression_skipped_title">⏭️ Сжатие пропущено</string>
     <string name="notification_compression_skipped_text">📱 %1$s: выигрыш мал (%2$s)</string>
-    <string name="notification_compression_result">Результат сжатия</string>
     
     <!-- Сообщения -->
-    <string name="compression_success">✅ Обработка завершена</string>
-    <string name="compression_error">❌ Ошибка при сжатии фото</string>
-    <string name="compression_skipped">Файл %1$s пропущен: экономия мала (%2$.1f%% &lt; %3$s%%)</string>
-    <string name="compression_skipped_size_limit">Все файлы уже обработаны</string>
-    <string name="no_images_selected">Не выбрано ни одного изображения</string>
-    <string name="storage_permission_required">Необходимо разрешение на доступ к хранилищу</string>
-    <string name="notification_permission_required">Необходимо разрешение на отправку уведомлений</string>
-    <string name="image_already_compressed">ℹ️ Изображение уже сжато</string>
-    <string name="image_already_optimized">Изображения уже сжаты</string>
     <string name="all_images_already_compressed">ℹ️ Все изображения уже сжаты</string>
     <string name="manual_photos_queued">Принято в обработку: %d фото</string>
     <string name="manual_compression_progress">Сжатие %1$d/%2$d…</string>
@@ -80,45 +56,25 @@
     <string name="manual_result_skipped_part">пропущено: %d</string>
     <string name="manual_result_failed_part">ошибок: %d</string>
     <string name="file_deleted_successfully">✅ Оригинальный файл успешно удален</string>
-    <string name="batch_processing_stopped">⏹️ Обработка остановлена</string>
     <string name="notification_toast_battery_settings">Найдите настройки оптимизации батареи и отключите ограничения для приложения</string>
     <string name="toast_open_battery_settings_manually">Пожалуйста, откройте настройки вручную</string>
-    <string name="toast_media_location_skipped">GPS координаты не будут сохраняться в сжатых фото</string>
-    <string name="toast_functionality_limited">Функциональность приложения может быть ограничена без необходимых разрешений</string>
     
     <!-- Сообщения для нескольких изображений -->
-    <string name="multiple_images_progress">Обработка завершена</string>
-    <string name="multiple_images_success">Все изображения успешно сжаты</string>
-    <string name="multiple_images_error">Не удалось обработать %1$d из %2$d изображений</string>
-    <string name="multiple_images_partial_success">Успешно сжато %1$d из %2$d изображений</string>
     
     <!-- Диалоги -->
-    <string name="dialog_permission_title">Требуются разрешения</string>
-    <string name="dialog_permission_message">Для корректной работы приложения необходимы разрешения на доступ к фотографиям</string>
     <string name="dialog_notification_permission_title">Разрешение на уведомления</string>
-    <string name="dialog_notification_permission_message">Для получения уведомлений о завершении сжатия необходимо разрешение на отправку уведомлений.</string>
     <string name="dialog_storage_permission_title">Доступ к файловой системе</string>
     <string name="dialog_storage_permission_message">Для полноценной работы с файлами приложению требуется разрешение на управление всеми файлами. Сейчас откроются системные настройки, где вы сможете предоставить это разрешение.</string>
-    <string name="dialog_delete_permission_title">Разрешение на удаление файлов</string>
-    <string name="dialog_delete_permission_message">Для замены оригинальных файлов необходимо разрешить приложению удалять файлы.</string>
     <string name="dialog_storage_permission_explanation">Для доступа к фотографиям и сохранения результатов требуется разрешение</string>
     <string name="dialog_notification_permission_explanation">Для отправки уведомлений о завершении сжатия требуется разрешение</string>
     <string name="dialog_permissions_title">Требуются разрешения</string>
     <string name="dialog_permissions_explanation">Для корректной работы приложения требуются указанные разрешения</string>
-    <string name="dialog_media_location_title">Сохранение геолокации</string>
-    <string name="dialog_media_location_message">Для сохранения GPS координат в сжатых фото требуется разрешение доступа к местоположению в медиафайлах.\n\nБез этого разрешения координаты будут потеряны при сжатии фото.</string>
-    <string name="dialog_media_location_grant">Предоставить</string>
-    <string name="dialog_media_location_skip">Пропустить</string>
     <string name="dialog_ok">OK</string>
-    <string name="dialog_cancel">Отмена</string>
     <string name="dialog_skip">Пропустить</string>
-    <string name="batch_processing_completed">Обработка изображений завершена</string>
     
     <string name="notification_completion_channel_name">Результаты сжатия</string>
     <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
     <string name="notification_daily_stats_collapsed">Сжато: %1$d · −%2$s (%3$s)</string>
     
     <!-- Статусные сообщения -->
-    <string name="compression_started">Сжатие изображения запущено</string>
-    <string name="batch_compression_started">Запущено сжатие %1$d изображений</string>
 </resources>

@@ -330,13 +330,6 @@ class UriProcessingTracker private constructor(
     }
 
     /**
-     * Получает статистику кэшей для мониторинга производительности
-     */
-    fun getCacheStats(): String {
-        return "UriTracker: обрабатывается ${processingUris.size}, недавно обработано ${recentlyProcessedUris.size}, игнорируется ${ignoreUrisUntil.size}, недоступно ${unavailableUris.size}, mutex'ов ${uriLocks.size}"
-    }
-
-    /**
      * Помечает URI как недоступный
      */
     fun markUriUnavailable(uri: Uri) {

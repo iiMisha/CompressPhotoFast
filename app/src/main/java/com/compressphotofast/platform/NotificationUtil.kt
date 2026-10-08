@@ -154,31 +154,6 @@ object NotificationUtil {
     }
     
     /**
-     * Создание тихого ForegroundInfo для batch-обработки
-     * Использует минимальный приоритет и тихий канал для предотвращения спама уведомлений
-     */
-    fun createSilentForegroundInfo(
-        context: Context,
-        notificationId: Int,
-        content: String = context.getString(R.string.notification_processing)
-    ): ForegroundInfo {
-        // Для batch-обработки не проверяем разрешения - foreground сервис требует уведомления
-        // Используем тихий канал с минимальной важностью
-        
-        // Создаем уведомление с минимальным приоритетом
-        val notification = createNotification(
-            context = context,
-            channelId = "compression_silent_channel",
-            title = "Обработка изображений...",
-            content = content,
-            priority = NotificationCompat.PRIORITY_MIN,
-            ongoing = true
-        )
-        
-        return ForegroundInfo(notificationId, notification, workerForegroundType())
-    }
-
-    /**
      * Тип foreground-сервиса для фоновой работы сжатия (WorkManager).
      *
      * На Android 14+ используется семантически корректный `mediaProcessing`

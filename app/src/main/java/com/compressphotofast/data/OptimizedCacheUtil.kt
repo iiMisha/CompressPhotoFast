@@ -245,23 +245,6 @@ object OptimizedCacheUtil {
         return isProcessable
     }
 
-    /**
-     * Получение статистики по всем кэшам
-     */
-    fun getCacheStats(): String {
-        val dirStats = directoryCacheLock.read { 
-            "Директории: ${directoryCache.size()}/$DIRECTORY_CACHE_SIZE" 
-        }
-        val exifStats = exifCacheLock.read { 
-            "EXIF: ${exifCache.size()}/$EXIF_CACHE_SIZE" 
-        }
-        val pathStats = pathPatternCacheLock.read { 
-            "Паттерны: ${pathPatternCache.size()}/$PATH_PATTERN_CACHE_SIZE" 
-        }
-        
-        return "Кэши: $dirStats, $exifStats, $pathStats"
-    }
-
     /** Освобождает только необязательные in-memory кэши при memory pressure. */
     fun evictAll() {
         directoryCacheLock.write { directoryCache.evictAll() }
