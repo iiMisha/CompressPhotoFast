@@ -52,6 +52,9 @@ class CompressionWorkScheduler @Inject constructor(
             val quality = settingsManager.getCompressionQuality()
             val maxResolution = settingsManager.getMaxResolution()
             val data = buildInputData(uri, quality, forceProcess, batchId, origin, discoveredAt, maxResolution)
+            // Повторное обнаружение (observer и content-trigger) при ожидающей auto-работе:
+            // KEEP всё равно её не заменит, поэтому лишний enqueue не делаем
+            val alreadyQueued = !forceProcess && hasPendingFinalWork(uri)
             if (forceProcess) {
                 // Settle-работы ставились до версии с одной работой на URI
                 workManager.cancelUniqueWork(settleName(uri)).await()
@@ -63,23 +66,38 @@ class CompressionWorkScheduler @Inject constructor(
                 workManager.enqueueUniqueWork(
                     finalName(uri), policy, buildFinalWorkRequest(uri, data, expedited = true)
                 ).await()
-            } else {
+            } else if (!alreadyQueued) {
                 // Одна отложенная работа вместо settle → final: задержка даёт файлу
                 // «устояться», KEEP схлопывает повторные обнаружения
                 workManager.enqueueUniqueWork(
                     finalName(uri), ExistingWorkPolicy.KEEP, buildFinalWorkRequest(uri, data, delayed = true)
                 ).await()
             }
-            LogUtil.processDebug(
-                "Durable enqueue: source=${origin.name}, uri=$uri, digest=${digest(uri)}, " +
-                    "discoveredAt=$discoveredAt, enqueuedAt=${System.currentTimeMillis()}"
-            )
+            if (alreadyQueued) {
+                LogUtil.processDebug("Durable enqueue пропущен: работа уже в очереди, uri=$uri")
+            } else {
+                LogUtil.processDebug(
+                    "Durable enqueue: source=${origin.name}, uri=$uri, digest=${digest(uri)}, " +
+                        "discoveredAt=$discoveredAt, enqueuedAt=${System.currentTimeMillis()}"
+                )
+            }
             CompressionEnqueueResult.DURABLY_ACCEPTED
         } catch (e: Exception) {
             LogUtil.error(uri, "DURABLE_ENQUEUE", "Не удалось поставить работу", e)
             CompressionEnqueueResult.RETRYABLE_FAILURE
         }
     }
+
+    /**
+     * Ждёт ли URI своей работы: ENQUEUED/BLOCKED (отложенная auto-работа) или RUNNING.
+     * Только в этих состояниях KEEP-enqueue не меняет работу, так что его можно пропустить.
+     */
+    private suspend fun hasPendingFinalWork(uri: Uri): Boolean =
+        workManager.getWorkInfosForUniqueWorkFlow(finalName(uri)).first().any {
+            it.state == WorkInfo.State.ENQUEUED ||
+                it.state == WorkInfo.State.BLOCKED ||
+                it.state == WorkInfo.State.RUNNING
+        }
 
     /** Дренаж legacy settle-работ ([com.compressphotofast.worker.ImageSettleWorker]). */
     suspend fun enqueueFinal(uri: Uri, inputData: androidx.work.Data, expedited: Boolean = false) {

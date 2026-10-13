@@ -41,4 +41,14 @@ class GalleryReconciliationScheduleTest {
         assertEquals(1, wm.getWorkInfosForUniqueWork("gallery_reconciliation_catch_up").get().size)
         assertEquals(1, wm.getWorkInfosForUniqueWork("gallery_reconciliation_periodic").get().size)
     }
+
+    @Test
+    fun `свежая отметка HISTORY блокирует разовый скан даже при catchUp`() {
+        SettingsManager.getInstance(context).setLastHistoryScanTimestamp(System.currentTimeMillis())
+
+        GalleryReconciliationWorker.schedule(context, catchUp = true)
+
+        assertTrue(wm.getWorkInfosForUniqueWork("gallery_reconciliation_catch_up").get().isEmpty())
+        assertEquals(1, wm.getWorkInfosForUniqueWork("gallery_reconciliation_periodic").get().size)
+    }
 }

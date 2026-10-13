@@ -44,13 +44,19 @@ class GalleryReconciliationWorker @AssistedInject constructor(
 
         /**
          * Гарантирует periodic reconciliation; при [catchUp] дополнительно ставит
-         * разовый HISTORY-скан. Без [catchUp] разовый скан не нужен: FGS стартует
+         * разовый HISTORY-скан, но не чаще [Constants.HISTORY_CATCH_UP_MIN_INTERVAL_MS]
+         * (лимит общий для cold start, boot и MainActivity: при обновлении приложения
+         * они срабатывают подряд). Без [catchUp] разовый скан не нужен: FGS стартует
          * со скана от watermark, а periodic подберёт остальное.
          */
         fun schedule(context: Context, catchUp: Boolean) {
-            if (!SettingsManager.getInstance(context).isAutoCompressionEnabled()) return
+            val settings = SettingsManager.getInstance(context)
+            if (!settings.isAutoCompressionEnabled()) return
             val wm = WorkManager.getInstance(context)
-            if (catchUp) {
+            val historyDue = GalleryScanCoordinator.isHistoryCatchUpDue(
+                settings.getLastHistoryScanTimestamp(), System.currentTimeMillis()
+            )
+            if (catchUp && historyDue) {
                 val request = OneTimeWorkRequestBuilder<GalleryReconciliationWorker>()
                     .setInputData(androidx.work.workDataOf(CATCH_UP to true))
                     .build()

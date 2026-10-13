@@ -14,7 +14,6 @@ import com.compressphotofast.data.MediaStoreUtil
 import com.compressphotofast.data.BackupRecoveryHelper
 import com.compressphotofast.data.OptimizedCacheUtil
 import com.compressphotofast.data.SettingsManager
-import com.compressphotofast.domain.GalleryScanCoordinator
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.worker.GalleryReconciliationWorker
 import com.compressphotofast.debug.DebugLogTools
@@ -77,13 +76,10 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         logPreviousExitForDebug()
 
         // Холодный старт может быть вызван WorkManager/JobScheduler после LMK
-        // (в т.ч. самим periodic reconciliation), поэтому HISTORY — не чаще раза в 12 ч.
+        // (в т.ч. самим periodic reconciliation); лимит HISTORY (12 ч) проверяет schedule.
         // Сначала обеспечиваем Job, затем best-effort пробуем вернуть FGS.
         if (settingsManager.isAutoCompressionEnabled()) {
-            val catchUp = GalleryScanCoordinator.isHistoryCatchUpDue(
-                settingsManager.getLastHistoryScanTimestamp(), System.currentTimeMillis()
-            )
-            GalleryReconciliationWorker.schedule(applicationContext, catchUp)
+            GalleryReconciliationWorker.schedule(applicationContext, catchUp = true)
             MonitoringController.startMonitoring(applicationContext)
         }
 
