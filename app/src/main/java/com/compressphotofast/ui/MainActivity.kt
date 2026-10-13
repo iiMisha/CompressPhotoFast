@@ -45,6 +45,7 @@ import com.compressphotofast.platform.PermissionsManager
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.UriUtil
 import com.compressphotofast.data.UriProcessingTracker
+import com.compressphotofast.debug.DebugLogTools
 import com.compressphotofast.worker.GalleryReconciliationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -358,6 +359,9 @@ class MainActivity : AppCompatActivity() {
      * Настройка пользовательского интерфейса
      */
     private fun setupUI() {
+        // Меню журнала и отправки логов на сервер — только в debug-сборке
+        DebugLogTools.installUi(this, binding.toolbar)
+
         // Переключатель автоматического сжатия (listener'ы регистрируются в attachSwitchListeners())
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
 

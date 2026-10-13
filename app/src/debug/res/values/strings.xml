@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="debug_menu_send_log">Отправить журнал</string>
+    <string name="debug_menu_clear_log">Очистить журнал</string>
+    <string name="debug_menu_log_server">Сервер логов</string>
+
+    <string name="debug_server_title">Сервер логов</string>
+    <string name="debug_server_url_hint">URL сервера</string>
+    <string name="debug_server_token_hint">Токен</string>
+    <string name="debug_server_save">Сохранить</string>
+    <string name="debug_server_cancel">Отмена</string>
+    <string name="debug_server_saved">Настройки сервера сохранены</string>
+
+    <string name="debug_log_sent">Журнал отправлен</string>
+    <string name="debug_log_send_failed">Журнал не отправлен: %1$s</string>
+    <string name="debug_log_server_not_configured">Сначала укажите токен сервера логов</string>
+    <string name="debug_log_cleared">Журнал очищен</string>
+    <string name="debug_log_clear_failed">Не удалось очистить журнал</string>
+</resources>

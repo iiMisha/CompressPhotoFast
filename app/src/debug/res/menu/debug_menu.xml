@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_send_log"
+        android:title="@string/debug_menu_send_log" />
+
+    <item
+        android:id="@+id/action_clear_log"
+        android:title="@string/debug_menu_clear_log" />
+
+    <item
+        android:id="@+id/action_log_server"
+        android:title="@string/debug_menu_log_server" />
+
+</menu>

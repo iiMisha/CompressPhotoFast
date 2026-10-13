@@ -17,6 +17,7 @@ import com.compressphotofast.data.SettingsManager
 import com.compressphotofast.domain.GalleryScanCoordinator
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.worker.GalleryReconciliationWorker
+import com.compressphotofast.debug.DebugLogTools
 import com.compressphotofast.di.ApplicationScope
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -48,8 +49,10 @@ class CompressPhotoApp : Application(), Configuration.Provider {
         // Настройка логирования
         // В релизе дерево не сажаем: Timber без деревьев — no-op, а вызовы
         // LogUtil вырезаются R8 (-assumenosideeffects в proguard-rules.pro)
+        // Файловый журнал и отправка на сервер логов — только в debug (см. app/src/debug)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            DebugLogTools.init(this)
         }
 
         // Каналы уведомлений (Android 8.0+) — несколько binder-вызовов, не на main.

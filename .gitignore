@@ -178,3 +178,7 @@ compressphotofast-cli/.venv/
 compressphotofast-cli/test_images/
 compressphotofast-cli/*.bak
 compressphotofast-cli/test_*.jpg
+
+# Журнал, принятый сервером логов (tools/log_receiver.py)
+/log
+/log.tmp
