@@ -113,11 +113,6 @@ class CompressImageUseCase @Inject constructor(
         }
 
         try {
-            val stats = testResult.stats
-            LogUtil.imageCompression(
-                imageUri,
-                "${stats.originalSize / 1024}KB → ${stats.compressedSize / 1024}KB (-${stats.sizeReduction}%)"
-            )
             // Ветки вынесены в отдельные suspend-функции для уменьшения state machine
             // (ART-предупреждение `Method exceeds compiler instruction limit`).
             return if (testResult.isEfficient()) {

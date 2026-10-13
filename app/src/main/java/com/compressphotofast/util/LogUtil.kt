@@ -170,14 +170,6 @@ object LogUtil {
         Timber.w(msg)
     }
     
-    fun imageCompression(uri: Uri, message: String) {
-        val fileId = getFileId(uri)
-        val msg = "[$CATEGORY_COMPRESSION:$fileId] $message"
-        if (shouldLog(msg)) {
-            Timber.i(msg)
-        }
-    }
-    
     fun permissionsInfo(message: String) {
         val msg = "[$CATEGORY_PERMISSIONS] $message"
         if (shouldLog(msg, isDebug = true)) {
