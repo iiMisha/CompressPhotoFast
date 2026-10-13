@@ -71,21 +71,21 @@ class GalleryScanCoordinator @Inject constructor(
 
     /**
      * Ставит в очередь URI от live-источников (observer, content-trigger Job), пропуская
-     * заведомо сжатые: media scanner и правки метаданных будят их постоянно, а воркер
-     * всё равно отбросил бы такой URI после 30 с задержки. Отсекается только
-     * ALREADY_COMPRESSED (маркер + размер совпадают); остальное решает воркер, потому что
-     * недописанный файл выглядит «маленьким» и не должен теряться.
+     * заведомо не требующие обработки: сжатые (ALREADY_COMPRESSED), сами сжатые копии
+     * в директории приложения (IN_APP_DIRECTORY) и оригиналы, у которых копия уже есть
+     * (COMPRESSED_VERSION_EXISTS). Media scanner и собственные записи приложения будят
+     * их постоянно, а воркер всё равно отбросил бы такой URI после 30 с задержки.
+     * Остальные причины решает воркер: недописанный файл выглядит «маленьким» и не должен теряться.
      * @return true, если все URI приняты или не требуют обработки
      */
     suspend fun enqueueTriggered(uris: List<Uri>): Boolean {
-        val pending = uris.filterNot { isAlreadyCompressed(it) }
+        val pending = uris.filterNot { isSkippableTriggered(it) }
         return enqueueAll(pending)
     }
 
-    private suspend fun isAlreadyCompressed(uri: Uri): Boolean = try {
+    private suspend fun isSkippableTriggered(uri: Uri): Boolean = try {
         val check = imageProcessingChecker.isProcessingRequired(uri)
-        !check.processingRequired &&
-            check.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
+        !check.processingRequired && check.reason in SKIPPABLE_TRIGGER_REASONS
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -93,6 +93,12 @@ class GalleryScanCoordinator @Inject constructor(
     }
 
     companion object {
+        private val SKIPPABLE_TRIGGER_REASONS = setOf(
+            ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED,
+            ImageProcessingChecker.ProcessingSkipReason.IN_APP_DIRECTORY,
+            ImageProcessingChecker.ProcessingSkipReason.COMPRESSED_VERSION_EXISTS
+        )
+
         /**
          * Нужен ли HISTORY-скан при холодном старте: не чаще
          * [Constants.HISTORY_CATCH_UP_MIN_INTERVAL_MS]. Время из будущего (перевод часов) — нужен.

@@ -219,7 +219,7 @@ class ImageProcessingChecker @Inject constructor(
             }
             
             // Поиск сжатой версии в директории приложения по имени (только если режим замены отключен)
-            if (!FileOperationsUtil.isSaveModeReplace(context)) {
+            if (!settingsManager.isSaveModeReplace()) {
                 val displayName = snapshot?.displayName
                 val hasCompressedVersion = if (appDirectoryNames != null && displayName != null) {
                     FileOperationsUtil.hasCompressedVersionName(displayName, appDirectoryNames)
