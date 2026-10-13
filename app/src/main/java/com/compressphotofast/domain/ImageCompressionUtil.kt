@@ -364,7 +364,8 @@ object ImageCompressionUtil {
         mimeType: String?
     ): Long {
         val pixels = width.toLong().coerceAtLeast(0L) * height.toLong().coerceAtLeast(0L)
-        val decodedBytes = pixels * if (UriUtil.isHeicMimeType(mimeType)) 4L else 2L
+        // Только JPEG декодируется в RGB_565 (2 байта); PNG/WebP/HEIC и неизвестный MIME — ARGB_8888 (4 байта)
+        val decodedBytes = pixels * if (isRgb565Compatible(mimeType)) 2L else 4L
         val jpegBytes = maxOf(1L * 1024 * 1024, pixels)
         return decodedBytes + jpegBytes
     }
