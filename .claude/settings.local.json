@@ -37,7 +37,10 @@
       "Skill(*)",
       "Bash(git add *)",
       "Bash(git diff *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(systemctl list-units *)",
+      "Read(//home/misha/.config/systemd/user/**)",
+      "Read(//etc/systemd/system/**)"
     ]
   }
 }
