@@ -34,6 +34,8 @@ class GalleryScanCoordinatorTest {
     fun setUp() {
         every { settings.isAutoCompressionEnabled() } returns true
         every { settings.getLastScanTimestamp() } returns 0L
+        every { uri1.toString() } returns "content://media/external/images/media/1"
+        every { uri2.toString() } returns "content://media/external/images/media/2"
         coEvery { scheduler.enqueue(any(), any(), any(), any(), any()) } returns CompressionEnqueueResult.DURABLY_ACCEPTED
     }
 
@@ -142,6 +144,25 @@ class GalleryScanCoordinatorTest {
 
         assertTrue(coordinator.enqueueTriggered(listOf(uri1)))
 
+        coVerify(exactly = 1) { scheduler.enqueue(uri1, any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `enqueueTriggered drops MediaStore roots and collections without checks`() = runTest {
+        val root = mockk<Uri>()
+        val collection = mockk<Uri>()
+        every { root.toString() } returns "content://media/external"
+        every { collection.toString() } returns "content://media/external/images/media"
+        coEvery { checker.isProcessingRequired(uri1) } returns ImageProcessingChecker.ProcessingCheckResult(
+            processingRequired = true
+        )
+
+        assertTrue(coordinator.enqueueTriggered(listOf(root, collection, uri1)))
+
+        coVerify(exactly = 0) { checker.isProcessingRequired(root) }
+        coVerify(exactly = 0) { checker.isProcessingRequired(collection) }
+        coVerify(exactly = 0) { scheduler.enqueue(root, any(), any(), any(), any()) }
+        coVerify(exactly = 0) { scheduler.enqueue(collection, any(), any(), any(), any()) }
         coVerify(exactly = 1) { scheduler.enqueue(uri1, any(), any(), any(), any()) }
     }
 

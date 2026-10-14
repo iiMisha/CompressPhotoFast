@@ -6,6 +6,7 @@ import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
 
@@ -79,7 +80,13 @@ class GalleryScanCoordinator @Inject constructor(
      * @return true, если все URI приняты или не требуют обработки
      */
     suspend fun enqueueTriggered(uris: List<Uri>): Boolean {
-        val pending = uris.filterNot { isSkippableTriggered(it) }
+        // Корень/коллекция MediaStore (content://media/external) — не элемент, в очередь не ставим
+        val items = uris.filter { item ->
+            UriProcessingTracker.isMediaImageItemUri(item).also {
+                if (!it) LogUtil.processDebug("Triggered URI не элемент MediaStore, пропуск: $item")
+            }
+        }
+        val pending = items.filterNot { isSkippableTriggered(it) }
         return enqueueAll(pending)
     }
 

@@ -57,7 +57,8 @@ class MediaStoreObserver @Inject constructor(
 
     private suspend fun handleChange(uri: Uri) {
         if (uriProcessingTracker.shouldIgnore(uri) || uriProcessingTracker.isProcessing(uri)) return
-        if (!uri.toString().contains("media") || !uri.toString().contains("image")) return
+        // Только элемент (.../images/media/<id>): корень и коллекция не открываются и не являются фото
+        if (!UriProcessingTracker.isMediaImageItemUri(uri)) return
 
         // Debounce до любого IPC: серия onChange по одному URI не должна
         // порождать серию запросов к MediaStore

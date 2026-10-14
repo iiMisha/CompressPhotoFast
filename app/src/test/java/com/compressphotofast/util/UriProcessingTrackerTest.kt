@@ -91,6 +91,24 @@ class UriProcessingTrackerTest : BaseUnitTest() {
         )
     }
 
+    @Test
+    fun `isMediaImageItemUri принимает только элемент изображения на любом томе`() {
+        assertTrue(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external/images/media/7")))
+        assertTrue(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external_primary/images/media/7")))
+        assertTrue(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/12AB-34CD/images/media/7")))
+
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external")))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external/images/media")))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external/images/media/")))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external/video/media/7")))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external/file/7")))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("content://media/external/images/media/7/extra")))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(
+            Uri.parse("content://media/picker/0/com.android.providers.media.photopicker/media/42")
+        ))
+        assertFalse(UriProcessingTracker.isMediaImageItemUri(Uri.parse("file:///storage/emulated/0/DCIM/a.jpg")))
+    }
+
     // ==================== Базовый acquire/release ====================
 
     @Test

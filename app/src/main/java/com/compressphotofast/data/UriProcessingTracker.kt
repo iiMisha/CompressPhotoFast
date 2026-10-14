@@ -388,6 +388,12 @@ class UriProcessingTracker private constructor(
         for (uriString in urisToCheck) {
             try {
                 val uri = android.net.Uri.parse(uriString)
+                // Корень/коллекция MediaStore не проверяем: запрос к ним падает (hidden API),
+                // и запись, помеченная раньше, повторялась бы каждый обход
+                if (uriString.startsWith("content://media/") && !isMediaImageItemUri(uri)) {
+                    unavailableUris.remove(uriString)
+                    continue
+                }
                 val exists = UriUtil.isUriExistsSuspend(context, uri)
 
                 if (exists) {
@@ -436,6 +442,13 @@ class UriProcessingTracker private constructor(
         }
 
         internal fun keyOf(uri: Uri): String = keyOf(uri.toString())
+
+        /**
+         * Указывает ли URI на конкретный элемент MediaStore (`.../images/media/<id>`), а не на
+         * корень или коллекцию. Live-источники (observer, content-trigger Job) отсекают остальное:
+         * корневой URI не открывается (`hidden API`) и даёт ложные «файл не существует».
+         */
+        internal fun isMediaImageItemUri(uri: Uri): Boolean = MEDIA_IMAGE_URI.matches(uri.toString())
 
         /**
          * Получает экземпляр для использования в object-классах без Hilt
