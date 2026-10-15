@@ -128,7 +128,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
             // Ранняя проверка существования файла перед любыми операциями
             if (!exists) {
-                LogUtil.error(imageUri, "Ранняя проверка", "Файл не существует")
+                LogUtil.warning(imageUri, "Ранняя проверка", "Файл не существует")
                 uriProcessingTracker.markUriUnavailable(imageUri)
                 reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 return@withContext Result.failure()

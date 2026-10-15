@@ -74,8 +74,9 @@ class GalleryScanCoordinator @Inject constructor(
      * Ставит в очередь URI от live-источников (observer, content-trigger Job), пропуская
      * заведомо не требующие обработки: сжатые (ALREADY_COMPRESSED), сами сжатые копии
      * в директории приложения (IN_APP_DIRECTORY) и оригиналы, у которых копия уже есть
-     * (COMPRESSED_VERSION_EXISTS). Media scanner и собственные записи приложения будят
-     * их постоянно, а воркер всё равно отбросил бы такой URI после 30 с задержки.
+     * (COMPRESSED_VERSION_EXISTS), а также URI, чья строка MediaStore уже удалена (NOT_EXISTS).
+     * Media scanner и собственные записи приложения будят их постоянно, а воркер всё равно
+     * отбросил бы такой URI после 30 с задержки.
      * Остальные причины решает воркер: недописанный файл выглядит «маленьким» и не должен теряться.
      * @return true, если все URI приняты или не требуют обработки
      */
@@ -103,7 +104,8 @@ class GalleryScanCoordinator @Inject constructor(
         private val SKIPPABLE_TRIGGER_REASONS = setOf(
             ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED,
             ImageProcessingChecker.ProcessingSkipReason.IN_APP_DIRECTORY,
-            ImageProcessingChecker.ProcessingSkipReason.COMPRESSED_VERSION_EXISTS
+            ImageProcessingChecker.ProcessingSkipReason.COMPRESSED_VERSION_EXISTS,
+            ImageProcessingChecker.ProcessingSkipReason.NOT_EXISTS
         )
 
         /**

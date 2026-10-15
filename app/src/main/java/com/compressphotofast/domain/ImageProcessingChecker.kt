@@ -200,7 +200,13 @@ class ImageProcessingChecker @Inject constructor(
             
             // Все метаданные MediaStore — одним запросом
             val snapshot = providedSnapshot ?: MediaItemSnapshot.query(context, uri)
-            val filePath = snapshot?.filePath ?: UriUtil.getFilePathFromUri(context, uri)
+            // Строки MediaStore нет совсем. Pending-строку сюда не относим: она ещё пишется
+            if (snapshot == null) {
+                result.processingRequired = false
+                result.reason = ProcessingSkipReason.NOT_EXISTS
+                return@withContext result
+            }
+            val filePath = snapshot.filePath ?: UriUtil.getFilePathFromUri(context, uri)
 
             // Проверяем базовые условия
             if (!passesBasicChecks(context, uri, forceProcess, snapshot, filePath)) {
@@ -334,5 +340,6 @@ class ImageProcessingChecker @Inject constructor(
         COMPRESSED_VERSION_EXISTS, // Существует сжатая версия в директории приложения
         ALREADY_COMPRESSED,      // Файл уже сжат и не модифицирован
         ALREADY_SMALL,           // Файл уже имеет достаточно малый размер
+        NOT_EXISTS,              // Строки MediaStore для URI уже нет
     }
 } 

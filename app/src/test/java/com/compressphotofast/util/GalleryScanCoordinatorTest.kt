@@ -139,6 +139,17 @@ class GalleryScanCoordinatorTest {
     }
 
     @Test
+    fun `enqueueTriggered skips URIs whose MediaStore row is gone`() = runTest {
+        coEvery { checker.isProcessingRequired(uri1) } returns ImageProcessingChecker.ProcessingCheckResult(
+            processingRequired = false, reason = ImageProcessingChecker.ProcessingSkipReason.NOT_EXISTS
+        )
+
+        assertTrue(coordinator.enqueueTriggered(listOf(uri1)))
+
+        coVerify(exactly = 0) { scheduler.enqueue(uri1, any(), any(), any(), any()) }
+    }
+
+    @Test
     fun `enqueueTriggered enqueues when check fails`() = runTest {
         coEvery { checker.isProcessingRequired(uri1) } throws IllegalStateException("boom")
 

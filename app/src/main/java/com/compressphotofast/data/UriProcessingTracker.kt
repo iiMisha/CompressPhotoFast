@@ -308,7 +308,7 @@ class UriProcessingTracker private constructor(
         mutex.withLock {
             processingUris.remove(uriString)
             uriProcessingTime.remove(uriString)
-            LogUtil.processDebug("URI удалён (safe): $uriString")
+            LogUtil.processDebug("URI снят с обработки (safe): $uriString")
         }
     }
 
