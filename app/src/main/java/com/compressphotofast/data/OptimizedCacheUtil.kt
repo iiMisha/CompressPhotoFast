@@ -186,6 +186,14 @@ object OptimizedCacheUtil {
     }
 
     /**
+     * Сбрасывает EXIF-кэш URI после изменения маркера без изменения размера
+     * (например, переименование HEIC с суффиксом _compressed).
+     */
+    fun invalidateExifData(uri: Uri) {
+        exifCacheLock.write { exifCache.remove(uri.toString()) }
+    }
+
+    /**
      * Проверяет, является ли файл скриншотом, используя кэширование паттернов
      */
     fun isScreenshot(fileName: String): Boolean {

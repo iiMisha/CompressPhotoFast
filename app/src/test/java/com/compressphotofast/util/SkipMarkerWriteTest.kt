@@ -70,6 +70,7 @@ class SkipMarkerWriteTest : BaseUnitTest() {
             }
         }
         every { FileOperationsUtil.isSaveModeReplace(any()) } returns true
+        every { UriUtil.getMimeType(any(), any()) } returns "image/jpeg"
         coEvery { ImageIntegrityUtil.verifyImageIntegrity(any(), any()) } returns true
         every { FileIoUtil.getDescriptorSize(any(), any()) } answers { File(secondArg<Uri>().path!!).length() }
     }
@@ -128,6 +129,18 @@ class SkipMarkerWriteTest : BaseUnitTest() {
 
         verify(exactly = 2) { BackupRegistry.createBackup(any(), any(), any()) }
         assertTrue(readMarker()!!.fileSize!! > target.length() + Constants.MARKER_SIZE_TOLERANCE_BYTES)
+    }
+
+    @Test
+    fun `HEIC не получает запись EXIF и backup, маркер идёт через переименование`() = runTest {
+        every { UriUtil.getMimeType(any(), any()) } returns "image/heic"
+
+        // В JVM MediaStore недоступен, переименование не выполнится — важен сам путь без записи
+        assertFalse(ExifUtil.writeSkipMarker(context, targetUri, 99, null))
+
+        verify(exactly = 0) { BackupRegistry.createBackup(any(), any(), any()) }
+        verify(exactly = 0) { ExifUtil.writeUserCommentInPlace(any(), any(), any()) }
+        assertArrayEquals(originalBytes, target.readBytes())
     }
 
     @Test

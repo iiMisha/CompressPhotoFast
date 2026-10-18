@@ -228,6 +228,7 @@ object ExifUtil {
             // Проверяем, нет ли уже суффикса
             if (CompressionMarker.hasHeicCompressedSuffix(currentDisplayName)) {
                 LogUtil.processInfo("У файла уже есть суффикс _compressed: $currentDisplayName")
+                OptimizedCacheUtil.invalidateExifData(uri)
                 return@withContext true
             }
 
@@ -249,6 +250,8 @@ object ExifUtil {
             val updated = context.contentResolver.update(uri, values, null, null)
             if (updated > 0) {
                 LogUtil.processInfo("✅ HEIC файл успешно переименован: $newDisplayName")
+                // Размер не меняется, поэтому кэш по размеру не сбросится сам: маркер в кэше устарел
+                OptimizedCacheUtil.invalidateExifData(uri)
                 return@withContext true
             } else {
                 LogUtil.error(uri, "Переименование HEIC", "Не удалось обновить MediaStore")
@@ -584,6 +587,9 @@ object ExifUtil {
      * с фактическим размером. Провал записи откатывает файл к состоянию без
      * маркера ([guardedExifWrite]) — файл будет повторно проверен позже.
      *
+     * Для HEIC запись EXIF не поддерживается: маркер ставится переименованием
+     * (суффикс `_compressed`), см. [markHeicFileAsCompressed].
+     *
      * @return true, если маркер записан
      */
     suspend fun writeSkipMarker(
@@ -592,6 +598,13 @@ object ExifUtil {
         quality: Int,
         originalFileSize: Long?
     ): Boolean = withContext(Dispatchers.IO) {
+        // HEIC: ExifInterface не сохраняет атрибуты — маркер только через переименование,
+        // запись заведомо падает, поэтому без backup и без записи EXIF
+        if (isHeicFile(context, uri)) {
+            LogUtil.processInfo("HEIC файл: маркер пропуска через переименование")
+            return@withContext markHeicFileAsCompressed(context, uri)
+        }
+
         try {
             // Вне replace-режима сохраняем исходную date_modified (см. applyExifFromMemory)
             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
@@ -630,17 +643,6 @@ object ExifUtil {
             throw e
         } catch (e: Exception) {
             LogUtil.error(uri, "Маркер пропуска", e)
-
-            // HEIC: ExifInterface не умеет сохранять — маркер через переименование
-            if (isHeicFile(context, uri) &&
-                (e.message?.contains("only supports saving attributes for JPEG, PNG, and WebP") == true ||
-                 e is IOException)) {
-                LogUtil.processInfo("HEIC файл: попытка добавить маркер через переименование")
-                if (markHeicFileAsCompressed(context, uri)) {
-                    LogUtil.processInfo("✅ HEIC файл помечен как сжатый через переименование")
-                    return@withContext true
-                }
-            }
             return@withContext false
         }
     }
