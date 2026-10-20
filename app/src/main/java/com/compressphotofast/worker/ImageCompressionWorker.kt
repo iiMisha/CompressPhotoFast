@@ -27,6 +27,7 @@ import com.compressphotofast.domain.CompressionExecutionGate
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.TimeoutCancellationException
 
@@ -49,6 +50,14 @@ class ImageCompressionWorker @AssistedInject constructor(
         private const val MAX_TRANSIENT_ATTEMPTS = 5
         internal const val MAX_OOM_ATTEMPTS = 2
 
+        /** Причины, при которых файл не сжимается повторно и отчитывается как SKIPPED */
+        internal val ALREADY_HANDLED_REASONS = setOf(
+            ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED,
+            ImageProcessingChecker.ProcessingSkipReason.COMPRESSED_VERSION_EXISTS,
+            ImageProcessingChecker.ProcessingSkipReason.IN_APP_DIRECTORY,
+            ImageProcessingChecker.ProcessingSkipReason.ALREADY_SMALL,
+        )
+
         /** Разрешён ли ещё один запуск после попытки [runAttemptCount] (0-based). */
         internal fun shouldRetry(runAttemptCount: Int, maxAttempts: Int = MAX_TRANSIENT_ATTEMPTS): Boolean =
             runAttemptCount + 1 < maxAttempts
@@ -69,6 +78,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     private val workOrigin = inputData.getString(Constants.WORK_ORIGIN)
         ?: if (batchId.isNullOrEmpty()) "AUTO" else "MANUAL"
     private var markRecentlyProcessed = false
+    // Исход этой попытки уже записан в батч: повторная запись (например, отмена после результата) не нужна
+    private var batchOutcomeReported = false
     // Имя файла из последнего снимка MediaStore — для отчёта в батч без повторного запроса
     private var snapshotDisplayName: String? = null
 
@@ -88,6 +99,7 @@ class ImageCompressionWorker @AssistedInject constructor(
             val uriString = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)
             if (uriString.isNullOrEmpty()) {
                 LogUtil.processInfo("URI не задан")
+                reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 return@withContext Result.failure()
             }
 
@@ -100,6 +112,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             isLockOwner = addedToProcessing
             if (!addedToProcessing) {
                 LogUtil.processDebug("URI уже обрабатывается другим потоком, пропускаем Worker: $imageUri")
+                // Результат за этот URI даёт владелец lock; батч получает SKIPPED, а не ждёт таймаут
+                reportBatchOutcome(CompressionBatchTracker.Status.SKIPPED)
                 return@withContext Result.success() // success чтобы не блокировать цепочку WorkManager
             }
 
@@ -157,9 +171,10 @@ class ImageCompressionWorker @AssistedInject constructor(
                 snapshot = gatedSnapshot,
                 precomputedMarker = sourceExif?.marker
             )
-            if (!gatedProcessingCheck.processingRequired &&
-                gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_COMPRESSED
-            ) {
+            // Повтор постановки (retry, kill, повторный ручной батч) не должен давать
+            // вторую копию: все «уже обработано / слишком мало» причины останавливают работу
+            if (!gatedProcessingCheck.processingRequired && gatedProcessingCheck.reason in ALREADY_HANDLED_REASONS) {
+                LogUtil.processDebug("Пропуск $imageUri: ${gatedProcessingCheck.reason}")
                 updateForegroundForMode("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}")
                 reportBatchOutcome(CompressionBatchTracker.Status.SKIPPED)
                 markRecentlyProcessed = true
@@ -186,8 +201,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             // Отмена корутины (WorkManager отменил задачу / таймаут / shutdown).
             // Пробрасываем, чтобы структурированная конкуренция корректно завершила корутину.
             // WorkManager интерпретирует это как отмену, а не как failure.
+            // Батч отчитывается сразу, иначе ждёт таймаут 120 с.
             LogUtil.processDebug("Сжатие отменено (CancellationException) для $globalImageUri")
+            reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
             throw e
+        } catch (e: OutOfMemoryError) {
+            // Голый OOM — не Exception, мимо catch ниже он бы не дошёл до отчёта батча
+            LogUtil.error(globalImageUri, "Сжатие", "OutOfMemoryError", e)
+            return@withContext retryOrFinish(globalImageUri, "OutOfMemoryError", e, MAX_OOM_ATTEMPTS)
         } catch (e: Exception) {
             LogUtil.error(null, "Сжатие", "Ошибка при сжатии изображения", e)
 
@@ -216,12 +237,15 @@ class ImageCompressionWorker @AssistedInject constructor(
             }
 
             reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
-            updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
+            updateForegroundAfterReport("❌ ${appContext.getString(R.string.notification_compression_failed)}")
             return@withContext Result.failure()
         } finally {
             if (isExecutionGateOwner) executionGate.release()
             if (isLockOwner && globalImageUri != null) {
-                uriProcessingTracker.removeProcessingUriSafe(globalImageUri)
+                // Снятие lock не должно прерываться отменой: иначе URI до stale-порога (30 мин) игнорируется
+                withContext(NonCancellable) {
+                    uriProcessingTracker.removeProcessingUriSafe(globalImageUri)
+                }
                 if (markRecentlyProcessed) {
                     uriProcessingTracker.addRecentlyProcessedUri(globalImageUri)
                 }
@@ -253,7 +277,8 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Не вызывается при retry — отчитается следующая попытка.
      */
     private fun reportBatchOutcome(status: CompressionBatchTracker.Status) {
-        if (batchId.isNullOrEmpty()) return
+        if (batchId.isNullOrEmpty() || batchOutcomeReported) return
+        batchOutcomeReported = true
         val uri = inputData.getString(Constants.WORK_INPUT_IMAGE_URI)?.let(Uri::parse)
         val fileName = snapshotDisplayName ?: uri?.let {
             try {
@@ -300,6 +325,20 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
+     * Foreground-статус после того, как исход уже записан в батч. Сбой здесь не должен
+     * давать retry: повторная попытка увидит маркер и отчитает тот же файл второй раз.
+     */
+    private suspend fun updateForegroundAfterReport(singleModeText: String) {
+        try {
+            updateForegroundForMode(singleModeText)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LogUtil.warning(null, "Сжатие", "Не удалось обновить уведомление после результата: ${e.message}")
+        }
+    }
+
+    /**
      * Переводит результат сжатия в Result WorkManager, foreground-статус и уведомления.
      */
     private suspend fun handleOutcome(outcome: CompressImageUseCase.Outcome): Result {
@@ -309,7 +348,7 @@ class ImageCompressionWorker @AssistedInject constructor(
                 sendCompressionStatusNotification(
                     outcome.fileName, outcome.originalSize, outcome.compressedSize, outcome.sizeReduction, false
                 )
-                updateForegroundForMode("✅ ${appContext.getString(R.string.notification_compression_completed)}")
+                updateForegroundAfterReport("✅ ${appContext.getString(R.string.notification_compression_completed)}")
             }
             is CompressImageUseCase.Outcome.CompressedOriginalKept -> {
                 outcome.dailyStats?.let { NotificationUtil.updateBackgroundServiceNotification(appContext, it) }
@@ -319,22 +358,22 @@ class ImageCompressionWorker @AssistedInject constructor(
                     message = "Сжатый файл сохранён, но не удалось удалить оригинал. Возможен дубликат."
                 )
                 reportBatchOutcome(CompressionBatchTracker.Status.COMPRESSED)
-                updateForegroundForMode("⚠️ Ошибка удаления оригинала")
+                updateForegroundAfterReport("⚠️ Ошибка удаления оригинала")
             }
             is CompressImageUseCase.Outcome.SkippedInefficient -> {
-                updateForegroundForMode("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}")
+                updateForegroundAfterReport("📉 ${appContext.getString(R.string.notification_skipping_inefficient)}")
                 sendCompressionStatusNotification(
                     outcome.fileName, outcome.originalSize, outcome.estimatedCompressedSize, outcome.estimatedReduction, true
                 )
             }
             CompressImageUseCase.Outcome.SkippedInvalidSize -> {
                 reportBatchOutcome(CompressionBatchTracker.Status.SKIPPED)
-                updateForegroundForMode("📏 ${appContext.getString(R.string.notification_skipping_invalid_size)}")
+                updateForegroundAfterReport("📏 ${appContext.getString(R.string.notification_skipping_invalid_size)}")
             }
             is CompressImageUseCase.Outcome.Failed -> {
                 reportBatchOutcome(CompressionBatchTracker.Status.FAILED)
                 outcome.saveFailure?.let { notifySaveFailure(it) }
-                updateForegroundForMode("❌ ${appContext.getString(R.string.notification_compression_failed)}")
+                updateForegroundAfterReport("❌ ${appContext.getString(R.string.notification_compression_failed)}")
                 return Result.failure()
             }
         }
@@ -358,15 +397,18 @@ class ImageCompressionWorker @AssistedInject constructor(
             if (uriString != null) {
                 // Если есть batch ID, добавляем результат в батч-трекер вместо показа индивидуального Toast
                 if (!batchId.isNullOrEmpty()) {
-                    compressionBatchTracker.addResult(
-                        batchId = batchId,
-                        fileName = fileName,
-                        originalSize = originalSize,
-                        compressedSize = compressedSize,
-                        sizeReduction = sizeReduction,
-                        skipped = skipped,
-                        skipReason = skipReason
-                    )
+                    if (!batchOutcomeReported) {
+                        batchOutcomeReported = true
+                        compressionBatchTracker.addResult(
+                            batchId = batchId,
+                            fileName = fileName,
+                            originalSize = originalSize,
+                            compressedSize = compressedSize,
+                            sizeReduction = sizeReduction,
+                            skipped = skipped,
+                            skipReason = skipReason
+                        )
+                    }
                 } else {
                     // Задачи без batch ID (автосжатие): индивидуальный результат
                     compressionEvents.emit(

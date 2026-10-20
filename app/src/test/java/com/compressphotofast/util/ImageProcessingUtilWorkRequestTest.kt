@@ -62,6 +62,17 @@ class ImageProcessingUtilWorkRequestTest {
     }
 
     @Test
+    fun `digest treats external and external_primary volumes as one work`() {
+        val external = Uri.parse("content://media/external/images/media/42")
+        val primary = Uri.parse("content://media/external_primary/images/media/42")
+
+        assertEquals(
+            CompressionWorkScheduler.digest(external),
+            CompressionWorkScheduler.digest(primary)
+        )
+    }
+
+    @Test
     fun `max resolution is threaded through input data`() {
         val scheduler = CompressionWorkScheduler(
             org.robolectric.RuntimeEnvironment.getApplication(),

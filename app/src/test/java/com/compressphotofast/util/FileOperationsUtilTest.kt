@@ -419,7 +419,8 @@ class FileOperationsUtilTest : BaseUnitTest() {
         val names = listOf("other.jpg", "img_1234_compressed.JPG")
 
         assertTrue(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", names))
-        assertTrue(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMG_1234.jpg")))
+        // Сам оригинал не является своей сжатой копией
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMG_1234.jpg")))
         assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMG_1234.png")))
         assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", emptyList()))
     }
@@ -428,6 +429,27 @@ class FileOperationsUtilTest : BaseUnitTest() {
     fun `hasCompressedVersionName treats underscore as literal unlike LIKE`() {
         // В SQLite LIKE '_' совпал бы с любым символом; в памяти — только с '_'
         assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMGX1234_compressed.jpg")))
+    }
+
+    @Test
+    fun `hasCompressedVersionName rejects prefix collisions of other photos`() {
+        // Префиксное совпадение давало ложный пропуск: IMG_1234 не сжат, если есть IMG_12345
+        val names = listOf("IMG_12345_compressed.jpg", "IMG_1234-edited_compressed.jpg")
+
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", names))
+    }
+
+    @Test
+    fun `hasCompressedVersionName matches collision suffix`() {
+        // createCompressedFileName + handleFileNameConflict: IMG_1234_compressed_1.jpg
+        assertTrue(FileOperationsUtil.hasCompressedVersionName("IMG_1234.jpg", listOf("IMG_1234_compressed_1.jpg")))
+    }
+
+    @Test
+    fun `hasCompressedVersionName maps HEIC copy to jpg`() {
+        // HEIC сжимается в JPEG: копия называется *_compressed.jpg
+        assertTrue(FileOperationsUtil.hasCompressedVersionName("IMG_1234.HEIC", listOf("IMG_1234_compressed.jpg")))
+        assertFalse(FileOperationsUtil.hasCompressedVersionName("IMG_1234.HEIC", listOf("IMG_1234_compressed.heic")))
     }
 
     @Test

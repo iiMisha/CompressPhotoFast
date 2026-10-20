@@ -95,7 +95,7 @@ object MediaStoreUtil {
                     val path = cursor.getString(pathIdx).orEmpty()
                     if (path.isEmpty() || path.startsWith(appSegment) || path.contains("/$appSegment")) continue
                     val size = cursor.getLong(sizeIdx)
-                    if (size < Constants.MIN_FILE_SIZE || size > Constants.MAX_FILE_SIZE) continue
+                    if (size < Constants.OPTIMUM_FILE_SIZE || size > Constants.MAX_FILE_SIZE) continue
                     counts[path] = (counts[path] ?: 0) + 1
                 }
             }
@@ -130,7 +130,7 @@ object MediaStoreUtil {
                 val appSegment = "${Constants.APP_DIRECTORY}/"
                 while (cursor.moveToNext()) {
                     val size = cursor.getLong(sizeIdx)
-                    if (size < Constants.MIN_FILE_SIZE || size > Constants.MAX_FILE_SIZE) continue
+                    if (size < Constants.OPTIMUM_FILE_SIZE || size > Constants.MAX_FILE_SIZE) continue
                     val path = cursor.getString(pathIdx).orEmpty()
                     if (path.startsWith(appSegment) || path.contains("/$appSegment")) continue
                     result.add(

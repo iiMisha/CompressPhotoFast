@@ -97,7 +97,7 @@ class GalleryScanUtil @Inject constructor(
                     val size = if (sizeColumn != -1) cursor.getLong(sizeColumn) else 0L
                     
                     // Пропускаем слишком маленькие файлы
-                    if (size < Constants.MIN_FILE_SIZE) {
+                    if (size < Constants.OPTIMUM_FILE_SIZE) {
                         smallFilesCount++
                         skippedCount++
                         continue

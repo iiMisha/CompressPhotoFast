@@ -19,12 +19,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.compressphotofast.data.SettingsManager
+import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.util.Constants
 import com.compressphotofast.util.LogUtil
 
 enum class CompressionEnqueueResult {
     DURABLY_ACCEPTED,
     NOT_REQUIRED,
+    /** Работа URI уже выполняется чужим батчем или авто-работой: её результат этому батчу не придёт */
+    ALREADY_RUNNING,
     RETRYABLE_FAILURE
 }
 
@@ -62,9 +65,12 @@ class CompressionWorkScheduler @Inject constructor(
                 // ждал бы её задержку и не получил бы отчёт; выполняющуюся не трогаем
                 val running = workManager.getWorkInfosForUniqueWorkFlow(finalName(uri)).first()
                     .any { it.state == WorkInfo.State.RUNNING }
-                val policy = if (running) ExistingWorkPolicy.KEEP else ExistingWorkPolicy.REPLACE
+                if (running) {
+                    // KEEP не создаст работу с этим batchId: отчёта батч не дождётся
+                    return CompressionEnqueueResult.ALREADY_RUNNING
+                }
                 workManager.enqueueUniqueWork(
-                    finalName(uri), policy, buildFinalWorkRequest(uri, data, expedited = true)
+                    finalName(uri), ExistingWorkPolicy.REPLACE, buildFinalWorkRequest(uri, data, expedited = true)
                 ).await()
             } else if (!alreadyQueued) {
                 // Одна отложенная работа вместо settle → final: задержка даёт файлу
@@ -145,9 +151,13 @@ class CompressionWorkScheduler @Inject constructor(
     companion object {
         private val HEX = "0123456789abcdef".toCharArray()
 
+        /**
+         * Имя работы по нормализованному ключу трекера: один файл, пришедший как
+         * `external` и `external_primary`, получает одну unique work, а не две.
+         */
         fun digest(uri: Uri): String {
             val bytes = MessageDigest.getInstance("SHA-256")
-                .digest(uri.toString().toByteArray(Charsets.UTF_8))
+                .digest(UriProcessingTracker.keyOf(uri).toByteArray(Charsets.UTF_8))
             val out = CharArray(bytes.size * 2)
             bytes.forEachIndexed { i, b ->
                 out[i * 2] = HEX[(b.toInt() shr 4) and 0xF]

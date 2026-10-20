@@ -286,25 +286,23 @@ object FileOperationsUtil {
                 return@withContext null
             }
             
-            // Разбиваем имя файла на основную часть и расширение
-            val (fileBaseName, fileExtension) = splitNameAndExtension(originalFileName)
-            
             // Формируем запрос для поиска файлов в директории приложения
             val projection = arrayOf(
                 MediaStore.Images.Media._ID,
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.RELATIVE_PATH
             )
-            
-            // Ищем любые файлы с совпадающим базовым именем и расширением,
-            // но с возможными дополнительными символами между ними
+
+            // LIKE — грубый предфильтр по префиксу; точное совпадение имени проверяем в памяти
+            val matcher = compressedNameRegex(originalFileName)
+            val stemPrefix = cleanDoubleExtensions(originalFileName) + Constants.COMPRESSED_FILE_SUFFIX
             val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?"
             val selectionArgs = arrayOf(
                 "%${Constants.APP_DIRECTORY}%",    // Ищем в директории приложения
-                "$fileBaseName%$fileExtension"     // Любой суффикс
+                "$stemPrefix%"                     // Имя копии начинается с основы оригинала
             )
-            
-            LogUtil.debug("FileUtil", "Ищем сжатую версию файла с паттерном '$fileBaseName%$fileExtension' в папке ${Constants.APP_DIRECTORY}")
+
+            LogUtil.debug("FileUtil", "Ищем сжатую версию файла с префиксом '$stemPrefix' в папке ${Constants.APP_DIRECTORY}")
             
             context.contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -313,13 +311,15 @@ object FileOperationsUtil {
                 selectionArgs,
                 "${MediaStore.Images.Media.DATE_ADDED} DESC" // Самые новые файлы первыми
             )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                    val id = cursor.getLong(idColumn)
-                    val foundName = cursor.getString(nameColumn)
-                    val compressedUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                while (cursor.moveToNext()) {
+                    val foundName = cursor.getString(nameColumn) ?: continue
+                    if (!matcher.matches(foundName)) continue
+                    val compressedUri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn)
+                    )
+
                     LogUtil.fileInfo(compressedUri, "Найдена сжатая версия для $originalFileName: $foundName")
                     return@withContext compressedUri
                 }
@@ -365,18 +365,25 @@ object FileOperationsUtil {
     }
 
     /**
-     * Сопоставление в памяти с семантикой `DISPLAY_NAME LIKE '$base%$ext'` из
-     * [findCompressedVersionByOriginalName]: без учёта регистра, как SQLite LIKE.
-     * `_` и `%` в имени — литералы (строже LIKE, где это wildcard).
+     * Есть ли в директории приложения сжатая копия оригинала с именем, которое
+     * [createCompressedFileName] выдаёт для него (включая суффикс коллизии `_N`).
+     * Префиксное совпадение не используется: `IMG_1234` не должен находить
+     * `IMG_12345_compressed.jpg` или `IMG_1234-edited_compressed.jpg`.
      */
     fun hasCompressedVersionName(originalFileName: String, appDirectoryNames: Collection<String>): Boolean {
         if (originalFileName.isEmpty()) return false
-        val (base, ext) = splitNameAndExtension(originalFileName)
-        return appDirectoryNames.any { name ->
-            name.length >= base.length + ext.length &&
-                name.startsWith(base, ignoreCase = true) &&
-                name.endsWith(ext, ignoreCase = true)
-        }
+        val matcher = compressedNameRegex(originalFileName)
+        return appDirectoryNames.any { matcher.matches(it) }
+    }
+
+    /**
+     * Регулярка имени сжатой копии оригинала: основа + `_compressed` + необязательный `_N` + расширение
+     * выходного файла. Без учёта регистра; расширение HEIC/HEIF сопоставляется как `.jpg`.
+     */
+    private fun compressedNameRegex(originalFileName: String): Regex {
+        val stem = cleanDoubleExtensions(originalFileName) + Constants.COMPRESSED_FILE_SUFFIX
+        val extension = toOutputExtension(getLastExtension(originalFileName))
+        return Regex("${Regex.escape(stem)}(_\\d+)?${Regex.escape(extension)}", RegexOption.IGNORE_CASE)
     }
 
     /**

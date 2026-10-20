@@ -94,7 +94,9 @@ class MainViewModel @Inject constructor(
      * @return число URI, принятых в durable очередь (0 — все пропущены или невалидны)
      */
     suspend fun compressSharedImages(uris: List<Uri>): Int {
-        val validUris = uris.filter { isValidSharedImage(it) }
+        // Один файл дважды в батче дал бы две работы с одним именем: вторая ждала бы отчёта, которого не будет
+        val validUris = uris.distinctBy { UriProcessingTracker.keyOf(it) }.filter { isValidSharedImage(it) }
+        LogUtil.processDebug("compressSharedImages: принято ${validUris.size} из ${uris.size}, отброшено ${uris.size - validUris.size}")
         if (validUris.isEmpty()) {
             LogUtil.processWarning("compressSharedImages: Нет валидных URI для обработки")
             return 0
@@ -155,6 +157,8 @@ class MainViewModel @Inject constructor(
                 )
                 if (result == CompressionEnqueueResult.DURABLY_ACCEPTED) {
                     enqueued++
+                } else if (result == CompressionEnqueueResult.ALREADY_RUNNING) {
+                    LogUtil.processDebug("URI $uri уже обрабатывается, не ждём его в батче $batchId")
                 } else {
                     LogUtil.processDebug("URI $uri пропущен: $result")
                 }
