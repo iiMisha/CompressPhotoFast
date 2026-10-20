@@ -2,10 +2,13 @@ package com.compressphotofast.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.IntentSender
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.MediaStore
 import android.os.Build
 import android.os.Bundle
 import android.transition.TransitionManager
@@ -88,14 +91,76 @@ class MainActivity : AppCompatActivity() {
     private val pickMedia = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { uris ->
         if (uris.isNotEmpty()) {
             LogUtil.processDebug("Выбрано ${uris.size} изображений через Photo Picker")
-            handleIntent(Intent().apply {
-                action = Intent.ACTION_SEND_MULTIPLE
-                putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
-                type = "image/*"
-            })
+            onImagesPicked(uris)
         } else {
             LogUtil.processDebug("Photo Picker был закрыт без выбора изображений")
         }
+    }
+
+    /** Выбор фото через внешнее приложение (галерея), без DocumentsUI. */
+    private val pickViaIntent = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val data = result.data
+        val uris = buildList {
+            data?.clipData?.let { clip -> for (i in 0 until clip.itemCount) add(clip.getItemAt(i).uri) }
+            data?.data?.let { add(it) }
+        }.distinct().take(50)
+        if (uris.isNotEmpty()) {
+            LogUtil.processDebug("Выбрано ${uris.size} изображений через внешний пикер")
+            onImagesPicked(uris)
+        } else {
+            LogUtil.processDebug("Внешний пикер закрыт без выбора изображений (resultCode=${result.resultCode})")
+        }
+    }
+
+    private fun onImagesPicked(uris: List<Uri>) {
+        handleIntent(Intent().apply {
+            action = Intent.ACTION_SEND_MULTIPLE
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+            type = "image/*"
+        })
+    }
+
+    /**
+     * Системный Photo Picker, если он есть. Иначе — приложения галереи через ACTION_PICK/ACTION_GET_CONTENT.
+     * DocumentsUI («Файлы») исключён: на части устройств падает и уносит активити приложения.
+     */
+    private fun launchPhotoPicker() {
+        try {
+            if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(this)) {
+                LogUtil.processDebug("Открываю системный Photo Picker")
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                return
+            }
+            val targets = findPickTargets()
+            LogUtil.processDebug("Цели выбора фото без DocumentsUI: ${targets.joinToString { it.first.component?.flattenToShortString().orEmpty() }}")
+            when (targets.size) {
+                0 -> showSnackbar(getString(R.string.photo_picker_unavailable))
+                1 -> pickViaIntent.launch(targets[0].first)
+                else -> MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.select_photos_chooser_title)
+                    .setItems(targets.map { it.second }.toTypedArray()) { _, which -> pickViaIntent.launch(targets[which].first) }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        } catch (e: ActivityNotFoundException) {
+            LogUtil.errorWithMessageAndException("PHOTO_PICKER", "Не найдено приложение для выбора фото", e)
+            showSnackbar(getString(R.string.photo_picker_unavailable))
+        }
+    }
+
+    /** Пары «интент выбора — подпись» для приложений, отдающих изображения, кроме DocumentsUI. */
+    private fun findPickTargets(): List<Pair<Intent, String>> {
+        val requests = listOf(
+            Intent(Intent.ACTION_PICK).setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*"),
+            Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE),
+        ).map { it.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true) }
+        return requests.flatMap { request ->
+            packageManager.queryIntentActivities(request, PackageManager.MATCH_DEFAULT_ONLY).map { info ->
+                Intent(request).setClassName(info.activityInfo.packageName, info.activityInfo.name) to
+                    info.loadLabel(packageManager).toString()
+            }
+        }.filterNot { (target, _) -> target.component?.packageName?.contains("documentsui") == true }
+            .distinctBy { (target, _) -> target.component }
     }
 
     /** Собственный список папок из MediaStore: системный выбор папки на части устройств падает. */
@@ -400,9 +465,7 @@ class MainActivity : AppCompatActivity() {
         setupCompressionQualityRadioButtons()
         setupResolutionRadioButtons()
 
-        binding.btnSelectPhotos.setOnClickListener {
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }
+        binding.btnSelectPhotos.setOnClickListener { launchPhotoPicker() }
 
         binding.btnSelectFolder.setOnClickListener { showFolderPicker() }
 

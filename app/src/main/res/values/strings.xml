@@ -25,6 +25,8 @@
     <string name="folder_no_images">В папке нет подходящих изображений</string>
     <string name="select_folder_title">Выберите папку (с подпапками)</string>
     <string name="select_photos_button">Выбрать фото</string>
+    <string name="select_photos_chooser_title">Выберите приложение</string>
+    <string name="photo_picker_unavailable">Нет приложения для выбора фото. Откройте фото в галерее и выберите «Поделиться» → CompressPhotoFast</string>
     
     <!-- Уведомления -->
     <string name="notification_stop">Остановить</string>
