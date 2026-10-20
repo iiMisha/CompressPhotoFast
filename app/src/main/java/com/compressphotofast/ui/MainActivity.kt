@@ -272,14 +272,16 @@ class MainActivity : AppCompatActivity() {
     
     
     /**
-     * Извлекает URI из Intent в зависимости от его типа
+     * Извлекает URI из Intent в зависимости от его типа.
+     * Тип «любой» приходит при смешанной выборке (фото + видео): не-изображения
+     * отсекает MainViewModel.compressSharedImages по MIME каждого URI.
      */
     private fun extractUrisFromIntent(intent: Intent): List<Uri> {
         val uris = mutableListOf<Uri>()
-        
+
         when (intent.action) {
             Intent.ACTION_SEND_MULTIPLE -> {
-                if (intent.type?.startsWith("image/") == true) {
+                if (isImageOrMixedShareType(intent.type)) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uriList ->
                             uris.addAll(uriList)
@@ -293,7 +295,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             Intent.ACTION_SEND -> {
-                if (intent.type?.startsWith("image/") == true) {
+                if (isImageOrMixedShareType(intent.type)) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
                             uris.add(uri)
@@ -310,6 +312,9 @@ class MainActivity : AppCompatActivity() {
         
         return uris
     }
+
+    private fun isImageOrMixedShareType(type: String?): Boolean =
+        type?.startsWith("image/") == true || type == "*/*"
 
     /**
      * Обработка входящих интентов для получения изображений от других приложений
@@ -328,7 +333,10 @@ class MainActivity : AppCompatActivity() {
         }
         
         val uris = extractUrisFromIntent(intent)
-        if (uris.isEmpty()) return
+        if (uris.isEmpty()) {
+            LogUtil.processWarning("handleIntent: в интенте нет изображений (action=${intent.action}, type=${intent.type})")
+            return
+        }
 
         val flags = intent.flags and
             (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
