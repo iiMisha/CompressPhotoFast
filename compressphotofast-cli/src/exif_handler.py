@@ -184,6 +184,43 @@ class ExifHandler:
         )
 
     @staticmethod
+    def _has_any_date(exif_dict: Optional[dict]) -> bool:
+        """
+        Есть ли в EXIF любая дата (зеркально checkDateAvailability в Android):
+        DateTime (0th), DateTimeOriginal/DateTimeDigitized (Exif) или GPSDateStamp (GPS).
+        """
+        if not exif_dict:
+            return False
+
+        zeroth = exif_dict.get("0th") or {}
+        if piexif.ImageIFD.DateTime in zeroth:
+            return True
+
+        exif_ifd = exif_dict.get("Exif") or {}
+        if (
+            piexif.ExifIFD.DateTimeOriginal in exif_ifd
+            or piexif.ExifIFD.DateTimeDigitized in exif_ifd
+        ):
+            return True
+
+        gps = exif_dict.get("GPS") or {}
+        return piexif.GPSIFD.GPSDateStamp in gps
+
+    @staticmethod
+    def _backfill_missing_dates(exif_dict: dict, mtime: float) -> None:
+        """
+        Добавляет DateTime и DateTimeDigitized из даты модификации файла,
+        если ни одной даты в EXIF нет (как addDigitizedDateFromFileMetadata в Android).
+        DateTimeOriginal не выдумывается — реальная дата съёмки неизвестна.
+        """
+        if ExifHandler._has_any_date(exif_dict):
+            return
+
+        date_str = datetime.fromtimestamp(mtime).strftime("%Y:%m:%d %H:%M:%S")
+        exif_dict.setdefault("0th", {})[piexif.ImageIFD.DateTime] = date_str
+        exif_dict.setdefault("Exif", {})[piexif.ExifIFD.DateTimeDigitized] = date_str
+
+    @staticmethod
     def add_compression_marker(
         file_path: str,
         quality: int,
@@ -192,6 +229,9 @@ class ExifHandler:
     ) -> bool:
         """
         Add compression marker to file, optionally preserving all source metadata.
+
+        Если в EXIF файла нет ни одной даты, добавляются DateTime/DateTimeDigitized
+        из mtime файла (семантическое соответствие Android writeSkipMarker).
 
         Args:
             file_path: Path to file to modify
@@ -204,6 +244,8 @@ class ExifHandler:
             True if marker added successfully, False otherwise
         """
         try:
+            # mtime строго до вставки EXIF: piexif.insert переписывает файл
+            file_mtime = os.path.getmtime(file_path)
             marker_size = os.path.getsize(file_path)
             marker_orig_size = original_size if original_size and original_size > 0 else marker_size
 
@@ -218,6 +260,8 @@ class ExifHandler:
 
                 if "Exif" not in exif_dict:
                     exif_dict["Exif"] = {}
+
+                ExifHandler._backfill_missing_dates(exif_dict, file_mtime)
 
                 timestamp = int(datetime.now().timestamp() * 1000)
                 marker_data = ExifHandler._build_marker(
@@ -250,6 +294,8 @@ class ExifHandler:
 
                 if "Exif" not in exif_dict:
                     exif_dict["Exif"] = {}
+
+                ExifHandler._backfill_missing_dates(exif_dict, file_mtime)
 
                 timestamp = int(datetime.now().timestamp() * 1000)
                 marker_data = ExifHandler._build_marker(

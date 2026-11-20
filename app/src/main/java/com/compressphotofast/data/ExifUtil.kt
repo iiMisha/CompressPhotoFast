@@ -581,7 +581,10 @@ object ExifUtil {
      * неудалённый оригинал) одной записью: размер файла известен до записи, а
      * дрейф `saveAttributes()` (до ~1 КБ) покрывается допуском
      * [Constants.MARKER_SIZE_TOLERANCE_BYTES]. Теги не переписываются — файл
-     * не трансформирован, GPS и ориентация остаются нетронутыми.
+     * не трансформирован, GPS и ориентация остаются нетронутыми. Исключение:
+     * при полном отсутствии дат в EXIF добавляются `DateTime`/`DateTimeDigitized`
+     * из даты модификации файла (как при успешном сжатии,
+     * см. [addDigitizedDateFromFileMetadata]).
      *
      * Если после записи размер ушёл сверх допуска — одна корректирующая запись
      * с фактическим размером. Провал записи откатывает файл к состоянию без
@@ -606,9 +609,11 @@ object ExifUtil {
         }
 
         try {
-            // Вне replace-режима сохраняем исходную date_modified (см. applyExifFromMemory)
+            // Дата модификации файла: источник дат для EXIF при их отсутствии
+            // и восстановление исходной date_modified вне replace-режима
+            // (см. applyExifFromMemory)
             val isReplaceMode = FileOperationsUtil.isSaveModeReplace(context)
-            val originalLastModified = if (!isReplaceMode) UriUtil.getFileLastModified(context, uri) else 0L
+            val fileLastModified = UriUtil.getFileLastModified(context, uri)
 
             val sizeBefore = getActualFileSizeOnDisk(context, uri)
             if (sizeBefore == null || sizeBefore <= 0L) {
@@ -618,7 +623,9 @@ object ExifUtil {
 
             val markerTimestamp = System.currentTimeMillis()
             val marker = CompressionMarker.build(quality, markerTimestamp, sizeBefore, originalFileSize)
-            val written = guardedExifWrite(context, uri) { writeUserCommentInPlace(context, uri, marker) }
+            val written = guardedExifWrite(context, uri) {
+                writeMarkerAndMissingDatesInPlace(context, uri, marker, fileLastModified)
+            }
             if (!written) {
                 LogUtil.warning(uri, "Маркер пропуска", "Запись маркера не удалась, файл оставлен без маркера")
                 return@withContext false
@@ -634,8 +641,8 @@ object ExifUtil {
                 writeMarkerWithSize(context, uri, quality, markerTimestamp, sizeAfter, originalFileSize)
             }
 
-            if (!isReplaceMode && originalLastModified > 0) {
-                MediaStoreDateUtil.restoreModifiedDate(context, uri, originalLastModified)
+            if (!isReplaceMode && fileLastModified > 0) {
+                MediaStoreDateUtil.restoreModifiedDate(context, uri, fileLastModified)
             }
             LogUtil.processInfo("✅ Маркер пропуска записан: $marker")
             return@withContext true
@@ -974,6 +981,51 @@ object ExifUtil {
             exif.setAttribute(ExifInterface.TAG_USER_COMMENT, comment)
             exif.saveAttributes()
         }
+    }
+
+    /**
+     * Записывает маркер пропуска на месте; при полном отсутствии дат в EXIF
+     * попутно добавляет `DateTime`/`DateTimeDigitized` из даты модификации файла
+     * (та же подстановка, что и в сжатую копию при успешном сжатии).
+     * Все изменения — одна запись `saveAttributes()`. Вызывать только внутри
+     * [guardedExifWrite]. [dateSourceMs] должен быть захвачен до записи —
+     * `saveAttributes()` меняет mtime файла.
+     */
+    internal fun writeMarkerAndMissingDatesInPlace(
+        context: Context,
+        uri: Uri,
+        comment: String,
+        dateSourceMs: Long
+    ) {
+        val pfd = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Не удалось открыть дескриптор для записи маркера")
+        pfd.use {
+            val exif = ExifInterface(it.fileDescriptor)
+            val dateTags = missingDateTags(exif, dateSourceMs)
+            if (dateTags != null) {
+                dateTags.forEach { (tag, value) -> exif.setAttribute(tag, value) }
+                LogUtil.processInfo(
+                    "Даты в EXIF отсутствуют, добавлены из метаданных файла: ${dateTags.values.first()}"
+                )
+            }
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, comment)
+            exif.saveAttributes()
+        }
+    }
+
+    /**
+     * Теги дат для подстановки в файл без дат: `DateTime`/`DateTimeDigitized`
+     * из [dateSourceMs] (дата модификации файла), формат EXIF `yyyy:MM:dd HH:mm:ss`.
+     * `DateTimeOriginal` не выдумывается — реальной даты съёмки у приложения нет.
+     * @return map тегов или null, если в EXIF есть любая дата (ничего не подставлять)
+     */
+    internal fun missingDateTags(exif: ExifInterface, dateSourceMs: Long): Map<String, String>? {
+        if (dateSourceMs <= 0L || checkDateAvailability(exif)) return null
+        val formattedDate = formatDateForExif(dateSourceMs)
+        return mapOf(
+            ExifInterface.TAG_DATETIME_DIGITIZED to formattedDate,
+            ExifInterface.TAG_DATETIME to formattedDate
+        )
     }
 
     /**

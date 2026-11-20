@@ -32,7 +32,8 @@ import org.robolectric.annotation.Config
 import java.io.File
 
 /**
- * Маркер пропуска в исходном файле: одна запись под backup без переписывания тегов,
+ * Маркер пропуска в исходном файле: одна запись под backup без переписывания тегов
+ * (кроме подстановки DateTime/DateTimeDigitized при полном отсутствии дат),
  * корректирующая — только при дрейфе сверх допуска, провал — откат без маркера.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -63,6 +64,19 @@ class SkipMarkerWriteTest : BaseUnitTest() {
         mockkObject(UriUtil, FileOperationsUtil, ImageIntegrityUtil, BackupRegistry, FileIoUtil)
         mockkObject(ExifUtil)
         // ExifInterface по FileDescriptor недоступен на JVM — пишем по пути
+        // (эмуляция прод-семантики: маркер + даты при их отсутствии)
+        every { ExifUtil.writeMarkerAndMissingDatesInPlace(any(), any(), any(), any()) } answers {
+            val path = File(secondArg<Uri>().path!!).absolutePath
+            val comment = thirdArg<String>()
+            val dateSourceMs = args[3] as Long
+            val exif = ExifInterface(path)
+            ExifUtil.missingDateTags(exif, dateSourceMs)?.forEach { (tag, value) ->
+                exif.setAttribute(tag, value)
+            }
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, comment)
+            exif.saveAttributes()
+        }
+        // Корректирующая запись (writeMarkerWithSize) пишет только маркер
         every { ExifUtil.writeUserCommentInPlace(any(), any(), any()) } answers {
             ExifInterface(File(secondArg<Uri>().path!!).absolutePath).apply {
                 setAttribute(ExifInterface.TAG_USER_COMMENT, thirdArg())
@@ -139,7 +153,7 @@ class SkipMarkerWriteTest : BaseUnitTest() {
         assertFalse(ExifUtil.writeSkipMarker(context, targetUri, 99, null))
 
         verify(exactly = 0) { BackupRegistry.createBackup(any(), any(), any()) }
-        verify(exactly = 0) { ExifUtil.writeUserCommentInPlace(any(), any(), any()) }
+        verify(exactly = 0) { ExifUtil.writeMarkerAndMissingDatesInPlace(any(), any(), any(), any()) }
         assertArrayEquals(originalBytes, target.readBytes())
     }
 
@@ -152,5 +166,65 @@ class SkipMarkerWriteTest : BaseUnitTest() {
         assertArrayEquals(originalBytes, target.readBytes())
         assertNull(readMarker())
         assertTrue(BackupRegistry.getPendingBackups(context).isEmpty())
+    }
+
+    private fun stripDates() {
+        ExifInterface(target.absolutePath).apply {
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, null)
+            setAttribute(ExifInterface.TAG_DATETIME, null)
+            setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, null)
+            saveAttributes()
+        }
+    }
+
+    @Test
+    fun `при отсутствии дат добавляются DateTime и DateTimeDigitized из mtime`() = runTest {
+        stripDates()
+        val knownMtime = 1_700_000_000_000L
+        target.setLastModified(knownMtime)
+        coEvery { UriUtil.getFileLastModified(any(), any()) } returns knownMtime
+
+        assertTrue(ExifUtil.writeSkipMarker(context, targetUri, 99, null))
+
+        val expected = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss").format(java.util.Date(knownMtime))
+        val exif = ExifInterface(target.absolutePath)
+        assertEquals(expected, exif.getAttribute(ExifInterface.TAG_DATETIME))
+        assertEquals(expected, exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED))
+        assertNull(exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL))
+        assertNotNull(readMarker())
+    }
+
+    @Test
+    fun `при наличии DateTimeOriginal даты не подставляются`() = runTest {
+        val originalDate = "2020:01:02 03:04:05"
+        ExifInterface(target.absolutePath).apply {
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, originalDate)
+            saveAttributes()
+        }
+        coEvery { UriUtil.getFileLastModified(any(), any()) } returns 1_700_000_000_000L
+
+        assertTrue(ExifUtil.writeSkipMarker(context, targetUri, 99, null))
+
+        val exif = ExifInterface(target.absolutePath)
+        assertEquals(originalDate, exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL))
+        // androidx ExifInterface фолбэчит getAttribute(TAG_DATETIME) на DateTimeOriginal —
+        // отсутствие подстановки проверяется чистой функцией missingDateTags
+        assertNotNull(readMarker())
+    }
+
+    @Test
+    fun `missingDateTags - нет дат возвращает пару тегов, есть дата или нулевое время - null`() {
+        stripDates()
+        val tags = ExifUtil.missingDateTags(ExifInterface(target.absolutePath), 1_700_000_000_000L)
+        assertNotNull(tags)
+        assertEquals(2, tags!!.size)
+        assertEquals(tags[ExifInterface.TAG_DATETIME], tags[ExifInterface.TAG_DATETIME_DIGITIZED])
+
+        ExifInterface(target.absolutePath).apply {
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, "2020:01:02 03:04:05")
+            saveAttributes()
+        }
+        assertNull(ExifUtil.missingDateTags(ExifInterface(target.absolutePath), 1_700_000_000_000L))
+        assertNull(ExifUtil.missingDateTags(ExifInterface(target.absolutePath), 0L))
     }
 }
