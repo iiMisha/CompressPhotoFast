@@ -26,11 +26,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.compressphotofast.domain.CompressionBatchTracker
 import com.compressphotofast.domain.CompressionEvents
+import com.compressphotofast.domain.ExifDateFixUseCase
 import javax.inject.Inject
 import com.compressphotofast.util.LogUtil
 import com.compressphotofast.data.UriProcessingTracker
 import com.compressphotofast.data.UriUtil
 import com.compressphotofast.data.MediaStoreUtil
+import com.compressphotofast.worker.ExifDateFixWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +50,7 @@ class MainViewModel @Inject constructor(
     private val compressionBatchTracker: CompressionBatchTracker,
     private val compressionWorkScheduler: CompressionWorkScheduler,
     private val imageProcessingChecker: ImageProcessingChecker,
+    private val exifDateFixUseCase: ExifDateFixUseCase,
     compressionEvents: CompressionEvents
 ) : ViewModel() {
 
@@ -56,6 +59,9 @@ class MainViewModel @Inject constructor(
 
     /** Прогресс ручных батчей (null — активных нет). */
     val batchProgress: StateFlow<CompressionBatchTracker.BatchProgress?> = compressionBatchTracker.progress
+
+    /** Прогресс восстановления EXIF-дат (null — проход не выполняется). */
+    val dateFixProgress: StateFlow<ExifDateFixUseCase.Progress?> = exifDateFixUseCase.progress
 
     // LiveData для уровня сжатия
     private val _compressionQuality = MutableLiveData<Int>()
@@ -109,6 +115,16 @@ class MainViewModel @Inject constructor(
     }
 
     suspend fun listImageFolders(): List<Pair<String, Int>> = MediaStoreUtil.queryImageFolders(context)
+
+    /** Запуск прохода восстановления EXIF-дат (меню «три точки»). */
+    fun scheduleExifDateFix() {
+        ExifDateFixWorker.schedule(context)
+    }
+
+    /** Прерывание прохода восстановления EXIF-дат после текущего файла. */
+    fun cancelExifDateFix() {
+        ExifDateFixWorker.cancel(context)
+    }
 
     /**
      * Ручное сжатие всех изображений папки (с подпапками) без лимита числа файлов.

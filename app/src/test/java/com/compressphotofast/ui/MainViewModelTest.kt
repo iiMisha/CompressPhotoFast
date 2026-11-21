@@ -12,6 +12,7 @@ import com.compressphotofast.domain.CompressionEnqueueResult
 import com.compressphotofast.domain.CompressionEvents
 import com.compressphotofast.domain.CompressionWorkScheduler
 import com.compressphotofast.domain.ImageProcessingChecker
+import com.compressphotofast.domain.ExifDateFixUseCase
 import com.compressphotofast.util.LegacyFilesTestHelpers
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -19,6 +20,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -41,9 +43,14 @@ class MainViewModelTest : BaseUnitTest() {
     private val batchTracker = mockk<CompressionBatchTracker>(relaxed = true)
     private val scheduler = mockk<CompressionWorkScheduler>(relaxed = true)
     private val checker = mockk<ImageProcessingChecker>(relaxed = true)
+    private val exifDateFixUseCase = mockk<ExifDateFixUseCase>(relaxed = true) {
+        every { progress } returns MutableStateFlow(null)
+    }
     private val events = mockk<CompressionEvents>(relaxed = true)
 
-    private fun viewModel() = MainViewModel(context, settings, tracker, batchTracker, scheduler, checker, events)
+    private fun viewModel() = MainViewModel(
+        context, settings, tracker, batchTracker, scheduler, checker, exifDateFixUseCase, events
+    )
 
     @Before
     override fun setUp() {

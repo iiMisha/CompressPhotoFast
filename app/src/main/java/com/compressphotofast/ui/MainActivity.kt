@@ -12,8 +12,10 @@ import android.provider.MediaStore
 import android.os.Build
 import android.os.Bundle
 import android.transition.TransitionManager
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +23,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -37,6 +40,7 @@ import com.compressphotofast.databinding.ActivityMainBinding
 import com.compressphotofast.service.BackgroundMonitoringService
 import com.compressphotofast.service.MonitoringController
 import com.compressphotofast.domain.CompressionEvents
+import com.compressphotofast.domain.ExifDateFixUseCase
 import com.compressphotofast.data.CompressionPreset
 import com.compressphotofast.util.Constants
 import com.compressphotofast.data.FileOperationsUtil
@@ -65,6 +69,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
     private var permissionsManager: IPermissionsManager? = null
+
+    /** Диалог прогресса восстановления EXIF-дат; пересоздаётся из StateFlow. */
+    private var dateFixProgressDialog: AlertDialog? = null
+    private var dateFixProgressCounts: TextView? = null
+    private var dateFixProgressBar: ProgressBar? = null
 
     @Inject
     lateinit var uriProcessingTracker: UriProcessingTracker
@@ -435,6 +444,19 @@ class MainActivity : AppCompatActivity() {
         // Меню журнала и отправки логов на сервер — только в debug-сборке
         DebugLogTools.installUi(this, binding.toolbar)
 
+        // Production-меню «три точки» + единый listener тулбара
+        // (Toolbar не даёт геттера listener'а, debug-пункты делегируются в DebugLogTools)
+        binding.toolbar.inflateMenu(R.menu.main_menu)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_restore_exif_dates -> {
+                    showDateFixDialog()
+                    true
+                }
+                else -> DebugLogTools.onMenuItemSelected(this, item)
+            }
+        }
+
         // Переключатель автоматического сжатия (listener'ы регистрируются в attachSwitchListeners())
         binding.switchAutoCompression.isChecked = viewModel.isAutoCompressionEnabled()
 
@@ -471,6 +493,74 @@ class MainActivity : AppCompatActivity() {
 
         // Регистрируем listener'ы переключателей после установки начальных состояний
         attachSwitchListeners()
+    }
+
+    /** Диалог подтверждения восстановления EXIF-дат и запуск прохода. */
+    private fun showDateFixDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.date_fix_dialog_title)
+            .setMessage(R.string.date_fix_dialog_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.menu_restore_exif_dates) { _, _ ->
+                viewModel.scheduleExifDateFix()
+            }
+            .show()
+    }
+
+    /**
+     * Диалог прогресса восстановления EXIF-дат. Пересоздаётся при повороте:
+     * состояние живёт в [MainViewModel.dateFixProgress] (StateFlow use case).
+     * Отмена прерывает проход после текущего файла.
+     */
+    private fun showDateFixProgressDialog() {
+        if (dateFixProgressDialog?.isShowing == true) return
+        dateFixProgressDialog?.dismiss()
+
+        val view = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_date_fix_progress, null)
+        dateFixProgressCounts = view.findViewById(R.id.dateFixProgressCounts)
+        dateFixProgressBar = view.findViewById(R.id.dateFixProgressBar)
+
+        dateFixProgressDialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.date_fix_progress_title)
+            .setView(view)
+            .setCancelable(false)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        dateFixProgressDialog?.setOnShowListener { dialog ->
+            (dialog as AlertDialog).getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+                it.isEnabled = false
+                dateFixProgressCounts?.text = getString(R.string.date_fix_cancelling)
+                viewModel.cancelExifDateFix()
+            }
+        }
+        dateFixProgressDialog?.show()
+    }
+
+    /** Обновляет содержимое диалога прогресса из [progress] (null → dismiss). */
+    private fun updateDateFixProgressDialog(progress: ExifDateFixUseCase.Progress?) {
+        if (progress == null) {
+            dateFixProgressDialog?.dismiss()
+            dateFixProgressDialog = null
+            dateFixProgressCounts = null
+            dateFixProgressBar = null
+            return
+        }
+        showDateFixProgressDialog()
+        val bar = dateFixProgressBar ?: return
+        val counts = dateFixProgressCounts ?: return
+        if (progress.total == 0) {
+            bar.isIndeterminate = true
+            counts.text = getString(R.string.date_fix_progress_scanning)
+        } else {
+            bar.isIndeterminate = false
+            bar.max = progress.total
+            bar.progress = progress.scanned
+            counts.text = getString(
+                R.string.date_fix_progress_counts,
+                progress.scanned, progress.total, progress.fixed
+            )
+        }
     }
 
     /**
@@ -537,9 +627,18 @@ class MainActivity : AppCompatActivity() {
         attachSwitchListeners()
     }
 
+    override fun onDestroy() {
+        // Диалог пересоздаётся из StateFlow при новом onStart — ссылку чистим
+        dateFixProgressDialog?.setOnShowListener(null)
+        dateFixProgressDialog?.dismiss()
+        dateFixProgressDialog = null
+        dateFixProgressCounts = null
+        dateFixProgressBar = null
+        super.onDestroy()
+    }
+
     override fun onResume() {
-        super.onResume()
-        // Ре-синхронизируем UI с актуальными значениями prefs (защита от рассинхрона)
+        super.onResume()        // Ре-синхронизируем UI с актуальными значениями prefs (защита от рассинхрона)
         syncSwitchesFromPrefs()
         // Если система уже исключила приложение из оптимизации батареи — отмечаем флаг,
         // чтобы не запрашивать повторно при следующем включении автосжатия.
@@ -561,6 +660,18 @@ class MainActivity : AppCompatActivity() {
                             showCompressionResult(event.fileName, event.originalSize, event.compressedSize)
                         }
                         is CompressionEvents.Event.BatchCompleted -> showSnackbar(formatBatchResult(event))
+                        is CompressionEvents.Event.DateFixCompleted -> showSnackbar(
+                            if (event.cancelled) {
+                                getString(
+                                    R.string.date_fix_cancelled,
+                                    event.fixed, event.noSource, event.failed
+                                )
+                            } else if (event.fixed == 0 && event.failed == 0) {
+                                getString(R.string.date_fix_nothing_done)
+                            } else {
+                                getString(R.string.date_fix_result, event.fixed, event.noSource, event.failed)
+                            }
+                        )
                         is CompressionEvents.Event.DeleteConfirmationRequired -> {
                             LogUtil.processDebug("Получен запрос на удаление файла: ${event.uri}")
                             requestFileDelete(event.uri)
@@ -579,6 +690,15 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         getString(R.string.manual_compression_progress, progress.done, progress.expected)
                     }
+                }
+            }
+        }
+
+        // Прогресс восстановления EXIF-дат: диалог прогресса с кнопкой «Отмена»
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                viewModel.dateFixProgress.collect { progress ->
+                    updateDateFixProgressDialog(progress)
                 }
             }
         }

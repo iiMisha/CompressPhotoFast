@@ -1028,6 +1028,91 @@ object ExifUtil {
         )
     }
 
+    /** Внутренний доступ для use case: есть ли в EXIF любая из дат. */
+    internal fun hasAnyDate(exif: ExifInterface): Boolean = checkDateAvailability(exif)
+
+    /** Сбрасывает приватный EXIF-кэш URI после прямой записи в файл. */
+    internal fun evictExifDataCache(uri: Uri) {
+        exifDataCache.remove(uri.toString())
+    }
+
+    /**
+     * Дописывает отсутствующие даты на месте через дескриптор (`saveAttributes()`).
+     * Наличие дат перепроверяется на уже открытом `rw`-дескрипторе (свежие данные
+     * под gate сжатия), не по снимку фазы скана. Вызывать только внутри
+     * [guardedExifWrite]; mtime захвачен до записи — `saveAttributes()` его меняет.
+     * @return захваченный mtime файла или null, если даты уже присутствуют
+     */
+    internal suspend fun writeDatesInPlace(
+        context: Context,
+        uri: Uri,
+        dateSourceMs: Long,
+        includeDateTimeOriginal: Boolean
+    ): Long? {
+        val pfd = context.contentResolver.openFileDescriptor(uri, "rw")
+            ?: throw IOException("Не удалось открыть дескриптор для записи дат")
+        pfd.use {
+            val exif = ExifInterface(it.fileDescriptor)
+            if (checkDateAvailability(exif)) {
+                LogUtil.processInfo("Даты появились в EXIF, запись не требуется: $uri")
+                return null
+            }
+            val fileLastModified = UriUtil.getFileLastModified(context, uri)
+            val formattedDate = formatDateForExif(dateSourceMs)
+            exif.setAttribute(ExifInterface.TAG_DATETIME, formattedDate)
+            exif.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, formattedDate)
+            if (includeDateTimeOriginal) {
+                exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, formattedDate)
+            }
+            exif.saveAttributes()
+            LogUtil.processInfo("Дописаны отсутствующие EXIF-даты: $formattedDate (original=$includeDateTimeOriginal) для $uri")
+            return fileLastModified
+        }
+    }
+
+    /**
+     * Дописывает отсутствующие EXIF-даты в файл под защитой durable backup
+     * ([guardedExifWrite]): `DateTime` + `DateTimeDigitized`, плюс
+     * `DateTimeOriginal` при [includeDateTimeOriginal] (дата из имени файла —
+     * настоящая дата съёмки; дата из маркера — дата сжатия, оригинал не выдумывается).
+     *
+     * Наличие дат перепроверяется на свежем `rw`-дескрипторе (под gate сжатия),
+     * не по снимку фазы скана: если даты уже появились — запись не выполняется.
+     * После успеха mtime файла всегда восстанавливается (пиксели не менялись,
+     * миниатюры обновлять не нужно) и инвалидируются оба EXIF-кэша URI.
+     *
+     * @return true, если даты записаны или уже присутствуют
+     */
+    suspend fun writeMissingDates(
+        context: Context,
+        uri: Uri,
+        dateSourceMs: Long,
+        includeDateTimeOriginal: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (dateSourceMs <= 0L) return@withContext false
+        try {
+            var fileLastModified = 0L
+            val written = guardedExifWrite(context, uri) {
+                writeDatesInPlace(context, uri, dateSourceMs, includeDateTimeOriginal)?.let {
+                    fileLastModified = it
+                }
+            }
+            if (!written) return@withContext false
+
+            if (fileLastModified > 0) {
+                MediaStoreDateUtil.restoreModifiedDate(context, uri, fileLastModified)
+            }
+            OptimizedCacheUtil.invalidateExifData(uri)
+            evictExifDataCache(uri)
+            return@withContext true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LogUtil.error(uri, "Восстановление дат EXIF", e)
+            return@withContext false
+        }
+    }
+
     /**
      * Перезаписывает файл на месте ([write], обычно `saveAttributes()`) под защитой
      * durable backup ([BackupRegistry.createBackup]).

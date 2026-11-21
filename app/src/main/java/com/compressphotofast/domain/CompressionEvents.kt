@@ -42,6 +42,18 @@ class CompressionEvents @Inject constructor() {
 
         /** Оригинал не удалён без подтверждения пользователя (replace-режим). */
         data class DeleteConfirmationRequired(val uri: Uri) : Event
+
+        /**
+         * Проход восстановления EXIF-дат завершён (меню «три точки»).
+         * [cancelled] — проход прерван (кнопкой «Отмена» или системой),
+         * счётчики — частичный итог по обработанным файлам.
+         */
+        data class DateFixCompleted(
+            val fixed: Int,
+            val noSource: Int,
+            val failed: Int,
+            val cancelled: Boolean = false
+        ) : Event
     }
 
     private val _events = MutableSharedFlow<Event>(

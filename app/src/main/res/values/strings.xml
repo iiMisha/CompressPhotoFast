@@ -78,5 +78,17 @@
     <string name="notification_completion_channel_description">Уведомления о результатах сжатия изображений</string>
     <string name="notification_daily_stats_collapsed">Сжато: %1$d · −%2$s (%3$s)</string>
     
+    <!-- Восстановление EXIF-дат -->
+    <string name="menu_restore_exif_dates">Восстановить даты EXIF</string>
+    <string name="date_fix_dialog_title">Восстановить даты EXIF?</string>
+    <string name="date_fix_dialog_message">Приложение просканирует галерею и допишет даты EXIF файлам, у которых нет ни одной даты. Даты берутся из имени файла или из маркера сжатия; запись выполняется с резервной копией. HEIC пропускается.</string>
+    <string name="date_fix_progress_title">Восстановление дат EXIF</string>
+    <string name="date_fix_progress_scanning">Сканирование галереи…</string>
+    <string name="date_fix_progress_counts">Обработано %1$d из %2$d · записано: %3$d</string>
+    <string name="date_fix_cancelling">Прерываем после текущего файла…</string>
+    <string name="date_fix_cancelled">⏸ Прервано: даты восстановлены %1$d файлам · без источников: %2$d · ошибки: %3$d</string>
+    <string name="date_fix_result">Даты EXIF восстановлены: %1$d · без источников даты: %2$d · ошибки: %3$d</string>
+    <string name="date_fix_nothing_done">ℹ️ Даты уже есть у всех файлов</string>
+    
     <!-- Статусные сообщения -->
 </resources>

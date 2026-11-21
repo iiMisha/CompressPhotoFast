@@ -3,6 +3,7 @@ package com.compressphotofast.debug
 import android.content.Context
 import android.text.InputType
 import android.util.Log
+import android.view.MenuItem
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -30,18 +31,23 @@ object DebugLogTools {
         installCrashHandler()
     }
 
-    /** Добавляет меню журнала в тулбар [toolbar]. */
+    /** Добавляет меню журнала в тулбар [toolbar] (listener ставит MainActivity). */
     fun installUi(activity: AppCompatActivity, toolbar: MaterialToolbar) {
         toolbar.inflateMenu(R.menu.debug_menu)
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.action_send_log -> sendLog(activity)
-                R.id.action_clear_log -> clearLog(activity)
-                R.id.action_log_server -> showServerDialog(activity)
-                else -> return@setOnMenuItemClickListener false
-            }
-            true
+    }
+
+    /**
+     * Обрабатывает debug-пункты меню тулбара; неизвестные пункты (production-меню)
+     * возвращает вызывающему коду.
+     */
+    fun onMenuItemSelected(activity: AppCompatActivity, item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_send_log -> sendLog(activity)
+            R.id.action_clear_log -> clearLog(activity)
+            R.id.action_log_server -> showServerDialog(activity)
+            else -> return false
         }
+        return true
     }
 
     /** Записывает необработанные исключения в журнал и передаёт их прежнему обработчику. */
