@@ -7,7 +7,10 @@ from .constants import (
     COMPRESSED_FILE_SUFFIX,
     SUPPORTED_EXTENSIONS,
     OPTIMUM_FILE_SIZE,
+    MIN_FILE_SIZE,
+    MAX_FILE_SIZE,
 )
+from .exif_handler import has_heic_compressed_suffix
 
 
 class FileInfo:
@@ -118,11 +121,22 @@ def find_image_files(
                         if ext not in SUPPORTED_EXTENSIONS:
                             continue
 
+                        # HEIC с суффиксом _compressed — уже помечен как сжатый
+                        # (rename-маркер, соответствует CompressionMarker в Android)
+                        if has_heic_compressed_suffix(filename):
+                            continue
+
                         try:
                             stat = entry.stat()
-                            files.append(FileInfo(file_path, filename, stat.st_size, stat.st_mtime))
                         except OSError:
                             continue
+
+                        # Фильтры размера на этапе скана
+                        # (соответствует GalleryScanUtil в Android)
+                        if stat.st_size < MIN_FILE_SIZE or stat.st_size > MAX_FILE_SIZE:
+                            continue
+
+                        files.append(FileInfo(file_path, filename, stat.st_size, stat.st_mtime))
                     elif recursive and entry.is_dir():
                         # Recursively scan subdirectories
                         scan_directory(Path(entry.path))

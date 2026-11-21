@@ -6,14 +6,10 @@
 import sys
 import os
 
-# Добавляем src директорию в путь для импорта
-src_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src')
-sys.path.insert(0, src_dir)
-
-from compression import clean_double_extensions
+from src.compression import clean_double_extensions
 
 
-def test_function(name, input_value, expected):
+def check_function(name, input_value, expected):
     """Запускает один тест и выводит результат"""
     result = clean_double_extensions(input_value)
     status = "✓ PASS" if result == expected else "✗ FAIL"
@@ -61,7 +57,7 @@ def main():
     failed = 0
 
     for test_data in tests:
-        if test_function(*test_data):
+        if check_function(*test_data):
             passed += 1
         else:
             failed += 1

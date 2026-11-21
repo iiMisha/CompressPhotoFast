@@ -31,7 +31,7 @@ def clean_double_extensions(file_name: str) -> str:
         return before_last_dot
 
 
-def test_function(name, input_value, expected):
+def check_function(name, input_value, expected):
     """Запускает один тест и выводит результат"""
     result = clean_double_extensions(input_value)
     status = "✓ PASS" if result == expected else "✗ FAIL"
@@ -85,7 +85,7 @@ def main():
     failed = 0
 
     for test_data in tests:
-        if test_function(*test_data):
+        if check_function(*test_data):
             passed += 1
         else:
             failed += 1

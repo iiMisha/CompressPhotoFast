@@ -138,7 +138,9 @@ def compress(
         "low": COMPRESSION_QUALITY_LOW,
         "medium": COMPRESSION_QUALITY_MEDIUM,
         "high": COMPRESSION_QUALITY_HIGH,
-        "auto": 0,
+        # auto — фиксированное качество по умолчанию, паритет с Android
+        # (перебор quality удалён, соответствует COMPRESSION_QUALITY_MEDIUM)
+        "auto": DEFAULT_COMPRESSION_QUALITY,
     }
     quality_value = quality_map[quality]
 

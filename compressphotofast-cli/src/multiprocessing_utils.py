@@ -258,13 +258,12 @@ def process_single_file(
 
     This function is designed to run in a separate process and handles:
     - Checking if file needs processing (EXIF, size)
-    - Finding optimal quality (if auto)
     - Compressing the image
     - Returning results for display in main process
 
     Args:
         file_info: Information about the file to process
-        quality: Compression quality (0 for auto)
+        quality: Compression quality
         replace: Whether to replace original file
         output_dir: Output directory for compressed files
         force: Force re-compression of already compressed files
@@ -298,20 +297,10 @@ def process_single_file(
         # Process the file if needed
         if should_process:
             try:
-                # Find optimal quality if auto (quality == 0)
-                actual_quality = quality
-                if actual_quality == 0:
-                    try:
-                        actual_quality = ImageCompressor.find_optimal_quality(file_info.path)
-                    except Exception as e:
-                        # If quality detection fails, use default
-                        actual_quality = 75  # Default fallback
-                        skip_reason = f"Quality detection failed: {str(e)}"
-
                 # Compress the image
                 result = ImageCompressor.compress_image_safe(
                     file_info.path,
-                    actual_quality,
+                    quality,
                     replace_mode=replace,
                     output_dir=output_dir
                 )

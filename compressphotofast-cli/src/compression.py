@@ -10,12 +10,6 @@ import piexif
 logger = logging.getLogger(__name__)
 
 from .constants import (
-    COMPRESSION_QUALITY_LOW,
-    COMPRESSION_QUALITY_MEDIUM,
-    COMPRESSION_QUALITY_HIGH,
-    DEFAULT_COMPRESSION_QUALITY,
-    MIN_COMPRESSION_QUALITY,
-    MAX_COMPRESSION_QUALITY,
     MIN_COMPRESSION_SAVING_PERCENT,
     MIN_PROCESSABLE_FILE_SIZE,
     MIN_BYTES_SAVING,
@@ -186,28 +180,6 @@ class ImageCompressor:
         )
 
     @staticmethod
-    def find_optimal_quality(file_path: str) -> int:
-        original_size = ImageCompressor.get_file_size(file_path)
-        qualities = [50, 60, 70, 80, 90]  # Ordered from lowest to highest
-
-        best_quality = DEFAULT_COMPRESSION_QUALITY
-        best_ratio = 1.0
-
-        for quality in qualities:
-            result = ImageCompressor.test_compression(file_path, quality)
-            if result and result.success:
-                ratio = result.compressed_size / original_size
-
-                if ratio < best_ratio and ratio >= MIN_COMPRESSION_RATIO:
-                    best_ratio = ratio
-                    best_quality = quality
-
-                if ratio < 0.3:
-                    break
-
-        return best_quality
-
-    @staticmethod
     def compress_image(
         file_path: str,
         quality: int,
@@ -283,6 +255,30 @@ class ImageCompressor:
                     except OSError:
                         pass
                 # Add marker for inefficient compression, preserving all source metadata
+                if ExifHandler.is_heic_file(file_path):
+                    if output_path != file_path:
+                        # Исходник на file_path не перезаписан: rename-маркер
+                        # (соответствует ExifUtil.markHeicFileAsCompressed в Android)
+                        ExifHandler.mark_heic_file_as_compressed(file_path)
+                        return CompressionResult(
+                            True,
+                            original_size,
+                            compressed_size,
+                            None,
+                            "Compression not efficient (HEIC renamed as compressed)",
+                            metadata_preserved=False,
+                        )
+                    # Replace-режим: file_path перезаписан JPEG-контентом;
+                    # маркировку выполняет compress_image_safe после restore
+                    # оригинала из backup
+                    return CompressionResult(
+                        True,
+                        original_size,
+                        compressed_size,
+                        None,
+                        "Compression not efficient (HEIC skipped)",
+                        metadata_preserved=False,
+                    )
                 ExifHandler.add_compression_marker(file_path, 99, source_exif)
                 if format.upper() == "PNG":
                     return CompressionResult(
@@ -370,10 +366,15 @@ class ImageCompressor:
                         shutil.move(backup_path, file_path)
                     except (IOError, OSError):
                         pass
-                    # Add marker for inefficient compression after restoring, with source metadata
+                    # Skip-marker после restore из backup
                     if result.success and "not efficient" in result.message.lower():
-                        source_exif = ExifHandler.read_exif_data(backup_path)
-                        ExifHandler.add_compression_marker(file_path, 99, source_exif)
+                        if ExifHandler.is_heic_file(file_path):
+                            # HEIC: пропуск через rename, без EXIF
+                            # (соответствует ExifUtil.markHeicFileAsCompressed в Android)
+                            ExifHandler.mark_heic_file_as_compressed(file_path)
+                        else:
+                            source_exif = ExifHandler.read_exif_data(file_path)
+                            ExifHandler.add_compression_marker(file_path, 99, source_exif)
                     return result
                 else:
                     # Preserve file dates BEFORE removing backup

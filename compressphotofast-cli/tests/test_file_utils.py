@@ -3,7 +3,7 @@
 Проверяют функцию очистки двойных расширений
 """
 import pytest
-from compression import clean_double_extensions
+from src.compression import clean_double_extensions
 
 
 class TestCleanDoubleExtensions:

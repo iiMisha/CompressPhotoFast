@@ -1,4 +1,7 @@
+import io
 import os
+import re
+import logging
 import shutil
 import piexif
 from datetime import datetime
@@ -10,6 +13,21 @@ from .constants import (
     MARKER_SIZE_TOLERANCE_BYTES,
     TIME_DIFFERENCE_ALLOWED_SECONDS,
 )
+
+logger = logging.getLogger(__name__)
+
+# Суффикс имени HEIC-файла, заменяющий EXIF-маркер (CompressionMarker в Android)
+HEIC_COMPRESSED_SUFFIX = "_compressed"
+# Распознавание: regex _compressed\.(heic|heif)$, ignore case (CompressionMarker в Android)
+HEIC_COMPRESSED_NAME = re.compile(r"_compressed\.(heic|heif)$", re.IGNORECASE)
+
+
+def has_heic_compressed_suffix(file_name: Optional[str]) -> bool:
+    """
+    Проверяет, есть ли у имени файла суффикс _compressed перед расширением .heic/.heif.
+    Соответствует CompressionMarker.hasHeicCompressedSuffix в Android.
+    """
+    return file_name is not None and HEIC_COMPRESSED_NAME.search(file_name) is not None
 
 
 class ExifHandler:
@@ -58,10 +76,59 @@ class ExifHandler:
     ]
 
     @staticmethod
-    def read_exif_data(file_path: str) -> Optional[Dict[str, Any]]:
+    def is_heic_file(file_path: str) -> bool:
+        """HEIC/HEIF по расширению имени (аналог isHeicFile в Android ExifUtil)."""
+        return os.path.splitext(file_path)[1].lower() in {".heic", ".heif"}
+
+    @staticmethod
+    def mark_heic_file_as_compressed(file_path: str) -> bool:
+        """
+        HEIC не получает EXIF-маркер: пропуск помечается переименованием
+        name.heic -> name_compressed.heic (аналог ExifUtil.markHeicFileAsCompressed).
+        Идемпотентно: файл с суффиксом не переименовывается повторно.
+        """
         try:
-            exif_dict = piexif.load(file_path)
-            return exif_dict
+            directory, file_name = os.path.split(file_path)
+            if has_heic_compressed_suffix(file_name):
+                logger.debug(f"У файла уже есть суффикс {HEIC_COMPRESSED_SUFFIX}: {file_name}")
+                return True
+
+            name_part, ext = os.path.splitext(file_name)
+            new_name = f"{name_part}{HEIC_COMPRESSED_SUFFIX}{ext}"
+
+            # Коллизия: сохраняем контракт суффикса, счётчик перед _compressed
+            counter = 1
+            while os.path.exists(os.path.join(directory, new_name)):
+                new_name = f"{name_part}_{counter}{HEIC_COMPRESSED_SUFFIX}{ext}"
+                counter += 1
+
+            new_path = os.path.join(directory, new_name)
+            os.rename(file_path, new_path)
+            logger.info(f"Переименование: {file_name} -> {new_name}")
+            return True
+        except OSError as e:
+            logger.warning(f"Не удалось переименовать HEIC-файл {file_path}: {e}")
+            return False
+
+    @staticmethod
+    def read_exif_data(file_path: str) -> Optional[Dict[str, Any]]:
+        return ExifHandler._load_exif_dict(file_path)
+
+    @staticmethod
+    def _load_exif_dict(file_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Загружает EXIF-словарь файла. Для PNG piexif.load по пути молча
+        не работает (piexif читает только JPEG), поэтому eXIf-чанк читается
+        через Pillow, а разбор выполняется piexif.load по байтам в памяти.
+        """
+        try:
+            if os.path.splitext(file_path)[1].lower() == ".png":
+                with Image.open(file_path) as img:
+                    exif_bytes = img.info.get("exif")
+                if not exif_bytes:
+                    return None
+                return piexif.load(exif_bytes)
+            return piexif.load(file_path)
         except Exception:
             return None
 
@@ -131,6 +198,15 @@ class ExifHandler:
 
     @staticmethod
     def is_image_compressed(file_path: str) -> bool:
+        """
+        HEIC: первичный признак сжатости — суффикс имени (EXIF-маркер недоступен,
+        как в Android getCompressionMarker). Далее стандартная проверка EXIF
+        (в .heic-имени может быть JPEG-контент с маркером после replace-режима).
+        """
+        if ExifHandler.is_heic_file(file_path) and has_heic_compressed_suffix(
+            os.path.basename(file_path)
+        ):
+            return True
         is_compressed, _, _ = ExifHandler.get_compression_info(file_path)
         return is_compressed
 
@@ -145,7 +221,14 @@ class ExifHandler:
         Файл с маркером обрабатывается повторно только при расхождении текущего
         размера с размером в маркере сверх допуска (ImageProcessingChecker в Android).
         Маркер без размера — доверяем маркеру и пропускаем.
+        HEIC с суффиксом _compressed — маркер без размера, всегда пропуск
+        (как HEIC-маркер без размера в Android).
         """
+        if ExifHandler.is_heic_file(file_path) and has_heic_compressed_suffix(
+            os.path.basename(file_path)
+        ):
+            return False
+
         is_compressed, _, _ = ExifHandler.get_compression_info(file_path)
         if not is_compressed:
             return True
@@ -221,6 +304,68 @@ class ExifHandler:
         exif_dict.setdefault("Exif", {})[piexif.ExifIFD.DateTimeDigitized] = date_str
 
     @staticmethod
+    def _add_marker_to_png(
+        file_path: str,
+        quality: int,
+        timestamp: int,
+        orig_size: Optional[int],
+        file_mtime: float,
+    ) -> bool:
+        """
+        Запись маркера в PNG через eXIf-чанк: piexif.insert не работает с
+        PNG-файлами, поэтому сборка (piexif.dump по байтам в памяти) и запись
+        через Pillow `img.save(exif=...)`.
+
+        Перекодировка выполняется в памяти: ICC-профиль сохраняется, а поле
+        size маркера получает точный размер записанного файла (поля маркера
+        фиксированной ширины — сухой прогон с заглушкой даёт ту же длину,
+        что и финальная запись).
+        """
+        try:
+            with Image.open(file_path) as img:
+                img.load()
+                icc_profile = img.info.get("icc_profile")
+                existing = img.info.get("exif")
+
+                exif_dict: Dict[str, Any] = {"0th": {}, "Exif": {}}
+                if existing:
+                    try:
+                        loaded = piexif.load(existing)
+                        if loaded:
+                            exif_dict = loaded
+                    except Exception:
+                        pass
+
+                if "Exif" not in exif_dict:
+                    exif_dict["Exif"] = {}
+
+                ExifHandler._backfill_missing_dates(exif_dict, file_mtime)
+
+                save_kwargs = {"format": "PNG"}
+                if icc_profile:
+                    save_kwargs["icc_profile"] = icc_profile
+
+                def save_with_marker(marker_text: str) -> bytes:
+                    exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_text.encode("utf-8")
+                    buf = io.BytesIO()
+                    img.save(buf, exif=piexif.dump(exif_dict), **save_kwargs)
+                    return buf.getvalue()
+
+                # Сухой прогон: фактический размер файла после записи маркера
+                stub = ExifHandler._build_marker(quality, timestamp, 0, orig_size)
+                actual_size = len(save_with_marker(stub))
+
+                marker = ExifHandler._build_marker(quality, timestamp, actual_size, orig_size)
+                data = save_with_marker(marker)
+
+            with open(file_path, "wb") as f:
+                f.write(data)
+            return True
+        except Exception as e:
+            logger.warning(f"Не удалось записать PNG-маркер в {file_path}: {e}")
+            return False
+
+    @staticmethod
     def add_compression_marker(
         file_path: str,
         quality: int,
@@ -249,6 +394,15 @@ class ExifHandler:
             marker_size = os.path.getsize(file_path)
             marker_orig_size = original_size if original_size and original_size > 0 else marker_size
 
+            # PNG: маркер через eXIf-чанк (piexif.insert на PNG-файл молча не работает)
+            if os.path.splitext(file_path)[1].lower() == ".png":
+                timestamp = int(datetime.now().timestamp() * 1000)
+                return ExifHandler._add_marker_to_png(
+                    file_path, quality, timestamp, marker_orig_size, file_mtime
+                )
+
+            marker_bytes = None
+
             if source_exif:
                 # Copy all metadata from source and add marker
                 exif_dict = {}
@@ -270,15 +424,6 @@ class ExifHandler:
                 marker_bytes = marker_data.encode("utf-8")
 
                 exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
-
-                exif_bytes = None
-                try:
-                    exif_bytes = piexif.dump(exif_dict)
-                except Exception:
-                    return False
-
-                piexif.insert(exif_bytes, file_path)
-                return True
             else:
                 # Read existing EXIF data
                 with open(file_path, 'rb') as f:
@@ -305,10 +450,11 @@ class ExifHandler:
 
                 exif_dict["Exif"][piexif.ExifIFD.UserComment] = marker_bytes
 
-                exif_bytes = None
-                try:
-                    exif_bytes = piexif.dump(exif_dict)
-                except Exception:
+            exif_bytes = None
+            try:
+                exif_bytes = piexif.dump(exif_dict)
+            except Exception:
+                if marker_bytes is not None:
                     try:
                         minimal_exif = {
                             "0th": {},
@@ -317,9 +463,11 @@ class ExifHandler:
                         exif_bytes = piexif.dump(minimal_exif)
                     except Exception:
                         return False
+                else:
+                    return False
 
-                piexif.insert(exif_bytes, file_path)
-                return True
+            piexif.insert(exif_bytes, file_path)
+            return True
         except Exception:
             return False
 
