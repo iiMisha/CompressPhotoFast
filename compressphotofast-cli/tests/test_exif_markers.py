@@ -131,11 +131,12 @@ class TestHeicRenameMarker:
 
 
 @pytest.mark.skipif(not HEIC_SUPPORT_AVAILABLE, reason="pillow-heif недоступен")
-class TestHeicInefficientDivert:
-    """compress_image при неэффективном сжатии HEIC — rename вместо EXIF-маркера"""
+class TestHeicAlwaysConvert:
+    """HEIC ≥ 100 КБ всегда конвертируется в JPEG, даже при неэффективном сжатии
+    (контракт CompressImageUseCase в Android: правило 30%/10 КБ к HEIC не применяется)"""
 
-    def test_compress_image_inefficient_heic_renames(self, tmp_path, monkeypatch):
-        # Copy-режим (output_path != file_path): исходник получает rename-маркер
+    def test_compress_image_inefficient_heic_keeps_jpeg(self, tmp_path, monkeypatch):
+        # Copy-режим: JPEG-копия сохраняется, rename не выполняется
         monkeypatch.setattr(
             ImageCompressor, "is_compression_efficient", staticmethod(lambda a, b: False)
         )
@@ -147,17 +148,33 @@ class TestHeicInefficientDivert:
         result = ImageCompressor.compress_image(str(src), DEFAULT_COMPRESSION_QUALITY, out)
 
         assert result.success is True
-        assert "renamed" in result.message.lower()
-        assert result.saved_path is None
-        assert not out.exists()
-        assert not src.exists()
-        assert (tmp_path / "IMG_0001_compressed.heic").exists()
-        # HEIC без EXIF-маркера внутри: распознавание только по суффиксу
-        assert ExifHandler.is_image_compressed(str(tmp_path / "IMG_0001_compressed.heic")) is True
+        assert str(result.saved_path) == str(out)
+        assert out.exists()
+        assert src.exists()
+        # Исходник не переименован
+        assert (tmp_path / "IMG_0001.heic").exists()
+        with Image.open(str(out)) as img:
+            assert img.format == "JPEG"
 
-    def test_compress_image_replace_heic_leaves_marking_to_safe(self, tmp_path, monkeypatch):
-        # Replace-вызов (output == file): файл перезаписан JPEG-контентом,
-        # rename делает compress_image_safe после restore оригинала
+    def test_compress_image_heic_larger_jpeg_is_kept(self, tmp_path, monkeypatch):
+        # JPEG больше оригинала (отрицательная экономия) — копия всё равно сохраняется
+        monkeypatch.setattr(
+            ImageCompressor, "is_compression_efficient", staticmethod(lambda a, b: b > a)
+        )
+        src = tmp_path / "IMG_0001.heic"
+        make_noisy_heic(str(src))
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        out = out_dir / "IMG_0001.jpg"
+        result = ImageCompressor.compress_image(str(src), DEFAULT_COMPRESSION_QUALITY, out)
+
+        assert result.success is True
+        assert str(result.saved_path) == str(out)
+        assert out.exists()
+        assert out.stat().st_size > src.stat().st_size
+
+    def test_compress_image_replace_heic_converts_in_place(self, tmp_path, monkeypatch):
+        # Replace-вызов (output == file): HEIC перезаписан JPEG-контентом и остаётся
         monkeypatch.setattr(
             ImageCompressor, "is_compression_efficient", staticmethod(lambda a, b: False)
         )
@@ -166,35 +183,30 @@ class TestHeicInefficientDivert:
         result = ImageCompressor.compress_image(str(src), DEFAULT_COMPRESSION_QUALITY)
 
         assert result.success is True
-        assert "skipped" in result.message.lower()
-        # Переименования ещё не было; содержимое заменено JPEG-контентом
+        assert str(result.saved_path) == str(src)
         assert src.exists()
-        assert list(p.name for p in tmp_path.iterdir()) == ["IMG_0001.heic"]
+        with Image.open(str(src)) as img:
+            assert img.format == "JPEG"
 
-    def test_replace_mode_heic_restore_then_rename(self, tmp_path, monkeypatch):
-        # Replace-режим: неэффективное сжатие -> restore из .bak -> rename
+    def test_replace_mode_heic_converts_without_restore(self, tmp_path, monkeypatch):
+        # Replace-режим: неэффективное сжатие не откатывает конвертацию HEIC
         monkeypatch.setattr(
             ImageCompressor, "is_compression_efficient", staticmethod(lambda a, b: False)
         )
         src = tmp_path / "IMG_0001.heic"
         make_noisy_heic(str(src))
-        original_bytes = src.read_bytes()
 
         result = ImageCompressor.compress_image_safe(
             str(src), DEFAULT_COMPRESSION_QUALITY, replace_mode=True
         )
 
         assert result.success is True
-        assert "not efficient" in result.message.lower()
-        # backup восстановлен, потом переименован
+        assert str(result.saved_path) == str(src)
+        # backup удалён, rename не выполнялся
         assert not (tmp_path / "IMG_0001.heic.bak").exists()
-        assert not src.exists()
-        renamed = tmp_path / "IMG_0001_compressed.heic"
-        assert renamed.exists()
-        # Содержимое = исходный HEIC, а не JPEG-перезапись
-        assert renamed.read_bytes() == original_bytes
-        assert ExifHandler.is_image_compressed(str(renamed)) is True
-        assert ExifHandler.should_recompress(str(renamed)) is False
+        assert list(p.name for p in tmp_path.iterdir()) == ["IMG_0001.heic"]
+        with Image.open(str(src)) as img:
+            assert img.format == "JPEG"
 
 
 class TestPngMarker:

@@ -274,9 +274,15 @@ object NotificationUtil {
         val truncatedFileName = FileOperationsUtil.truncateFileName(fileName)
         val originalSizeStr = FileOperationsUtil.formatFileSizeCompact(originalSize)
         val compressedSizeStr = FileOperationsUtil.formatFileSizeCompact(compressedSize)
-        val reductionStr = String.format("%.1f", reduction)
+        val reductionStr = "%.1f".format(reduction)
 
-        val message = "🖼️ $truncatedFileName: $originalSizeStr→$compressedSizeStr (-$reductionStr%)"
+        // HEIC теперь конвертируется в JPEG даже при росте размера
+        val sizePart = if (reduction < 0f) {
+            "+$reductionStr%"
+        } else {
+            "-$reductionStr%"
+        }
+        val message = "🖼️ $truncatedFileName: $originalSizeStr→$compressedSizeStr ($sizePart)"
         showToast(context, message, Toast.LENGTH_LONG)
     }
     
@@ -445,10 +451,17 @@ object NotificationUtil {
             .build()
     }
 
-    /** Форматирует эффективность сжатия компактно: "-45% · 1.8x". */
+    /** Форматирует эффективность сжатия компактно: "-45% · 1.8x" или "+10% · 0.9x" при росте. */
     private fun formatReduction(reductionPercent: Float): String {
-        val clamped = reductionPercent.coerceIn(0f, 99.9f)
-        return "-%.0f%% · %.1fx".format(reductionPercent.coerceAtLeast(0f), 100f / (100f - clamped))
+        val sign = if (reductionPercent < 0f) "+" else "-"
+        val magnitude = kotlin.math.abs(reductionPercent)
+        val ratio = if (reductionPercent < 0f) {
+            // Рост размера: сжатый файл больше оригинала
+            100f / (100f + magnitude)
+        } else {
+            100f / (100f - magnitude.coerceAtMost(99.9f))
+        }
+        return "$sign%.0f%% · %.1fx".format(magnitude, ratio)
     }
 
     private fun formatDailyStats(

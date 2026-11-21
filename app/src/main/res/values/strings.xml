@@ -51,7 +51,7 @@
     <string name="all_images_already_compressed">ℹ️ Все изображения уже сжаты</string>
     <string name="manual_photos_queued">Принято в обработку: %d фото</string>
     <string name="manual_compression_progress">Сжатие %1$d/%2$d…</string>
-    <string name="manual_result_compressed">✅ Сжато %1$d из %2$d: %3$s → %4$s (−%5$s%%)</string>
+    <string name="manual_result_compressed">✅ Сжато %1$d из %2$d: %3$s → %4$s (%5$s%%)</string>
     <string name="manual_result_none_compressed">ℹ️ Ни одно из %d фото не сжато</string>
     <string name="manual_result_single_skipped">ℹ️ Фото уже сжато или экономия меньше 30%</string>
     <string name="manual_result_single_failed">❌ Не удалось сжать фото</string>

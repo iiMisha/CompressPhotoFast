@@ -118,6 +118,32 @@ class CompressImageUseCaseTest : BaseUnitTest() {
     }
 
     @Test
+    fun `неэффективный HEIC всё равно конвертируется в JPEG`() = runTest {
+        stubTest(compressedSize = 1_100_000L, pixelsOriented = true)
+        stubSave(MediaStoreUtil.SaveResult.Saved(savedUri, 1_100_000L))
+        val snapshot = MediaItemSnapshot(
+            uri = uri,
+            displayName = "photo.heic",
+            relativePath = "DCIM/Camera/",
+            mimeType = "image/heic",
+            size = sourceSize,
+            isPendingRaw = false,
+            dateAddedSec = 1L,
+            dateModifiedSec = 1L
+        )
+
+        val outcome = useCase(uri, params, snapshot)
+
+        assertTrue(outcome is CompressImageUseCase.Outcome.Compressed)
+        coVerify(exactly = 0) { ExifUtil.writeSkipMarker(any(), any(), any(), any()) }
+        coVerify {
+            MediaStoreUtil.saveCompressedImageFromFile(
+                any(), artifact, any(), any(), any(), any(), any(), any(), any(), true
+            )
+        }
+    }
+
+    @Test
     fun `причина сбоя сохранения передаётся вызывающей стороне`() = runTest {
         stubTest(compressedSize = 400_000L)
         stubSave(MediaStoreUtil.SaveResult.Failed(MediaStoreUtil.SaveFailure.ROLLBACK_FAILED))

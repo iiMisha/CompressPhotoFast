@@ -202,6 +202,9 @@ class ImageCompressor:
                 )
 
             original_size = ImageCompressor.get_file_size(file_path)
+            # HEIC определяется по исходному расширению: в replace-режиме file_path
+            # может быть перезаписан JPEG-контентом до проверки эффективности
+            source_is_heic = ExifHandler.is_heic_file(file_path)
 
             with Image.open(file_path) as img:
                 format = img.format or "JPEG"
@@ -246,7 +249,17 @@ class ImageCompressor:
 
             compressed_size = ImageCompressor.get_file_size(output_path)
 
-            if not ImageCompressor.is_compression_efficient(
+            # Конвертированный HEIC получает стандартный EXIF-маркер сжатия
+            # (UserComment), как artifact в Android. JPEG/PNG/WebP — без маркера
+            # на success-пути (поведение не меняется).
+            if source_is_heic:
+                ExifHandler.add_compression_marker(output_path, quality, source_exif)
+                compressed_size = ImageCompressor.get_file_size(output_path)
+
+            # HEIC всегда конвертируется в JPEG: проверка 30%/10 КБ к нему
+            # не применяется (соответствует CompressImageUseCase в Android).
+            # Переименование _compressed.heic остаётся только backlog-маркером.
+            if not source_is_heic and not ImageCompressor.is_compression_efficient(
                 original_size, compressed_size
             ):
                 if output_path != file_path:
@@ -255,30 +268,6 @@ class ImageCompressor:
                     except OSError:
                         pass
                 # Add marker for inefficient compression, preserving all source metadata
-                if ExifHandler.is_heic_file(file_path):
-                    if output_path != file_path:
-                        # Исходник на file_path не перезаписан: rename-маркер
-                        # (соответствует ExifUtil.markHeicFileAsCompressed в Android)
-                        ExifHandler.mark_heic_file_as_compressed(file_path)
-                        return CompressionResult(
-                            True,
-                            original_size,
-                            compressed_size,
-                            None,
-                            "Compression not efficient (HEIC renamed as compressed)",
-                            metadata_preserved=False,
-                        )
-                    # Replace-режим: file_path перезаписан JPEG-контентом;
-                    # маркировку выполняет compress_image_safe после restore
-                    # оригинала из backup
-                    return CompressionResult(
-                        True,
-                        original_size,
-                        compressed_size,
-                        None,
-                        "Compression not efficient (HEIC skipped)",
-                        metadata_preserved=False,
-                    )
                 ExifHandler.add_compression_marker(file_path, 99, source_exif)
                 if format.upper() == "PNG":
                     return CompressionResult(
@@ -368,13 +357,8 @@ class ImageCompressor:
                         pass
                     # Skip-marker после restore из backup
                     if result.success and "not efficient" in result.message.lower():
-                        if ExifHandler.is_heic_file(file_path):
-                            # HEIC: пропуск через rename, без EXIF
-                            # (соответствует ExifUtil.markHeicFileAsCompressed в Android)
-                            ExifHandler.mark_heic_file_as_compressed(file_path)
-                        else:
-                            source_exif = ExifHandler.read_exif_data(file_path)
-                            ExifHandler.add_compression_marker(file_path, 99, source_exif)
+                        source_exif = ExifHandler.read_exif_data(file_path)
+                        ExifHandler.add_compression_marker(file_path, 99, source_exif)
                     return result
                 else:
                     # Preserve file dates BEFORE removing backup

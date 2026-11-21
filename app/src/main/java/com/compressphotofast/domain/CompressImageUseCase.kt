@@ -115,7 +115,12 @@ class CompressImageUseCase @Inject constructor(
         try {
             // Ветки вынесены в отдельные suspend-функции для уменьшения state machine
             // (ART-предупреждение `Method exceeds compiler instruction limit`).
-            return if (testResult.isEfficient()) {
+            // HEIC всегда конвертируется в JPEG: переупаковка HEIC в JPEG часто
+            // «неэффективна» по правилу 30%/10 КБ, а недетерминизм convert/rename
+            // недопустим (вердикт пограничный и плавает между сеансами).
+            val mimeType = snapshot?.mimeType ?: UriUtil.getMimeType(context, imageUri)
+            val isHeicSource = UriUtil.isHeicMimeType(mimeType)
+            return if (isHeicSource || testResult.isEfficient()) {
                 saveCompressed(imageUri, params, exifDataMemory, testResult, sourceSize, snapshot)
             } else {
                 markInefficient(imageUri, testResult, sourceSize, snapshot)

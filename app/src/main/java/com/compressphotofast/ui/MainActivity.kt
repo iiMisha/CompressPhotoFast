@@ -239,7 +239,10 @@ class MainActivity : AppCompatActivity() {
                 total,
                 FileOperationsUtil.formatFileSize(event.totalOriginalSize),
                 FileOperationsUtil.formatFileSize(event.totalCompressedSize),
-                String.format("%.1f", FileOperationsUtil.computeSizeReductionPercent(event.totalOriginalSize, event.totalCompressedSize))
+                String.format(
+                    "%+.1f",
+                    FileOperationsUtil.computeSizeReductionPercent(event.totalOriginalSize, event.totalCompressedSize)
+                )
             )
         } else {
             getString(R.string.manual_result_none_compressed, total)
