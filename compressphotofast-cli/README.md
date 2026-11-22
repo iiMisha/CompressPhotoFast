@@ -71,6 +71,7 @@ cd compressphotofast-cli
 - 💾 **Сохранение EXIF**: Полное сохранение метаданных
 - 🔄 **Безопасность**: Бэкапы и блокировки при замене файлов
 - 📊 **Статистика**: Детальная отчетность о сжатии
+- 🗓️ **Восстановление дат**: Дописывание EXIF-дат из имени файла, маркера или mtime (`fix-dates`)
 
 ## 📖 Как использовать
 
@@ -106,6 +107,9 @@ compressphotofast compress ~/Pictures/iPhone
 
 # Посмотреть статистику по папке
 compressphotofast stats ~/Photos
+
+# Восстановить отсутствующие EXIF-даты
+compressphotofast fix-dates ~/Photos --yes
 
 # Высокое качество, замена оригиналов
 compressphotofast compress ~/Photos -q high -r
@@ -163,6 +167,42 @@ compressphotofast stats [ПУТЬ] [ОПЦИИ]
 ```bash
 compressphotofast stats ~/Photos
 compressphotofast stats ~/Photos -s -m
+```
+
+### `fix-dates` — Восстановление EXIF-дат
+
+```bash
+compressphotofast fix-dates [ПУТЬ] [ОПЦИИ]
+```
+
+Файлам без единой EXIF-даты (`DateTime`, `DateTimeOriginal`, `DateTimeDigitized`, `GPSDateStamp`) даты дописываются по приоритету источников — как в Android-приложении:
+
+1. **Имя файла** — дата съёмки из имени (`mmexport…`, `IMG_20250101_123456`, `2025-01-02 10-20-30`, месяцы словами и др.) → 3 тега, включая `DateTimeOriginal`
+2. **Маркер сжатия** — timestamp из EXIF-маркера CompressPhotoFast → 2 тега
+3. **mtime файла** — дата модификации (последний fallback) → 2 тега
+
+Запись идемпотентна (файлы с датами не трогаются), mtime файла сохраняется. HEIC пропускается (EXIF не пишется).
+
+**Опции:**
+
+| Опция | Короткая | Описание |
+|-------|----------|----------|
+| `--skip-screenshots` | `-s` | Пропустить скриншоты |
+| `--skip-messenger` | `-m` | Пропустить фото из мессенджеров |
+| `--dry-run` | `-n` | Показать план без записи (имя, источник, дата) |
+| `--yes` | `-y` | Пропустить подтверждение |
+
+**Примеры:**
+
+```bash
+# Восстановить даты во всей папке
+compressphotofast fix-dates ~/Photos --yes
+
+# Посмотреть, что и откуда будет дописано
+compressphotofast fix-dates ~/Photos -n
+
+# Один файл
+compressphotofast fix-dates photo.jpg -y
 ```
 
 ### `version` — Версия
