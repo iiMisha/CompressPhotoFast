@@ -1,6 +1,7 @@
 package com.compressphotofast.worker
 
 import com.compressphotofast.BaseUnitTest
+import com.compressphotofast.domain.ImageProcessingChecker
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -51,5 +52,13 @@ class ImageCompressionWorkerTest : BaseUnitTest() {
 
         assertTrue("InsufficientMemory и др.: четвёртая попытка → retry", ImageCompressionWorker.shouldRetry(3))
         assertFalse("пятая попытка → failure", ImageCompressionWorker.shouldRetry(4))
+    }
+
+    @Test
+    fun `ALREADY_SMALL входит в ALREADY_HANDLED_REASONS - хук дат срабатывает на пропуске`() {
+        assertTrue(
+            ImageCompressionWorker.ALREADY_HANDLED_REASONS
+                .contains(ImageProcessingChecker.ProcessingSkipReason.ALREADY_SMALL)
+        )
     }
 }

@@ -26,7 +26,9 @@ import javax.inject.Singleton
  * Восстановление EXIF-дат файлам без единой даты (меню «три точки»).
  * Источники по приоритету: имя файла (настоящая дата съёмки → 3 тега,
  * включая `DateTimeOriginal`), затем timestamp маркера сжатия (дата сжатия,
- * не съёмки → 2 тега без `DateTimeOriginal`). mtime не используется.
+ * не съёмки → 2 тега без `DateTimeOriginal`), затем mtime файла (последний
+ * fallback для бэклога мелких файлов → 2 тега без `DateTimeOriginal`).
+ * `noSource` — только для нечитаемого EXIF.
  *
  * Чтение EXIF и запись дат сериализуются с сжатием через [CompressionExecutionGate]
  * на каждый файл (сжатие работает с EXIF под тем же gate) — отдельная проверка
@@ -157,8 +159,13 @@ class ExifDateFixUseCase @Inject constructor(
                         dateSourceMs = marker.timestamp
                         includeDateTimeOriginal = false
                     } else {
-                        noSource++
-                        continue
+                        // mtime — последний fallback (ручной проход, пользователь запускает явно)
+                        dateSourceMs = snapshot.dateModifiedMs ?: 0L
+                        if (dateSourceMs <= 0L) {
+                            noSource++
+                            continue
+                        }
+                        includeDateTimeOriginal = false
                     }
 
                     if (ExifUtil.writeMissingDates(context, uri, dateSourceMs, includeDateTimeOriginal)) {

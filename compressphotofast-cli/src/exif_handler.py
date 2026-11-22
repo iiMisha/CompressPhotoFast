@@ -304,6 +304,69 @@ class ExifHandler:
         exif_dict.setdefault("Exif", {})[piexif.ExifIFD.DateTimeDigitized] = date_str
 
     @staticmethod
+    def _write_exif_to_png(file_path: str, exif_bytes: bytes) -> bool:
+        """
+        Запись готовых EXIF-байтов в PNG через eXIf-чанк (Pillow >= 10):
+        piexif.insert с PNG-файлом молча не работает. Перекодировка в памяти,
+        ICC-профиль сохраняется.
+        """
+        try:
+            with Image.open(file_path) as img:
+                img.load()
+                save_kwargs = {"format": "PNG"}
+                icc_profile = img.info.get("icc_profile")
+                if icc_profile:
+                    save_kwargs["icc_profile"] = icc_profile
+                buf = io.BytesIO()
+                img.save(buf, exif=exif_bytes, **save_kwargs)
+                data = buf.getvalue()
+            with open(file_path, "wb") as f:
+                f.write(data)
+            return True
+        except Exception as e:
+            logger.warning(f"Не удалось записать EXIF в PNG {file_path}: {e}")
+            return False
+
+    @staticmethod
+    def backfill_missing_dates(file_path: str) -> bool:
+        """
+        Идемпотентная запись только дат (DateTime + DateTimeDigitized из mtime),
+        без маркера сжатия. При наличии любой даты в EXIF — no-op (True).
+        HEIC не поддерживается (False) — соответствует Android ExifInterface.
+        """
+        try:
+            if ExifHandler.is_heic_file(file_path):
+                return False
+
+            existing = ExifHandler.read_exif_data(file_path)
+            if existing and ExifHandler._has_any_date(existing):
+                return True
+
+            # mtime захватывается до записи: piexif.insert/Pillow переписывают файл
+            file_stat = os.stat(file_path)
+            exif_dict = existing if existing else {"0th": {}, "Exif": {}}
+            if "0th" not in exif_dict:
+                exif_dict["0th"] = {}
+            if "Exif" not in exif_dict:
+                exif_dict["Exif"] = {}
+
+            ExifHandler._backfill_missing_dates(exif_dict, file_stat.st_mtime)
+
+            exif_bytes = piexif.dump(exif_dict)
+            if os.path.splitext(file_path)[1].lower() == ".png":
+                ok = ExifHandler._write_exif_to_png(file_path, exif_bytes)
+            else:
+                piexif.insert(exif_bytes, file_path)
+                ok = True
+            if ok:
+                # mtime файла восстанавливается после записи
+                os.utime(file_path, (file_stat.st_atime, file_stat.st_mtime))
+            return ok
+        except Exception as e:
+            logger.warning(f"Не удалось дописать даты в {file_path}: {e}")
+            return False
+
+    @staticmethod
     def _add_marker_to_png(
         file_path: str,
         quality: int,
@@ -371,12 +434,15 @@ class ExifHandler:
         quality: int,
         source_exif: Optional[dict] = None,
         original_size: Optional[int] = None,
+        date_source_mtime: Optional[float] = None,
     ) -> bool:
         """
         Add compression marker to file, optionally preserving all source metadata.
 
         Если в EXIF файла нет ни одной даты, добавляются DateTime/DateTimeDigitized
         из mtime файла (семантическое соответствие Android writeSkipMarker).
+        date_source_mtime позволяет задать источник даты явно (mtime исходника
+        до перезаписи); по умолчанию используется mtime самого файла.
 
         Args:
             file_path: Path to file to modify
@@ -384,13 +450,18 @@ class ExifHandler:
             source_exif: Optional source EXIF dictionary to preserve all metadata
             original_size: Original file size before compression (defaults to
                 the current file size, e.g. for inefficient-skip markers)
+            date_source_mtime: Optional mtime источника дат (например, mtime
+                исходника, снятый до перезаписи файла)
 
         Returns:
             True if marker added successfully, False otherwise
         """
         try:
             # mtime строго до вставки EXIF: piexif.insert переписывает файл
-            file_mtime = os.path.getmtime(file_path)
+            if date_source_mtime is not None:
+                file_mtime = date_source_mtime
+            else:
+                file_mtime = os.path.getmtime(file_path)
             marker_size = os.path.getsize(file_path)
             marker_orig_size = original_size if original_size and original_size > 0 else marker_size
 

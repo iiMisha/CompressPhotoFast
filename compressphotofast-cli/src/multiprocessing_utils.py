@@ -290,6 +290,8 @@ def process_single_file(
                 elif is_already_small(file_info.size):
                     should_process = False
                     skip_reason = "Already small"
+                    # Гарантия дат для мелких файлов (без маркера, идемпотентно)
+                    ExifHandler.backfill_missing_dates(file_info.path)
             except Exception as e:
                 # Error during checking - log but try to process anyway
                 skip_reason = f"Check error: {str(e)}"

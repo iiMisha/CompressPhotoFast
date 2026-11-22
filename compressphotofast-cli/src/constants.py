@@ -9,7 +9,9 @@ MIN_COMPRESSION_QUALITY = 50
 MAX_COMPRESSION_QUALITY = 100
 MIN_COMPRESSION_SAVING_PERCENT = 30.0
 MIN_PROCESSABLE_FILE_SIZE = 100 * 1024
-MIN_FILE_SIZE = 50 * 1024
+# Нижний порог скана: 0 — мелкие файлы тоже видны (для бэкфилла дат;
+# сжатие им по-прежнему запрещено MIN_PROCESSABLE_FILE_SIZE / is_already_small)
+MIN_FILE_SIZE = 0
 MAX_FILE_SIZE = 100 * 1024 * 1024
 OPTIMUM_FILE_SIZE = 0.1 * 1024 * 1024
 MIN_COMPRESSION_RATIO = 0.7  # 30% экономия (1.0 - 0.7 = 0.3)

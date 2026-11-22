@@ -437,9 +437,10 @@ object MediaStoreUtil {
             val exifOk = ExifUtil.writeExifToArtifact(
                 compressedFile, exifDataMemory ?: emptyMap(), quality, originalFileSize, pixelsTransformed
             )
-            if (!exifOk && isReplaceMode) {
-                // Оригинал с метаданными будет заменён/удалён — без EXIF это потеря GPS/дат
-                LogUtil.error(originalUri, "Сохранение", "EXIF не записан в artifact — замена оригинала отменена")
+            if (!exifOk) {
+                // Копия без EXIF — потеря GPS/дат в обоих режимах: публикация отменяется,
+                // оригинал цел, файл будет повторно поставлен сканом
+                LogUtil.error(originalUri, "Сохранение", "EXIF не записан в artifact — сохранение копии отменено")
                 return@withContext SaveResult.Failed(SaveFailure.OTHER)
             }
             // Artifact на диске читается повторно, если replace-mode уходит в fallback-запись

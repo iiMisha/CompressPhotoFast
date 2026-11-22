@@ -194,4 +194,38 @@ class WriteMissingDatesTest : BaseUnitTest() {
         stripDates()
         assertFalse(ExifUtil.hasAnyDate(readExif()))
     }
+
+    @Test
+    fun `hasAnyDateTag по карте - четыре тега, null и пустая карта`() {
+        assertFalse(ExifUtil.hasAnyDateTag(null))
+        assertFalse(ExifUtil.hasAnyDateTag(emptyMap()))
+        for (tag in listOf(
+            ExifInterface.TAG_DATETIME_ORIGINAL,
+            ExifInterface.TAG_DATETIME,
+            ExifInterface.TAG_GPS_DATESTAMP,
+            ExifInterface.TAG_DATETIME_DIGITIZED
+        )) {
+            assertTrue(ExifUtil.hasAnyDateTag(mapOf(tag to "2020:01:02 03:04:05")))
+        }
+        assertFalse(ExifUtil.hasAnyDateTag(mapOf(ExifInterface.TAG_MAKE to "Cam")))
+    }
+
+    @Test
+    fun `ensureMinimumDateTags - пустая карта дополняется двумя тегами`() {
+        val result = ExifUtil.ensureMinimumDateTags(emptyMap(), 1_700_000_123_456L)
+        val expected = java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss")
+            .format(java.util.Date(1_700_000_123_456L))
+        assertEquals(expected, result[ExifInterface.TAG_DATETIME])
+        assertEquals(expected, result[ExifInterface.TAG_DATETIME_DIGITIZED])
+        assertFalse(result.containsKey(ExifInterface.TAG_DATETIME_ORIGINAL))
+    }
+
+    @Test
+    fun `ensureMinimumDateTags - существующая дата no-op, нулевое время no-op`() {
+        val withDate = mapOf<String, Any>(ExifInterface.TAG_DATETIME_ORIGINAL to "2020:01:02 03:04:05")
+        assertEquals(withDate, ExifUtil.ensureMinimumDateTags(withDate, 1_700_000_123_456L))
+        val empty = mapOf<String, Any>(ExifInterface.TAG_MAKE to "Cam")
+        assertEquals(empty, ExifUtil.ensureMinimumDateTags(empty, 0L))
+        assertEquals(empty, ExifUtil.ensureMinimumDateTags(empty, -1L))
+    }
 }

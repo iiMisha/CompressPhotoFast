@@ -92,6 +92,15 @@ class CompressImageUseCase @Inject constructor(
             return Outcome.Failed()
         }
 
+        // Гарантия дат в копии: EXIF исходника нечитаем/без дат → даты из mtime
+        val dateSourceMs = snapshot?.dateModifiedMs?.takeIf { it > 0L }
+            ?: try {
+                UriUtil.getFileLastModified(context, imageUri)
+            } catch (e: Exception) {
+                0L
+            }
+        val exifDataWithDates = ExifUtil.ensureMinimumDateTags(exifDataMemory, dateSourceMs)
+
         if (!FileOperationsUtil.isFileSizeValid(sourceSize)) {
             LogUtil.uriInfo(imageUri, "Размер файла невалидный: $sourceSize, пропускаем")
             return Outcome.SkippedInvalidSize
@@ -121,7 +130,7 @@ class CompressImageUseCase @Inject constructor(
             val mimeType = snapshot?.mimeType ?: UriUtil.getMimeType(context, imageUri)
             val isHeicSource = UriUtil.isHeicMimeType(mimeType)
             return if (isHeicSource || testResult.isEfficient()) {
-                saveCompressed(imageUri, params, exifDataMemory, testResult, sourceSize, snapshot)
+                saveCompressed(imageUri, params, exifDataWithDates, testResult, sourceSize, snapshot)
             } else {
                 markInefficient(imageUri, testResult, sourceSize, snapshot)
             }

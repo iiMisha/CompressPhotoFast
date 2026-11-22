@@ -175,6 +175,14 @@ class ImageCompressionWorker @AssistedInject constructor(
             // вторую копию: все «уже обработано / слишком мало» причины останавливают работу
             if (!gatedProcessingCheck.processingRequired && gatedProcessingCheck.reason in ALREADY_HANDLED_REASONS) {
                 LogUtil.processDebug("Пропуск $imageUri: ${gatedProcessingCheck.reason}")
+                // Гарантия дат для новых мелких файлов: observer/Job/Share не фильтруют
+                // по размеру, а скан-водяной знак уже позади бэклога — этот хук
+                // единственная точка, где мелкий файл без дат получит их автоматически.
+                // HEIC остаётся без дат (ExifInterface не сохраняет HEIF) — задокументированное
+                // ограничение. Best-effort: сбой записи не меняет исход работы.
+                if (gatedProcessingCheck.reason == ImageProcessingChecker.ProcessingSkipReason.ALREADY_SMALL) {
+                    writeDatesForSmallFile(imageUri, gatedSnapshot, sourceExif?.data)
+                }
                 updateForegroundForMode("🖼️ ${appContext.getString(R.string.notification_skipping_compressed)}")
                 reportBatchOutcome(CompressionBatchTracker.Status.SKIPPED)
                 markRecentlyProcessed = true
@@ -321,6 +329,36 @@ class ImageCompressionWorker @AssistedInject constructor(
         // (ForegroundServiceDidNotStartInTimeException).
         if (workOrigin == "MANUAL") {
             setForeground(createForegroundInfo(singleModeText))
+        }
+    }
+
+    /**
+     * Дописывает `DateTime` + `DateTimeDigitized` из mtime в мелкий файл (ALREADY_SMALL)
+     * без дат, не-HEIC. Best-effort: любой сбой только логируется — исход работы
+     * (SKIPPED/success) не меняется, retry-пути для мелких файлов нет. Воркер уже под
+     * gate и URI-lock; [ExifUtil.writeMissingDates] перепроверяет даты на свежем
+     * дескрипторе, восстанавливает mtime и инвалидирует кэши — хук идемпотентен.
+     */
+    private suspend fun writeDatesForSmallFile(
+        uri: Uri,
+        snapshot: MediaItemSnapshot?,
+        sourceExifData: Map<String, Any>?
+    ) {
+        try {
+            val isHeic = snapshot?.mimeType?.let { UriUtil.isHeicMimeType(it) } ?: false
+            if (isHeic || ExifUtil.hasAnyDateTag(sourceExifData)) return
+            val dateSourceMs = snapshot?.dateModifiedMs?.takeIf { it > 0L }
+                ?: UriUtil.getFileLastModified(appContext, uri)
+            val written = ExifUtil.writeMissingDates(
+                appContext, uri, dateSourceMs, includeDateTimeOriginal = false
+            )
+            if (written) {
+                LogUtil.processInfo("Дописаны даты в мелкий файл без сжатия: $uri")
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LogUtil.warning(uri, "Даты мелкого файла", "Не удалось дописать даты: ${e.message}")
         }
     }
 

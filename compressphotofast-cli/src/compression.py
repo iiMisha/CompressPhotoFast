@@ -202,6 +202,12 @@ class ImageCompressor:
                 )
 
             original_size = ImageCompressor.get_file_size(file_path)
+            # mtime исходника захватывается до любых записей: в replace-режиме
+            # файл переписывается, а бэкфилл дат в копии должен идти от исходника
+            try:
+                source_mtime = os.path.getmtime(file_path)
+            except OSError:
+                source_mtime = None
             # HEIC определяется по исходному расширению: в replace-режиме file_path
             # может быть перезаписан JPEG-контентом до проверки эффективности
             source_is_heic = ExifHandler.is_heic_file(file_path)
@@ -221,15 +227,22 @@ class ImageCompressor:
                 if preserve_exif:
                     source_exif = ExifHandler.read_exif_data(file_path)
 
-                # Prepare EXIF bytes for initial save
+                # Prepare EXIF bytes for initial save: без EXIF-словаря строится
+                # пустой с бэкфиллом дат от mtime исходника (гарантия дат в копии)
                 exif_bytes = None
-                if preserve_exif and source_exif and format.upper() == "JPEG":
+                if preserve_exif:
+                    exif_dict = source_exif if source_exif else {"0th": {}, "Exif": {}}
+                    if source_mtime is not None:
+                        try:
+                            ExifHandler._backfill_missing_dates(exif_dict, source_mtime)
+                        except Exception:
+                            pass
                     try:
-                        exif_bytes = piexif.dump(source_exif)
+                        exif_bytes = piexif.dump(exif_dict)
                     except Exception:
                         exif_bytes = None
 
-                # Save with EXIF for JPEG, without for PNG
+                # Save with EXIF for JPEG and PNG (eXIf-чанк), без для прочих форматов
                 if format.upper() == "JPEG":
                     if exif_bytes:
                         img_copy.save(
@@ -240,8 +253,10 @@ class ImageCompressor:
                             output_path, format="JPEG", quality=quality, optimize=True
                         )
                 elif format.upper() == "PNG":
-                    # PNG files are saved without EXIF metadata
-                    img_copy.save(output_path, format="PNG", optimize=True)
+                    save_kwargs = {"optimize": True}
+                    if exif_bytes:
+                        save_kwargs["exif"] = exif_bytes
+                    img_copy.save(output_path, format="PNG", **save_kwargs)
                 else:
                     img_copy.save(
                         output_path, format=format, quality=quality, optimize=True
@@ -253,7 +268,13 @@ class ImageCompressor:
             # (UserComment), как artifact в Android. JPEG/PNG/WebP — без маркера
             # на success-пути (поведение не меняется).
             if source_is_heic:
-                ExifHandler.add_compression_marker(output_path, quality, source_exif)
+                ExifHandler.add_compression_marker(
+                    output_path,
+                    quality,
+                    source_exif,
+                    original_size=original_size,
+                    date_source_mtime=source_mtime,
+                )
                 compressed_size = ImageCompressor.get_file_size(output_path)
 
             # HEIC всегда конвертируется в JPEG: проверка 30%/10 КБ к нему
@@ -307,8 +328,8 @@ class ImageCompressor:
                 else:
                     metadata_preserved = True
             elif format.upper() == "PNG":
-                # PNG files don't support EXIF
-                metadata_preserved = False
+                # EXIF записан в eXIf-чанк (Pillow >= 10)
+                metadata_preserved = exif_bytes is not None
                 metadata_details = None
 
             return CompressionResult(

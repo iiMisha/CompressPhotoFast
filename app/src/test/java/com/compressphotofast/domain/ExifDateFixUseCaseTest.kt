@@ -75,6 +75,10 @@ class ExifDateFixUseCaseTest {
         coEvery {
             ExifUtil.writeMissingDates(context, uri1, any(), includeDateTimeOriginal = true)
         } returns true
+        // uri2: mtime-fallback (запись в тестах не выполняется реально)
+        coEvery {
+            ExifUtil.writeMissingDates(context, uri2, any(), includeDateTimeOriginal = false)
+        } returns true
     }
 
     @After
@@ -94,19 +98,37 @@ class ExifDateFixUseCaseTest {
     )
 
     @Test
-    fun `happy path - фикс из имени, файл без источников, HEIC пропущен`() = runTest {
+    fun `happy path - фикс из имени и из mtime-fallback, HEIC пропущен`() = runTest {
         val useCase = ExifDateFixUseCase(CompressionExecutionGate())
 
         val outcome = useCase.fixAll(context)
 
         assertEquals(3, outcome.scanned)
-        assertEquals(1, outcome.fixed)
-        assertEquals(1, outcome.noSource)
+        assertEquals(2, outcome.fixed)
+        assertEquals(0, outcome.noSource)
         assertEquals(0, outcome.failed)
         // HEIC: ни чтения EXIF, ни записи
         coVerify(exactly = 0) { ExifUtil.getExifInterface(context, uri3) }
-        coVerify(exactly = 0) {
-            ExifUtil.writeMissingDates(context, uri2, any(), any())
+        // uri2: даты из mtime файла (dateModifiedSec), без DateTimeOriginal
+        coVerify(exactly = 1) {
+            ExifUtil.writeMissingDates(context, uri2, 1_700_000_000_000L, includeDateTimeOriginal = false)
+        }
+    }
+
+    @Test
+    fun `mtime-fallback - третий источник после имени и маркера`() = runTest {
+        coEvery {
+            ExifUtil.writeMissingDates(context, uri2, 1_700_000_000_000L, includeDateTimeOriginal = false)
+        } returns true
+
+        val useCase = ExifDateFixUseCase(CompressionExecutionGate())
+        val outcome = useCase.fixAll(context)
+
+        assertEquals(2, outcome.fixed)
+        assertEquals(0, outcome.noSource)
+        // Имя файла приоритетнее: uri1 получил 3 тега из имени
+        coVerify(exactly = 1) {
+            ExifUtil.writeMissingDates(context, uri1, any(), includeDateTimeOriginal = true)
         }
     }
 
@@ -126,6 +148,10 @@ class ExifDateFixUseCaseTest {
 
         assertEquals(2, outcome.fixed)
         assertEquals(0, outcome.noSource)
+        // Маркер приоритетнее mtime
+        coVerify(exactly = 1) {
+            ExifUtil.writeMissingDates(context, uri2, 1_700_000_123_456L, includeDateTimeOriginal = false)
+        }
     }
 
     @Test
@@ -139,8 +165,8 @@ class ExifDateFixUseCaseTest {
         // Прогресс сброшен после завершения; итоговый снапшот сохранён
         assertNull(useCase.progress.value)
         assertEquals(3, useCase.lastOutcome?.scanned)
-        assertEquals(1, useCase.lastOutcome?.fixed)
-        assertEquals(1, useCase.lastOutcome?.noSource)
+        assertEquals(2, useCase.lastOutcome?.fixed)
+        assertEquals(0, useCase.lastOutcome?.noSource)
         assertEquals(0, useCase.lastOutcome?.failed)
     }
 

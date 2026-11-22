@@ -1031,6 +1031,34 @@ object ExifUtil {
     /** Внутренний доступ для use case: есть ли в EXIF любая из дат. */
     internal fun hasAnyDate(exif: ExifInterface): Boolean = checkDateAvailability(exif)
 
+    /**
+     * Есть ли в карте EXIF-данных любая из четырёх дат (критерий
+     * [checkDateAvailability]). Для проверки исходника в воркере без чтения файла.
+     */
+    fun hasAnyDateTag(exifData: Map<String, Any>?): Boolean {
+        if (exifData.isNullOrEmpty()) return false
+        return ExifInterface.TAG_DATETIME_ORIGINAL in exifData ||
+            ExifInterface.TAG_DATETIME in exifData ||
+            ExifInterface.TAG_GPS_DATESTAMP in exifData ||
+            ExifInterface.TAG_DATETIME_DIGITIZED in exifData
+    }
+
+    /**
+     * Гарантия дат в карте EXIF-данных для сжатой копии: если ни одной даты нет
+     * и [dateSourceMs] > 0, дополняет карту `DateTime` + `DateTimeDigitized`
+     * из [dateSourceMs] (тот же критерий, что [checkDateAvailability];
+     * `DateTimeOriginal` не выдумывается). Чистая функция — возвращает новую карту.
+     */
+    fun ensureMinimumDateTags(exifData: Map<String, Any>, dateSourceMs: Long): Map<String, Any> {
+        if (dateSourceMs <= 0L || hasAnyDateTag(exifData)) return exifData
+        val formattedDate = formatDateForExif(dateSourceMs)
+        return buildMap(exifData.size + 2) {
+            putAll(exifData)
+            put(ExifInterface.TAG_DATETIME, formattedDate)
+            put(ExifInterface.TAG_DATETIME_DIGITIZED, formattedDate)
+        }
+    }
+
     /** Сбрасывает приватный EXIF-кэш URI после прямой записи в файл. */
     internal fun evictExifDataCache(uri: Uri) {
         exifDataCache.remove(uri.toString())

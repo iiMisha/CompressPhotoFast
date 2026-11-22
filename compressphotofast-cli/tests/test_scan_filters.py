@@ -28,18 +28,17 @@ def write_file(path, size_bytes: int, image: bool = True) -> None:
 
 
 class TestScanSizeFilters:
-    """Фильтры MIN_FILE_SIZE (50 КБ) / MAX_FILE_SIZE (100 МБ) на этапе скана"""
+    """Фильтры MIN_FILE_SIZE (0 — мелкие видны) / MAX_FILE_SIZE (100 МБ) на этапе скана"""
 
     def test_min_file_size(self, tmp_path):
-        small = tmp_path / "small.jpg"
-        big = tmp_path / "big.jpg"
-        write_file(str(small), MIN_FILE_SIZE - 1)
-        write_file(str(big), MIN_FILE_SIZE)
+        # Нижний порог 0: даже крошечный файл находится сканом
+        # (бэкфилл дат; сжатие отсекается позже по is_already_small)
+        tiny = tmp_path / "tiny.jpg"
+        write_file(str(tiny), 1, image=False)
 
         files = find_image_files(str(tmp_path))
         names = [f.name for f in files]
-        assert "big.jpg" in names
-        assert "small.jpg" not in names
+        assert "tiny.jpg" in names
 
     def test_max_file_size(self, tmp_path):
         # Полные 100 МБ писать не будем: проверяем логику через monkeypatch константы
@@ -63,7 +62,7 @@ class TestScanSizeFilters:
             file_utils.MIN_FILE_SIZE = original_min
 
     def test_constants_match_android(self):
-        assert MIN_FILE_SIZE == 50 * 1024
+        assert MIN_FILE_SIZE == 0
         assert MAX_FILE_SIZE == 100 * 1024 * 1024
 
 
@@ -73,8 +72,8 @@ class TestScanExcludesHeicRenamed:
     def test_heic_renamed_excluded(self, tmp_path):
         marker = tmp_path / "IMG_0001_compressed.heic"
         plain = tmp_path / "IMG_0002.heic"
-        write_file(str(marker), MIN_FILE_SIZE + 1)
-        write_file(str(plain), MIN_FILE_SIZE + 1)
+        write_file(str(marker), 2048)
+        write_file(str(plain), 2048)
 
         files = find_image_files(str(tmp_path))
         names = [f.name for f in files]
@@ -83,7 +82,7 @@ class TestScanExcludesHeicRenamed:
 
     def test_heif_renamed_excluded_case_insensitive(self, tmp_path):
         marker = tmp_path / "IMG_0001_COMPRESSED.HEIF"
-        write_file(str(marker), MIN_FILE_SIZE + 1)
+        write_file(str(marker), 2048)
 
         files = find_image_files(str(tmp_path))
         assert all(not f.name.lower().endswith("_compressed.heif") for f in files)
@@ -96,8 +95,8 @@ class TestScanExcludesHeicRenamed:
         nested.mkdir()
         in_app = nested / "IMG_0001_compressed.jpg"
         outside = tmp_path / "IMG_0001_compressed.jpg"
-        write_file(str(in_app), MIN_FILE_SIZE + 1)
-        write_file(str(outside), MIN_FILE_SIZE + 1)
+        write_file(str(in_app), 2048)
+        write_file(str(outside), 2048)
 
         files = find_image_files(str(tmp_path))
         names = [f.name for f in files]
