@@ -37,9 +37,15 @@ from .constants import (
     COMPRESSION_QUALITY_HIGH,
     DEFAULT_COMPRESSION_QUALITY,
     APP_DIRECTORY,
+    SUPPORTED_EXTENSIONS,
 )
 from .stats import CompressionStats
-from .multiprocessing_utils import ProcessSafeStats, process_single_file, process_single_file_dry_run
+from .multiprocessing_utils import (
+    ProcessSafeStats,
+    process_single_file,
+    process_single_file_dry_run,
+    process_single_file_date_fix,
+)
 
 
 console = Console()
@@ -504,6 +510,168 @@ def _run_compression(
             executor.shutdown(wait=False, cancel_futures=True)
 
     # No need to cleanup .lock files - not used in multiprocessing mode
+
+
+@cli.command("fix-dates")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--skip-screenshots", "-s", is_flag=True, help="Skip screenshot files")
+@click.option(
+    "--skip-messenger", "-m", is_flag=True, help="Skip photos from messenger folders"
+)
+@click.option(
+    "--dry-run",
+    "-n",
+    is_flag=True,
+    help="Show what would be fixed without actually writing",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+def fix_dates(
+    path: Path,
+    skip_screenshots: bool,
+    skip_messenger: bool,
+    dry_run: bool,
+    yes: bool,
+):
+    """Restore missing EXIF dates in images from filename, marker or mtime"""
+    table = Table.grid(padding=(0, 1))
+    table.add_column("Parameter", style="cyan")
+    table.add_column("Value", style="magenta")
+    table.add_row("Path", str(path))
+    table.add_row("Skip screenshots", "Yes" if skip_screenshots else "No")
+    table.add_row("Skip messenger photos", "Yes" if skip_messenger else "No")
+    table.add_row("Dry run", "Yes" if dry_run else "No")
+
+    console.print()
+    console.print(Panel(table, title="[bold]Date Fix Settings[/bold]", border_style="cyan"))
+
+    if not yes:
+        if not click.confirm("Proceed with date fix?"):
+            console.print("[yellow]Operation cancelled by user[/yellow]")
+            return
+        console.print()
+
+    if path.is_file():
+        ext = path.suffix.lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            console.print(f"[red]Error:[/red] Unsupported file format: {path}")
+            return
+        files = [
+            FileInfo(str(path), path.name, path.stat().st_size, path.stat().st_mtime)
+        ]
+    else:
+        console.print("[dim]Scanning for images...[/dim]")
+        files = find_image_files(
+            str(path),
+            recursive=True,
+            skip_screenshots=skip_screenshots,
+            skip_messenger=skip_messenger,
+        )
+
+    if not files:
+        console.print("[yellow]No images found to process[/yellow]")
+        return
+
+    console.print(f"[dim]Found {len(files)} images[/dim]")
+    console.print()
+
+    _run_date_fix(files, dry_run)
+
+
+def _run_date_fix(files: List[FileInfo], dry_run: bool) -> None:
+    """Run date fix (or dry-run) with process pool for multi-core support."""
+    num_workers = os.cpu_count() or 1
+
+    counts = {"fixed": 0, "already_ok": 0, "heic": 0, "no_source": 0, "failed": 0}
+    plans = []
+
+    summary = Table(title="Date Fix Results")
+    summary.add_column("Metric", style="cyan")
+    summary.add_column("Value", style="magenta")
+
+    description_column = Column(width=60, overflow="ellipsis")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}", table_column=description_column),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            f"{'Analyzing' if dry_run else 'Fixing dates'}... ({num_workers} processes)",
+            total=len(files),
+        )
+
+        executor = concurrent.futures.ProcessPoolExecutor(
+            max_workers=num_workers,
+            mp_context=multiprocessing.get_context("spawn"),
+        )
+
+        try:
+            future_to_file = {
+                executor.submit(process_single_file_date_fix, file_info, dry_run): file_info
+                for file_info in files
+            }
+
+            for future in concurrent.futures.as_completed(future_to_file):
+                file_info = future_to_file[future]
+
+                try:
+                    _, status, source, date_str, error_msg = future.result()
+                    counts[status] = counts.get(status, 0) + 1
+
+                    if dry_run and status == "fixed":
+                        plans.append((file_info.name, source, date_str))
+                    elif error_msg:
+                        console.print(f"  [red]X[/red] {file_info.name}: {error_msg}")
+                    elif status == "fixed":
+                        console.print(
+                            f"  [green]+[/green] {file_info.name}: "
+                            f"{source} → {date_str}"
+                        )
+
+                except Exception as e:
+                    counts["failed"] += 1
+                    console.print(
+                        f"  [red]X[/red] {file_info.name}: Process error: {e}"
+                    )
+
+                progress.update(
+                    task,
+                    advance=1,
+                    description=(
+                        f"{'Analyzing' if dry_run else 'Fixing'}: {file_info.name[:50]}..."
+                    ),
+                )
+        except KeyboardInterrupt:
+            # User interrupted - shutdown executor and show partial results
+            console.print("\n[yellow]⚠ Interrupted by user. Showing partial results...[/yellow]")
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+    if dry_run and plans:
+        plans_table = Table(title="Date Fix Plan (dry run)")
+        plans_table.add_column("Filename", style="cyan")
+        plans_table.add_column("Source", style="magenta")
+        plans_table.add_column("Date", style="yellow")
+        for name, source, date_str in plans:
+            plans_table.add_row(name, source, date_str)
+        console.print(plans_table)
+
+    summary.add_row("Scanned", str(len(files)))
+    summary.add_row("Fixed", str(counts["fixed"]))
+    summary.add_row("Already have dates", str(counts["already_ok"]))
+    summary.add_row("HEIC skipped", str(counts["heic"]))
+    summary.add_row("No source", str(counts["no_source"]))
+    summary.add_row("Failed", str(counts["failed"]))
+    console.print(summary)
 
 
 @cli.command()

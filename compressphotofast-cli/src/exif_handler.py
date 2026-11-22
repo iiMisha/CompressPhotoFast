@@ -328,10 +328,15 @@ class ExifHandler:
             return False
 
     @staticmethod
-    def backfill_missing_dates(file_path: str) -> bool:
+    def write_missing_dates(
+        file_path: str, date_source_ms: int, include_datetime_original: bool
+    ) -> bool:
         """
-        Идемпотентная запись только дат (DateTime + DateTimeDigitized из mtime),
-        без маркера сжатия. При наличии любой даты в EXIF — no-op (True).
+        Идемпотентная запись дат из заданного источника (epoch ms) при полном
+        отсутствии дат в EXIF: DateTime (0th) + DateTimeDigitized (Exif),
+        DateTimeOriginal — только при флаге (реальная дата съёмки известна
+        только для источника «имя файла»; соответствует Android
+        ExifUtil.writeMissingDates). При наличии любой даты — no-op (True).
         HEIC не поддерживается (False) — соответствует Android ExifInterface.
         """
         try:
@@ -342,7 +347,7 @@ class ExifHandler:
             if existing and ExifHandler._has_any_date(existing):
                 return True
 
-            # mtime захватывается до записи: piexif.insert/Pillow переписывают файл
+            # atime/mtime захватываются до записи: piexif.insert/Pillow переписывают файл
             file_stat = os.stat(file_path)
             exif_dict = existing if existing else {"0th": {}, "Exif": {}}
             if "0th" not in exif_dict:
@@ -350,7 +355,13 @@ class ExifHandler:
             if "Exif" not in exif_dict:
                 exif_dict["Exif"] = {}
 
-            ExifHandler._backfill_missing_dates(exif_dict, file_stat.st_mtime)
+            date_str = datetime.fromtimestamp(date_source_ms / 1000).strftime(
+                "%Y:%m:%d %H:%M:%S"
+            )
+            exif_dict["0th"][piexif.ImageIFD.DateTime] = date_str
+            exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = date_str
+            if include_datetime_original:
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = date_str
 
             exif_bytes = piexif.dump(exif_dict)
             if os.path.splitext(file_path)[1].lower() == ".png":
@@ -365,6 +376,15 @@ class ExifHandler:
         except Exception as e:
             logger.warning(f"Не удалось дописать даты в {file_path}: {e}")
             return False
+
+    @staticmethod
+    def backfill_missing_dates(file_path: str) -> bool:
+        """
+        Запись только дат из mtime файла (DateTime + DateTimeDigitized),
+        без DateTimeOriginal — обёртка write_missing_dates.
+        """
+        mtime_ms = int(os.path.getmtime(file_path) * 1000)
+        return ExifHandler.write_missing_dates(file_path, mtime_ms, False)
 
     @staticmethod
     def _add_marker_to_png(

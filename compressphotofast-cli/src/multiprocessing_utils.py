@@ -7,8 +7,10 @@ for processing individual images in multi-process environment.
 
 from typing import Tuple, Optional
 from traceback import format_exc
+from datetime import datetime
 
 from .compression import ImageCompressor, CompressionResult
+from .date_parser import parse_date_ms
 from .exif_handler import ExifHandler
 from .file_utils import FileInfo, is_already_small
 
@@ -96,6 +98,77 @@ def process_single_file_dry_run(
             error_msg,
             None
         )
+
+
+def process_single_file_date_fix(
+    file_info: FileInfo,
+    dry_run: bool,
+) -> Tuple[FileInfo, str, str, str, str]:
+    """
+    Worker функции fix-dates: восстановление EXIF-дат одного файла.
+    Паритет ExifDateFixUseCase в Android: критерий «есть дата» — любой из
+    четырёх тегов; источники по приоритету имя файла → маркер сжатия → mtime.
+
+    Args:
+        file_info: Information about the file to process
+        dry_run: Only compute the source/date without writing
+
+    Returns:
+        Tuple (file_info, status, source, date_str, error):
+        - status: fixed / already_ok / heic / no_source / failed
+        - source: filename / marker / mtime / "" (empty for non-fixed)
+        - date_str: chosen date as "%Y:%m:%d %H:%M:%S" ("" if none)
+        - error: error message ("" if no error)
+    """
+    try:
+        path = file_info.path
+
+        # HEIC — EXIF не пишется на обеих платформах
+        if ExifHandler.is_heic_file(path):
+            return (file_info, "heic", "", "", "")
+
+        # None — легитимный случай «нет EXIF» (PNG без eXIf-чанка, JPEG без EXIF)
+        exif_dict = ExifHandler.read_exif_data(path)
+        if ExifHandler._has_any_date(exif_dict):
+            return (file_info, "already_ok", "", "", "")
+
+        date_ms: Optional[int] = None
+        source = ""
+        include_original = False
+
+        parsed = parse_date_ms(file_info.name)
+        if parsed is not None:
+            date_ms = parsed
+            source = "filename"
+            include_original = True
+        else:
+            # Timestamp маркера сжатия — миллисекунды; заглушки (0) не источник
+            _, _, marker_timestamp = ExifHandler.get_compression_info(path)
+            if marker_timestamp > 0:
+                date_ms = marker_timestamp
+                source = "marker"
+            elif file_info.mtime > 0:
+                date_ms = int(file_info.mtime * 1000)
+                source = "mtime"
+
+        if date_ms is None:
+            return (file_info, "no_source", "", "", "")
+
+        date_str = datetime.fromtimestamp(date_ms / 1000).strftime("%Y:%m:%d %H:%M:%S")
+
+        if not dry_run:
+            ok = ExifHandler.write_missing_dates(path, date_ms, include_original)
+            if not ok:
+                return (file_info, "failed", source, date_str, "write failed")
+
+        return (file_info, "fixed", source, date_str, "")
+
+    except KeyboardInterrupt:
+        # Worker interrupted - return gracefully
+        return (file_info, "failed", "", "", "Interrupted")
+    except Exception as e:
+        error_msg = f"Worker error: {type(e).__name__}: {str(e)}"
+        return (file_info, "failed", "", "", error_msg)
 
 
 class ProcessSafeStats:
