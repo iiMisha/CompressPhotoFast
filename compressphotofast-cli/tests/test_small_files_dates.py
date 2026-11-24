@@ -27,6 +27,13 @@ def _set_mtime(path, epoch_seconds):
     return epoch_seconds
 
 
+def _mkstemp_closed(suffix):
+    """mkstemp с закрытым fd: открытый дескриптор блокирует файл на Windows."""
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    return path
+
+
 def _expected_date_str(epoch_seconds):
     from datetime import datetime
     return datetime.fromtimestamp(epoch_seconds).strftime("%Y:%m:%d %H:%M:%S")
@@ -65,7 +72,7 @@ def _make_small_png(path):
 
 
 def test_backfill_jpeg_без_дат():
-    path = _make_small_jpeg(tempfile.mkstemp(suffix=".jpg")[1])
+    path = _make_small_jpeg(_mkstemp_closed(".jpg"))
     try:
         mtime = _set_mtime(path, 1700000777)
         assert ExifHandler.backfill_missing_dates(path) is True
@@ -80,7 +87,7 @@ def test_backfill_jpeg_без_дат():
 
 
 def test_backfill_png_без_дат():
-    path = _make_small_png(tempfile.mkstemp(suffix=".png")[1])
+    path = _make_small_png(_mkstemp_closed(".png"))
     try:
         mtime = _set_mtime(path, 1600000333)
         assert ExifHandler.backfill_missing_dates(path) is True
@@ -93,7 +100,7 @@ def test_backfill_png_без_дат():
 
 
 def test_backfill_с_датами_noop_байты_не_меняются():
-    path = _make_small_jpeg(tempfile.mkstemp(suffix=".jpg")[1])
+    path = _make_small_jpeg(_mkstemp_closed(".jpg"))
     try:
         exif_dict = {"0th": {}, "Exif": {}}
         exif_dict["0th"][piexif.ImageIFD.DateTime] = b"2019:02:03 04:05:06"
@@ -114,17 +121,19 @@ def test_backfill_с_датами_noop_байты_не_меняются():
 
 
 def test_backfill_heic_не_поддерживается():
-    fd, path = tempfile.mkstemp(suffix=".heic")
-    os.close(fd)
+    # JPEG-байты с расширением .heic: отказ по расширению (pillow-heif может
+    # отсутствовать в окружении, контент для проверки не важен)
+    path = _make_small_jpeg(_mkstemp_closed(".jpg"))
+    heic_path = path + ".heic"
+    os.replace(path, heic_path)
     try:
-        Image.new("RGB", (24, 24)).save(path, quality=85)
-        assert ExifHandler.backfill_missing_dates(path) is False
+        assert ExifHandler.backfill_missing_dates(heic_path) is False
     finally:
-        os.remove(path)
+        os.remove(heic_path)
 
 
 def test_process_single_file_already_small_jpeg_пишет_даты():
-    path = _make_small_jpeg(tempfile.mkstemp(suffix=".jpg")[1])
+    path = _make_small_jpeg(_mkstemp_closed(".jpg"))
     try:
         mtime = _set_mtime(path, 1550000444)
         info = FileInfo(path, os.path.basename(path), os.path.getsize(path), mtime)
@@ -146,7 +155,7 @@ def test_process_single_file_already_small_jpeg_пишет_даты():
 
 
 def test_process_single_file_already_small_png_пишет_даты():
-    path = _make_small_png(tempfile.mkstemp(suffix=".png")[1])
+    path = _make_small_png(_mkstemp_closed(".png"))
     try:
         mtime = _set_mtime(path, 1500000111)
         info = FileInfo(path, os.path.basename(path), os.path.getsize(path), mtime)
@@ -167,7 +176,7 @@ def test_process_single_file_already_small_png_пишет_даты():
 
 
 def test_dry_run_ничего_не_пишет():
-    path = _make_small_jpeg(tempfile.mkstemp(suffix=".jpg")[1])
+    path = _make_small_jpeg(_mkstemp_closed(".jpg"))
     try:
         mtime = _set_mtime(path, 1450000555)
         before = open(path, "rb").read()

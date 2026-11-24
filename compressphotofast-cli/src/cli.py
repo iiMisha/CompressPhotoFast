@@ -628,12 +628,12 @@ def _run_date_fix(files: List[FileInfo], dry_run: bool) -> None:
                     counts[status] = counts.get(status, 0) + 1
 
                     if dry_run and status == "fixed":
-                        plans.append((file_info.name, source, date_str))
+                        plans.append((str(file_info.path), source, date_str))
                     elif error_msg:
-                        console.print(f"  [red]X[/red] {file_info.name}: {error_msg}")
+                        console.print(f"  [red]X[/red] {file_info.path}: {error_msg}")
                     elif status == "fixed":
                         console.print(
-                            f"  [green]+[/green] {file_info.name}: "
+                            f"  [green]+[/green] {file_info.path}: "
                             f"{source} → {date_str}"
                         )
 
@@ -658,7 +658,7 @@ def _run_date_fix(files: List[FileInfo], dry_run: bool) -> None:
 
     if dry_run and plans:
         plans_table = Table(title="Date Fix Plan (dry run)")
-        plans_table.add_column("Filename", style="cyan")
+        plans_table.add_column("File", style="cyan", overflow="fold")
         plans_table.add_column("Source", style="magenta")
         plans_table.add_column("Date", style="yellow")
         for name, source, date_str in plans:

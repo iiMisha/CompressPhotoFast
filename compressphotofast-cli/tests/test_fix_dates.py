@@ -162,9 +162,13 @@ def test_уже_есть_дата_noop():
 
 
 def test_heic_пропускается():
-    tmpdir, path = _make_jpeg_without_dates("photo.heic")
+    # JPEG-байты с расширением .heic: пропуск по расширению (контент не важен,
+    # pillow-heif в окружении может отсутствовать)
+    tmpdir, path = _make_jpeg_without_dates("photo.jpg")
+    heic_path = os.path.join(tmpdir, "photo.heic")
+    os.replace(path, heic_path)
     try:
-        fi = _file_info(path)
+        fi = _file_info(heic_path)
         fi, status, source, date_str, error = process_single_file_date_fix(fi, False)
         assert status == "heic"
     finally:
@@ -234,6 +238,68 @@ def test_write_missing_dates_напрямую():
         assert ExifHandler.write_missing_dates(path, date_ms, True) is True
         # HEIC — False
         assert ExifHandler.write_missing_dates(path + ".heic", date_ms, False) is False
+    finally:
+        _cleanup(tmpdir)
+
+
+def test_расширение_siemens_имя_даёт_три_тега():
+    tmpdir, path = _make_jpeg_without_dates("070414_152426.jpg")
+    try:
+        _set_mtime(path, 1700000000)  # «неподходящий» mtime — имя приоритетнее
+        fi = _file_info(path)
+
+        fi, status, source, date_str, error = process_single_file_date_fix(fi, False)
+
+        assert status == "fixed", (status, error)
+        assert source == "filename"
+        expected = datetime(2007, 4, 14, 15, 24, 26).strftime("%Y:%m:%d %H:%M:%S")
+        assert date_str == expected
+        exif_dict = piexif.load(path)
+        assert exif_dict["0th"][piexif.ImageIFD.DateTime].decode() == expected
+        assert exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal].decode() == expected
+    finally:
+        _cleanup(tmpdir)
+
+
+def test_расширение_папка_приоритетнее_mtime_два_тега():
+    tmpdir = tempfile.mkdtemp()
+    dated = os.path.join(tmpdir, "2009_06_28")
+    os.makedirs(dated)
+    path = os.path.join(dated, "photo.jpg")
+    Image.new("RGB", (64, 64), color=(120, 120, 120)).save(path, quality=90)
+    try:
+        mtime = _set_mtime(path, 1700000000)
+        fi = _file_info(path)
+
+        fi, status, source, date_str, error = process_single_file_date_fix(fi, False)
+
+        assert status == "fixed", (status, error)
+        assert source == "folder"
+        assert date_str == "2009:06:28 00:00:00"
+        exif_dict = piexif.load(path)
+        assert exif_dict["0th"][piexif.ImageIFD.DateTime].decode() == "2009:06:28 00:00:00"
+        assert exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized].decode() == "2009:06:28 00:00:00"
+        # папка — точность «дата», DateTimeOriginal не выдумывается
+        assert piexif.ExifIFD.DateTimeOriginal not in exif_dict["Exif"]
+        assert os.path.getmtime(path) == mtime
+    finally:
+        _cleanup(tmpdir)
+
+
+def test_расширение_имя_приоритетнее_папки():
+    tmpdir = tempfile.mkdtemp()
+    dated = os.path.join(tmpdir, "2010")
+    os.makedirs(dated)
+    path = os.path.join(dated, "P70429-132038.jpg")
+    Image.new("RGB", (64, 64), color=(120, 120, 120)).save(path, quality=90)
+    try:
+        fi = _file_info(path)
+
+        fi, status, source, date_str, error = process_single_file_date_fix(fi, False)
+
+        assert status == "fixed", (status, error)
+        assert source == "filename"
+        assert date_str == datetime(2007, 4, 29, 13, 20, 38).strftime("%Y:%m:%d %H:%M:%S")
     finally:
         _cleanup(tmpdir)
 

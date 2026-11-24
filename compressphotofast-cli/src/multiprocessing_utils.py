@@ -11,6 +11,7 @@ from datetime import datetime
 
 from .compression import ImageCompressor, CompressionResult
 from .date_parser import parse_date_ms
+from .date_sources_cli import folder_date_ms, parse_date_cli_extra_ms
 from .exif_handler import ExifHandler
 from .file_utils import FileInfo, is_already_small
 
@@ -108,6 +109,9 @@ def process_single_file_date_fix(
     Worker функции fix-dates: восстановление EXIF-дат одного файла.
     Паритет ExifDateFixUseCase в Android: критерий «есть дата» — любой из
     четырёх тегов; источники по приоритету имя файла → маркер сжатия → mtime.
+    CLI-расширение поверх Android-контракта (date_sources_cli.py): имя файла
+    дополнительно распознаёт старотелефонные форматы (Siemens/Meizu/Lenovo),
+    между маркером и mtime добавлен источник «дата из имени папки» (folder).
 
     Args:
         file_info: Information about the file to process
@@ -116,7 +120,7 @@ def process_single_file_date_fix(
     Returns:
         Tuple (file_info, status, source, date_str, error):
         - status: fixed / already_ok / heic / no_source / failed
-        - source: filename / marker / mtime / "" (empty for non-fixed)
+        - source: filename / marker / folder / mtime / "" (empty for non-fixed)
         - date_str: chosen date as "%Y:%m:%d %H:%M:%S" ("" if none)
         - error: error message ("" if no error)
     """
@@ -137,6 +141,9 @@ def process_single_file_date_fix(
         include_original = False
 
         parsed = parse_date_ms(file_info.name)
+        if parsed is None:
+            # CLI-расширение: старотелефонные форматы имён (Siemens/Meizu/Lenovo)
+            parsed = parse_date_cli_extra_ms(file_info.name)
         if parsed is not None:
             date_ms = parsed
             source = "filename"
@@ -147,9 +154,15 @@ def process_single_file_date_fix(
             if marker_timestamp > 0:
                 date_ms = marker_timestamp
                 source = "marker"
-            elif file_info.mtime > 0:
-                date_ms = int(file_info.mtime * 1000)
-                source = "mtime"
+            else:
+                # CLI-расширение: дата из имени папки (YYYY / YYYY_MM / YYYY_MM_DD…)
+                folder_ms = folder_date_ms(path)
+                if folder_ms is not None:
+                    date_ms = folder_ms
+                    source = "folder"
+                elif file_info.mtime > 0:
+                    date_ms = int(file_info.mtime * 1000)
+                    source = "mtime"
 
         if date_ms is None:
             return (file_info, "no_source", "", "", "")
